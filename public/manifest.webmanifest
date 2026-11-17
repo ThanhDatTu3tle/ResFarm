@@ -1,0 +1,9 @@
+{
+  "name": "Quán Nhà Vườn",
+  "short_name": "Quán Nhà Vườn",
+  "start_url": ".",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#f7eedd",
+  "theme_color": "#e2703a"
+}
