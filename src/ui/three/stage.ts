@@ -4,7 +4,14 @@ import type { Game } from '../../sim/game';
 import { G, mesh, seeded, toon, type V3 } from './toon';
 
 /** Thứ người chơi có thể bấm vào trong cảnh 3D. Gắn vào object bằng `obj.userData.pick = {...}`. */
-export type Pick = { type: 'slot'; id: string } | { type: 'stall'; id: string } | { type: 'table'; id: string };
+export type Pick =
+  | { type: 'slot'; id: string }
+  | { type: 'stall'; id: string }
+  | { type: 'table'; id: string }
+  /** Một nhóm khách (bấm vào người hoặc bong bóng chat); id = String(party.id). */
+  | { type: 'party'; id: string }
+  /** Quầy ra món. */
+  | { type: 'pass'; id: string };
 
 /** Môi trường chung cho mọi khu, tính lại mỗi khung hình từ state (giờ + thời tiết). Mọi giá trị 0..1 trừ `t`. */
 export interface Env {
@@ -19,6 +26,8 @@ export interface Env {
   selectedSlot: string | null;
   /** Đang ở chế độ sắp xếp bàn ghế. */
   editLayout: boolean;
+  /** Món (id đơn) người chơi vừa chọn ở quầy ra món, đang chờ chọn bàn để giao. */
+  serving: number | null;
 }
 
 /**
@@ -29,8 +38,6 @@ export interface Area {
   id: string;
   label: string;
   icon: string;
-  /** Gợi ý thao tác hiện dưới tên khu. */
-  hint: string;
   root: THREE.Group;
   /** Góc nhìn mặc định; `orbit` là góc xoay ngang tối đa sang mỗi bên (radian). */
   view: { position: V3; target: V3; orbit: number };
@@ -61,7 +68,7 @@ export class Stage {
   dragFilter: (pick: Pick) => boolean = () => false;
   /** Gọi liên tục khi đang kéo, với toạ độ mặt đất (x, z) dưới con trỏ; end = true ở lần cuối khi thả. */
   onDrag: (pick: Pick, x: number, z: number, end: boolean) => void = () => {};
-  readonly env: Env = { t: 0, day: 1, night: 0, rain: 0, clouds: 0, wind: 0, dim: 0, selectedSlot: null, editLayout: false };
+  readonly env: Env = { t: 0, day: 1, night: 0, rain: 0, clouds: 0, wind: 0, dim: 0, selectedSlot: null, editLayout: false, serving: null };
 
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -217,6 +224,13 @@ export class Stage {
     c.update();
   }
 
+  /** Toạ độ màn hình (px, theo viewport) của một điểm trong thế giới 3D — để hiệu ứng DOM bay ra từ vật thể. */
+  toScreen(world: THREE.Vector3): { x: number; y: number } {
+    const ndc = world.clone().project(this.camera);
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    return { x: rect.left + ((ndc.x + 1) / 2) * rect.width, y: rect.top + ((1 - ndc.y) / 2) * rect.height };
+  }
+
   /** Vẽ một khung hình. Mọi khu đều được update để khi chuyển sang là thấy đúng trạng thái. */
   render(dt: number, speed: number): void {
     this.resize();
@@ -317,7 +331,9 @@ export class Stage {
 
   private pickAt(clientX: number, clientY: number): Pick | null {
     this.aim(clientX, clientY);
-    for (const hit of this.raycaster.intersectObject(this.current.root, true)) {
+    hits: for (const hit of this.raycaster.intersectObject(this.current.root, true)) {
+      // Raycaster không tự bỏ qua vật đang ẩn (bong bóng đã tắt...) nên tự kiểm tra
+      for (let o: THREE.Object3D | null = hit.object; o; o = o.parent) if (!o.visible) continue hits;
       for (let o: THREE.Object3D | null = hit.object; o; o = o.parent) {
         if (o.userData.pick) return o.userData.pick as Pick;
       }

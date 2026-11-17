@@ -3,8 +3,7 @@ import type { System } from '../types';
 
 /**
  * Bếp: mỗi đầu bếp nấu 1 đơn một lúc, lấy đơn cũ nhất còn chờ.
- * Nấu xong là coi như đã ra bàn ('served') — chưa có khâu phục vụ; muốn thêm bồi bàn
- * thì chèn trạng thái 'ready' giữa 'cooking' và 'served' và viết system riêng.
+ * Nấu xong thì đặt món ra quầy ra món ('ready'); bồi bàn (người chơi) bưng lên bàn — xem service.ts.
  */
 export const kitchenSystem: System = {
   id: 'kitchen',
@@ -27,11 +26,11 @@ export const kitchenSystem: System = {
       }
       order.progress += dt * content.staff.get(s.id).speed * speedMul;
       if (order.progress >= content.recipes.get(order.recipeId).cookTime) {
-        order.status = 'served';
+        order.status = 'ready';
         s.orderId = null;
         state.stats.today.dishes++;
         state.stats.total.dishes++;
-        ctx.bus.emit('order/served', { orderId: order.id, recipeId: order.recipeId });
+        ctx.bus.emit('order/ready', { orderId: order.id, recipeId: order.recipeId });
       }
     }
   },

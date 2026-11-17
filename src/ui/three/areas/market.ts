@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { StallDef } from '../../../data';
 import type { Game } from '../../../sim/game';
-import { LOOKS, makeCrate, makeLampPost, makePerson, makeTree } from '../models';
+import { animatePerson, LOOKS, makeCrate, makeLampPost, makePerson, makeTree } from '../models';
 import { collectSway, sway, type Area, type Env, type Pick } from '../stage';
 import { emojiSprite, G, group, mesh, seeded, toon, type V3 } from '../toon';
 
@@ -18,7 +18,6 @@ export class MarketArea implements Area {
   id = 'market';
   label = 'Chợ';
   icon = '🧺';
-  hint = 'Bấm vào một sạp để mua nguyên liệu';
   root = new THREE.Group();
   view = { position: [0, 8.6, 17.5] as V3, target: [0, 1.7, -1.4] as V3, orbit: 0.75 };
   rainBox = { min: [-20, 0, -12] as V3, max: [20, 14, 12] as V3 };
@@ -29,6 +28,7 @@ export class MarketArea implements Area {
   private houseWindowMat = toon(0xfff1c2, { emissive: 0xffc861, emissiveIntensity: 0 });
   private bobbers: { obj: THREE.Object3D; y: number; phase: number; amp: number }[] = [];
   private walkers: { g: THREE.Group; range: number; speed: number; phase: number }[] = [];
+  private vendors: THREE.Group[] = [];
   private flags: THREE.Object3D[] = [];
 
   constructor(game: Game) {
@@ -146,7 +146,7 @@ export class MarketArea implements Area {
     vendor.position.set(0, 0, -1.3);
     vendor.scale.setScalar(1.25);
     g.add(vendor);
-    this.bobbers.push({ obj: vendor, y: 0, phase: index * 1.7, amp: 0.05 });
+    this.vendors.push(vendor);
   }
 
   update(env: Env): void {
@@ -156,7 +156,10 @@ export class MarketArea implements Area {
       w.g.position.x = Math.sin(a) * w.range;
       w.g.position.y = Math.abs(Math.sin(env.t * 9 + w.phase)) * 0.06;
       w.g.rotation.y = Math.cos(a) > 0 ? Math.PI / 2 : -Math.PI / 2;
+      animatePerson(w.g, env.t, { walk: 1 });
     }
+    // Người bán: thở, chớp mắt, thỉnh thoảng vẫy tay mời khách
+    this.vendors.forEach((v, i) => animatePerson(v, env.t, { wave: Math.max(0, Math.min(1, (Math.sin(env.t * 0.45 + i * 2.1) - 0.85) * 8)) }));
     for (const f of this.flags) f.rotation.z = Math.sin(env.t * (2 + env.wind * 5) + f.userData.phase) * (0.1 + env.wind * 0.5);
     sway(this.swayNodes, env);
 

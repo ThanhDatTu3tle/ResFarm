@@ -5,6 +5,7 @@ import { clockSystem } from './systems/clock';
 import { customerSystem } from './systems/customers';
 import { decorSystem } from './systems/decor';
 import { farmSystem } from './systems/farm';
+import { serviceSystem } from './systems/service';
 import { kitchenSystem } from './systems/kitchen';
 import { marketSystem } from './systems/market';
 import { progressionSystem } from './systems/progression';
@@ -12,7 +13,7 @@ import { weatherSystem } from './systems/weather';
 import { fail, ok, type Command, type CommandHandlers, type CommandResult, type SimContext, type SimEvents, type System } from './types';
 
 /** Thứ tự ở đây là thứ tự update mỗi bước. System mới thêm vào mảng này. */
-export const defaultSystems: System[] = [clockSystem, weatherSystem, customerSystem, kitchenSystem, farmSystem, marketSystem, progressionSystem, decorSystem];
+export const defaultSystems: System[] = [clockSystem, weatherSystem, customerSystem, kitchenSystem, serviceSystem, farmSystem, marketSystem, progressionSystem, decorSystem];
 
 /** Bước mô phỏng tối đa (phút game) — giữ kết quả ổn định khi tua nhanh. */
 const MAX_STEP = 1;

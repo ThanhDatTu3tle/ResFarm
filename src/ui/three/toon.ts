@@ -34,7 +34,7 @@ export const G = {
   cyl: (rt = 1, rb = 1, h = 1, seg = 14) => cached(`c${rt},${rb},${h},${seg}`, () => new THREE.CylinderGeometry(rt, rb, h, seg)),
   cone: (r = 1, h = 1, seg = 10) => cached(`k${r},${h},${seg}`, () => new THREE.ConeGeometry(r, h, seg)),
   ico: (r = 1, d = 0) => cached(`i${r},${d}`, () => new THREE.IcosahedronGeometry(r, d)),
-  torus: (r = 1, t = 0.1, a = 8, b = 20) => cached(`t${r},${t},${a},${b}`, () => new THREE.TorusGeometry(r, t, a, b)),
+  torus: (r = 1, t = 0.1, a = 8, b = 20, arc = Math.PI * 2) => cached(`t${r},${t},${a},${b},${arc}`, () => new THREE.TorusGeometry(r, t, a, b, arc)),
   capsule: (r = 1, l = 1) => cached(`cap${r},${l}`, () => new THREE.CapsuleGeometry(r, l, 4, 10)),
   /** Lăng trụ tam giác 1x1x1 (mái nhà): đáy rộng 1 theo x, cao 1 theo y, nóc chạy dọc z. Chỉnh cỡ bằng scale. */
   prism: () =>
@@ -90,6 +90,7 @@ export function seeded(seed: number): () => number {
 
 // ---------- Sprite (luôn quay về camera) ----------
 
+
 const EMOJI_FONT = '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
 const emojiTextures = new Map<string, THREE.Texture>();
 
@@ -123,10 +124,50 @@ export function emojiSprite(icon: string, size = 0.6): THREE.Sprite {
   return sprite;
 }
 
+const bubbleTextures = new Map<string, THREE.Texture>();
+
+/**
+ * Bong bóng chat (nền trắng bo tròn, đuôi nhọn chỉ xuống) chứa một hoặc nhiều emoji — dùng cho yêu cầu của khách
+ * (📖 cần menu, 😊 chọn xong món, mặt theo tâm trạng, các món đã gọi). Texture có cache theo nội dung.
+ */
+export function bubbleSprite(icons: string[], size = 0.62): THREE.Sprite {
+  const key = icons.join('|');
+  let tex = bubbleTextures.get(key);
+  const n = Math.max(1, icons.length);
+  const w = 64 + 96 * n;
+  if (!tex) {
+    tex = canvasTexture(w, 168, (c) => {
+      const r = 46;
+      c.fillStyle = '#fffaf1';
+      c.strokeStyle = '#8a5a35';
+      c.lineWidth = 8;
+      c.beginPath();
+      c.roundRect(6, 6, w - 12, 124, r);
+      c.moveTo(w / 2 - 18, 128);
+      c.lineTo(w / 2, 160);
+      c.lineTo(w / 2 + 18, 128);
+      c.fill();
+      c.stroke();
+      // che nét viền giữa thân và đuôi bong bóng
+      c.fillRect(w / 2 - 14, 120, 28, 12);
+      c.font = `84px ${EMOJI_FONT}`;
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      icons.forEach((icon, i) => c.fillText(icon, 32 + 48 + i * 96, 74));
+    });
+    bubbleTextures.set(key, tex);
+  }
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sprite.center.set(0.5, 0);
+  sprite.scale.set((size * w) / 168, size, 1);
+  sprite.renderOrder = 5;
+  return sprite;
+}
+
 /** Chữ nổi (vd "+52"). Mỗi lần gọi tạo texture riêng — nhớ dispose khi bỏ. */
 export function textSprite(text: string, color: string, size = 0.7): THREE.Sprite {
   const tex = canvasTexture(256, 96, (c) => {
-    c.font = `bold 64px system-ui, ${EMOJI_FONT}`;
+    c.font = `bold 64px Mali, system-ui, ${EMOJI_FONT}`;
     c.textAlign = 'center';
     c.textBaseline = 'middle';
     c.lineWidth = 10;
