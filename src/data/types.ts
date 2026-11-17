@@ -68,7 +68,14 @@ export interface SlotTypeDef {
   /** Giá ô mua thêm thứ n (n tính từ 0) = basePrice * priceGrowth^n. */
   basePrice: number;
   priceGrowth: number;
+  /** Cấp độ tối thiểu để MUA THÊM ô loại này (ô khởi đầu luôn có). */
   level: number;
+  /** Đất phải được cuốc cho tơi xốp trước mỗi lần gieo. */
+  needsTilling?: boolean;
+  /** Cần tưới (hoặc hứng mưa); đất khô thì cây lớn chậm. */
+  needsWater?: boolean;
+  /** Các bậc nới rộng ô: phần tử i là chi phí/điều kiện để lên bậc i + 2 và hệ số sản lượng ở bậc đó. */
+  tiers?: { cost: number; level: number; yieldMul: number }[];
 }
 
 /** Sạp hàng ngoài chợ. */
@@ -164,6 +171,8 @@ export interface WeatherDef {
   duration: [number, number];
   /** Hệ số nhân lên các chỉ số khi thời tiết này diễn ra. */
   effects?: Partial<Record<ModifierKey, number>>;
+  /** Trời này làm ẩm đất (khỏi tưới). */
+  wetsSoil?: boolean;
   visual: { rain: number; clouds: number; wind: number; dim: number };
 }
 
@@ -192,6 +201,12 @@ export interface Balance {
   tipRate: number;
   xpPerCoin: number;
   reputation: { paid: number; paidBonus: number; timeout: number; noFood: number };
+  farm: {
+    /** Một lần tưới (hoặc một cơn mưa) giữ ẩm đất bao nhiêu phút. */
+    waterDuration: number;
+    /** Hệ số tốc độ lớn khi đất khô. */
+    dryGrowth: number;
+  };
   /** Biên độ giá chợ theo ngày [min, max]. */
   marketSwing: [number, number];
 }

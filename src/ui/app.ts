@@ -2,6 +2,7 @@ import { createContent } from '../data';
 import { Game } from '../sim/game';
 import { xpForLevel } from '../sim/helpers';
 import { deserialize, serialize } from '../sim/save';
+import { needsWatering } from '../sim/systems/farm';
 import type { Command } from '../sim/types';
 import { bar, cmd, esc, morph, ui as uiAttr } from './dom';
 import { clockText, coins } from './format';
@@ -205,8 +206,13 @@ export function startApp(root: HTMLElement): void {
   stage.onPick = (pick: Pick) => {
     if (pick.type === 'slot') {
       const slot = game.state.farm.slots.find((s) => s.id === pick.id);
+      const type = slot && content.slotTypes.get(slot.type);
       if (slot?.producerId && slot.stage === 'ready') {
         run({ type: 'farm/harvest', slotId: slot.id });
+      } else if (slot && !slot.producerId && type?.needsTilling && !slot.tilled) {
+        run({ type: 'farm/till', slotId: slot.id });
+      } else if (slot?.producerId && needsWatering(game.ctx, slot)) {
+        run({ type: 'farm/water', slotId: slot.id });
       } else {
         ui.selectedSlot = pick.id;
         ui.drawer = 'farm';

@@ -1,9 +1,23 @@
 import type { ProducerDef, SlotTypeDef } from './types';
 
 export const slotTypes: SlotTypeDef[] = [
-  { id: 'field', name: 'Ruộng', icon: '🌱', initial: 9, max: 15, basePrice: 80, priceGrowth: 1.45, level: 1 },
+  { id: 'field', name: 'Ruộng', icon: '🌱', initial: 9, max: 15, basePrice: 80, priceGrowth: 1.45, level: 1, needsTilling: true, needsWater: true },
   { id: 'pen', name: 'Chuồng', icon: '🏚️', initial: 2, max: 6, basePrice: 200, priceGrowth: 1.6, level: 1 },
-  { id: 'pond', name: 'Ao', icon: '🌊', initial: 0, max: 4, basePrice: 350, priceGrowth: 1.7, level: 3 },
+  {
+    id: 'pond',
+    name: 'Ao cá',
+    icon: '🌊',
+    initial: 1,
+    max: 3,
+    basePrice: 350,
+    priceGrowth: 1.7,
+    level: 3,
+    // Nới rộng ao: nuôi được nhiều hơn
+    tiers: [
+      { cost: 400, level: 2, yieldMul: 1.6 },
+      { cost: 1000, level: 4, yieldMul: 2.4 },
+    ],
+  },
 ];
 
 /** Thêm cây/con mới: thêm 1 mục ở đây (xem ProducerDef trong types.ts). */
@@ -26,6 +40,6 @@ export const producers: ProducerDef[] = [
   { id: 'cattle', name: 'Bò thịt', icon: '🐂', slot: 'pen', cost: 60, growTime: 1200, yields: [{ item: 'beef', qty: 7 }], cycles: 1, level: 3 },
 
   // Ao
-  { id: 'fish_fry', name: 'Cá giống', icon: '🐟', slot: 'pond', cost: 20, growTime: 600, yields: [{ item: 'fish', qty: 5 }], cycles: 1, level: 3 },
+  { id: 'fish_fry', name: 'Cá giống', icon: '🐟', slot: 'pond', cost: 20, growTime: 600, yields: [{ item: 'fish', qty: 5 }], cycles: 1, level: 1 },
   { id: 'shrimp_fry', name: 'Tôm giống', icon: '🦐', slot: 'pond', cost: 25, growTime: 600, yields: [{ item: 'shrimp', qty: 9 }], cycles: 1, level: 4 },
 ];

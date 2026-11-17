@@ -1,2 +1,4 @@
 node_modules
 dist
+# Tài liệu nội bộ, không đẩy lên GitHub
+notes

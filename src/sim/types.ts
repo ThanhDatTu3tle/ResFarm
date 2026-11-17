@@ -15,6 +15,10 @@ export interface SimContext {
  */
 export type Command =
   | { type: 'market/buy'; stallId: string; itemId: string; qty: number }
+  | { type: 'farm/till'; slotId: string }
+  | { type: 'farm/water'; slotId: string }
+  | { type: 'farm/waterAll' }
+  | { type: 'farm/upgradeSlot'; slotId: string }
   | { type: 'farm/plant'; slotId: string; producerId: string }
   | { type: 'farm/harvest'; slotId: string }
   | { type: 'farm/harvestAll' }

@@ -32,5 +32,6 @@ export const balance: Balance = {
   tipRate: 0.2,
   xpPerCoin: 0.5,
   reputation: { paid: 0.02, paidBonus: 0.06, timeout: -0.1, noFood: -0.1 },
+  farm: { waterDuration: 300, dryGrowth: 0.35 },
   marketSwing: [0.8, 1.25],
 };

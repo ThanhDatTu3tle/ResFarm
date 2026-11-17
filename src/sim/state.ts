@@ -97,6 +97,12 @@ export interface FarmSlot {
   cyclesDone: number;
   /** Thứ vừa trồng/nuôi gần nhất, để trồng lại nhanh. */
   lastProducerId: string | null;
+  /** Đất đã được cuốc tơi xốp (chỉ có ý nghĩa với loại ô needsTilling). */
+  tilled: boolean;
+  /** Số phút đất còn ẩm (chỉ có ý nghĩa với loại ô needsWater). */
+  wet: number;
+  /** Bậc nới rộng của ô, bắt đầu từ 1. */
+  tier: number;
 }
 
 export interface DayStats {
@@ -108,14 +114,14 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export function emptyStats(): DayStats {
   return { revenue: 0, tips: 0, spent: 0, dishes: 0, guestsServed: 0, guestsLost: 0 };
 }
 
 export function createSlot(type: SlotType, index: number): FarmSlot {
-  return { id: `${type}-${index}`, type, producerId: null, stage: 'growing', progress: 0, cyclesDone: 0, lastProducerId: null };
+  return { id: `${type}-${index}`, type, producerId: null, stage: 'growing', progress: 0, cyclesDone: 0, lastProducerId: null, tilled: false, wet: 0, tier: 1 };
 }
 
 export function createInitialState(content: Content, seed: number): GameState {

@@ -1,0 +1,7 @@
+# Netlify phải build bằng Vite rồi phát thư mục dist (không phát thẳng mã nguồn).
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"

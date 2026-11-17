@@ -2,6 +2,8 @@
 
 Game quản lý quán ăn kết hợp nông trại, đồ hoạ 3D phong cách hoạt hình, chạy trên trình duyệt. File này là bản đồ kiến trúc: đọc xong là biết sửa ở đâu.
 
+Tài liệu nội bộ chi tiết hơn (tầm nhìn, kiến trúc sâu, lộ trình đồ hoạ, roadmap, chi phí) nằm ở `notes/` nếu thư mục đó có trên máy — bắt đầu từ `notes/00-DOC-TRUOC.md`. Thư mục này không có trong repo.
+
 ## Chạy dự án
 
 Cần Node 20.19+ hoặc 22+.
@@ -10,6 +12,7 @@ Cần Node 20.19+ hoặc 22+.
 | --- | --- |
 | `npm install` | Cài thư viện |
 | `npm run dev` | Dev server ở `http://localhost:5184` |
+| `npm run dev:lan` | Như trên nhưng mở cho máy khác cùng mạng (thử trên điện thoại) |
 | `npm test` | Test lõi mô phỏng (Vitest, chạy trong Node, không cần trình duyệt) |
 | `npm run typecheck` | Kiểm tra kiểu TypeScript |
 | `npm run build` | Typecheck + build production ra `dist` |
@@ -84,7 +87,7 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 | `weather.ts` | Thời tiết đổi ngẫu nhiên; hiệu ứng gameplay lấy từ `WeatherDef.effects` |
 | `customers.ts` | Khách tới, xếp hàng, xếp bàn, gọi món (trừ nguyên liệu ngay), chờ, ăn, trả tiền/bỏ về |
 | `kitchen.ts` | Đầu bếp nhận đơn và nấu |
-| `farm.ts` | Ô nông trại, trồng/nuôi, thu hoạch, mua ô |
+| `farm.ts` | Ô nông trại: cuốc đất, gieo/nuôi, tưới (mưa tự làm ẩm), lớn, thu hoạch, mua ô, nới rộng ô |
 | `market.ts` | Mua ở sạp chợ, giá dao động theo ngày |
 | `progression.ts` | Mở khoá/bật tắt món, mua nâng cấp (trang thiết bị) |
 | `decor.ts` | Mua/đổi nội thất (sàn, tường, bàn ghế), dời bàn, đặt lại bố cục |
@@ -123,6 +126,8 @@ src/ui/dom.ts              esc(), cmd(), ui(), bar(), morph()
 **Thêm món** — 1 mục trong `src/data/recipes.ts`. Không cần sửa code.
 
 **Thêm cây trồng / vật nuôi** — 1 mục `ProducerDef` trong `src/data/farm.ts`. `cycles: 1` thu một lần; `cycles: 'infinite'` + `regrowTime` thu định kỳ. Muốn có model riêng: thêm vào bảng `CROPS` hoặc `ANIMALS` trong `src/ui/three/models.ts` (không thêm thì hiện emoji).
+
+**Trạng thái ô nông trại** — `FarmSlot` có `tilled` (đã cuốc), `wet` (số phút đất còn ẩm), `tier` (bậc nới rộng). Loại ô nào cần cuốc/tưới/nới rộng được khai trong `SlotTypeDef`: `needsTilling`, `needsWater`, `tiers`. Thời tiết nào làm ẩm đất: `WeatherDef.wetsSoil`. Thời gian giữ ẩm và tốc độ lớn khi đất khô: `balance.farm`. Bấm ô trong cảnh 3D làm luôn việc hợp trạng thái (thu → cuốc → tưới → mở bảng chọn giống), xem `stage.onPick` trong `app.ts`.
 
 **Thêm loại ô nông trại** — thêm vào union `SlotType` (`src/data/types.ts`), `slotTypes` (`farm.ts`), và `SLOT_LAYOUT` + nhánh dựng hình trong `src/ui/three/areas/farm.ts`.
 
@@ -167,6 +172,7 @@ Theo thứ tự đề xuất:
 5. **Nâng hạng quán** (quán → nhà hàng): nới phòng theo cấp (đưa kích thước phòng vào state), bếp to hơn, thêm bàn; xoay bàn 90° khi sắp xếp; mua thêm bàn lẻ ở Siêu thị; đồ trang trí đặt tự do (cây, tranh, đèn).
 6. **Thời tiết sâu hơn** — bão làm hỏng cây, nắng hạn cần tưới, món theo mùa; mùa trong năm.
 7. **Bán nông sản dư, hợp đồng giao hàng, sự kiện ngẫu nhiên** (khách VIP, thanh tra).
+8. **Mở rộng nông trại** — thêm loài cá và bậc ao, cho vật nuôi ăn, hiệu ứng khi tưới/cuốc, công cụ nâng cấp (bình tưới to tưới nhiều ô).
 8. **Tiến trình khi offline** — `tick()` nhận số phút bất kỳ nên chỉ cần lưu mốc thời gian thực và tua bù có giới hạn.
 9. **Âm thanh** (nghe theo `game.bus`), **model/animation chi tiết hơn** (tay chân cử động, khách cầm đũa...).
 10. **Tối ưu draw call** nếu cảnh phình to: gộp mesh tĩnh theo vật liệu (xem `mergeStatic` trong `co-thu-3d/src/scene/helpers.js`).

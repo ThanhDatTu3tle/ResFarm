@@ -48,15 +48,63 @@ describe('chợ', () => {
 });
 
 describe('nông trại', () => {
-  it('trồng -> lớn -> thu hoạch; cây 1 vụ trả lại ô trống', () => {
+  it('cuốc -> gieo -> tưới -> lớn -> thu hoạch; thu xong đất lại phải cuốc', () => {
     const game = newGame();
     const before = game.state.inventory.cabbage;
+    game.state.weather = { id: 'cloudy', minutesLeft: 99999 };
+    expect(game.dispatch({ type: 'farm/plant', slotId: 'field-0', producerId: 'cabbage' }).ok).toBe(false); // chưa cuốc
+    expect(game.dispatch({ type: 'farm/till', slotId: 'field-0' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farm/till', slotId: 'field-0' }).ok).toBe(false);
     expect(game.dispatch({ type: 'farm/plant', slotId: 'field-0', producerId: 'cabbage' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farm/water', slotId: 'field-0' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farm/water', slotId: 'field-0' }).ok).toBe(false); // còn ẩm
     expect(game.dispatch({ type: 'farm/harvest', slotId: 'field-0' }).ok).toBe(false);
     game.tick(content.producers.get('cabbage').growTime + 1);
     expect(game.dispatch({ type: 'farm/harvest', slotId: 'field-0' }).ok).toBe(true);
     expect(game.state.inventory.cabbage).toBeGreaterThanOrEqual(before + 3 - 24); // khách có thể đã ăn bớt
     expect(game.state.farm.slots[0].producerId).toBeNull();
+    expect(game.state.farm.slots[0].tilled).toBe(false);
+  });
+
+  it('đất khô lớn chậm hơn đất được tưới; trời mưa thì khỏi tưới', () => {
+    const progress = (weather: string, water: boolean) => {
+      const g = newGame();
+      g.state.weather = { id: weather, minutesLeft: 99999 };
+      g.dispatch({ type: 'farm/till', slotId: 'field-0' });
+      g.dispatch({ type: 'farm/plant', slotId: 'field-0', producerId: 'tomato' });
+      if (water) g.dispatch({ type: 'farm/water', slotId: 'field-0' });
+      g.tick(100);
+      return g.state.farm.slots[0];
+    };
+    expect(progress('cloudy', true).progress).toBeCloseTo(100);
+    expect(progress('cloudy', false).progress).toBeCloseTo(100 * content.balance.farm.dryGrowth);
+    expect(progress('rain', false).wet).toBeGreaterThan(0);
+    expect(progress('rain', false).progress).toBeGreaterThan(100);
+  });
+
+  it('có sẵn 1 ao cá; nới rộng ao thì thu được nhiều cá hơn', () => {
+    const game = newGame();
+    game.state.menu.active = [];
+    game.state.money = 5000;
+    game.state.level = 5;
+    const fry = content.producers.get('fish_fry');
+    const harvestOnce = () => {
+      const before = game.state.inventory.fish ?? 0;
+      expect(game.dispatch({ type: 'farm/plant', slotId: 'pond-0', producerId: 'fish_fry' }).ok).toBe(true);
+      // Cá lớn lâu hơn phần còn lại của ngày nên phải cho qua ngày mới (sim dừng ở màn tổng kết).
+      for (let i = 0; i < fry.growTime + 1; i++) {
+        game.tick(1);
+        if (game.state.clock.phase === 'summary') game.dispatch({ type: 'day/next' });
+      }
+      expect(game.dispatch({ type: 'farm/harvest', slotId: 'pond-0' }).ok).toBe(true);
+      return (game.state.inventory.fish ?? 0) - before;
+    };
+    expect(harvestOnce()).toBe(5);
+    expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'pond-0' }).ok).toBe(true);
+    expect(harvestOnce()).toBe(8);
+    expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'pond-0' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'pond-0' }).ok).toBe(false);
+    expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'field-0' }).ok).toBe(false);
   });
 
   it('vật nuôi cho sản phẩm nhiều lần', () => {
@@ -177,6 +225,7 @@ describe('thời tiết', () => {
     const grown = (weather: string) => {
       const g = newGame();
       g.state.weather = { id: weather, minutesLeft: 9999 };
+      g.dispatch({ type: 'farm/till', slotId: 'field-0' });
       g.dispatch({ type: 'farm/plant', slotId: 'field-0', producerId: 'cabbage' });
       g.tick(60);
       return g.state.farm.slots[0].progress;
@@ -205,6 +254,8 @@ describe('lưu / tải', () => {
     const state = deserialize(JSON.stringify(old), content)!;
     expect(content.weathers.has(state.weather.id)).toBe(true);
     expect(state.farm.slots.filter((s) => s.type === 'field')).toHaveLength(9);
+    expect(state.farm.slots.filter((s) => s.type === 'pond')).toHaveLength(1);
+    expect(state.farm.slots.find((s) => s.id === 'field-0')).toMatchObject({ tilled: true, wet: 0, tier: 1 });
     expect(state.decor.equipped.floor).toBe('floor_wood');
     expect(state.restaurant.layout).toEqual({});
     new Game(content, { state }).tick(500);

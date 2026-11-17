@@ -458,6 +458,33 @@ button.danger {
   background: #f3e9d4;
 }
 
+.slot {
+  position: relative;
+}
+
+.slot.hard {
+  border-style: dashed;
+  background: #e3cfa6;
+}
+
+.slot.wet {
+  background: #b89a72;
+  border-color: #8a6a45;
+}
+
+.slot .tier {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
+button.water {
+  border-color: #4a9bd8;
+}
+
 .slot.ready {
   border-color: var(--green);
   background: #dcefd6;

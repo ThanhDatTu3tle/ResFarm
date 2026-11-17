@@ -10,6 +10,8 @@ const migrations: Record<number, (old: any) => any> = {
   // v1 -> v2: thêm thời tiết (id rỗng sẽ được reconcile() thay bằng thời tiết mặc định).
   1: (s) => ({ ...s, weather: { id: '', minutesLeft: 0 }, version: 2 }),
   // v2 -> v3: thêm nội thất và bố cục bàn (reconcile() điền món mặc định).
+  // v3 -> v4: ô nông trại có thêm trạng thái đất + bậc nới rộng (ruộng cũ coi như đã cuốc để không làm khó save cũ).
+  3: (s) => ({ ...s, farm: { ...s.farm, slots: s.farm.slots.map((slot: object) => ({ ...slot, tilled: true, wet: 0, tier: 1 })) }, version: 4 }),
   2: (s) => ({ ...s, decor: { owned: [], equipped: {} }, restaurant: { ...s.restaurant, layout: {} }, version: 3 }),
 };
 
