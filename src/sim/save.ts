@@ -24,6 +24,8 @@ const migrations: Record<number, (old: any) => any> = {
     },
     version: 5,
   }),
+  // v5 -> v6: thêm bác nông dân (x âm để reconcile() đặt về chỗ đứng ban đầu).
+  5: (s) => ({ ...s, farm: { ...s.farm, farmer: { x: -999, z: -999, tasks: [], work: null } }, version: 6 }),
 };
 
 export function serialize(state: GameState): string {
@@ -86,6 +88,11 @@ function reconcile(state: GameState, content: Content): GameState {
   for (const type of content.slotTypes.all()) {
     for (let n = state.farm.slots.filter((s) => s.type === type.id).length; n < type.initial; n++) state.farm.slots.push(createSlot(type.id, n));
   }
+  // Bác nông dân: bỏ việc trỏ tới ô / giống không còn
+  const farmer = state.farm.farmer;
+  if (farmer.x < -500) Object.assign(farmer, content.balance.farmer.home, { work: null });
+  farmer.tasks = farmer.tasks.filter((t) => state.farm.slots.some((s) => s.id === t.slotId) && (!t.producerId || content.producers.has(t.producerId)));
+  if (!farmer.tasks.length) farmer.work = null;
   for (const slot of state.farm.slots) {
     if (slot.producerId && !content.producers.has(slot.producerId)) Object.assign(slot, { producerId: null, stage: 'growing', progress: 0, cyclesDone: 0 });
     if (slot.lastProducerId && !content.producers.has(slot.lastProducerId)) slot.lastProducerId = null;

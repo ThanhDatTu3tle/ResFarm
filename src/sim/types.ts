@@ -1,6 +1,6 @@
 import type { EventBus } from '../core/events';
 import type { Content, SlotType } from '../data';
-import type { DayStats, GameState } from './state';
+import type { DayStats, GameState, FarmerTaskKind } from './state';
 
 /** Ngữ cảnh truyền cho mọi system / handler. */
 export interface SimContext {
@@ -19,6 +19,9 @@ export type Command =
   | { type: 'farm/water'; slotId: string }
   | { type: 'farm/waterAll' }
   | { type: 'farm/upgradeSlot'; slotId: string }
+  | { type: 'farmer/do'; slotId: string; kind: FarmerTaskKind; producerId?: string }
+  | { type: 'farmer/doAll'; kind: 'harvest' | 'water' }
+  | { type: 'farmer/cancel' }
   | { type: 'farm/plant'; slotId: string; producerId: string }
   | { type: 'farm/harvest'; slotId: string }
   | { type: 'farm/harvestAll' }
@@ -64,6 +67,7 @@ export interface SimEvents {
   /** Bồi bàn vừa làm xong một việc. */
   'waiter/done': { kind: 'menu' | 'takeOrder' | 'pickup' | 'deliver'; partyId: number | null };
   'farm/ready': { slotId: string };
+  'farmer/done': { kind: FarmerTaskKind; slotId: string; ok: boolean; reason?: string };
   'level/up': { level: number };
   'weather/changed': { id: string };
   'day/ended': { day: number; stats: DayStats };

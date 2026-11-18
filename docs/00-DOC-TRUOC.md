@@ -24,7 +24,7 @@ Viết 17/11/2026, cập nhật 18/11/2026 sau phiên làm Giai đoạn 1 (xem `
 
 - **Repo:** https://github.com/ThanhDatTu3tle/ResFarm (công khai). Nhánh `main` = bản đang chạy online (Netlify tự deploy khi `main` đổi). Giai đoạn 1 nằm ở nhánh `giai-doan-1`, gộp vào `main` qua Pull Request.
 - **Kiểm tra tự động:** `npm run typecheck` sạch, `npm test` 25 test qua, `npm run build` qua.
-- **Phiên bản save:** `SAVE_VERSION = 5` (thêm bồi bàn). Migration v1→v5 trong `src/sim/save.ts`.
+- **Phiên bản save:** `SAVE_VERSION = 6` (thêm bác nông dân). Migration v1→v6 trong `src/sim/save.ts`.
 - **Chưa kiểm chứng trên thiết bị thật:** âm thanh (chỉ kiểm được code chạy không lỗi), thao tác chạm trên điện thoại, tốc độ khung hình trên máy yếu.
 
 ## Game hiện có gì

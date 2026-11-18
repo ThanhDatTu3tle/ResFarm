@@ -110,6 +110,12 @@ export interface Pose {
   wave?: number;
   /** Hai tay bưng đồ trước ngực (bồi bàn). */
   carry?: boolean;
+  /** Vung cuốc: hai tay giơ lên rồi bổ xuống, người gập theo nhịp (0..1). */
+  dig?: number;
+  /** Tưới: tay phải đưa ra trước, nghiêng bình qua lại (0..1). */
+  pour?: number;
+  /** Cúi xuống đất: gieo hạt / nhổ thu hoạch / cho con vật ăn (0..1). */
+  reach?: number;
 }
 
 /** Cử động người theo thời gian t (giây thực): thở, chớp mắt, nhìn quanh + tư thế. */
@@ -120,6 +126,10 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   const walk = pose.walk ?? 0;
   const cook = pose.cook ?? 0;
   const wave = pose.wave ?? 0;
+  const dig = pose.dig ?? 0;
+  const pour = pose.pour ?? 0;
+  const reach = pose.reach ?? 0;
+  const chop = Math.sin(t * 9); // nhịp bổ cuốc
 
   // Thở + chớp mắt (mỗi ~3.7 giây, vài người thỉnh thoảng chớp đôi)
   rig.body.scale.set(1, 1 + Math.sin(k * 2.3) * 0.025, 1);
@@ -128,8 +138,9 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   for (const eye of rig.eyes) eye.scale.y = blink ? 0.12 : 1;
 
   // Đầu: nhìn quanh chậm rãi; khi nấu thì cúi xuống chảo
-  rig.head.rotation.y = Math.sin(k * 0.45) * 0.35 * (1 - walk) * (1 - cook);
-  rig.head.rotation.x = cook * 0.3 + Math.sin(k * 0.7) * 0.04;
+  const busy = Math.max(cook, dig, pour, reach);
+  rig.head.rotation.y = Math.sin(k * 0.45) * 0.35 * (1 - walk) * (1 - busy);
+  rig.head.rotation.x = Math.max(cook * 0.3, dig * 0.25, pour * 0.35, reach * 0.45) + Math.sin(k * 0.7) * 0.04;
   rig.head.rotation.z = Math.sin(k * 0.33) * 0.06;
 
   // Chân: đi thì bước luân phiên, ngồi thì duỗi ra trước
@@ -152,6 +163,21 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
     left = -1.25 + Math.sin(t * 11) * 0.04 * walk;
     right = -1.25 - Math.sin(t * 11) * 0.04 * walk;
   }
+  if (dig > 0) {
+    // Hai tay cùng cầm cán cuốc: giơ cao rồi bổ xuống trước mặt
+    const swing = -1.5 - chop * 1.1;
+    left = left * (1 - dig) + swing * dig;
+    right = right * (1 - dig) + swing * dig;
+  }
+  if (pour > 0) {
+    left = left * (1 - pour) - 0.3 * pour;
+    right = right * (1 - pour) + (-1.35 + Math.sin(t * 5) * 0.15) * pour;
+  }
+  if (reach > 0) {
+    // Cúi gập, hai tay với xuống đất, nhặt lên đặt xuống luân phiên
+    left = left * (1 - reach) + (-0.9 + Math.sin(t * 7) * 0.35) * reach;
+    right = right * (1 - reach) + (-0.9 - Math.sin(t * 7) * 0.35) * reach;
+  }
   if (wave > 0) {
     right = right * (1 - wave) - 2.6 * wave;
     rightZ = -0.18 + (-0.5 + Math.sin(t * 12) * 0.35) * wave;
@@ -159,7 +185,8 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   rig.armL.rotation.x = left;
   rig.armR.rotation.x = right;
   rig.armR.rotation.z = rightZ;
-  rig.body.rotation.x = walk * 0.08 + cook * 0.12; // nghiêng người tới trước
+  // Nghiêng người tới trước: đi, nấu, bổ cuốc theo nhịp, cúi xuống đất
+  rig.body.rotation.x = walk * 0.08 + cook * 0.12 + dig * (0.18 + Math.max(0, -chop) * 0.22) + pour * 0.1 + reach * 0.55;
 }
 
 /** Chớp mắt / vẫy đuôi cho con vật: model nào gắn `userData.eyes` / `userData.tail` thì được cử động. */

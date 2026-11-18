@@ -94,6 +94,7 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 | `service.ts` | Người chơi là bồi bàn: lệnh `service/menu`, `service/takeOrder`, `service/deliver`; bồi bàn đi thật trong sim (`state.restaurant.waiter`) và làm việc theo hàng. `autoServeCommands` = người chơi mẫu cho test/cân bằng |
 | `kitchen.ts` | Đầu bếp nhận đơn và nấu; xong thì đặt ra quầy ra món (`ready`) |
 | `farm.ts` | Ô nông trại: cuốc đất, gieo/nuôi, tưới (mưa tự làm ẩm), lớn, thu hoạch, mua ô, nới rộng ô |
+| `farmer.ts` | Bác nông dân: lệnh `farmer/do`, `farmer/doAll`, `farmer/cancel`; bác chạy thật trong sim (`state.farm.farmer`, toạ độ mét) theo lối đi, tới nơi mới áp dụng lệnh `farm/*` tương ứng. Hàng việc được chạy thử trên bản sao state lúc bấm để báo lỗi ngay |
 | `market.ts` | Mua ở sạp chợ, giá dao động theo ngày |
 | `progression.ts` | Mở khoá/bật tắt món, mua nâng cấp (trang thiết bị) |
 | `decor.ts` | Mua/đổi nội thất (sàn, tường, bàn ghế), dời bàn, đặt lại bố cục |
@@ -141,7 +142,9 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 
 **Thêm cây trồng / vật nuôi** — 1 mục `ProducerDef` trong `src/data/farm.ts`. `cycles: 1` thu một lần; `cycles: 'infinite'` + `regrowTime` thu định kỳ. Muốn có model riêng: thêm vào bảng `CROPS` hoặc `ANIMALS` trong `src/ui/three/models.ts` (không thêm thì hiện emoji).
 
-**Trạng thái ô nông trại** — `FarmSlot` có `tilled` (đã cuốc), `wet` (số phút đất còn ẩm), `tier` (bậc nới rộng). Loại ô nào cần cuốc/tưới/nới rộng được khai trong `SlotTypeDef`: `needsTilling`, `needsWater`, `tiers`. Thời tiết nào làm ẩm đất: `WeatherDef.wetsSoil`. Thời gian giữ ẩm và tốc độ lớn khi đất khô: `balance.farm`. Bấm ô trong cảnh 3D làm luôn việc hợp trạng thái (thu → cuốc → tưới → mở bảng chọn giống), xem `stage.onPick` trong `app.ts`.
+**Trạng thái ô nông trại** — `FarmSlot` có `tilled` (đã cuốc), `wet` (số phút đất còn ẩm), `tier` (bậc nới rộng). Loại ô nào cần cuốc/tưới/nới rộng được khai trong `SlotTypeDef`: `needsTilling`, `needsWater`, `tiers`. Thời tiết nào làm ẩm đất: `WeatherDef.wetsSoil`. Thời gian giữ ẩm và tốc độ lớn khi đất khô: `balance.farm`. Bấm ô trong cảnh 3D là giao việc hợp trạng thái cho bác nông dân (thu → cuốc → tưới; không có gì để làm thì bác chạy tới xem và mở bảng chọn giống), xem `stage.onPick` trong `app.ts`.
+
+**Bác nông dân** (`src/sim/systems/farmer.ts`) — UI và bảng Nông trại **không gửi thẳng `farm/till|water|plant|harvest|clear`** nữa mà gửi `farmer/do { slotId, kind, producerId? }` (hoặc `farmer/doAll { kind: 'harvest'|'water' }`). Bác chạy tới chỗ đứng của ô (`workSpot`), làm `balance.farmer.workTime` phút rồi mới gọi handler `farm/*`; việc thất bại lúc tới nơi phát sự kiện `farmer/done { ok: false, reason }`. Lúc bấm, `preview()` chạy thử cả hàng việc trên bản sao state nên lỗi (thiếu tiền, đất chưa cuốc) báo ngay, và "cuốc rồi gieo liền" một ô vẫn hợp lệ. Bác đi theo lối: ngang theo khe giữa các hàng ô, dọc chỉ trên `balance.farmer.lanes` (`nextWaypoint`). Vị trí ô trên bản đồ lấy từ `SlotTypeDef.layout` (dùng chung cho sim và cảnh 3D). Lệnh `farm/*` cũ vẫn còn cho test và `?do=`.
 
 **Thêm loại ô nông trại** — thêm vào union `SlotType` (`src/data/types.ts`), `slotTypes` (`farm.ts`), và `SLOT_LAYOUT` + nhánh dựng hình trong `src/ui/three/areas/farm.ts`.
 
@@ -161,7 +164,7 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 
 **Thêm lệnh** — thêm vào union `Command`, viết handler trong `commands` của system liên quan, thêm test.
 
-**Thêm tính năng lớn (system mới)** — thêm trường vào `GameState` + giá trị khởi tạo trong `createInitialState`, tăng `SAVE_VERSION` và viết migration trong `save.ts` (xem các migration v1→v2, v2→v3 làm mẫu), tạo `src/sim/systems/<tên>.ts`, đăng ký vào `defaultSystems`, thêm panel/hình ảnh nếu cần, thêm test.
+**Thêm tính năng lớn (system mới)** — thêm trường vào `GameState` + giá trị khởi tạo trong `createInitialState`, tăng `SAVE_VERSION` và viết migration trong `save.ts` (xem các migration trong đó làm mẫu, mới nhất v5→v6 thêm bác nông dân), tạo `src/sim/systems/<tên>.ts`, đăng ký vào `defaultSystems`, thêm panel/hình ảnh nếu cần, thêm test.
 
 **Chỉnh cân bằng** — `src/data/balance.ts` và các con số trong file data.
 

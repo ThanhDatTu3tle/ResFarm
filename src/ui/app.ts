@@ -2,6 +2,7 @@ import { createContent } from '../data';
 import { Game } from '../sim/game';
 import { deserialize, serialize } from '../sim/save';
 import { needsWatering } from '../sim/systems/farm';
+import { queuedKinds } from '../sim/systems/farmer';
 import type { Command } from '../sim/types';
 import { cmd, esc, morph, ui as uiAttr } from './dom';
 import { coins } from './format';
@@ -101,11 +102,16 @@ export function startApp(root: HTMLElement): void {
   // Trình duyệt chỉ cho phát tiếng sau thao tác đầu tiên
   root.addEventListener('pointerdown', () => sound.unlock(), { capture: true });
 
+  let pauseHintAt = -1e9;
   const run = (command: Command) => {
     const result = game.dispatch(command);
     if (!result.ok) {
       toast(result.reason, 'bad');
       sound.play('error');
+    } else if (ui.speed === 0 && /^(farmer|service)\//.test(command.type) && performance.now() - pauseHintAt > 4000) {
+      // Giao việc lúc đang tạm dừng: nhân vật nhận việc nhưng đứng yên tới khi chạy tiếp — nhắc kẻo tưởng hỏng
+      pauseHintAt = performance.now();
+      toast('⏸ Game đang tạm dừng — chạy tiếp (⚙️ hoặc phím Space) để nhân vật bắt đầu làm');
     }
     return result.ok;
   };
@@ -148,6 +154,12 @@ export function startApp(root: HTMLElement): void {
   farm.onAction = (kind) => {
     if (ui.area === 'farm') sound.play(kind === 'till' ? 'dig' : kind);
   };
+  // Bác nông dân tới nơi mà việc không làm được nữa (vd tiền đã tiêu vào việc khác) thì báo lại
+  game.bus.on('farmer/done', (e) => {
+    if (e.ok || !e.reason) return;
+    toast(`🧑‍🌾 ${e.reason}`, 'bad');
+    if (ui.area === 'farm') sound.play('error');
+  });
   game.bus.on('party/needs', () => ui.area === 'restaurant' && sound.play('bell'));
   game.bus.on('order/ready', () => ui.area === 'restaurant' && sound.play('ripe'));
   game.bus.on('waiter/done', (e) => e.kind === 'pickup' && ui.area === 'restaurant' && sound.play('pop'));
@@ -264,13 +276,17 @@ export function startApp(root: HTMLElement): void {
     if (pick.type === 'slot') {
       const slot = game.state.farm.slots.find((s) => s.id === pick.id);
       const type = slot && content.slotTypes.get(slot.type);
-      if (slot?.producerId && slot.stage === 'ready') {
-        run({ type: 'farm/harvest', slotId: slot.id });
-      } else if (slot && !slot.producerId && type?.needsTilling && !slot.tilled) {
-        run({ type: 'farm/till', slotId: slot.id });
-      } else if (slot?.producerId && needsWatering(game.ctx, slot)) {
-        run({ type: 'farm/water', slotId: slot.id });
+      // Bác nông dân nhận việc hợp trạng thái ô rồi chạy tới làm (systems/farmer.ts).
+      // Ô đã có việc chờ, hoặc không có gì để làm ngay: bác chạy tới xem và mở bảng để chọn giống / xem thông tin.
+      const queued = slot ? queuedKinds(game.ctx, slot.id) : [];
+      if (slot && !queued.length && slot.producerId && slot.stage === 'ready') {
+        run({ type: 'farmer/do', kind: 'harvest', slotId: slot.id });
+      } else if (slot && !queued.length && !slot.producerId && type?.needsTilling && !slot.tilled) {
+        run({ type: 'farmer/do', kind: 'till', slotId: slot.id });
+      } else if (slot && !queued.length && slot.producerId && needsWatering(game.ctx, slot)) {
+        run({ type: 'farmer/do', kind: 'water', slotId: slot.id });
       } else {
+        if (slot && !queued.length) game.dispatch({ type: 'farmer/do', kind: 'visit', slotId: slot.id });
         ui.selectedSlot = pick.id;
         ui.drawer = 'farm';
       }

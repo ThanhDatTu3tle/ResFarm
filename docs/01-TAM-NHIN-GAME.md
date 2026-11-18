@@ -55,6 +55,25 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 - **Quán phải có việc cho người chơi làm:** người chơi đóng vai **bồi bàn** — mang menu (khách xem 3–7 giây), xác nhận món, lấy món ở **quầy ra món** giao đúng bàn; khách có 4 bậc tâm trạng Vui vẻ → Bình thường → Chán nản → Tức giận, mỗi bậc 10 giây.
 - Nông trại và chợ **chưa cần** thêm việc ở giai đoạn này.
 
+### Đợt 6 — Bác nông dân (18/11/2026)
+
+- Nhân vật nông dân ở nông trại không đứng yên nữa mà **di chuyển theo tương tác**: bấm ô ruộng để trồng/tưới thì bác chạy tới thửa ruộng đó; bấm ao cá thì chạy ra ao; bấm chuồng thì chạy sang chuồng.
+- Ngoài chợ không cần nhân vật phục vụ. (AI hiểu câu này là: chưa làm bồi bàn tự động S1.)
+
+**AI tự chọn (đổi được):** bác làm lần lượt theo hàng việc (tối đa 24 việc), tới nơi mới có tác dụng; chạy ~5.6 m/giây thực, mỗi việc ~0.7 giây (`balance.farmer`); đi theo lối (ngang theo khe ruộng, dọc trên đường đất hoặc mép trái ruộng); đứng mép trước ruộng/chuồng, bờ trái ao; rảnh thì đứng yên tại chỗ vừa làm và thỉnh thoảng vẫy tay.
+
+### Đợt 7 — Giai đoạn 2, chọn phong cách quán, con sông (18/11/2026)
+
+- **F2 Khách quen: đồng ý làm.** Chủ dự án lo nhất phần **ngoại hình**: phải đa dạng độ tuổi, giới tính, ngoại hình; và với model khách hiện tại thì **khó nhận ra ai là khách quen** → cần thiết kế kỹ cách nhận diện (xem phương án ở `04-ROADMAP.md`, mục "Giai đoạn 2").
+- **Màn hình mở đầu:** có menu. Chưa có server nên trước mắt chỉ có **"New game"**. Bấm Play → chọn **phong cách quán**:
+  - 🇯🇵 **Quán Nhật** — sushi, cơm cuộn, mì ramen...
+  - 🇰🇷 **Quán Hàn** — tokbokki, gà rán...
+  - 🇻🇳 **Quán Việt** — cơm gia đình, phở, bún bò, hủ tiếu, cơm tấm...
+- Màn chọn hiện **3 model ngoại thất** tương ứng 3 nước. Chọn xong thì vào quán có **nội thất thiết kế theo đặc trưng văn hoá** nước đó.
+- **Nông trại và chợ dùng chung** cho cả 3 nước.
+- **Nông trại có một con sông**, từ sông có **một con suối nhỏ dẫn nước vào ao**.
+- Chủ dự án sẽ bổ sung ý trong lúc làm Giai đoạn 2 → ghi thêm vào đây.
+
 ## Quyết định mình đã tự đưa ra (đổi được)
 
 Những chỗ chủ dự án chưa nói rõ, mình chọn phương án đơn giản nhất chơi được. Tất cả đều là con số hoặc dữ liệu, sửa không đụng kiến trúc.

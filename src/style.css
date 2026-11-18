@@ -836,6 +836,27 @@ button.water {
   border-color: #4a9bd8;
 }
 
+/* Dấu "bác nông dân đang tới" trên ô */
+.slot .coming {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 14px;
+  animation: coming-bob 0.9s ease-in-out infinite;
+}
+
+@keyframes coming-bob {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.farmer-status {
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--bg);
+}
+
 .slot.ready {
   border-color: var(--green);
   background: #dcefd6;

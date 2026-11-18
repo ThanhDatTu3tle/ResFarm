@@ -8,6 +8,7 @@ import { activeTables, findSeats } from '../src/sim/systems/customers';
 import { priceOf } from '../src/sim/systems/market';
 import { calendarOf } from '../src/sim/calendar';
 import { autoServeCommands } from '../src/sim/systems/service';
+import { nextWaypoint, workSpot } from '../src/sim/systems/farmer';
 import { moodOf } from '../src/sim/systems/customers';
 import type { Party } from '../src/sim/state';
 
@@ -426,5 +427,133 @@ describe('phục vụ (người chơi là bồi bàn)', () => {
     expect(state.restaurant.parties[0]).toMatchObject({ phase: 'seated', called: false, wait: 0 });
     expect(state.restaurant.waiter).toMatchObject({ ...content.room.waiterHome, tasks: [], carrying: null });
     new Game(content, { state }).tick(300);
+  });
+});
+
+describe('bác nông dân', () => {
+  /** Tua tới khi bác làm hết hàng việc (tối đa `limit` phút game). */
+  function untilIdle(game: Game, limit = 200): void {
+    for (let i = 0; i < limit * 2 && game.state.farm.farmer.tasks.length; i++) game.tick(0.5);
+    expect(game.state.farm.farmer.tasks).toHaveLength(0);
+  }
+  const fresh = () => {
+    const g = newGame();
+    g.state.weather = { id: 'cloudy', minutesLeft: 99999 };
+    g.state.menu.active = [];
+    return g;
+  };
+
+  it('bấm ô thì bác chạy tới, làm xong mới có tác dụng, rồi đứng lại ở mép ô', () => {
+    const game = fresh();
+    const done: string[] = [];
+    game.bus.on('farmer/done', (e) => done.push(`${e.kind}:${e.slotId}:${e.ok}`));
+    const slot = () => game.state.farm.slots.find((s) => s.id === 'field-0')!;
+    expect(game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-0' }).ok).toBe(true);
+    expect(slot().tilled).toBe(false); // chưa tới nơi
+    game.tick(0.5);
+    expect(slot().tilled).toBe(false);
+    untilIdle(game);
+    expect(slot().tilled).toBe(true);
+    expect(done).toEqual(['till:field-0:true']);
+    const spot = workSpot(game.ctx, slot());
+    expect(game.state.farm.farmer).toMatchObject({ x: spot.x, z: spot.z, work: null });
+  });
+
+  it('xếp hàng việc nối tiếp trên cùng ô: cuốc -> gieo -> tưới đều hợp lệ ngay lúc bấm', () => {
+    const game = fresh();
+    expect(game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-4' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farmer/do', kind: 'plant', slotId: 'field-4', producerId: 'cabbage' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farmer/do', kind: 'water', slotId: 'field-4' }).ok).toBe(true);
+    untilIdle(game);
+    expect(game.state.farm.slots.find((s) => s.id === 'field-4')).toMatchObject({ tilled: true, producerId: 'cabbage' });
+    expect(game.state.farm.slots.find((s) => s.id === 'field-4')!.wet).toBeGreaterThan(0);
+  });
+
+  it('báo lỗi ngay lúc bấm: đất chưa cuốc, không đủ tiền, việc trùng', () => {
+    const game = fresh();
+    expect(game.dispatch({ type: 'farmer/do', kind: 'plant', slotId: 'field-0', producerId: 'cabbage' }).ok).toBe(false);
+    game.state.money = 0;
+    game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-0' });
+    const broke = game.dispatch({ type: 'farmer/do', kind: 'plant', slotId: 'field-0', producerId: 'cabbage' });
+    expect(broke).toEqual({ ok: false, reason: 'Không đủ tiền.' });
+    expect(game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-0' }).ok).toBe(false);
+    expect(game.state.farm.farmer.tasks).toHaveLength(1);
+    expect(game.state.money).toBe(0); // chạy thử không được tiêu tiền thật
+  });
+
+  it('thu hoạch hết: xếp mọi ô chín theo đường ngắn, thu đủ, ô nào đã có việc thì không xếp lại', () => {
+    const game = fresh();
+    for (const id of ['field-0', 'field-8', 'field-2']) {
+      Object.assign(game.state.farm.slots.find((s) => s.id === id)!, { tilled: true, producerId: 'cabbage', stage: 'ready' });
+    }
+    game.dispatch({ type: 'farmer/do', kind: 'harvest', slotId: 'field-8' });
+    expect(game.dispatch({ type: 'farmer/doAll', kind: 'harvest' }).ok).toBe(true);
+    expect(game.state.farm.farmer.tasks.map((t) => t.slotId)).toEqual(['field-8', 'field-2', 'field-0']);
+    const before = game.state.inventory.cabbage ?? 0;
+    untilIdle(game);
+    expect((game.state.inventory.cabbage ?? 0) - before).toBe(9);
+    expect(game.dispatch({ type: 'farmer/doAll', kind: 'harvest' }).ok).toBe(false);
+  });
+
+  it('huỷ việc: việc đang làm dở vẫn làm xong, việc chưa tới lượt bị bỏ', () => {
+    const game = fresh();
+    game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-0' });
+    game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-1' });
+    for (let i = 0; i < 400 && game.state.farm.farmer.work == null; i++) game.tick(0.1); // tới ô đầu
+    expect(game.dispatch({ type: 'farmer/cancel' }).ok).toBe(true);
+    untilIdle(game);
+    expect(game.state.farm.slots.find((s) => s.id === 'field-0')!.tilled).toBe(true);
+    expect(game.state.farm.slots.find((s) => s.id === 'field-1')!.tilled).toBe(false);
+  });
+
+  it('save v5 được nâng cấp: bác đứng ở chỗ ban đầu, không có việc', () => {
+    const old = JSON.parse(serialize(newGame().state));
+    old.version = 5;
+    delete old.farm.farmer;
+    const state = deserialize(JSON.stringify(old), content)!;
+    expect(state.farm.farmer).toEqual({ ...content.balance.farmer.home, tasks: [], work: null });
+    const game = new Game(content, { state });
+    expect(game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-0' }).ok).toBe(true);
+    game.tick(100);
+  });
+});
+
+describe('bác nông dân đi theo lối', () => {
+  const lanes = content.balance.farmer.lanes;
+  const walk = (from: { x: number; z: number }, to: { x: number; z: number }) => {
+    const points = [from];
+    let pos = from;
+    for (let i = 0; i < 6; i++) {
+      pos = nextWaypoint(pos, to, lanes);
+      points.push(pos);
+      if (pos === to) break;
+    }
+    return points;
+  };
+
+  it('chỉ đi ngang hoặc dọc, và chỉ đi dọc trên lối', () => {
+    const game = newGame();
+    const spots = game.state.farm.slots.map((s) => workSpot(game.ctx, s));
+    const starts = [content.balance.farmer.home, ...spots];
+    for (const a of starts) {
+      for (const b of spots) {
+        const pts = walk(a, b);
+        expect(pts[pts.length - 1]).toBe(b);
+        for (let i = 1; i < pts.length; i++) {
+          const [p, q] = [pts[i - 1], pts[i]];
+          const vertical = Math.abs(p.x - q.x) < 1e-6 && Math.abs(p.z - q.z) > 1e-6;
+          const horizontal = Math.abs(p.z - q.z) < 1e-6;
+          expect(vertical || horizontal).toBe(true);
+          if (vertical) expect(lanes.some((l) => Math.abs(l - p.x) < 1e-6)).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('từ chỗ đứng ban đầu ra ruộng góc trái: ra đường đất, chạy dọc, rồi rẽ ngang vào khe ruộng', () => {
+    const game = newGame();
+    const spot = workSpot(game.ctx, game.state.farm.slots.find((s) => s.id === 'field-0')!);
+    const pts = walk(content.balance.farmer.home, spot);
+    expect(pts.slice(1)).toEqual([{ x: 1.25, z: spot.z }, spot]);
   });
 });

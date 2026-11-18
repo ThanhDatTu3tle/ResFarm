@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import type { SlotType } from '../../../data';
 import type { Game } from '../../../sim/game';
-import type { FarmSlot } from '../../../sim/state';
+import type { FarmerTaskKind, FarmSlot } from '../../../sim/state';
+import { currentWork, slotCenter, slotScale } from '../../../sim/systems/farmer';
 import { cycleTime, needsWatering, yieldsOf } from '../../../sim/systems/farm';
 import { easeOutBack, wobble } from '../../ease';
 import { Particles } from '../fx';
@@ -12,19 +13,13 @@ import { Bar3D, emojiSprite, G, group, mesh, seeded, toon, type V3 } from '../to
 /**
  * KHU NÔNG TRẠI — ruộng, chuồng, ao ngoài trời. Mỗi ô trong state.farm.slots có một SlotView;
  * bấm vào ô phát Pick {type:'slot'} (app.ts quyết định: thu hoạch / cuốc / tưới / mở bảng chọn giống).
- * Mua thêm ô thì ô mới tự mọc ra theo SLOT_LAYOUT; ô lên bậc (ao nới rộng) thì to ra và nuôi nhiều con hơn.
+ * Mua thêm ô thì ô mới tự mọc ra theo SlotTypeDef.layout (src/data/farm.ts); ô lên bậc (ao nới rộng) thì to ra và nuôi nhiều con hơn.
+ * Bác nông dân là nhân vật trong sim (systems/farmer.ts): khu này chỉ vẽ bác theo state.farm.farmer.
  */
 
-/** Vị trí và kích thước ô theo loại; index là thứ tự ô trong loại đó. Thêm loại ô mới thì thêm 1 dòng. */
-const SLOT_LAYOUT: Record<SlotType, { size: number; pos: (index: number) => [number, number] }> = {
-  // 3 cột, thêm ô thì thêm hàng về phía camera — cùng thứ tự với lưới ô trong panel Nông trại
-  field: { size: 2.3, pos: (i) => [-6.6 + (i % 3) * 2.6, -1.6 + Math.floor(i / 3) * 2.6] },
-  pen: { size: 3.3, pos: (i) => [3.9 + (i % 3) * 3.8, -1.3 + Math.floor(i / 3) * 4.1] },
-  pond: { size: 3, pos: (i) => [4.6 + i * 4.9, 8.4] },
-};
+/** Biểu tượng việc bác nông dân đang làm / sắp làm, hiện trên đầu bác. */
+const TASK_ICON: Record<FarmerTaskKind, string> = { till: '⛏️', water: '💧', plant: '🌱', harvest: '🧺', clear: '🧹', visit: '👀' };
 
-/** Mỗi bậc nới rộng làm ô to thêm bấy nhiêu lần. */
-const TIER_GROWTH = 0.25;
 const SOIL = { hard: 0xbf9a66, tilled: 0x8a5a36, wetMul: 0.6 };
 
 interface SlotView {
@@ -76,6 +71,11 @@ export class FarmArea implements Area {
   private swayNodes: THREE.Object3D[];
   private blades: THREE.Group;
   private farmer!: THREE.Group;
+  /** Biểu tượng việc trên đầu bác; dựng lại khi đổi việc. */
+  private farmerIcon: THREE.Sprite | null = null;
+  private farmerIconKind: FarmerTaskKind | null = null;
+  private farmerPrev = new THREE.Vector2();
+  private farmerWalk = 0;
   private ringMat = new THREE.MeshBasicMaterial({ color: 0xffd23e });
   private waterMat = toon(0x5bbbe8, { transparent: true, opacity: 0.85 });
   private fx = new Particles(this.root);
@@ -130,17 +130,19 @@ export class FarmArea implements Area {
     makeFence(r, -15.2, -4.4, 0.4, -4.4);
     makeFence(r, 2.1, -4.4, 15.5, -4.4);
 
-    // Bác nông dân đứng trông vườn
+    // Bác nông dân — vị trí cập nhật mỗi khung hình theo state.farm.farmer
     const farmer = (this.farmer = makePerson(LOOKS[2], 'straw'));
-    farmer.position.set(1.25, 0, 5.4);
+    const home = this.game.state.farm.farmer;
+    farmer.position.set(home.x, 0, home.z);
+    this.farmerPrev.set(home.x, home.z);
     farmer.scale.setScalar(1.15);
     r.add(farmer);
     return blades;
   }
 
-  private buildSlot(slot: FarmSlot, index: number): SlotView {
-    const layout = SLOT_LAYOUT[slot.type];
-    const [x, z] = layout.pos(index);
+  private buildSlot(slot: FarmSlot): SlotView {
+    const { layout } = this.game.content.slotTypes.get(slot.type);
+    const { x, z } = slotCenter(this.game.ctx, slot);
     const g = group(this.root, { p: [x, 0, z] });
     g.userData.pick = { type: 'slot', id: slot.id } satisfies Pick;
     const s = layout.size;
@@ -214,7 +216,7 @@ export class FarmArea implements Area {
           const radius = animals.length > 1 ? 0.75 : 0.2;
           const x = Math.cos(angle) * radius + (view.type === 'pen' ? 0.25 : 0);
           const z = Math.sin(angle) * radius + (view.type === 'pen' ? 0.35 : 0);
-          a.scale.setScalar(1 / (1 + TIER_GROWTH * (tier - 1))); // con vật giữ nguyên cỡ dù ô được phóng to
+          a.scale.setScalar(1 / (1 + this.game.content.slotTypes.get(view.type).layout.tierGrowth * (tier - 1))); // con vật giữ nguyên cỡ dù ô được phóng to
           view.content.add(a);
           view.movers.push({ g: a, x, z, phase: i * 2.1 });
         });
@@ -270,6 +272,46 @@ export class FarmArea implements Area {
     }
   }
 
+  /** Vẽ bác nông dân theo state: chạy khi đang đi, làm động tác theo việc khi đã tới nơi, vẫy tay khi rảnh. */
+  private updateFarmer(env: Env, dt: number): void {
+    const { state, ctx } = this.game;
+    const f = state.farm.farmer;
+    const g = this.farmer;
+    const moved = Math.hypot(f.x - this.farmerPrev.x, f.z - this.farmerPrev.y);
+    // Làm mượt trạng thái "đang đi" để tay chân không giật khi tốc độ khung hình dao động
+    this.farmerWalk += ((moved > 1e-4 ? 1 : 0) - this.farmerWalk) * Math.min(1, dt * 12);
+    if (moved > 1e-4) g.rotation.y = Math.atan2(f.x - this.farmerPrev.x, f.z - this.farmerPrev.y);
+    this.farmerPrev.set(f.x, f.z);
+    g.position.set(f.x, Math.abs(Math.sin(env.t * 11)) * 0.08 * this.farmerWalk, f.z);
+
+    const work = currentWork(ctx);
+    const task = f.tasks[0] ?? null;
+    let pose = {};
+    if (work) {
+      // Đã tới nơi: quay mặt vào ô rồi làm việc
+      const slot = state.farm.slots.find((s) => s.id === work.slotId);
+      if (slot) {
+        const c = slotCenter(ctx, slot);
+        g.rotation.y = Math.atan2(c.x - f.x, c.z - f.z);
+      }
+      pose = work.kind === 'till' ? { dig: 1 } : work.kind === 'water' ? { pour: 1 } : work.kind === 'visit' ? {} : { reach: 1 };
+    } else if (!task) {
+      // Rảnh: thở, chớp mắt, thỉnh thoảng vẫy tay chào
+      pose = { wave: Math.max(0, Math.min(1, (Math.sin(env.t * 0.35) - 0.85) * 8)) };
+    }
+    animatePerson(g, env.t, { walk: this.farmerWalk, ...pose });
+
+    // Biểu tượng việc trên đầu: cho người chơi biết bác đang đi làm gì
+    const kind = task?.kind ?? null;
+    if (kind !== this.farmerIconKind) {
+      if (this.farmerIcon) g.remove(this.farmerIcon);
+      this.farmerIcon = kind ? emojiSprite(TASK_ICON[kind], 0.42) : null;
+      if (this.farmerIcon) g.add(this.farmerIcon);
+      this.farmerIconKind = kind;
+    }
+    if (this.farmerIcon) this.farmerIcon.position.set(0, 1.75 + Math.abs(Math.sin(env.t * 4)) * 0.08, 0);
+  }
+
   update(env: Env, dt: number): void {
     const { state, content, ctx } = this.game;
     const counts: Partial<Record<SlotType, number>> = {};
@@ -277,7 +319,7 @@ export class FarmArea implements Area {
     for (const slot of state.farm.slots) {
       const index = (counts[slot.type] = (counts[slot.type] ?? -1) + 1);
       let view = this.slots.get(slot.id);
-      if (!view) this.slots.set(slot.id, (view = this.buildSlot(slot, index)));
+      if (!view) this.slots.set(slot.id, (view = this.buildSlot(slot)));
       // Ruộng: cây đổi hình theo giai đoạn (mầm -> cây non -> trưởng thành); lên giai đoạn thì nảy một cái
       const growing0 = slot.producerId ? content.producers.get(slot.producerId) : null;
       const cropStage: CropStage = view.type === 'field' && growing0 && slot.stage !== 'ready' ? cropStageOf(slot.progress / cycleTime(growing0, slot)) : 2;
@@ -294,7 +336,7 @@ export class FarmArea implements Area {
       view.prev = snapshot;
 
       // Squash & stretch cả ô khi vừa có thao tác: dẹt xuống rồi nảy lại
-      const base = 1 + TIER_GROWTH * (slot.tier - 1);
+      const base = slotScale(ctx, slot);
       const squash = wobble(env.t - view.kickAt, 0.45);
       view.g.scale.set(base * (1 + 0.06 * squash), base * (1 - 0.12 * squash), base * (1 + 0.06 * squash));
       view.ring.visible = env.selectedSlot === slot.id;
@@ -322,7 +364,7 @@ export class FarmArea implements Area {
       // Lứa đầu: lớn dần. Các lứa sau (gà đẻ, bò sữa): đã trưởng thành.
       // Mỗi giai đoạn đã có hình riêng nên chỉ lớn thêm chút trong giai đoạn; con vật lứa đầu vẫn lớn dần
       const scale = slot.cyclesDone > 0 ? 1 : view.type === 'field' ? 0.8 + 0.2 * frac : 0.3 + 0.7 * frac;
-      const fit = view.type === 'field' ? 1 : 1 / (1 + TIER_GROWTH * (slot.tier - 1));
+      const fit = view.type === 'field' ? 1 : 1 / base;
       // Bật lên lúc mới gieo; nảy lò xo lúc vừa chín; chín rồi thì "thở" nhẹ cho biết đang chờ thu
       const pop = easeOutBack((env.t - view.popAt) / 0.45);
       const ripe = slot.stage === 'ready' ? 1 + 0.35 * wobble(env.t - view.ripeAt, 0.8, 14) + 0.03 * Math.sin(env.t * 4 + index) : 1;
@@ -351,8 +393,7 @@ export class FarmArea implements Area {
     }
 
     this.fx.update(dt);
-    // Bác nông dân thở, chớp mắt, thỉnh thoảng vẫy tay chào
-    animatePerson(this.farmer, env.t, { wave: Math.max(0, Math.min(1, (Math.sin(env.t * 0.35) - 0.85) * 8)) });
+    this.updateFarmer(env, dt);
     sway(this.swayNodes, env);
     this.blades.rotation.z -= 0.004 + env.wind * 0.09;
     this.waterMat.color.setHex(0x5bbbe8).multiplyScalar(0.55 + 0.45 * env.day);

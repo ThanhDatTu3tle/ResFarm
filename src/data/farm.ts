@@ -1,8 +1,8 @@
 import type { ProducerDef, SlotTypeDef } from './types';
 
 export const slotTypes: SlotTypeDef[] = [
-  { id: 'field', name: 'Ruộng', icon: '🌱', initial: 9, max: 15, basePrice: 80, priceGrowth: 1.45, level: 1, needsTilling: true, needsWater: true },
-  { id: 'pen', name: 'Chuồng', icon: '🏚️', initial: 2, max: 6, basePrice: 200, priceGrowth: 1.6, level: 1 },
+  { id: 'field', name: 'Ruộng', icon: '🌱', initial: 9, max: 15, basePrice: 80, priceGrowth: 1.45, level: 1, needsTilling: true, needsWater: true, layout: { x: -6.6, z: -1.6, cols: 3, dx: 2.6, dz: 2.6, size: 2.3, tierGrowth: 0 } },
+  { id: 'pen', name: 'Chuồng', icon: '🏚️', initial: 2, max: 6, basePrice: 200, priceGrowth: 1.6, level: 1, layout: { x: 3.9, z: -1.3, cols: 3, dx: 3.8, dz: 4.1, size: 3.3, tierGrowth: 0 } },
   {
     id: 'pond',
     name: 'Ao cá',
@@ -12,6 +12,7 @@ export const slotTypes: SlotTypeDef[] = [
     basePrice: 350,
     priceGrowth: 1.7,
     level: 3,
+    layout: { x: 4.6, z: 8.4, cols: 3, dx: 4.9, dz: 4.9, size: 3, tierGrowth: 0.25, work: 'left' }, // đứng bờ trái ao (phía đường đất) cho dễ thấy
     // Nới rộng ao: nuôi được nhiều hơn
     tiers: [
       { cost: 400, level: 2, yieldMul: 1.6 },

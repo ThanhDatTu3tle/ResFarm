@@ -76,6 +76,13 @@ export interface SlotTypeDef {
   needsWater?: boolean;
   /** Các bậc nới rộng ô: phần tử i là chi phí/điều kiện để lên bậc i + 2 và hệ số sản lượng ở bậc đó. */
   tiers?: { cost: number; level: number; yieldMul: number }[];
+  /**
+   * Vị trí trên bản đồ nông trại (mét): ô thứ i ở (x + (i % cols)·dx, z + ⌊i / cols⌋·dz).
+   * size = cạnh ô; tierGrowth = mỗi bậc nới rộng ô to thêm bao nhiêu lần;
+   * work = bác nông dân đứng ở mép nào của ô khi làm việc (mặc định 'front' — mép phía camera).
+   * Cả sim (chỗ bác nông dân đứng) lẫn cảnh 3D đều đọc từ đây.
+   */
+  layout: { x: number; z: number; cols: number; dx: number; dz: number; size: number; tierGrowth: number; work?: 'front' | 'left' };
 }
 
 /** Sạp hàng ngoài chợ. */
@@ -218,6 +225,16 @@ export interface Balance {
     moodStep: number;
     /** Hệ số tip theo tâm trạng: vui vẻ, bình thường, chán nản, tức giận. */
     moodTip: [number, number, number, number];
+  };
+  farmer: {
+    /** Chỗ bác nông dân đứng lúc mới vào game (mét). */
+    home: { x: number; z: number };
+    /** Toạ độ x các lối đi dọc (mét): bác chỉ chạy dọc trên các lối này, còn lại đi ngang theo khe giữa các hàng ô. */
+    lanes: number[];
+    /** Tốc độ chạy: mét mỗi phút game. */
+    speed: number;
+    /** Thời gian làm một việc (cuốc, tưới, gieo, thu) khi đã tới nơi, phút game. */
+    workTime: number;
   };
   farm: {
     /** Một lần tưới (hoặc một cơn mưa) giữ ẩm đất bao nhiêu phút. */

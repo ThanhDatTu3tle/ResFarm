@@ -4,6 +4,24 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 18/11/2026 (laptop) — Bác nông dân chạy theo tương tác
+
+**Model:** Claude Opus 5.5 (Claude Code, desktop). **Nhánh:** `nong-dan` (tách từ `main` sau khi gộp Giai đoạn 1). **Kết quả:** typecheck sạch, 33 test qua, build qua; đã xem trong trình duyệt (bác ra ruộng theo lối, cuốc + gieo, ra bờ ao thả cá, sang chuồng thả gà).
+
+### Đã làm
+
+1. **Sim:** `src/sim/systems/farmer.ts` — hàng việc của bác (`farmer/do`, `farmer/doAll`, `farmer/cancel`), chạy theo toạ độ mét, tới nơi làm `workTime` rồi gọi handler `farm/*`. `preview()` chạy thử hàng việc trên `structuredClone` của state để báo lỗi ngay lúc bấm. `nextWaypoint` cho đi theo lối (ngang theo khe, dọc trên `balance.farmer.lanes`). Việc 'visit' (chỉ chạy tới xem) tới nơi là xong và bị thay bằng việc thật nếu người chơi giao việc cho ô đó. **Save v6** + migration + test.
+2. **Data:** vị trí ô nông trại chuyển từ `SLOT_LAYOUT` trong UI vào `SlotTypeDef.layout` (sim cần biết để tính chỗ đứng); `balance.farmer` (home, lanes, speed, workTime).
+3. **3D:** `FarmArea.updateFarmer()` vẽ bác theo state: chạy (vung tay chân), tới nơi quay mặt vào ô và làm động tác theo việc — tư thế mới trong `animatePerson`: `dig` (bổ cuốc), `pour` (tưới), `reach` (cúi gieo / thu / thả giống); biểu tượng việc trên đầu (⛏️ 💧 🌱 🧺 🧹 👀).
+4. **UI:** bấm ô trong cảnh 3D và mọi nút trong bảng Nông trại đi qua `farmer/*`; ô đã có việc hiện 🧑‍🌾 "Bác đang tới"; dòng trạng thái "Bác còn N việc" + nút "Huỷ bớt"; việc hỏng lúc tới nơi hiện thông báo.
+
+### Còn dở
+
+- Chưa thử trên điện thoại thật. Chưa commit / chưa gộp vào `main` (chờ chủ dự án).
+- Hiệu ứng hạt (bụi, nước) vẫn phát ở ô lúc việc có tác dụng — khớp thời điểm bác làm xong, nhưng chưa gắn vào tay bác (N2).
+
+---
+
 ## 18/11/2026 — Giai đoạn 1: game sống động + người chơi làm bồi bàn
 
 **Model:** Claude Opus 5.5 (Claude Code, desktop). **Nhánh:** `giai-doan-1` (gộp vào `main` qua Pull Request). **Kết quả:** typecheck sạch, 25 test qua, build qua.

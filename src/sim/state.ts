@@ -24,7 +24,7 @@ export interface GameState {
   /** Nội thất đã mua và món đang dùng ở từng vị trí. */
   decor: { owned: string[]; equipped: Record<DecorSlot, string> };
   restaurant: RestaurantState;
-  farm: { slots: FarmSlot[] };
+  farm: { slots: FarmSlot[]; farmer: FarmerState };
   /** Hệ số giá chợ hôm nay theo từng nguyên liệu. */
   market: { priceFactor: Record<string, number> };
   weather: { id: string; minutesLeft: number };
@@ -128,6 +128,25 @@ export interface FarmSlot {
   tier: number;
 }
 
+export type FarmerTaskKind = 'till' | 'water' | 'plant' | 'harvest' | 'clear' | 'visit';
+
+/** Một việc của bác nông dân; 'visit' = chỉ chạy tới ô (người chơi bấm để xem/chọn giống). */
+export interface FarmerTask {
+  kind: FarmerTaskKind;
+  slotId: string;
+  /** Chỉ có ở việc 'plant'. */
+  producerId?: string;
+}
+
+/** Bác nông dân — vị trí trên bản đồ nông trại (mét) và hàng việc người chơi giao. */
+export interface FarmerState {
+  x: number;
+  z: number;
+  tasks: FarmerTask[];
+  /** Phút còn lại của việc đầu hàng khi đã tới nơi; null = đang đi hoặc rảnh. */
+  work: number | null;
+}
+
 export interface DayStats {
   revenue: number;
   tips: number;
@@ -137,7 +156,7 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 export function emptyStats(): DayStats {
   return { revenue: 0, tips: 0, spent: 0, dishes: 0, guestsServed: 0, guestsLost: 0 };
@@ -183,6 +202,7 @@ export function createInitialState(content: Content, seed: number): GameState {
     },
     farm: {
       slots: content.slotTypes.all().flatMap((t) => Array.from({ length: t.initial }, (_, i) => createSlot(t.id, i))),
+      farmer: { ...b.farmer.home, tasks: [], work: null },
     },
     market: { priceFactor: {} },
     weather: { id: content.weathers.all()[0].id, minutesLeft: 0 },
