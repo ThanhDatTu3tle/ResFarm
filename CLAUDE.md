@@ -2,9 +2,9 @@
 
 Game quản lý quán ăn kết hợp nông trại, đồ hoạ 3D phong cách hoạt hình, chạy trên trình duyệt. File này là bản đồ kiến trúc: đọc xong là biết sửa ở đâu.
 
-Tài liệu nội bộ chi tiết hơn (tầm nhìn, kiến trúc sâu, lộ trình đồ hoạ, roadmap, chi phí) nằm ở `notes/` nếu thư mục đó có trên máy — bắt đầu từ `notes/00-DOC-TRUOC.md`. Thư mục này không có trong repo.
+Tài liệu chi tiết hơn (tầm nhìn, kiến trúc sâu, đồ hoạ, roadmap, chi phí, kinh nghiệm thiết kế, nhật ký từng phiên) nằm ở `docs/` — bắt đầu từ `docs/00-DOC-TRUOC.md`, rồi đọc mục mới nhất của `docs/07-NHAT-KY.md` để nối tiếp phiên trước. **Repo công khai: không đưa thông tin cá nhân vào repo**; ghi chú riêng tư để ở `notes/` (không lên GitHub). Không commit thẳng vào `main` (Netlify deploy từ `main`) — làm ở nhánh riêng rồi gộp qua Pull Request.
 
-Skill Three.js đã cài trong `.claude/skills/` (điểm vào: `threejs-game-director`). Khi dùng, giữ nguyên kiến trúc và quy ước trong file này — các skill đó mặc định dựng game mới từ scaffold riêng. Cách chọn skill và nguyên tắc thiết kế cozy game: `06-KINH-NGHIEM-THIET-KE.md`.
+Skill Three.js cài trong `.claude/skills/` (điểm vào: `threejs-game-director`; không nằm trong repo — cách cài lại ở `docs/00-DOC-TRUOC.md`). Khi dùng, giữ nguyên kiến trúc và quy ước trong file này — các skill đó mặc định dựng game mới từ scaffold riêng. Cách chọn skill và nguyên tắc thiết kế cozy game: `docs/06-KINH-NGHIEM-THIET-KE.md`.
 
 ## Chạy dự án
 
