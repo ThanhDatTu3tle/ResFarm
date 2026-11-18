@@ -2,11 +2,14 @@ import * as THREE from 'three';
 import type { SlotType } from '../../../data';
 import type { Game } from '../../../sim/game';
 import type { FarmerTaskKind, FarmSlot } from '../../../sim/state';
-import { currentWork, slotCenter, slotScale } from '../../../sim/systems/farmer';
-import { cycleTime, needsWatering, yieldsOf } from '../../../sim/systems/farm';
+import type { MillType } from '../../../data';
+import { buildingRect, currentWork, isAutoSlot, slotCenter, slotCenterAt, slotScale } from '../../../sim/systems/farmer';
+import { millCenter, millCenterAt } from '../../../sim/systems/mills';
+import { dashedOutline, dashedRect, fillSacks, makeGreenhouse, grainField, hayBale, makeRiceMill, makeTractor, makeWindmill, outlineSlab, pondOutline, strawLitter } from '../farmkit';
+import { cycleTime, needsWatering, nextTier, yieldsOf } from '../../../sim/systems/farm';
 import { easeOutBack, wobble } from '../../ease';
 import { Particles } from '../fx';
-import { animateCreature, animatePerson, cropStageOf, LOOKS, makeAnimals, makeBush, makeCrop, makeFence, makePerson, makeTree, type CropStage } from '../models';
+import { animateCreature, animatePerson, cropStageOf, LOOKS, makeAnimals, makeBush, makeCrop, makeFence, makeLampPost, makePerson, makeTree, type CropStage } from '../models';
 import { collectSway, sway, type Area, type Env, type Pick } from '../stage';
 import { Bar3D, emojiSprite, G, group, mesh, seeded, toon, type V3 } from '../toon';
 
@@ -17,8 +20,30 @@ import { Bar3D, emojiSprite, G, group, mesh, seeded, toon, type V3 } from '../to
  * Bác nông dân là nhân vật trong sim (systems/farmer.ts): khu này chỉ vẽ bác theo state.farm.farmer.
  */
 
+/** Dải phẳng nằm trên mặt đất chạy theo đường cong (lòng sông, bãi cát). */
+function ribbon(curve: THREE.Curve<THREE.Vector3>, width: number, samples: number): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const index: number[] = [];
+  for (let i = 0; i <= samples; i++) {
+    const u = i / samples;
+    const p = curve.getPointAt(u);
+    const t = curve.getTangentAt(u);
+    const h = width / 2;
+    pos.push(p.x - t.z * h, 0, p.z + t.x * h, p.x + t.z * h, 0, p.z - t.x * h);
+    if (i < samples) {
+      const a = i * 2;
+      index.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setIndex(index);
+  geo.computeVertexNormals();
+  return geo;
+}
+
 /** Biểu tượng việc bác nông dân đang làm / sắp làm, hiện trên đầu bác. */
-const TASK_ICON: Record<FarmerTaskKind, string> = { till: '⛏️', water: '💧', plant: '🌱', harvest: '🧺', clear: '🧹', visit: '👀' };
+const TASK_ICON: Record<FarmerTaskKind, string> = { till: '⛏️', water: '💧', plant: '🌱', harvest: '🧺', clear: '🧹', visit: '👀', haul: '🚜' };
 
 const SOIL = { hard: 0xbf9a66, tilled: 0x8a5a36, wetMul: 0.6 };
 
@@ -45,8 +70,20 @@ interface SlotView {
   kickAt: number;
   popAt: number;
   ripeAt: number;
-  /** Giai đoạn lớn của cây đang dựng (chỉ ruộng). */
+  /** Giai đoạn lớn của cây đang dựng (ruộng rau, lúa mì, lúa nước). */
   cropStage: CropStage;
+  /** Ruộng lúa: các khóm lúa (đung đưa theo gió). */
+  grain?: THREE.Group;
+}
+
+interface MillView {
+  g: THREE.Group;
+  spin: THREE.Object3D;
+  sacks: THREE.Group;
+  sackCount: number;
+  icon: THREE.Sprite | null;
+  product: string;
+  bar: Bar3D;
 }
 
 interface SlotSnapshot {
@@ -64,12 +101,22 @@ export class FarmArea implements Area {
   label = 'Nông trại';
   icon = '🌾';
   root = new THREE.Group();
-  view = { position: [0.8, 15.5, 18] as V3, target: [0.8, 0, 2] as V3, orbit: 1 };
-  rainBox = { min: [-20, 0, -14] as V3, max: [20, 15, 14] as V3 };
+  // Bản đồ trải từ hàng cây phía sau (z ≈ -10) tới cối xay phía trước (z ≈ 27): nhìn xa hơn, bấm ô thì camera lướt lại gần
+  view = { position: [3, 28, 37] as V3, target: [3, 0, 13] as V3, orbit: 1 };
+  rainBox = { min: [-22, 0, -14] as V3, max: [30, 15, 32] as V3 };
+  outdoor = true;
 
   private slots = new Map<string, SlotView>();
   private swayNodes: THREE.Object3D[];
-  private blades: THREE.Group;
+  private mills = new Map<string, MillView>();
+  /** Viền đứt khúc chỗ mua thêm được; dựng lại khi số ô / cối đổi. */
+  private expand = group(this.root);
+  private expandKey = '';
+  private tractor = makeTractor();
+  private bulbs: THREE.MeshToonMaterial[] = [];
+  /** Nhà màng (luống bên trong vẽ ở areas/greenhouse.ts); dựng lại khi nhà dài thêm. */
+  private house: { count: number; g: THREE.Group; fans: THREE.Object3D[] } | null = null;
+  private lamps: THREE.PointLight[] = [];
   private farmer!: THREE.Group;
   /** Biểu tượng việc trên đầu bác; dựng lại khi đổi việc. */
   private farmerIcon: THREE.Sprite | null = null;
@@ -79,23 +126,30 @@ export class FarmArea implements Area {
   private ringMat = new THREE.MeshBasicMaterial({ color: 0xffd23e });
   private waterMat = toon(0x5bbbe8, { transparent: true, opacity: 0.85 });
   private fx = new Particles(this.root);
+  /** Vệt sóng trôi trên sông/suối: vị trí u (0..1) dọc đường cong, lệch ngang off. */
+  private flow: { m: THREE.Mesh; curve: THREE.Curve<THREE.Vector3>; u: number; off: number; speed: number }[] = [];
   /** Gọi khi một ô vừa được thu hoạch: vị trí thế giới + biểu tượng sản phẩm (app.ts cho chúng bay về HUD). */
   onHarvest: (slotId: string, world: THREE.Vector3, icons: string[]) => void = () => {};
   /** Gọi khi một ô vừa được gieo / cuốc / tưới / chín (app.ts phát âm thanh). */
   onAction: (kind: 'plant' | 'till' | 'water' | 'ripe') => void = () => {};
 
   constructor(private game: Game) {
-    this.blades = this.buildScenery();
+    this.buildScenery();
     this.swayNodes = collectSway(this.root);
   }
 
-  private buildScenery(): THREE.Group {
+  private buildScenery(): void {
     const r = this.root;
     const rnd = seeded(7);
-    mesh(r, G.box(80, 0.4, 70), 0x8fd16a, { p: [0, -0.2, 0], cast: false });
-    for (let i = 0; i < 14; i++) mesh(r, G.cyl(1, 1, 0.02, 12), 0x9eda7a, { p: [-18 + rnd() * 36, 0.01, -8 + rnd() * 20], s: [1 + rnd() * 2, 1, 0.8 + rnd()], cast: false });
-    mesh(r, G.box(1.5, 0.03, 20), 0xdcbf8e, { p: [1.25, 0.015, 3], cast: false });
-    mesh(r, G.box(16, 0.03, 1.5), 0xdcbf8e, { p: [8.5, 0.015, 5.2], cast: false });
+    mesh(r, G.box(90, 0.4, 80), 0x8fd16a, { p: [4, -0.2, 8], cast: false });
+    for (let i = 0; i < 22; i++) mesh(r, G.cyl(1, 1, 0.02, 12), 0x9eda7a, { p: [-18 + rnd() * 48, 0.01, -8 + rnd() * 38], s: [1 + rnd() * 2, 1, 0.8 + rnd()], cast: false });
+    // Đường đất: dọc (x = 1.25) từ chuồng tới cối xay; ngang (z = 7.4) chạy dọc mép trước dãy chuồng
+    mesh(r, G.box(1.5, 0.03, 32), 0xdcbf8e, { p: [1.25, 0.015, 9.6], cast: false });
+    mesh(r, G.box(26, 0.03, 1.5), 0xdcbf8e, { p: [14, 0.015, 7.4], cast: false });
+    // Lối mòn trước ruộng lúa / sau ruộng lúa nước (bác chạy ngang ở đây)
+    // Lối mòn phía bắc sau hàng rào (tới cối xay gió) và lối trước ruộng lúa (tới nhà xay lúa bên sông)
+    mesh(r, G.box(10.5, 0.02, 0.8), 0xd8c39a, { p: [-4, 0.012, -5.65], cast: false });
+    mesh(r, G.box(11.5, 0.02, 0.8), 0xd8c39a, { p: [-4.5, 0.012, 23.45], cast: false });
 
     // Đồi xa
     for (const [x, s] of [[-16, 9], [0, 12], [17, 10]]) mesh(r, G.ico(1, 2), 0x74b85a, { p: [x, -4.5, -22], s: [s * 1.4, s, s], cast: false });
@@ -109,26 +163,29 @@ export class FarmArea implements Area {
     mesh(r, G.cyl(0.95, 0.95, 3.6, 14), 0xe9eef2, { p: [11.4, 1.8, -7.4] });
     mesh(r, G.cone(1.05, 0.9, 14), 0xc94a3f, { p: [11.4, 4.05, -7.4] });
 
-    // Cối xay gió — cánh quay nhanh theo sức gió
-    const mill = group(r, { p: [-9.5, 0, -7.4] });
-    mesh(mill, G.cyl(0.45, 0.85, 3.8, 10), 0xf3e9d2, { p: [0, 1.9, 0] });
-    mesh(mill, G.cone(0.6, 0.7, 10), 0xc94a3f, { p: [0, 4.15, 0] });
-    const blades = group(mill, { p: [0, 3.5, 0.6] });
-    mesh(blades, G.sphere(0.16, 8, 6), 0x8a5a3a);
-    for (let i = 0; i < 4; i++) {
-      const arm = group(blades, { r: [0, 0, (i * Math.PI) / 2] });
-      mesh(arm, G.box(0.34, 1.9, 0.05), 0xffffff, { p: [0, 1.05, 0] });
-    }
+    this.buildWater();
 
-    // Cây, bụi, hàng rào
-    for (let x = -19; x <= 19; x += 3.1) {
-      if (Math.abs(x - 7.5) < 3.2 || Math.abs(x + 9.5) < 1.6 || Math.abs(x - 11.4) < 1.5) continue;
+    // Cây, bụi, hàng rào (chừa chỗ cho sông bên trái)
+    for (let x = -19; x <= 31; x += 3.1) {
+      if (Math.abs(x - 7.5) < 3.2 || Math.abs(x - 11.4) < 1.5 || Math.abs(x + 12.6) < 2.6 || Math.abs(x + 7.6) < 2 || Math.abs(x + 3.4) < 2) continue;
       makeTree(r, { p: [x + rnd() * 1.2, 0, -9.5 - rnd() * 2.5], s: 1.1 + rnd() * 0.7 }, rnd() > 0.5 ? 0x5fae57 : 0x4f9e4a);
     }
-    for (const x of [-18.5, 19.5]) for (let z = -5; z <= 9; z += 3.4) makeTree(r, { p: [x + rnd(), 0, z + rnd()], s: 1 + rnd() * 0.6 });
-    for (let i = 0; i < 10; i++) makeBush(r, { p: [-15 + rnd() * 14, 0, 11.5 + rnd() * 2], s: 0.8 + rnd() * 0.6 });
-    makeFence(r, -15.2, -4.4, 0.4, -4.4);
-    makeFence(r, 2.1, -4.4, 15.5, -4.4);
+    for (let z = -5; z <= 12; z += 3.4) makeTree(r, { p: [-18.5 + rnd(), 0, z + rnd()], s: 1 + rnd() * 0.6 });
+    for (let z = 20; z <= 30; z += 3.4) makeTree(r, { p: [28 + rnd() * 4, 0, z + rnd()], s: 1 + rnd() * 0.6 });
+    for (let i = 0; i < 12; i++) makeBush(r, { p: [-10 + rnd() * 24, 0, 29.5 + rnd() * 2], s: 0.8 + rnd() * 0.6 });
+    makeFence(r, -10.4, -4.4, 0.4, -4.4);
+    makeFence(r, 2.1, -4.4, 17.5, -4.4);
+
+    // Cột đèn dọc đường đất: tối thì sáng (thêm 3 nguồn sáng thật cho đường chính, ao và ruộng lúa)
+    for (const [x, z] of [[2.3, -3.2], [2.3, 4.6], [0.2, 10.4], [2.3, 15.5], [2.3, 22.2], [9.6, 8.5], [19.6, 8.5], [-7.2, 22.7], [-9.0, 10.6], [-5.5, -5.0], [16.5, 12]]) {
+      this.bulbs.push(makeLampPost(r, { p: [x, 0, z], s: 1.05 }));
+    }
+    for (const [x, z] of [[1.25, 6], [9, 10], [-4, 19]]) {
+      const light = new THREE.PointLight(0xffc27a, 0, 16, 1.4);
+      light.position.set(x, 3, z);
+      this.lamps.push(light);
+      r.add(light);
+    }
 
     // Bác nông dân — vị trí cập nhật mỗi khung hình theo state.farm.farmer
     const farmer = (this.farmer = makePerson(LOOKS[2], 'straw'));
@@ -137,7 +194,62 @@ export class FarmArea implements Area {
     this.farmerPrev.set(home.x, home.z);
     farmer.scale.setScalar(1.15);
     r.add(farmer);
-    return blades;
+    // Máy cày: hiện dưới bác khi thu / gieo ruộng lúa và lúc chở lúa tới cối
+    this.tractor.g.visible = false;
+    r.add(this.tractor.g);
+  }
+
+  /**
+   * Con sông chảy dọc mép trái nông trại và con suối nhỏ từ sông dẫn nước vào ao đầu tiên.
+   * Suối chạy trước hàng ruộng cuối (ruộng tối đa 5 hàng, mép trước z ≈ 10), chui dưới cầu gỗ trên đường đất
+   * rồi kết thúc ở tâm ao — ao nới rộng cỡ nào thì bờ ao vẫn phủ lên đầu suối.
+   * Chỉ là cảnh: bác nông dân không bao giờ đi qua vùng nước (lối dọc x = -8.3 dừng ở hàng ruộng cuối).
+   */
+  private buildWater(): void {
+    const r = this.root;
+    const rnd = seeded(21);
+    const curve = (pts: number[][]) => new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
+    const river = curve([[-11.5, -26], [-13, -14], [-12, -6], [-14, 2], [-12.4, 9], [-13.6, 16], [-12, 30]]);
+    // Suối: từ sông chảy ngang trước ruộng rau, chui dưới cầu đường đất (x = 1.25), đổ vào ao ở phía hạ lưu
+    // rồi chảy tiếp ra khỏi nông trại. Mương nhỏ dẫn nước sông vào ruộng lúa nước.
+    const stream = curve([[-12.8, 11.9], [-10, 12], [-6, 11.75], [-2, 12.05], [1.25, 11.9], [4, 12.6], [9.5, 15], [15, 15.6], [20, 16], [27, 17], [34, 18]]);
+    const ditch = curve([[-11.7, 15.6], [-10, 15.3], [-8.2, 15.4]]);
+
+    for (const [c, w, samples] of [[river, 3.2, 90], [stream, 0.9, 70], [ditch, 0.4, 12]] as const) {
+      mesh(r, ribbon(c, w + 0.9, samples), 0xd8c08c, { p: [0, 0.012, 0], cast: false }); // bãi cát
+      mesh(r, ribbon(c, w + 0.35, samples), 0x9fa79a, { p: [0, 0.022, 0], cast: false }); // mép đá
+      mesh(r, ribbon(c, w, samples), this.waterMat, { p: [0, 0.035, 0], cast: false });
+      // Vệt sóng trắng trôi theo dòng
+      const n = Math.round(c.getLength() / (w > 2 ? 1.6 : 1.3));
+      for (let i = 0; i < n; i++) {
+        const dash = mesh(r, G.box(0.06, 0.012, w > 2 ? 0.55 : 0.3), 0xf2fbff, { cast: false, receive: false });
+        this.flow.push({ m: dash, curve: c, u: rnd(), off: (rnd() - 0.5) * w * 0.6, speed: (w > 2 ? 0.9 : 0.7) / c.getLength() });
+      }
+    }
+
+    // Đá ven sông, lau sậy, cầu gỗ trên đường đất chỗ suối cắt ngang
+    for (let i = 0; i < 26; i++) {
+      const u = rnd();
+      const p = river.getPointAt(u);
+      const side = rnd() > 0.5 ? 1 : -1;
+      const n = river.getTangentAt(u);
+      const d = 1.9 + rnd() * 0.5;
+      const x = p.x - n.z * d * side;
+      const z = p.z + n.x * d * side;
+      if (rnd() > 0.45) mesh(r, G.ico(0.25 + rnd() * 0.25, 0), 0xa9aaa0, { p: [x, 0.1, z], s: [1, 0.6, 1] });
+      else for (let k = 0; k < 3; k++) mesh(r, G.cone(0.05, 0.7 + rnd() * 0.4, 5), 0x6aa84f, { p: [x + k * 0.12, 0.35, z + k * 0.08], cast: false });
+    }
+    for (const [bx, bz] of [[1.25, 11.9]]) {
+      const bridge = group(r, { p: [bx, 0, bz] });
+      for (let i = -2; i <= 2; i++) mesh(bridge, G.box(1.7, 0.08, 0.26), 0xc98b4f, { p: [0, 0.16, i * 0.3] });
+      for (const sx of [-0.85, 0.85]) {
+        mesh(bridge, G.box(0.08, 0.06, 1.6), 0x8a5a35, { p: [sx, 0.45, 0] });
+        for (const sz of [-0.7, 0.7]) mesh(bridge, G.cyl(0.05, 0.05, 0.45, 6), 0x8a5a35, { p: [sx, 0.25, sz] });
+      }
+    }
+    // Cầu nhỏ thứ hai bắc qua sông cho cảnh có chỗ nhìn
+    const footbridge = group(r, { p: [-13.4, 0, 4.5], r: [0, 0.25, 0] });
+    for (let i = -6; i <= 6; i++) mesh(footbridge, G.box(0.28, 0.08, 1.1), 0xc98b4f, { p: [i * 0.32, 0.25 + 0.18 * Math.cos((i / 6) * 1.2), 0] });
   }
 
   private buildSlot(slot: FarmSlot): SlotView {
@@ -159,39 +271,70 @@ export class FarmArea implements Area {
       for (const [wx, wz] of [[-0.6, -0.4], [0.5, 0.6], [0.2, -0.7], [-0.3, 0.5]]) mesh(view.weeds, G.cone(0.09, 0.26, 5), 0x7fbf5a, { p: [wx, 0.33, wz], cast: false });
     } else if (slot.type === 'pen') {
       const h = s / 2;
+      const k = s / 3.3; // đồ trong chuồng giãn theo cỡ chuồng
+      const rnd = seeded(slot.id.length * 7 + s * 10);
       mesh(g, G.box(s, 0.1, s), 0xe9d18b, { p: [0, 0.03, 0], cast: false });
+      strawLitter(g, s - 0.4, s - 0.4, rnd);
       makeFence(g, -h, -h, h, -h);
       makeFence(g, -h, h, h, h);
       makeFence(g, -h, -h, -h, h);
       makeFence(g, h, -h, h, h);
-      // Chuồng nhỏ + máng ăn
-      mesh(g, G.box(1.3, 0.9, 0.9), 0xd9534a, { p: [-0.8, 0.5, -1.05] });
-      mesh(g, G.prism(), 0x8a5a3a, { p: [-0.8, 0.95, -1.05], s: [1.6, 0.6, 1.1] });
-      mesh(g, G.box(0.45, 0.5, 0.06), 0x5a2f24, { p: [-0.8, 0.3, -0.59] });
-      mesh(g, G.box(0.9, 0.2, 0.35), 0xb9733f, { p: [0.9, 0.15, -1.2] });
+      // Chuồng nhỏ + máng ăn + rơm rạ
+      mesh(g, G.box(1.5, 1.0, 1.0), 0xd9534a, { p: [-0.8 * k, 0.55, -1.05 * k] });
+      mesh(g, G.prism(), 0x8a5a3a, { p: [-0.8 * k, 1.05, -1.05 * k], s: [1.8, 0.65, 1.2] });
+      mesh(g, G.box(0.5, 0.55, 0.06), 0x5a2f24, { p: [-0.8 * k, 0.32, -1.05 * k + 0.51] });
+      mesh(g, G.box(1.0, 0.22, 0.38), 0xb9733f, { p: [0.9 * k, 0.15, -1.2 * k] });
+      mesh(g, G.box(0.9, 0.08, 0.3), 0xe8c55a, { p: [0.9 * k, 0.3, -1.2 * k], cast: false }); // rơm trong máng
+      hayBale(g, h - 0.5, h - 0.55, 0.3);
+      hayBale(g, h - 1.05, h - 0.5, -0.2);
+      mesh(g, G.cone(0.45, 0.5, 8), 0xe8c55a, { p: [-h + 0.55, 0.28, h - 0.6], cast: false }); // đống rơm
+    } else if (slot.type === 'pond') {
+      // Ao: bờ đá, mặt nước, lá súng, cầu gỗ nhỏ, bụi lau (bán kính theo cỡ ao trong layout)
+      // Hình méo tự nhiên (không tròn): bề ngang = size, bề dọc ~ 0.78 size; bờ đá to hơn mặt nước một chút
+      const R = s / 2;
+      const shape = pondOutline(R, R * 0.78, 3);
+      mesh(g, outlineSlab(shape.map((p) => p.clone().multiplyScalar(1.06)), 0.2), 0xb9b4a8, { p: [0, -0.02, 0] });
+      mesh(g, outlineSlab(shape.map((p) => p.clone().multiplyScalar(0.92)), 0.23), this.waterMat, { p: [0, -0.02, 0], cast: false });
+      for (const [lx, lz] of [[0.42, 0.25], [-0.36, 0.38], [-0.48, -0.25], [0.18, -0.42], [0.55, -0.1]]) mesh(g, G.cyl(0.26, 0.26, 0.02, 8), 0x5fae57, { p: [lx * R, 0.22, lz * R], cast: false });
+      mesh(g, G.box(0.6, 0.06, 1.4), 0xc98b4f, { p: [R * 0.25, 0.3, R * 0.72] });
+      for (const side of [-1, 1]) mesh(g, G.cyl(0.04, 0.04, 0.4, 6), 0x8a5a35, { p: [R * 0.25 + side * 0.26, 0.2, R * 0.72 + 0.6] });
+      // Lau sậy dọc bờ
+      for (const i of [5, 13, 22, 30, 41]) {
+        const p = shape[i];
+        for (let k = 0; k < 3; k++) mesh(g, G.cone(0.07, 0.8 + k * 0.15, 5), 0x6aa84f, { p: [p.x * 1.02 + k * 0.12, 0.45, p.y * 1.02 + k * 0.06], cast: false });
+      }
     } else {
-      // Ao: bờ đá, mặt nước, lá súng, cầu gỗ nhỏ, bụi lau
-      mesh(g, G.cyl(1.5, 1.62, 0.22, 22), 0xb9b4a8, { p: [0, 0.08, 0] });
-      mesh(g, G.cyl(1.3, 1.3, 0.24, 22), this.waterMat, { p: [0, 0.09, 0], cast: false });
-      for (const [lx, lz] of [[0.7, 0.5], [-0.6, 0.75], [-0.8, -0.5]]) mesh(g, G.cyl(0.2, 0.2, 0.02, 8), 0x5fae57, { p: [lx, 0.22, lz], cast: false });
-      mesh(g, G.box(0.5, 0.06, 1), 0xc98b4f, { p: [0, 0.3, 1.45] });
-      for (const side of [-1, 1]) mesh(g, G.cyl(0.04, 0.04, 0.4, 6), 0x8a5a35, { p: [side * 0.22, 0.2, 1.9] });
-      for (const [rx, rz] of [[-1.35, 0.6], [-1.5, 0.2], [1.4, -0.5]]) mesh(g, G.cone(0.06, 0.8, 5), 0x6aa84f, { p: [rx, 0.5, rz], cast: false });
+      // Ruộng lúa mì (đất khô vàng) / lúa nước (bờ đất, mặt nước lấp lánh)
+      const paddy = slot.type === 'paddy';
+      mesh(g, G.box(s, 0.24, s), paddy ? 0x8a6a45 : 0xb08a58, { p: [0, 0.04, 0] });
+      if (paddy) {
+        mesh(g, G.box(s - 0.4, 0.26, s - 0.4), 0x6b5236, { p: [0, 0.05, 0], cast: false });
+        mesh(g, G.box(s - 0.45, 0.02, s - 0.45), this.waterMat, { p: [0, 0.19, 0], cast: false });
+      } else {
+        mesh(g, G.box(s - 0.3, 0.26, s - 0.3), 0xc9a066, { p: [0, 0.05, 0], cast: false });
+        for (let i = 0; i < 5; i++) mesh(g, G.box(s - 0.5, 0.05, 0.12), 0xa98450, { p: [0, 0.19, -s / 2 + 0.55 + i * ((s - 1.1) / 4)], cast: false });
+      }
+      // Biển nhỏ cắm đầu ruộng
+      mesh(g, G.cyl(0.04, 0.04, 0.8, 5), 0x8a5a35, { p: [-s / 2 + 0.2, 0.4, -s / 2 + 0.2] });
+      const sign = emojiSprite(paddy ? '🌾' : '🌾', 0.4);
+      sign.position.set(-s / 2 + 0.2, 0.95, -s / 2 + 0.2);
+      g.add(sign);
     }
 
     const ring = mesh(g, G.box(1, 0.04, 1), this.ringMat, { p: [0, 0.01, 0], s: [s + 0.35, 1, s + 0.35], cast: false, receive: false });
     const bar = new Bar3D(1.1);
-    const top = slot.type === 'pen' ? 2 : 1.3;
+    const top = slot.type === 'pen' ? 2.2 : slot.type === 'wheat' || slot.type === 'paddy' ? 1.4 : 1.3;
     bar.group.position.set(0, top, 0);
     const drop = emojiSprite('💧', 0.6);
     const hoe = emojiSprite('⛏️', 0.6);
     g.add(bar.group, drop, hoe);
-    return { ...view, g, content: group(g, { p: [0, slot.type === 'field' ? 0.2 : 0.1, 0] }), producerId: undefined, tier: 1, movers: [], ready: null, bar, ring, type: slot.type, drop, hoe, prev: null, kickAt: -99, popAt: -99, ripeAt: -99, cropStage: 2 };
+    return { ...view, g, content: group(g, { p: [0, slot.type === 'field' || slot.type === 'wheat' ? 0.2 : slot.type === 'paddy' ? 0.15 : 0.1, 0] }), producerId: undefined, tier: 1, movers: [], ready: null, bar, ring, type: slot.type, drop, hoe, prev: null, kickAt: -99, popAt: -99, ripeAt: -99, cropStage: 2 };
   }
 
   /** Dựng lại thứ đang trồng/nuôi trong ô khi producer hoặc bậc của ô đổi. */
   private fill(view: SlotView, producerId: string | null, tier: number, cropStage: CropStage): void {
     view.content.clear();
+    view.grain = undefined;
     view.cropStage = cropStage;
     view.movers = [];
     view.ready = null;
@@ -200,7 +343,10 @@ export class FarmArea implements Area {
     if (!producerId) return;
     const def = this.game.content.producers.get(producerId);
 
-    if (view.type === 'field') {
+    const { layout } = this.game.content.slotTypes.get(view.type);
+    if (view.type === 'wheat' || view.type === 'paddy') {
+      view.grain = grainField(view.content, layout.size - 0.4, view.type === 'wheat' ? 'wheat' : 'rice', cropStage);
+    } else if (view.type === 'field') {
       for (const [x, z] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) {
         const crop = makeCrop(producerId, cropStage);
         crop.position.set(x, 0, z);
@@ -213,9 +359,10 @@ export class FarmArea implements Area {
       if (animals.length) {
         animals.forEach((a, i) => {
           const angle = (i / animals.length) * Math.PI * 2 + 0.6;
-          const radius = animals.length > 1 ? 0.75 : 0.2;
-          const x = Math.cos(angle) * radius + (view.type === 'pen' ? 0.25 : 0);
-          const z = Math.sin(angle) * radius + (view.type === 'pen' ? 0.35 : 0);
+          const room = layout.size / (view.type === 'pen' ? 3.3 : 3); // ô to hơn thì con vật đi rộng hơn
+          const radius = (animals.length > 1 ? 0.75 : 0.2) * room;
+          const x = Math.cos(angle) * radius + (view.type === 'pen' ? 0.25 * room : 0);
+          const z = Math.sin(angle) * radius + (view.type === 'pen' ? 0.35 * room : 0);
           a.scale.setScalar(1 / (1 + this.game.content.slotTypes.get(view.type).layout.tierGrowth * (tier - 1))); // con vật giữ nguyên cỡ dù ô được phóng to
           view.content.add(a);
           view.movers.push({ g: a, x, z, phase: i * 2.1 });
@@ -272,6 +419,149 @@ export class FarmArea implements Area {
     }
   }
 
+  /** Cối: dựng khi mới mua, cánh quạt / bánh xe nước quay (nhanh hơn khi đang xay), bao lúa chất theo hàng tồn. */
+  private updateMills(env: Env, dt: number): void {
+    const { state, ctx, content } = this.game;
+    for (const mill of state.farm.mills) {
+      let view = this.mills.get(mill.id);
+      if (!view) {
+        const c = millCenter(ctx, mill);
+        const built = mill.type === 'windmill' ? makeWindmill() : makeRiceMill(this.waterMat);
+        const g = group(this.root, { p: [c.x, 0, c.z] });
+        g.add(built.g);
+        if (mill.type === 'ricemill') built.g.scale.x = -1; // bánh xe nước nhúng xuống sông (bên trái)
+        g.userData.pick = { type: 'mill', id: mill.id } satisfies Pick;
+        const bar = new Bar3D(1.2);
+        bar.group.position.set(0, mill.type === 'windmill' ? 5.9 : 3.2, 0);
+        g.add(bar.group);
+        view = { g, spin: 'blades' in built ? built.blades : built.wheel, sacks: built.sacks, sackCount: -1, icon: null, product: '', bar };
+        this.mills.set(mill.id, view);
+      }
+      const busy = mill.input > 0;
+      const speed = mill.type === 'windmill' ? 0.3 + env.wind * 2.5 + (busy ? 1.2 : 0) : busy ? 1.6 : 0.5;
+      if (mill.type === 'windmill') view.spin.rotation.z -= speed * dt;
+      else view.spin.rotation.x += speed * dt;
+      if (view.sackCount !== mill.input) {
+        view.sackCount = mill.input;
+        fillSacks(view.sacks, Math.ceil(mill.input / 2), mill.type === 'windmill' ? 0xe8d6a8 : 0xd9c89a);
+      }
+      // Biểu tượng thành phẩm đang làm, lơ lửng trên cối
+      if (view.product !== mill.product) {
+        if (view.icon) view.g.remove(view.icon);
+        view.icon = emojiSprite(content.items.get(mill.product).icon, 0.7);
+        view.g.add(view.icon);
+        view.product = mill.product;
+      }
+      const top = mill.type === 'windmill' ? 6.5 : 3.7;
+      view.icon!.position.set(0, top + Math.abs(Math.sin(env.t * 2.4)) * 0.12, 0);
+      view.bar.group.visible = busy;
+      if (busy) view.bar.set(mill.progress / content.mills.get(mill.type).time);
+    }
+  }
+
+/** Nhà màng phía nam ao: dài theo số luống bên trong; bấm vào để vào khu nhà kính. */
+  private updateGreenhouse(dt: number): void {
+    const { state, ctx, content } = this.game;
+    const type = content.slotTypes.all().find((t) => t.building);
+    if (!type) return;
+    const count = state.farm.slots.filter((s) => s.type === type.id).length;
+    if (!this.house || this.house.count !== count) {
+      if (this.house) this.root.remove(this.house.g);
+      const rect = buildingRect(ctx, type.id)!;
+      const b = type.building!;
+      const built = makeGreenhouse(rect.x2 - rect.x1, b.width, b.colLength);
+      const g = group(this.root, { p: [rect.x1, 0, b.z] });
+      g.add(built.g);
+      g.userData.pick = { type: 'building', id: 'greenhouse' } satisfies Pick;
+      // Nhìn qua màng thấy hai dãy luống xanh bên trong
+      for (const side of [-1, 1]) {
+        mesh(g, G.box(rect.x2 - rect.x1 - 2 * b.endLength, 0.3, 1.5), 0x8a5a36, { p: [(rect.x2 - rect.x1) / 2, 0.2, side * 1.45], cast: false });
+        for (let x = b.endLength + 0.4; x < rect.x2 - rect.x1 - b.endLength; x += 0.55) mesh(g, G.ico(0.22, 0), 0x5fae57, { p: [x, 0.5, side * 1.45 + ((x * 7) % 0.4) - 0.2], s: [1, 0.8, 1], cast: false });
+      }
+      const sign = emojiSprite('🏡', 0.7);
+      sign.position.set(-0.4, 3.2, 0);
+      g.add(sign);
+      this.house = { count, g, fans: built.fans };
+    }
+    for (const f of this.house.fans) f.rotation.z += dt * 8;
+  }
+
+  /** Viền đứt khúc + dấu ➕ ở mọi chỗ còn mua thêm ô / cối được (bấm vào để mở bảng mua). */
+  private updateExpand(env: Env): void {
+    const { state, ctx, content } = this.game;
+    const key = [...content.slotTypes.all().map((t) => state.farm.slots.filter((s) => s.type === t.id).length), ...content.mills.all().map((m) => state.farm.mills.filter((x) => x.type === m.id).length), ...state.farm.slots.map((s) => s.tier)].join(',');
+    if (key !== this.expandKey) {
+      this.expandKey = key;
+      this.expand.clear();
+      const spot = (x: number, z: number, size: number, id: string, icon: string) => {
+        const g = group(this.expand, { p: [x, 0, z] });
+        dashedRect(g, size);
+        // Mặt bấm trong suốt phủ cả ô cho dễ bấm
+        const hit = mesh(g, G.box(size, 0.06, size), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }), { p: [0, 0.05, 0], cast: false, receive: false });
+        hit.userData.pick = { type: 'expand', id } satisfies Pick;
+        const plus = emojiSprite('➕', 0.55);
+        plus.position.set(0, 0.6, 0);
+        const what = emojiSprite(icon, 0.5);
+        what.position.set(0, 1.15, 0);
+        g.add(plus, what);
+        g.userData.bob = [plus, what];
+      };
+      // Nhà kính: viền đứt khúc ở đầu đông = phần nhà dài thêm khi nới rộng (thêm một lô luống)
+      for (const t of content.slotTypes.all().filter((t) => t.building)) {
+        const owned = state.farm.slots.filter((s) => s.type === t.id).length;
+        if (owned >= t.max) continue;
+        const now = buildingRect(ctx, t.id)!;
+        const next = buildingRect(ctx, t.id, Math.min(t.max, owned + (t.batch ?? 1)))!;
+        const g = group(this.expand, { p: [(now.x2 + next.x2) / 2, 0, (now.z1 + now.z2) / 2] });
+        dashedRect(g, next.x2 - now.x2, 0.45, now.z2 - now.z1);
+        const hit = mesh(g, G.box(next.x2 - now.x2, 0.06, now.z2 - now.z1), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }), { p: [0, 0.05, 0], cast: false, receive: false });
+        hit.userData.pick = { type: 'expand', id: t.id } satisfies Pick;
+        const plus = emojiSprite('➕', 0.55);
+        const what = emojiSprite('↔️', 0.5);
+        plus.position.set(0, 0.6, 0);
+        what.position.set(0, 1.15, 0);
+        g.add(plus, what);
+        g.userData.bob = [plus, what];
+      }
+      for (const t of content.slotTypes.all().filter((t) => !t.building)) {
+        for (let i = state.farm.slots.filter((s) => s.type === t.id).length; i < t.max; i++) {
+          const c = slotCenterAt(ctx, t.id, i);
+          spot(c.x, c.z, t.layout.size, t.id, t.icon);
+        }
+      }
+      // Ao: không đào ao mới mà nới rộng — viền đứt khúc theo hình ao ở bậc kế tiếp
+      for (const slot of state.farm.slots.filter((s) => s.type === 'pond' && nextTier(ctx, s))) {
+        const { layout } = content.slotTypes.get(slot.type);
+        const c = slotCenter(ctx, slot);
+        const R = (layout.size * (1 + layout.tierGrowth * slot.tier)) / 2;
+        const g = group(this.expand, { p: [c.x, 0, c.z] });
+        dashedOutline(g, pondOutline(R * 1.06, R * 0.78 * 1.06, 3));
+        const hitShape = pondOutline(R * 1.06, R * 0.78 * 1.06, 3);
+        const hit = mesh(g, outlineSlab(hitShape, 0.04), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }), { p: [0, 0.01, 0], cast: false, receive: false });
+        hit.userData.pick = { type: 'expand', id: 'pond' } satisfies Pick;
+        const plus = emojiSprite('➕', 0.55);
+        const what = emojiSprite('↔️', 0.5);
+        plus.position.set(R * 0.75, 0.6, R * 0.55);
+        what.position.set(R * 0.75, 1.15, R * 0.55);
+        g.add(plus, what);
+        g.userData.bob = [plus, what];
+      }
+      for (const m of content.mills.all()) {
+        for (let i = state.farm.mills.filter((x) => x.type === m.id).length; i < m.max; i++) {
+          const c = millCenterAt(ctx, m.id as MillType, i);
+          spot(c.x, c.z, 2.8, m.id, m.icon);
+        }
+      }
+    }
+    for (const g of this.expand.children) {
+      const [plus, what] = g.userData.bob as THREE.Sprite[];
+      const k = Math.abs(Math.sin(env.t * 2 + g.position.x));
+      plus.position.y = 0.6 + k * 0.12;
+      what.position.y = 1.15 + k * 0.12;
+      // (ao: dấu nằm lệch về mép trước-phải, chỉ nhún theo chiều cao)
+    }
+  }
+
   /** Vẽ bác nông dân theo state: chạy khi đang đi, làm động tác theo việc khi đã tới nơi, vẫy tay khi rảnh. */
   private updateFarmer(env: Env, dt: number): void {
     const { state, ctx } = this.game;
@@ -282,24 +572,42 @@ export class FarmArea implements Area {
     this.farmerWalk += ((moved > 1e-4 ? 1 : 0) - this.farmerWalk) * Math.min(1, dt * 12);
     if (moved > 1e-4) g.rotation.y = Math.atan2(f.x - this.farmerPrev.x, f.z - this.farmerPrev.y);
     this.farmerPrev.set(f.x, f.z);
-    g.position.set(f.x, Math.abs(Math.sin(env.t * 11)) * 0.08 * this.farmerWalk, f.z);
-
     const work = currentWork(ctx);
     const task = f.tasks[0] ?? null;
+    // Ruộng lúa (thu / gieo lại) và chở lúa tới cối: bác lái máy cày
+    const taskSlot = task ? state.farm.slots.find((s) => s.id === task.slotId) : undefined;
+    const driving = !!task && (task.kind === 'haul' || (!!taskSlot && isAutoSlot(ctx, taskSlot) && (task.kind === 'harvest' || task.kind === 'plant')));
+    const tr = this.tractor;
+    tr.g.visible = driving;
+    if (driving) {
+      tr.g.position.set(f.x, 0, f.z);
+      tr.g.rotation.y = g.rotation.y;
+      for (const w of tr.wheels) w.rotation.x += moved * 2.4;
+      const load = f.carry ? Math.ceil(f.carry.qty / 2) : 0;
+      if (tr.bed.userData.load !== load) {
+        tr.bed.userData.load = load;
+        fillSacks(tr.bed, load);
+      }
+      g.position.set(f.x, 0.5 + Math.abs(Math.sin(env.t * 9)) * 0.03 * this.farmerWalk, f.z);
+    } else {
+      g.position.set(f.x, Math.abs(Math.sin(env.t * 11)) * 0.08 * this.farmerWalk, f.z);
+    }
+
     let pose = {};
     if (work) {
-      // Đã tới nơi: quay mặt vào ô rồi làm việc
-      const slot = state.farm.slots.find((s) => s.id === work.slotId);
-      if (slot) {
-        const c = slotCenter(ctx, slot);
-        g.rotation.y = Math.atan2(c.x - f.x, c.z - f.z);
-      }
-      pose = work.kind === 'till' ? { dig: 1 } : work.kind === 'water' ? { pour: 1 } : work.kind === 'visit' ? {} : { reach: 1 };
+      // Đã tới nơi: quay mặt vào ô (hoặc cối khi đổ lúa) rồi làm việc
+      const mill = work.kind === 'haul' ? state.farm.mills.find((m) => m.id === work.millId) : undefined;
+      const slot = mill ? undefined : state.farm.slots.find((s) => s.id === work.slotId);
+      const c = mill ? millCenter(ctx, mill) : slot ? slotCenter(ctx, slot) : null;
+      if (c && !driving) g.rotation.y = Math.atan2(c.x - f.x, c.z - f.z);
+      pose = driving ? { sit: true } : work.kind === 'till' ? { dig: 1 } : work.kind === 'water' ? { pour: 1 } : work.kind === 'visit' ? {} : { reach: 1 };
+    } else if (driving) {
+      pose = { sit: true };
     } else if (!task) {
       // Rảnh: thở, chớp mắt, thỉnh thoảng vẫy tay chào
       pose = { wave: Math.max(0, Math.min(1, (Math.sin(env.t * 0.35) - 0.85) * 8)) };
     }
-    animatePerson(g, env.t, { walk: this.farmerWalk, ...pose });
+    animatePerson(g, env.t, { walk: driving ? 0 : this.farmerWalk, ...pose });
 
     // Biểu tượng việc trên đầu: cho người chơi biết bác đang đi làm gì
     const kind = task?.kind ?? null;
@@ -317,12 +625,14 @@ export class FarmArea implements Area {
     const counts: Partial<Record<SlotType, number>> = {};
 
     for (const slot of state.farm.slots) {
+      if (content.slotTypes.get(slot.type).building) continue; // luống trong nhà kính: vẽ ở khu bên trong
       const index = (counts[slot.type] = (counts[slot.type] ?? -1) + 1);
       let view = this.slots.get(slot.id);
       if (!view) this.slots.set(slot.id, (view = this.buildSlot(slot)));
       // Ruộng: cây đổi hình theo giai đoạn (mầm -> cây non -> trưởng thành); lên giai đoạn thì nảy một cái
       const growing0 = slot.producerId ? content.producers.get(slot.producerId) : null;
-      const cropStage: CropStage = view.type === 'field' && growing0 && slot.stage !== 'ready' ? cropStageOf(slot.progress / cycleTime(growing0, slot)) : 2;
+      const staged = view.type === 'field' || view.type === 'wheat' || view.type === 'paddy';
+      const cropStage: CropStage = staged && growing0 && slot.stage !== 'ready' ? cropStageOf(slot.progress / cycleTime(growing0, slot)) : 2;
       if (view.producerId !== slot.producerId || view.tier !== slot.tier || view.cropStage !== cropStage) {
         const grew = view.producerId === slot.producerId && view.tier === slot.tier && cropStage > view.cropStage;
         this.fill(view, slot.producerId, slot.tier, cropStage);
@@ -393,9 +703,25 @@ export class FarmArea implements Area {
     }
 
     this.fx.update(dt);
+    this.updateMills(env, dt);
+    this.updateGreenhouse(dt);
+    this.updateExpand(env);
     this.updateFarmer(env, dt);
+    for (const view of this.slots.values()) {
+      if (!view.grain) continue;
+      const amp = 0.04 + env.wind * 0.22;
+      for (const tuft of view.grain.children) tuft.rotation.z = Math.sin(env.t * (1.6 + env.wind * 2.5) + tuft.userData.sway) * amp;
+    }
+    for (const bulb of this.bulbs) bulb.emissiveIntensity = env.night * 1.6;
+    for (const lamp of this.lamps) lamp.intensity = env.night * 22;
+    for (const f of this.flow) {
+      f.u = (f.u + f.speed * dt * (1 + env.rain)) % 1;
+      const p = f.curve.getPointAt(f.u);
+      const n = f.curve.getTangentAt(f.u);
+      f.m.position.set(p.x - n.z * f.off, 0.045, p.z + n.x * f.off);
+      f.m.rotation.y = Math.atan2(n.x, n.z);
+    }
     sway(this.swayNodes, env);
-    this.blades.rotation.z -= 0.004 + env.wind * 0.09;
     this.waterMat.color.setHex(0x5bbbe8).multiplyScalar(0.55 + 0.45 * env.day);
   }
 }

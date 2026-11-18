@@ -25,7 +25,12 @@ Tham số URL để thử nhanh (ghép được với nhau):
 
 | Tham số | Tác dụng |
 | --- | --- |
-| `?fresh` | Bỏ qua save và không ghi save |
+| (không có tham số) | Màn hình mở đầu: Chơi tiếp / Ván mới → chọn quán Nhật / Hàn / Việt |
+| `?fresh` | Bỏ qua màn mở đầu và save, không ghi save (ván tạm) |
+| `?cuisine=jp` | Kèm `?fresh`: phong cách quán của ván tạm (`jp` / `kr` / `vn`, mặc định `vn`) |
+| `?play` | Bỏ qua màn mở đầu, vào thẳng ván đang lưu |
+| `?pick=kr` | (chỉ bản dev) mở thẳng bước chọn quán ở màn mở đầu |
+| `?focus=pen` | (chỉ bản dev) bảng Nông trại chỉ hiện một loại ô / cối (kèm `?tab=farm`) |
 | `?seed=7` | Seed cho game mới |
 | `?ff=300` | Tua 300 phút game lúc tải (720 ≈ 20:00, trời tối) |
 | `?area=farm` | Mở sẵn khu `farm` / `restaurant` / `market` |
@@ -36,7 +41,7 @@ Tham số URL để thử nhanh (ghép được với nhau):
 | `?edit` | (chỉ bản dev) mở sẵn chế độ sắp xếp bàn |
 | `?do=[...]` | (chỉ bản dev) chạy sẵn một mảng Command dạng JSON đã mã hoá URL, trước khi tua |
 
-Ví dụ: `http://localhost:5184/?fresh&seed=5&ff=720&weather=rain&area=market`.
+Ví dụ: `http://localhost:5184/?fresh&cuisine=jp&seed=5&ff=720&weather=rain&area=market`.
 
 Phím tắt: `Space` tạm dừng / chạy tiếp, `Esc` đóng bảng Cài đặt. Mở Cài đặt thì game tự tạm dừng.
 
@@ -94,6 +99,7 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 | `service.ts` | Người chơi là bồi bàn: lệnh `service/menu`, `service/takeOrder`, `service/deliver`; bồi bàn đi thật trong sim (`state.restaurant.waiter`) và làm việc theo hàng. `autoServeCommands` = người chơi mẫu cho test/cân bằng |
 | `kitchen.ts` | Đầu bếp nhận đơn và nấu; xong thì đặt ra quầy ra món (`ready`) |
 | `farm.ts` | Ô nông trại: cuốc đất, gieo/nuôi, tưới (mưa tự làm ẩm), lớn, thu hoạch, mua ô, nới rộng ô |
+| `mills.ts` | Cối chế biến (cối xay gió, nhà xay lúa): nhận lúa bác chở tới (`mill.input`), làm thành phẩm đang chọn vào kho; lệnh `mill/buy`, `mill/setProduct` |
 | `farmer.ts` | Bác nông dân: lệnh `farmer/do`, `farmer/doAll`, `farmer/cancel`; bác chạy thật trong sim (`state.farm.farmer`, toạ độ mét) theo lối đi, tới nơi mới áp dụng lệnh `farm/*` tương ứng. Hàng việc được chạy thử trên bản sao state lúc bấm để báo lỗi ngay |
 | `market.ts` | Mua ở sạp chợ, giá dao động theo ngày |
 | `progression.ts` | Mở khoá/bật tắt món, mua nâng cấp (trang thiết bị) |
@@ -101,18 +107,24 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 
 `helpers.ts` chứa hàm dùng chung: kho (`stockOf`, `hasAll`, `addItem`...), tiền (`earn`, `spend`), `addXp`, `addReputation`, `modifier` (gộp hệ số từ thời tiết, nâng cấp và nội thất đang dùng).
 
+**Phong cách quán** — `GameState.cuisine` (`jp` / `kr` / `vn`) chọn ở màn mở đầu, cố định trong ván. `CuisineDef` ở `src/data/cuisines.ts` (tên, mô tả, món giới thiệu, nguyên liệu khởi đầu). Món thuộc một quán (`RecipeDef.cuisine`), nội thất có thể riêng một quán (`DecorDef.cuisine`, bỏ trống = dùng chung); mỗi quán có đúng 1 nội thất mặc định mỗi slot. Lọc bằng `recipesFor` / `decorFor` / `defaultDecor` (`src/data/index.ts`). Nông trại và chợ dùng chung. Hình riêng từng quán (đồ trang trí, kiểu ghế, đồ trên bàn, mặt tiền) ở `src/ui/three/cuisine.ts`.
+
 `src/sim/layout.ts` chứa hình học mặt bằng quán: `tablePos` (vị trí bàn hiện tại = chỗ đã dời trong `state.restaurant.layout`, hoặc mặc định trong `TableDef`), `seatSpots`, `footprint`, `canPlaceTable` (luật đặt bàn, dùng chung cho lệnh và cho phần xem trước khi kéo).
 
 ### UI
 
 ```
+src/main.ts                hiện màn mở đầu (ui/title.ts) hoặc vào thẳng game (?fresh / ?play)
+src/ui/title.ts            màn mở đầu: Chơi tiếp / Ván mới, chọn phong cách quán trên cảnh 3D 3 mặt tiền (renderer riêng)
+src/ui/three/cuisine.ts    hình theo phong cách quán: decorateInterior, tableExtras, counterExtras, buildSeat, makeShopfront
+src/ui/three/farmkit.ts    model nông trại: cối xay gió, nhà xay lúa, máy cày, bao lúa, kiện rơm, khóm lúa, viền đứt khúc
 src/ui/app.ts              tạo Game + Stage, vòng lặp, lưu tự động, xử lý click, HUD, nút chuyển khu, ngăn kéo
 src/ui/three/toon.ts       vật liệu toon, hình học có cache, mesh()/group(), emojiSprite(), Bar3D
 src/ui/three/models.ts     model dùng chung: người, cây, hàng rào, rau củ, con vật, cột đèn, thùng hàng;
                            animatePerson(g, t, pose) (thở, chớp mắt, đi, ngồi, ăn, nấu, vẫy) và animateCreature (chớp mắt, vẫy đuôi);
                            makeCrop(id, giai đoạn 0..2), makeDish(recipeId) — món chưa có trong DISHES thì quán hiện emoji
 src/ui/three/stage.ts      renderer, camera, ánh sáng, bầu trời ngày/đêm, mây, sao, mưa, bấm chọn (raycast)
-src/ui/three/areas/*.ts    mỗi file một KHU (màn hình 3D): restaurant, farm, market
+src/ui/three/areas/*.ts    mỗi file một KHU (màn hình 3D): restaurant, farm, greenhouse (bên trong nhà kính), market
 src/ui/panels/*.ts         các bảng HTML trong ngăn kéo: Quán, Thực đơn, Siêu thị, Chợ, Nông trại, Kho
 src/ui/dom.ts              esc(), cmd(), ui(), bar(), morph()
 src/ui/ease.ts             easing dùng chung (easeOutBack, easeOutElastic, wobble cho squash & stretch)
@@ -138,7 +150,7 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 
 **Thêm nguyên liệu** — 1 dòng trong `src/data/items.ts`, rồi cho nó nguồn: thêm id vào `items` của một sạp (`market.ts`) và/hoặc làm `yields` của một producer (`farm.ts`). `infinite: true` = luôn có sẵn. Sạp chợ 3D tự bày thêm thùng hàng.
 
-**Thêm món** — 1 mục trong `src/data/recipes.ts`. Không cần sửa code.
+**Thêm món** — 1 dòng `dish(quán, id, ...)` trong `src/data/recipes.ts` (món thuộc đúng 1 quán). Không cần sửa code. Model 3D: thêm vào `DISHES` trong `models.ts` (không có thì hiện emoji).
 
 **Thêm cây trồng / vật nuôi** — 1 mục `ProducerDef` trong `src/data/farm.ts`. `cycles: 1` thu một lần; `cycles: 'infinite'` + `regrowTime` thu định kỳ. Muốn có model riêng: thêm vào bảng `CROPS` hoặc `ANIMALS` trong `src/ui/three/models.ts` (không thêm thì hiện emoji).
 
@@ -146,15 +158,25 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 
 **Bác nông dân** (`src/sim/systems/farmer.ts`) — UI và bảng Nông trại **không gửi thẳng `farm/till|water|plant|harvest|clear`** nữa mà gửi `farmer/do { slotId, kind, producerId? }` (hoặc `farmer/doAll { kind: 'harvest'|'water' }`). Bác chạy tới chỗ đứng của ô (`workSpot`), làm `balance.farmer.workTime` phút rồi mới gọi handler `farm/*`; việc thất bại lúc tới nơi phát sự kiện `farmer/done { ok: false, reason }`. Lúc bấm, `preview()` chạy thử cả hàng việc trên bản sao state nên lỗi (thiếu tiền, đất chưa cuốc) báo ngay, và "cuốc rồi gieo liền" một ô vẫn hợp lệ. Bác đi theo lối: ngang theo khe giữa các hàng ô, dọc chỉ trên `balance.farmer.lanes` (`nextWaypoint`). Vị trí ô trên bản đồ lấy từ `SlotTypeDef.layout` (dùng chung cho sim và cảnh 3D). Lệnh `farm/*` cũ vẫn còn cho test và `?do=`.
 
-**Thêm loại ô nông trại** — thêm vào union `SlotType` (`src/data/types.ts`), `slotTypes` (`farm.ts`), và `SLOT_LAYOUT` + nhánh dựng hình trong `src/ui/three/areas/farm.ts`.
+**Ruộng tự động + cối** — loại ô có `SlotTypeDef.mill` (lúa mì → `windmill`, lúa nước → `ricemill`): người chơi chỉ bấm thu hoạch; `farmer.ts` (`autoChain`) chuyển sản lượng từ kho lên máy cày (`farmer.carry`), xếp "gieo lại giống cũ" rồi việc `haul` tới cối ít hàng nhất (`pickMill`). Cối (`MillTypeDef` trong `data/farm.ts`, state `farm.mills`) xay 1 lúa → 1 thành phẩm người chơi chọn. Thêm thành phẩm: thêm id vào `products`. Hình: `src/ui/three/farmkit.ts`.
 
-**Thêm sạp chợ** — 1 mục trong `src/data/market.ts`; khu chợ tự dựng thêm sạp.
+**Bố cục nông trại** — vị trí ô theo `SlotTypeDef.layout` (`work`: bác đứng mép `front` / `left` / `back`), cối theo `MillTypeDef.layout` (`spot` = chỗ đổ lúa); lối dọc `balance.farmer.lanes` (hiện chỉ đường đất giữa x = 1.25). Ao chỉ 1 cái, mở rộng bằng `tiers` (nới diện tích), hình méo từ `farmkit.pondOutline`. Test "mua đủ mọi ô và cối" kiểm tra không ô nào chồng nhau và đường đi của bác không xuyên ô / cối — đổi bố cục thì chạy test đó. Chỗ còn mua được tự hiện viền đứt khúc + ➕ (`FarmArea.updateExpand`, `Pick { type: 'expand' }`).
+
+**Nhà kính** — loại ô `gplot` có `SlotTypeDef.building` (nhà trên bản đồ nông trại, cửa = chỗ bác đứng), `batch` (mua theo lô: nhà dài thêm về phía đông), `growMul`. Rau củ trồng được nhờ `ProducerDef.alsoIn` (`fitsSlot`). Hình nhà: `farmkit.makeGreenhouse`, kích thước theo `buildingRect()`; luống bên trong vẽ ở khu riêng `areas/greenhouse.ts` (bấm nhà ở nông trại → `Pick { type: 'building' }` → `setArea`).
+
+**Bấm ô / cối trong cảnh** — `stage.focusOn(x, z)` lướt camera lại gần, `ui.farmFocus` lọc bảng Nông trại; đóng bảng thì `stage.unfocus()`.
+
+**Trời** — `env.noon` (nắng gắt buổi trưa), `env.wind` = thời tiết + gió theo giờ + cơn gió; khu có `outdoor = true` thì có vệt gió bay (`Stage.updateStreaks`).
+
+**Thêm loại ô nông trại** — thêm vào union `SlotType` (`src/data/types.ts`), `slotTypes` (`farm.ts`, kèm `layout`), và nhánh dựng hình trong `buildSlot` của `src/ui/three/areas/farm.ts`.
+
+**Thêm sạp chợ** — 1 mục trong `src/data/market.ts`; khu chợ tự dựng thêm sạp, bảng tên (= `name`) và bảng chân đứng nếu có `standee`. Xe cộ trên đường trước chợ: `farmkit.makeCar/makeTruck/makeScooter`, danh sách xe trong `MarketArea.buildScenery`.
 
 **Thêm bàn** — 1 mục `TableDef` trong `src/data/restaurant.ts` (x, y là vị trí mặc định; test kiểm tra bố cục mặc định không chồng nhau); đặt `requiresUpgrade` nếu bàn chỉ có sau khi nâng cấp, `fixed` nếu không cho dời. Cảnh quán tự dựng bàn ghế.
 
 **Nới rộng quán** — tăng `width`/`height`/`dining` của `room` trong `src/data/restaurant.ts`; phòng 3D tự to theo. (Muốn nới theo nâng cấp thì cần chuyển kích thước phòng vào state — chưa làm.)
 
-**Thêm nội thất (sàn, sơn tường, bộ bàn ghế)** — 1 mục `DecorDef` trong `src/data/decor.ts`: `colors` cho hình ảnh, `modifiers` cho gameplay. Tự xuất hiện trong panel Siêu thị. Thêm loại nội thất mới (vd đèn, rèm): thêm vào union `DecorSlot`, `decorSlotNames`, một món `isDefault`, và chỗ dùng màu trong `areas/restaurant.ts`.
+**Thêm nội thất (sàn, sơn tường, bộ bàn ghế)** — 1 mục `DecorDef` trong `src/data/decor.ts` (thêm `cuisine` nếu chỉ hợp một quán): `colors` cho hình ảnh, `modifiers` cho gameplay. Tự xuất hiện trong panel Siêu thị. Thêm loại nội thất mới (vd đèn, rèm): thêm vào union `DecorSlot`, `decorSlotNames`, một món `isDefault`, và chỗ dùng màu trong `areas/restaurant.ts`.
 
 **Thêm trang thiết bị (nâng cấp)** — 1 mục `UpgradeDef` trong `src/data/restaurant.ts`; hiện ở cuối panel Siêu thị. Hiệu ứng dạng hệ số: `modifiers: { cookSpeed: 1.2 }`. Chỉ số mới: thêm key vào `ModifierKey` rồi gọi `modifier(ctx, 'key')` ở nơi cần.
 
@@ -164,7 +186,7 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 
 **Thêm lệnh** — thêm vào union `Command`, viết handler trong `commands` của system liên quan, thêm test.
 
-**Thêm tính năng lớn (system mới)** — thêm trường vào `GameState` + giá trị khởi tạo trong `createInitialState`, tăng `SAVE_VERSION` và viết migration trong `save.ts` (xem các migration trong đó làm mẫu, mới nhất v5→v6 thêm bác nông dân), tạo `src/sim/systems/<tên>.ts`, đăng ký vào `defaultSystems`, thêm panel/hình ảnh nếu cần, thêm test.
+**Thêm tính năng lớn (system mới)** — thêm trường vào `GameState` + giá trị khởi tạo trong `createInitialState`, tăng `SAVE_VERSION` và viết migration trong `save.ts` (v7 thêm phong cách quán và được chốt là chơi lại từ đầu nên đã xoá migration cũ; v7→v8 thêm cối là mẫu mới nhất), tạo `src/sim/systems/<tên>.ts`, đăng ký vào `defaultSystems`, thêm panel/hình ảnh nếu cần, thêm test.
 
 **Chỉnh cân bằng** — `src/data/balance.ts` và các con số trong file data.
 

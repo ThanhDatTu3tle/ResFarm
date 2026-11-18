@@ -1,8 +1,10 @@
-import { createContent } from '../data';
+import type * as THREE from 'three';
+import { createContent, type Content, type CuisineId, type MillType } from '../data';
 import { Game } from '../sim/game';
 import { deserialize, serialize } from '../sim/save';
 import { needsWatering } from '../sim/systems/farm';
-import { queuedKinds } from '../sim/systems/farmer';
+import { buildingRect, queuedKinds, slotCenter, slotCenterAt } from '../sim/systems/farmer';
+import { millCenter, millCenterAt } from '../sim/systems/mills';
 import type { Command } from '../sim/types';
 import { cmd, esc, morph, ui as uiAttr } from './dom';
 import { coins } from './format';
@@ -12,6 +14,7 @@ import { isReserved, needOf } from '../sim/systems/service';
 import { bump, Counter, floatText, flyIcon, fxLayer } from './juice';
 import { panels, type UiState } from './panels';
 import { FarmArea } from './three/areas/farm';
+import { GreenhouseArea } from './three/areas/greenhouse';
 import { MarketArea } from './three/areas/market';
 import { RestaurantArea } from './three/areas/restaurant';
 import { Stage, type Area, type Pick } from './three/stage';
@@ -21,16 +24,23 @@ const SAVE_KEY = 'quan-nha-vuon/save';
 const DOM_FPS = 8;
 const AUTOSAVE_SECONDS = 10;
 
-/** Ghép sim + cảnh 3D + panel lại và chạy vòng lặp chính. Đây là nơi duy nhất biết tới cả ba. */
-export function startApp(root: HTMLElement): void {
-  const content = createContent();
+/**
+ * Ghép sim + cảnh 3D + panel lại và chạy vòng lặp chính. Đây là nơi duy nhất biết tới cả ba.
+ * opts.cuisine có giá trị = Ván mới với phong cách quán đó (ghi đè save cũ); không có = chơi tiếp từ save.
+ * Màn hình mở đầu (title.ts) gọi hàm này sau khi người chơi chọn.
+ */
+export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content?: Content } = {}): void {
+  const content = opts.content ?? createContent();
 
   // Tham số URL để thử nhanh: ?fresh (bỏ qua save, không ghi save) · ?seed=7 · ?ff=300 (tua 300 phút game)
   // · ?area=farm · ?tab=menu (mở sẵn ngăn kéo) · ?speed=4
   const params = new URLSearchParams(location.search);
   const fresh = params.has('fresh');
-  const saved = fresh ? null : deserialize(readSave(), content);
-  const game = new Game(content, saved ? { state: saved } : { seed: params.has('seed') ? Number(params.get('seed')) : undefined });
+  const saved = fresh || opts.cuisine ? null : loadSave(content);
+  // ?cuisine=jp|kr|vn (kèm ?fresh) để thử nhanh một quán mà không qua màn hình mở đầu
+  const paramCuisine = params.get('cuisine');
+  const cuisine = opts.cuisine ?? (paramCuisine && content.cuisines.has(paramCuisine) ? (paramCuisine as CuisineId) : 'vn');
+  const game = new Game(content, saved ? { state: saved } : { seed: params.has('seed') ? Number(params.get('seed')) : undefined, cuisine });
   if (import.meta.env.DEV) {
     // Chỉ ở bản dev: ?rich (nhiều tiền + cấp 9) · ?do=[{"type":"farm/plant",...}] chạy sẵn một chuỗi lệnh
     // · ?weather=rain ép thời tiết · ?edit mở sẵn chế độ sắp xếp bàn
@@ -65,7 +75,9 @@ export function startApp(root: HTMLElement): void {
   // Thứ tự mảng = thứ tự các khu từ trái sang phải khi bấm nút chuyển khu.
   const restaurant = new RestaurantArea(game);
   const farm = new FarmArea(game);
-  const areas: Area[] = [farm, restaurant, new MarketArea(game)];
+  const greenhouse = new GreenhouseArea(game);
+  // Nhà kính nằm bên trái nông trại trên thanh chuyển khu (vào được cả bằng cách bấm nhà kính ở nông trại)
+  const areas: Area[] = [greenhouse, farm, restaurant, new MarketArea(game)];
   const stage = new Stage($('scene') as HTMLCanvasElement, game, areas);
   const ui: UiState = {
     area: areas.find((a) => a.id === params.get('area'))?.id ?? 'restaurant',
@@ -77,6 +89,8 @@ export function startApp(root: HTMLElement): void {
     settings: false,
     passOpen: false,
     serving: null,
+    // Chỉ bản dev: ?focus=pen mở bảng Nông trại chỉ với một loại ô / cối (để xem giao diện)
+    farmFocus: import.meta.env.DEV ? params.get('focus') : null,
   };
   stage.setArea(ui.area);
 
@@ -136,8 +150,8 @@ export function startApp(root: HTMLElement): void {
         },
       });
   };
-  farm.onHarvest = (_slotId, world, icons) => {
-    if (ui.area !== 'farm') return;
+  const onHarvest = (area: string) => (_slotId: string, world: THREE.Vector3, icons: string[]) => {
+    if (ui.area !== area) return;
     const from = stage.toScreen(world);
     sound.play('harvest');
     icons.forEach((icon, i) =>
@@ -150,9 +164,14 @@ export function startApp(root: HTMLElement): void {
       }),
     );
   };
+  farm.onHarvest = onHarvest('farm');
+  greenhouse.onHarvest = onHarvest('greenhouse');
   // Âm thanh của từng khu chỉ phát khi đang xem khu đó, cho đỡ ồn
   farm.onAction = (kind) => {
     if (ui.area === 'farm') sound.play(kind === 'till' ? 'dig' : kind);
+  };
+  greenhouse.onAction = (kind) => {
+    if (ui.area === 'greenhouse') sound.play(kind);
   };
   // Bác nông dân tới nơi mà việc không làm được nữa (vd tiền đã tiêu vào việc khác) thì báo lại
   game.bus.on('farmer/done', (e) => {
@@ -184,8 +203,16 @@ export function startApp(root: HTMLElement): void {
   });
 
   // ---------- Vẽ DOM ----------
+  let lastDrawer: string | null = null;
   const renderDom = () => {
     const { state } = game;
+    // Đóng bảng Nông trại (hoặc chuyển bảng khác) thì camera lướt về góc nhìn cả nông trại
+    if (lastDrawer === 'farm' && ui.drawer !== 'farm' && (ui.area === 'farm' || ui.area === 'greenhouse')) {
+      stage.unfocus();
+      ui.farmFocus = null;
+      ui.selectedSlot = null;
+    }
+    lastDrawer = ui.drawer;
 
     morph($('hud'), hudHtml(game, ui, money.value));
     morph($('settings'), settingsHtml(ui, sound.prefs));
@@ -266,6 +293,7 @@ export function startApp(root: HTMLElement): void {
     if (id === ui.area) return;
     ui.area = id;
     ui.selectedSlot = null;
+    ui.farmFocus = null;
     ui.editLayout = false;
     stage.setArea(id);
     $('scene').animate([{ opacity: 0.15 }, { opacity: 1 }], { duration: 380, easing: 'ease-out' });
@@ -276,6 +304,15 @@ export function startApp(root: HTMLElement): void {
     if (pick.type === 'slot') {
       const slot = game.state.farm.slots.find((s) => s.id === pick.id);
       const type = slot && content.slotTypes.get(slot.type);
+      // Camera lướt lại gần ô vừa bấm (vừa phải) và bảng Nông trại chỉ hiện loại ô này
+      if (slot) {
+        // Luống trong nhà kính nằm ở khu riêng (toạ độ khác) nên không lướt camera
+        if (!type?.building) {
+          const c = slotCenter(game.ctx, slot);
+          stage.focusOn(c.x, c.z, slot.type === 'field' ? 0.55 : 0.62);
+        }
+        ui.farmFocus = slot.type;
+      }
       // Bác nông dân nhận việc hợp trạng thái ô rồi chạy tới làm (systems/farmer.ts).
       // Ô đã có việc chờ, hoặc không có gì để làm ngay: bác chạy tới xem và mở bảng để chọn giống / xem thông tin.
       const queued = slot ? queuedKinds(game.ctx, slot.id) : [];
@@ -290,6 +327,36 @@ export function startApp(root: HTMLElement): void {
         ui.selectedSlot = pick.id;
         ui.drawer = 'farm';
       }
+    } else if (pick.type === 'mill') {
+      const mill = game.state.farm.mills.find((m) => m.id === pick.id);
+      if (mill) {
+        const c = millCenter(game.ctx, mill);
+        stage.focusOn(c.x, c.z, 0.6);
+        ui.farmFocus = mill.type;
+        ui.selectedSlot = null;
+        ui.drawer = 'farm';
+      }
+    } else if (pick.type === 'expand') {
+      // Chỗ trống mua thêm: lướt tới chỗ trống đầu tiên của loại đó, mở bảng có nút mua
+      const slotType = content.slotTypes.has(pick.id) ? content.slotTypes.get(pick.id) : null;
+      const owned = slotType ? game.state.farm.slots.filter((s) => s.type === slotType.id) : [];
+      // Loại ô đã đủ số lượng (ao): viền đứt khúc là chỗ NỚI RỘNG ô có sẵn → chọn ô đó để bảng hiện nút nới rộng
+      const grow = slotType && owned.length >= slotType.max ? owned[0] : null;
+      const house = slotType?.building ? buildingRect(game.ctx, slotType.id) : null;
+      const c = house
+        ? { x: house.x2 + 2, z: (house.z1 + house.z2) / 2 }
+        : grow
+        ? slotCenter(game.ctx, grow)
+        : slotType
+          ? slotCenterAt(game.ctx, slotType.id, owned.length)
+          : millCenterAt(game.ctx, pick.id as MillType, game.state.farm.mills.filter((m) => m.type === pick.id).length);
+      if (ui.area === 'farm') stage.focusOn(c.x, c.z, 0.62);
+      ui.farmFocus = pick.id;
+      ui.selectedSlot = grow?.id ?? null;
+      ui.drawer = 'farm';
+    } else if (pick.type === 'building') {
+      // Bấm nhà kính ở nông trại: vào khu bên trong
+      setArea(pick.id);
     } else if (pick.type === 'stall') {
       ui.selectedStall = pick.id;
       ui.drawer = 'market';
@@ -358,7 +425,10 @@ export function startApp(root: HTMLElement): void {
     if (!uiEl) return;
     const [action, arg = ''] = uiEl.dataset.ui!.split(':');
     if (action === 'area') setArea(arg);
-    else if (action === 'drawer') ui.drawer = ui.drawer === arg || !arg ? null : arg;
+    else if (action === 'drawer') {
+      ui.drawer = ui.drawer === arg || !arg ? null : arg;
+      if (ui.drawer === 'farm') ui.farmFocus = null; // mở từ nút: xem cả nông trại
+    } else if (action === 'farmFocus') ui.farmFocus = arg || null;
     else if (action === 'speed') ui.speed = Number(arg);
     else if (action === 'settings') ui.settings = arg === 'close' ? false : !ui.settings;
     else if (action === 'pass') ui.passOpen = arg === 'close' ? false : !ui.passOpen;
@@ -382,14 +452,10 @@ export function startApp(root: HTMLElement): void {
       if (document.fullscreenElement) void document.exitFullscreen();
       else void document.documentElement.requestFullscreen?.().then(lock).catch(() => {});
     }
-    else if (action === 'reset' && confirm('Xoá toàn bộ tiến trình và chơi lại từ đầu?')) {
-      try {
-        localStorage.removeItem(SAVE_KEY);
-      } catch {
-        /* bỏ qua */
-      }
-      window.removeEventListener('pagehide', save);
-      location.reload();
+    else if (action === 'home') {
+      // Về màn hình mở đầu: lưu rồi tải lại trang (màn mở đầu có Chơi tiếp / Ván mới)
+      save();
+      location.href = location.pathname;
       return;
     }
     renderDom();
@@ -451,6 +517,11 @@ export function startApp(root: HTMLElement): void {
   // Tiện cho việc debug / để AI agent kiểm tra qua console.
   // window.stage: tự vẽ khung hình (stage.render(dt, 1)) khi preview bị bóp requestAnimationFrame.
   if (import.meta.env.DEV) Object.assign(window as unknown as { game: Game; stage: Stage }, { game, stage });
+}
+
+/** Save hợp lệ của phiên bản hiện tại, hoặc null (chưa có / hỏng / từ bản cũ trước khi có phong cách quán). */
+export function loadSave(content: Content): ReturnType<typeof deserialize> {
+  return deserialize(readSave(), content);
 }
 
 function readSave(): string | null {

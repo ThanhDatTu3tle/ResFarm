@@ -1,5 +1,5 @@
 import type { RngState } from '../core/rng';
-import type { Content, DecorSlot, SlotType } from '../data';
+import { defaultDecor, recipesFor, type Content, type CuisineId, type DecorSlot, type ItemStack, type MillType, type SlotType } from '../data';
 
 /**
  * TRẠNG THÁI GAME — chỉ gồm dữ liệu JSON thuần (không class, không hàm, không Map/Set)
@@ -8,6 +8,8 @@ import type { Content, DecorSlot, SlotType } from '../data';
  */
 export interface GameState {
   version: number;
+  /** Phong cách quán chọn lúc tạo ván (Nhật / Hàn / Việt): quyết định thực đơn và nội thất. Không đổi trong ván. */
+  cuisine: CuisineId;
   rng: RngState;
   /** Bộ đếm sinh id cho party/order. */
   nextId: number;
@@ -24,7 +26,7 @@ export interface GameState {
   /** Nội thất đã mua và món đang dùng ở từng vị trí. */
   decor: { owned: string[]; equipped: Record<DecorSlot, string> };
   restaurant: RestaurantState;
-  farm: { slots: FarmSlot[]; farmer: FarmerState };
+  farm: { slots: FarmSlot[]; farmer: FarmerState; mills: MillState[] };
   /** Hệ số giá chợ hôm nay theo từng nguyên liệu. */
   market: { priceFactor: Record<string, number> };
   weather: { id: string; minutesLeft: number };
@@ -128,12 +130,15 @@ export interface FarmSlot {
   tier: number;
 }
 
-export type FarmerTaskKind = 'till' | 'water' | 'plant' | 'harvest' | 'clear' | 'visit';
+/** 'haul' = chở nông sản trên tay tới cối (millId); việc này do sim tự xếp sau khi thu ruộng tự động. */
+export type FarmerTaskKind = 'till' | 'water' | 'plant' | 'harvest' | 'clear' | 'visit' | 'haul';
 
 /** Một việc của bác nông dân; 'visit' = chỉ chạy tới ô (người chơi bấm để xem/chọn giống). */
 export interface FarmerTask {
   kind: FarmerTaskKind;
   slotId: string;
+  /** Chỉ có ở việc 'haul': chở tới cối nào. */
+  millId?: string;
   /** Chỉ có ở việc 'plant'. */
   producerId?: string;
 }
@@ -145,6 +150,20 @@ export interface FarmerState {
   tasks: FarmerTask[];
   /** Phút còn lại của việc đầu hàng khi đã tới nơi; null = đang đi hoặc rảnh. */
   work: number | null;
+  /** Nông sản đang chở trên máy cày (sau khi thu ruộng tự động, trước khi đổ vào cối). */
+  carry: ItemStack | null;
+}
+
+/** Một cối chế biến ở nông trại. */
+export interface MillState {
+  id: string;
+  type: MillType;
+  /** Thành phẩm đang chọn làm (id nguyên liệu, thuộc MillTypeDef.products). */
+  product: string;
+  /** Số đơn vị nguyên liệu thô đang chờ chế biến. */
+  input: number;
+  /** Phút đã chế biến đơn vị hiện tại. */
+  progress: number;
 }
 
 export interface DayStats {
@@ -156,28 +175,32 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 8;
 
 export function emptyStats(): DayStats {
   return { revenue: 0, tips: 0, spent: 0, dishes: 0, guestsServed: 0, guestsLost: 0 };
+}
+
+export function createMill(type: MillType, index: number, product: string): MillState {
+  return { id: `${type}-${index}`, type, product, input: 0, progress: 0 };
 }
 
 export function createSlot(type: SlotType, index: number): FarmSlot {
   return { id: `${type}-${index}`, type, producerId: null, stage: 'growing', progress: 0, cyclesDone: 0, lastProducerId: null, tilled: false, wet: 0, tier: 1 };
 }
 
-export function createInitialState(content: Content, seed: number): GameState {
+export function createInitialState(content: Content, seed: number, cuisine: CuisineId = 'vn'): GameState {
   const b = content.balance;
-  const starters = content.recipes
-    .all()
+  const starters = recipesFor(content, cuisine)
     .filter((r) => r.unlock.level <= 1 && r.unlock.cost === 0)
     .map((r) => r.id);
   const inventory: Record<string, number> = {};
-  for (const s of b.startInventory) inventory[s.item] = s.qty;
-  const defaultDecor = content.decor.all().filter((d) => d.isDefault);
+  for (const s of content.cuisines.get(cuisine).startInventory) inventory[s.item] = s.qty;
+  const decor = defaultDecor(content, cuisine);
 
   return {
     version: SAVE_VERSION,
+    cuisine,
     rng: { s: seed | 0 },
     nextId: 1,
     clock: { day: 1, minute: b.openMinute, phase: 'open' },
@@ -189,8 +212,8 @@ export function createInitialState(content: Content, seed: number): GameState {
     menu: { unlocked: [...starters], active: [...starters] },
     upgrades: [],
     decor: {
-      owned: defaultDecor.map((d) => d.id),
-      equipped: Object.fromEntries(defaultDecor.map((d) => [d.slot, d.id])) as Record<DecorSlot, string>,
+      owned: decor.map((d) => d.id),
+      equipped: Object.fromEntries(decor.map((d) => [d.slot, d.id])) as Record<DecorSlot, string>,
     },
     restaurant: {
       parties: [],
@@ -202,7 +225,8 @@ export function createInitialState(content: Content, seed: number): GameState {
     },
     farm: {
       slots: content.slotTypes.all().flatMap((t) => Array.from({ length: t.initial }, (_, i) => createSlot(t.id, i))),
-      farmer: { ...b.farmer.home, tasks: [], work: null },
+      farmer: { ...b.farmer.home, tasks: [], work: null, carry: null },
+      mills: content.mills.all().flatMap((m) => Array.from({ length: m.initial }, (_, i) => createMill(m.id, i, m.products[0]))),
     },
     market: { priceFactor: {} },
     weather: { id: content.weathers.all()[0].id, minutesLeft: 0 },

@@ -1,4 +1,4 @@
-import type { RecipeDef } from '../../data';
+import { recipesFor, type RecipeDef } from '../../data';
 import type { Game } from '../../sim/game';
 import { craftableCount, stockOf } from '../../sim/helpers';
 import { cmd, esc } from '../dom';
@@ -22,7 +22,7 @@ export const menuPanel: Panel = {
   icon: '📖',
   render(game) {
     const { state, content, ctx } = game;
-    const recipes = content.recipes.all();
+    const recipes = recipesFor(content, state.cuisine);
 
     const unlocked = recipes
       .filter((r) => state.menu.unlocked.includes(r.id))

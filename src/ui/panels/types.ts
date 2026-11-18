@@ -19,6 +19,11 @@ export interface UiState {
   passOpen: boolean;
   /** Món (id đơn) đã chọn ở quầy ra món, chờ người chơi bấm vào bàn cần giao. */
   serving: number | null;
+  /**
+   * Bảng Nông trại chỉ hiện một loại ô (SlotType) hoặc một loại cối (MillType) — khi người chơi bấm vào ô / cối / chỗ mở rộng
+   * trong cảnh 3D. null = hiện tất cả (mở từ nút Nông trại).
+   */
+  farmFocus: string | null;
 }
 
 /**

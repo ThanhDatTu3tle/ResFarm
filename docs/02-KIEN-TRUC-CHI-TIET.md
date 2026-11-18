@@ -68,11 +68,12 @@ src/ui/three/areas/*.ts   restaurant, farm, market
 test/sim.test.ts          toàn bộ test (chỉ test sim + data)
 ```
 
-## 3. GameState (phiên bản 6)
+## 3. GameState (phiên bản 8)
 
 ```ts
 GameState {
   version                       // SAVE_VERSION lúc lưu
+  cuisine: 'jp' | 'kr' | 'vn'     // phong cách quán chọn lúc tạo ván: lọc thực đơn + nội thất; không đổi trong ván
   rng: { s }                    // trạng thái RNG
   nextId                        // sinh id cho party/order
   clock: { day, minute, phase } // phase: 'open' | 'closing' | 'summary'
@@ -93,7 +94,8 @@ GameState {
   farm: {
     slots: FarmSlot[]           // FarmSlot: id, type, producerId, stage, progress, cyclesDone,
                                 //           lastProducerId, tilled, wet, tier
-    farmer: { x, z, tasks: FarmerTask[], work }   // bác nông dân; toạ độ mét; work = phút còn lại của việc đang làm (null = đang đi/rảnh)
+    farmer: { x, z, tasks: FarmerTask[], work, carry }   // bác nông dân; toạ độ mét; work = phút còn lại của việc đang làm (null = đang đi/rảnh); carry = lúa đang chở trên máy cày
+    mills: { id, type: 'windmill'|'ricemill', product, input, progress }[]   // cối chế biến: input = số lúa chờ xay
   }
   market: { priceFactor: Record<itemId, hệ số> }
   weather: { id, minutesLeft }
@@ -129,7 +131,9 @@ service/takeOrder   { partyId }            giao bồi bàn tới ghi món (khác
 service/deliver     { orderId, partyId }   bưng món đang ở quầy tới nhóm; nhóm khác cùng gọi món đó thì hai đơn đổi chủ
 farmer/do           { slotId, kind, producerId? }   giao việc cho bác nông dân; kind: till|water|plant|harvest|clear|visit
 farmer/doAll        { kind: 'harvest'|'water' }     xếp mọi ô cần làm theo đường ngắn (ô gần nhất kế tiếp)
-farmer/cancel                              bỏ các việc chưa tới lượt (việc đang làm dở vẫn làm xong)
+farmer/cancel                              bỏ các việc chưa tới lượt (việc đang làm dở và việc chở lúa vẫn giữ)
+mill/buy            { millType }           mua thêm cối (cối xay gió / nhà xay lúa)
+mill/setProduct     { millId, item }       chọn thành phẩm cối làm ra
 ```
 
 UI dùng `farmer/*` cho mọi thao tác trên ô; `farm/till|water|plant|harvest|clear|harvestAll|waterAll` là lệnh "làm ngay", hiện chỉ test, `?do=` và bác nông dân (khi tới nơi) gọi.
@@ -151,6 +155,7 @@ party/needs { need: 'menu'|'order' }       khách cần bồi bàn (âm thanh ch
 order/placed   order/ready (ra quầy)   order/served (lên bàn)
 waiter/done { kind: 'menu'|'takeOrder'|'pickup'|'deliver' }
 farmer/done { kind, slotId, ok, reason? }  bác nông dân làm xong một việc (ok: false = tới nơi mà không làm được)
+mill/produced { millId, item, qty }        cối vừa làm xong thành phẩm (đã vào kho)
 farm/ready     level/up      weather/changed
 day/ended      day/started
 ```
@@ -194,7 +199,7 @@ Người chơi đang có save thật trong trình duyệt. Mỗi lần đổi h�
 4. Nếu cần "sửa cho hợp lệ" (id bị xoá, số ô khởi đầu tăng...), thêm vào `reconcile()` — hàm này chạy sau migration ở mọi lần tải.
 5. Thêm test: lấy state mới, xoá trường mới, hạ `version`, `deserialize` lại, kiểm tra kết quả và chạy thử `tick`.
 
-Các migration đang có làm mẫu: v1→v2 thêm thời tiết, v2→v3 thêm nội thất + bố cục bàn, v3→v4 thêm trạng thái đất + bậc của ô, v4→v5 thêm bồi bàn (khách 'ordering' cũ thành 'seated'; vị trí bồi bàn để `reconcile()` đặt về chỗ đứng chờ), v5→v6 thêm bác nông dân (toạ độ âm để `reconcile()` đặt về `balance.farmer.home`).
+v7 (phong cách quán) được chủ dự án chốt là **chơi lại từ đầu**: migration v1→v6 đã xoá, save cũ bị bỏ qua. Muốn xem mẫu migration cũ: lịch sử git trước nhánh `giai-doan-2`. Từ v7 trở đi viết migration bình thường: v7→v8 thêm cối + `farmer.carry` (`reconcile()` tạo đủ cối khởi đầu).
 
 `deserialize` trả `null` (tạo game mới) nếu save hỏng hoặc thiếu migration. Khoá lưu: `quan-nha-vuon/save`.
 

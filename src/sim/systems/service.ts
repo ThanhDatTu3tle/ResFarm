@@ -122,7 +122,12 @@ export const serviceSystem: System = {
       w.y = target.y;
       budget -= dist;
       if (!task) return;
-      if (act(ctx, task)) w.tasks.shift();
+      // Xoá đúng việc vừa làm (không dùng shift): làm việc có thể khiến khách bỏ về và leave() đã lọc lại hàng việc,
+      // shift() lúc đó sẽ xoá nhầm việc kế tiếp của bàn khác
+      if (act(ctx, task)) {
+        const i = w.tasks.indexOf(task);
+        if (i >= 0) w.tasks.splice(i, 1);
+      }
     }
   },
   commands: {

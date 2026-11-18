@@ -11,7 +11,13 @@ export type Pick =
   /** Một nhóm khách (bấm vào người hoặc bong bóng chat); id = String(party.id). */
   | { type: 'party'; id: string }
   /** Quầy ra món. */
-  | { type: 'pass'; id: string };
+  | { type: 'pass'; id: string }
+  /** Cối chế biến ở nông trại (id = MillState.id). */
+  | { type: 'mill'; id: string }
+  /** Chỗ trống mua thêm được ở nông trại: id = loại ô (SlotType) hoặc loại cối (MillType). */
+  | { type: 'expand'; id: string }
+  /** Toà nhà ở nông trại có khu bên trong (id = id của Area, vd 'greenhouse'): bấm để vào. */
+  | { type: 'building'; id: string };
 
 /** Môi trường chung cho mọi khu, tính lại mỗi khung hình từ state (giờ + thời tiết). Mọi giá trị 0..1 trừ `t`. */
 export interface Env {
@@ -23,6 +29,8 @@ export interface Env {
   clouds: number;
   wind: number;
   dim: number;
+  /** Nắng gắt buổi trưa 0..1 (sáng sớm / chiều tối ≈ 0, 12:00 = 1); 0 khi trời tối. */
+  noon: number;
   selectedSlot: string | null;
   /** Đang ở chế độ sắp xếp bàn ghế. */
   editLayout: boolean;
@@ -43,6 +51,8 @@ export interface Area {
   view: { position: V3; target: V3; orbit: number };
   /** Vùng mưa rơi (trong nhà thì chỉ mưa phía ngoài cửa sổ). */
   rainBox: { min: V3; max: V3 };
+  /** Khu ngoài trời: có vệt gió bay ngang khi trời gió. */
+  outdoor?: boolean;
   /** Đồng bộ hình ảnh với game.state. dt: giây thực; speed: tốc độ game. */
   update(env: Env, dt: number, speed: number): void;
 }
@@ -68,7 +78,7 @@ export class Stage {
   dragFilter: (pick: Pick) => boolean = () => false;
   /** Gọi liên tục khi đang kéo, với toạ độ mặt đất (x, z) dưới con trỏ; end = true ở lần cuối khi thả. */
   onDrag: (pick: Pick, x: number, z: number, end: boolean) => void = () => {};
-  readonly env: Env = { t: 0, day: 1, night: 0, rain: 0, clouds: 0, wind: 0, dim: 0, selectedSlot: null, editLayout: false, serving: null };
+  readonly env: Env = { t: 0, day: 1, night: 0, rain: 0, clouds: 0, wind: 0, dim: 0, noon: 0, selectedSlot: null, editLayout: false, serving: null };
 
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -82,6 +92,10 @@ export class Stage {
   private stars: THREE.Points;
   private rain: THREE.LineSegments;
   private rainSeed: Float32Array;
+  /** Vệt gió (sợi trắng mảnh bay ngang) ở khu ngoài trời; life < 0 = đang nghỉ. */
+  private streaks: { m: THREE.Line; life: number; max: number; speed: number; phase: number }[] = [];
+  /** Camera đang lướt tới một chỗ (bấm ô nông trại) hoặc lướt về góc mặc định. */
+  private camTween: { fromT: THREE.Vector3; toT: THREE.Vector3; fromP: THREE.Vector3; toP: THREE.Vector3; k: number } | null = null;
   private raycaster = new THREE.Raycaster();
   private firstFrame = true;
   private controls: OrbitControls;
@@ -202,6 +216,7 @@ export class Stage {
     this.current.root.visible = false;
     this.current = next;
     next.root.visible = true;
+    this.camTween = null;
     this.resetView();
   }
 
@@ -224,6 +239,40 @@ export class Stage {
     c.update();
   }
 
+  /**
+   * Lướt camera lại gần một điểm trên mặt đất (giữ nguyên hướng nhìn hiện tại), gần hơn mặc định theo `closer` (0.6 = còn 60% khoảng cách).
+   * Dùng khi bấm ô nông trại để người chơi thấy đúng chỗ mình vừa chọn.
+   */
+  focusOn(x: number, z: number, closer = 0.62): void {
+    const c = this.controls;
+    const { position, target } = this.current.view;
+    const pull = Math.max(1, BASE_ASPECT / this.camera.aspect);
+    const base = new THREE.Vector3(position[0] - target[0], position[1] - target[1], position[2] - target[2]).multiplyScalar(pull).length();
+    const dir = this.camera.position.clone().sub(c.target).normalize();
+    const toT = new THREE.Vector3(x, 0, z);
+    this.camTween = { fromT: c.target.clone(), toT, fromP: this.camera.position.clone(), toP: toT.clone().add(dir.multiplyScalar(base * closer)), k: 0 };
+  }
+
+  /** Lướt camera về góc mặc định của khu hiện tại (bỏ zoom của focusOn). */
+  unfocus(): void {
+    const { position, target } = this.current.view;
+    const pull = Math.max(1, BASE_ASPECT / this.camera.aspect);
+    const toT = new THREE.Vector3(...target);
+    const toP = toT.clone().add(new THREE.Vector3(position[0] - target[0], position[1] - target[1], position[2] - target[2]).multiplyScalar(pull));
+    this.camTween = { fromT: this.controls.target.clone(), toT, fromP: this.camera.position.clone(), toP, k: 0 };
+  }
+
+  private updateTween(dt: number): void {
+    const tw = this.camTween;
+    if (!tw) return;
+    tw.k = Math.min(1, tw.k + dt / 0.55);
+    const e = 1 - Math.pow(1 - tw.k, 3); // chậm dần
+    this.controls.target.lerpVectors(tw.fromT, tw.toT, e);
+    this.camera.position.lerpVectors(tw.fromP, tw.toP, e);
+    this.controls.update();
+    if (tw.k >= 1) this.camTween = null;
+  }
+
   /** Toạ độ màn hình (px, theo viewport) của một điểm trong thế giới 3D — để hiệu ứng DOM bay ra từ vật thể. */
   toScreen(world: THREE.Vector3): { x: number; y: number } {
     const ndc = world.clone().project(this.camera);
@@ -237,6 +286,8 @@ export class Stage {
     this.updateEnv(dt, speed);
     for (const area of this.areas) area.update(this.env, dt, speed);
     this.updateSky(dt);
+    this.updateStreaks(dt);
+    this.updateTween(dt);
     this.renderer.render(this.scene, this.camera);
     this.firstFrame = false;
   }
@@ -267,8 +318,68 @@ export class Stage {
     const k = this.firstFrame ? 1 : Math.min(1, dt * 0.6 * Math.max(1, speed));
     env.rain += (target.rain - env.rain) * k;
     env.clouds += (target.clouds - env.clouds) * k;
-    env.wind += (target.wind - env.wind) * k;
     env.dim += (target.dim - env.dim) * k;
+    // Nắng: 06:00 → 18:00 là nửa vòng; gắt nhất lúc 12:00, nhẹ lúc sáng sớm và chiều
+    const arc = Math.max(0, Math.sin(((m - 360) / 720) * Math.PI));
+    env.noon = arc * arc * env.day * (1 - env.dim);
+    // Gió: nền theo thời tiết + gió nhẹ thay đổi theo giờ (sáng lặng, chiều lộng) và từng cơn ngẫu nhiên trong ngày.
+    // Chỉ là hình ảnh nên dùng hàm tất định theo ngày/giờ, không đụng RNG của sim.
+    const d = state.clock.day;
+    const afternoon = smooth(600, 900, m) * (1 - smooth(1080, 1260, m));
+    const gust = Math.max(0, Math.sin(m * 0.031 + d * 1.7) * Math.sin(m * 0.0113 + d * 0.9));
+    const breeze = 0.08 + 0.22 * afternoon + 0.45 * gust * (0.4 + 0.6 * afternoon);
+    const windTarget = Math.min(1, Math.max(target.wind, breeze) + target.wind * 0.3 * gust);
+    env.wind += (windTarget - env.wind) * Math.min(1, dt * 0.8);
+  }
+
+  /**
+   * Vệt gió: vài sợi chỉ mảnh (nét 1 px), ngắn, uốn lượn, mờ, trôi ngang qua khung nhìn khu ngoài trời — chỉ để "có cảm giác" gió.
+   * Gió nhẹ: thỉnh thoảng 1–2 sợi; gió mạnh: tối đa STREAKS sợi, trôi nhanh và lượn nhiều hơn.
+   */
+  private updateStreaks(dt: number): void {
+    const env = this.env;
+    const STREAKS = 6;
+    const POINTS = 10;
+    const want = this.current.outdoor ? Math.min(STREAKS, Math.round(Math.max(0, env.wind - 0.15) * 7)) : 0;
+    while (this.streaks.length < STREAKS) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(POINTS * 3), 3));
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
+      line.visible = false;
+      line.frustumCulled = false;
+      this.scene.add(line);
+      this.streaks.push({ m: line, life: -1, max: 1, speed: 1, phase: Math.random() * 6 });
+    }
+    const t = this.controls.target;
+    let active = this.streaks.filter((s) => s.life >= 0).length;
+    for (const s of this.streaks) {
+      if (s.life < 0) {
+        if (active >= want || Math.random() > dt * 0.8) continue;
+        s.life = 0;
+        s.max = 1.8 + Math.random() * 1.2;
+        s.speed = 2.5 + env.wind * 4 + Math.random();
+        s.m.position.set(t.x - 14 + Math.random() * 22, 0.8 + Math.random() * 2.5, t.z - 8 + Math.random() * 16);
+        s.m.visible = true;
+        active++;
+      }
+      s.life += dt;
+      const k = Math.min(1, s.life / s.max);
+      s.m.position.x += s.speed * dt;
+      // Sợi dài ~1.2 m, uốn lượn như dải lụa: sóng chạy dọc sợi theo thời gian
+      const pos = s.m.geometry.getAttribute('position') as THREE.BufferAttribute;
+      const amp = 0.08 + env.wind * 0.1;
+      for (let i = 0; i < POINTS; i++) {
+        const u = i / (POINTS - 1);
+        pos.setXYZ(i, u * 1.2, Math.sin(u * 5 + env.t * 5 + s.phase) * amp * u, Math.cos(u * 3 + env.t * 3 + s.phase) * amp * 0.6);
+      }
+      pos.needsUpdate = true;
+      (s.m.material as THREE.LineBasicMaterial).opacity = 0.45 * Math.sin(k * Math.PI) * (0.5 + 0.5 * env.day);
+      if (k >= 1 || !this.current.outdoor) {
+        s.life = -1;
+        s.m.visible = false;
+        active--;
+      }
+    }
   }
 
   private updateSky(dt: number): void {
@@ -278,10 +389,11 @@ export class Stage {
     this.sky.copy(SKY_DAY).lerp(SKY_GREY, env.dim);
     this.sky.copy(SKY_NIGHT.clone().lerp(this.sky, env.day)).lerp(SKY_DUSK, dusk * 0.55);
 
-    this.hemi.intensity = 0.6 + 1.3 * env.day * (1 - 0.35 * env.dim);
+    // Sáng sớm / chiều: nắng dịu; trưa: nắng gắt, cảnh sáng hơn hẳn
+    this.hemi.intensity = 0.6 + (0.9 + 0.8 * env.noon) * env.day * (1 - 0.35 * env.dim);
     this.hemi.color.copy(SUN_NIGHT).lerp(new THREE.Color(0xffffff), env.day);
-    this.sun.intensity = 0.5 + 2 * env.day * (1 - 0.6 * env.dim);
-    this.sun.color.copy(SUN_NIGHT).lerp(SUN_DAY, env.day).lerp(SKY_DUSK, dusk * 0.5);
+    this.sun.intensity = 0.5 + (1.15 + 1.9 * env.noon) * env.day * (1 - 0.6 * env.dim);
+    this.sun.color.copy(SUN_NIGHT).lerp(SUN_DAY, env.day).lerp(SKY_DUSK, dusk * 0.5 + (1 - env.noon) * env.day * 0.3);
     const angle = ((this.game.state.clock.minute - 360) / 720) * Math.PI;
     const [tx, ty, tz] = this.current.view.target;
     this.sun.position.set(tx - Math.cos(angle) * 14, ty + 8 + Math.max(0, Math.sin(angle)) * 12, tz + 10);

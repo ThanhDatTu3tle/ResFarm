@@ -73,6 +73,47 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 - **Nông trại và chợ dùng chung** cho cả 3 nước.
 - **Nông trại có một con sông**, từ sông có **một con suối nhỏ dẫn nước vào ao**.
 - Chủ dự án sẽ bổ sung ý trong lúc làm Giai đoạn 2 → ghi thêm vào đây.
+- Giữ nút **Chơi tiếp** (save lưu trong trình duyệt); bấm Ván mới khi đã có save thì hỏi lại trước khi xoá. **Bản có chọn quán chơi lại từ đầu**: save cũ (trước v7) bị bỏ qua sau lần deploy này.
+
+**AI tự chọn (đổi được):** thực đơn 3 nước (bảng ở mục "Nội dung đang có", chủ dự án duyệt/sửa), đồ trang trí từng quán (xem `src/ui/three/cuisine.ts`), phong cách quán cố định trong một ván (muốn đổi thì Ván mới), nút "Chơi lại từ đầu" trong Cài đặt thay bằng "Màn hình chính".
+
+### Đợt 8 — Chỉnh sau khi thử Giai đoạn 2 phần đầu (18/11/2026)
+
+- Menu mở đầu ổn. **Model 3 mặt tiền quán chưa ưng** → để vậy, có thời gian sẽ đầu tư chỉnh sau.
+- Trong quán vẫn hơi to, **gian bếp to quá** → thu nhỏ; **bên trái gian bếp có lối vào WC và kho hàng**.
+- **Ao to gấp đôi**; dời ao ra xa về phía **hạ lưu** con suối; **khu chuồng rộng ra**, trong chuồng có **rơm rạ**.
+- Chưa thấy rõ chỗ mở rộng ô trồng / chuồng / ao → **vẽ đường đứt khúc** đánh dấu chỗ mở rộng được.
+- Bấm vào chuồng (hay ô bất kỳ): **camera zoom vào vừa phải** cho cảm giác đúng chỗ; **bảng chỉ hiện loại ô đó** (bấm chuồng thì chỉ chuồng), không hiện cả nông trại.
+- **Ruộng lúa mì** bên kia con suối, đối diện ruộng rau, ô to hơn. Bấm thu hoạch là bác **tự lái máy cày thu, tự gieo lại, chở tới cối xay gió** làm **bột mì** (để làm mì sợi, bánh mì). Mua thêm được **1 cối xay gió** và **nhiều ruộng lúa mì**.
+- **Ruộng lúa nước** (ngập nước) tương tự → thành phẩm làm **bánh phở, bánh gạo**...
+- **Nắng theo giờ:** sáng sớm / chiều nắng nhẹ, trưa nắng gắt, cảnh sáng hơn. **Gió:** gió nhẹ có **sợi gió bay**, cây đung đưa; gió mạnh tăng cường độ; ngẫu nhiên theo thời gian trong ngày.
+- **Nông trại có đèn phát sáng buổi tối.**
+
+**AI tự chọn (đổi được):** quán 640×540 (cũ 720×600), bếp 3.4 m; cối chế biến cho người chơi **chọn thành phẩm** (cối xay gió: bột mì / mì sợi / bánh mì; nhà xay lúa: bánh phở / bún / bánh gạo), 1 lúa → 1 thành phẩm, 10 phút game mỗi phần; tối đa 4 ruộng lúa mì, 4 ruộng lúa nước, 2 cối mỗi loại; gieo lại tự động vẫn trừ tiền giống (thiếu tiền thì ô để trống, có thông báo); thêm 3 món dùng bánh mì (bánh mì thịt, sandwich heo chiên xù, bánh mì nướng đường phố); ao nằm dọc suối, bác đứng bờ sau ao; zoom = 55–62% khoảng cách mặc định, đóng bảng thì camera lướt về.
+
+### Đợt 9 — Chỉnh nông trại lần 2 (18/11/2026)
+
+- **Vệt gió** phải thật mỏng, ít, ngắn, hơi uốn lượn — chỉ để có cảm giác.
+- **Cối xay gió** về chỗ cũ: phía bắc, sau hàng rào.
+- **Ao** không tròn: cong, méo tự nhiên. **Mở rộng ao = nới rộng diện tích ao**, không xây thêm ao mới.
+- Khu 4 ô bên kia suối: **2 ô cạnh sông là ruộng lúa nước** (mặc định 1, ô kia phải mở rộng), **bên cạnh là ruộng lúa mì**.
+- **Nhà xay lúa** đặt sát bờ sông, ở vị trí cối xay gió cũ (phía nam).
+
+**AI tự chọn (đổi được):** ao 4 bậc (6 → 7.8 → 9.6 → 11.4 m bề ngang), viền đứt khúc của ao là hình ao ở bậc kế tiếp; lúa mì tối đa 2 ô (khu đã chốt 4 ô); mương nhỏ dẫn nước sông vào ruộng lúa nước; bỏ lối dọc bên trái (x = -8.3) — mọi chỗ đều tới được qua đường đất giữa, lối trái làm bác chạy ngang xuyên ruộng; vệt gió là nét 1 px dài ~1.2 m, tối đa 6 sợi.
+
+### Đợt 10 — Nhà lồng / nhà màng (18/11/2026)
+
+- Thêm **một căn nhà lồng kính / nhà màng nông nghiệp** phía nam ao. Mở rộng giống ao: **nhà dài ra về phía đông**, không xây thêm căn mới.
+- Có **giao diện bên trong** (tham khảo ảnh nhà màng thật, vẫn theo phong cách đồ hoạ của game): mặc định **8 ô đất nhỏ, 4 ô mỗi bên, lối đi ở giữa**.
+
+**AI tự chọn (đổi được):** mỗi lần nới rộng +4 luống (+3.8 m), tối đa 20 luống; trồng được mọi rau củ của ruộng; không cần cuốc / tưới (có tưới nhỏ giọt), lớn nhanh hơn 30%; vào bên trong bằng cách bấm nhà kính ở nông trại hoặc nút chuyển khu (nhà kính nằm bên trái nông trại); trong sim bác nông dân đứng ở cửa nhà kính, khu bên trong vẽ bác cạnh luống đang làm.
+
+### Đợt 11 — Chợ (18/11/2026)
+
+- Chợ có thêm **đường và xe cộ chạy qua lại**; **vỉa hè rộng gấp đôi**.
+- Gian hàng có **bảng tên**: thịt "Chuyên thịt heo/lợn", rau "Tạp hóa cậu Ba", hải sản "Hải sản Tuyết Nhung" (kèm **bảng chân đứng** chữ nhỏ "Chuyên các loại ốc, nghêu, sò"), đồ khô "Chuyên đồ khô, mì, bún, phở".
+
+**AI tự chọn (đổi được):** tên sạp trong bảng Chợ cũng đổi theo bảng tên; "đồ kho" hiểu là "đồ khô"; xe gồm ô tô, xe tải nhỏ, xe máy (người lái đội mũ bảo hiểm), chạy 2 làn ngược chiều, đèn xe sáng khi tối; có vạch qua đường, đèn đường và cây trên vỉa hè.
 
 ## Quyết định mình đã tự đưa ra (đổi được)
 
@@ -106,22 +147,66 @@ Những chỗ chủ dự án chưa nói rõ, mình chọn phương án đơn gi�
 
 Con số bên dưới là **giá trị tạm để chơi thử**, chưa cân bằng. Thời gian tính bằng phút game (÷ 0.7 ra giây thực).
 
-### Thực đơn (12 món)
+### Thực đơn theo phong cách quán (42 món)
+
+Mỗi ván chọn một quán; chỉ thấy món của quán mình. Nguồn: `src/data/recipes.ts` (bảng dưới sinh từ file đó ngày 18/11/2026).
+
+#### 🇻🇳 Quán Việt (16 món)
 
 | Món | Nguyên liệu | Nấu | Giá | Mở khoá |
 | --- | --- | --- | --- | --- |
-| Cơm trứng chiên | gạo, dầu, trứng ×2 | 15 | 18 | có sẵn |
-| Rau cải xào | rau cải ×2, dầu, muối | 12 | 16 | có sẵn |
+| Cơm trứng chiên | gạo, dầu ăn, trứng ×2 | 15 | 18 | có sẵn |
+| Rau cải xào | rau cải ×2, dầu ăn, muối | 12 | 16 | có sẵn |
 | Canh cà chua trứng | cà chua ×2, trứng, nước | 18 | 22 | có sẵn |
 | Cơm gà | gạo, thịt gà, hành tây | 25 | 38 | cấp 2 · 150 |
+| Cơm tấm sườn | gạo, thịt heo, trứng, nước mắm | 28 | 42 | cấp 2 · 180 |
 | Thịt kho trứng | thịt heo, trứng ×2, nước mắm | 30 | 44 | cấp 2 · 200 |
+| Hủ tiếu Nam Vang | bún, thịt heo, tôm, nước | 26 | 46 | cấp 2 · 250 |
 | Bánh flan | trứng ×2, sữa ×2 | 20 | 34 | cấp 3 · 300 |
-| Cá chiên sốt cà | cá, cà chua ×2, dầu | 28 | 50 | cấp 3 · 350 |
+| Cá chiên sốt cà | cá, cà chua ×2, dầu ăn | 28 | 50 | cấp 3 · 350 |
 | Phở bò | bánh phở, thịt bò, hành tây, nước | 30 | 58 | cấp 3 · 400 |
+| Bún bò Huế | bún, thịt bò, ớt, nước | 32 | 60 | cấp 3 · 450 |
+| Cơm gia đình | gạo, thịt heo, rau cải, cà chua, trứng | 40 | 78 | cấp 4 · 500 |
 | Tôm rang ớt | tôm ×3, ớt, hành tây | 25 | 66 | cấp 4 · 600 |
 | Mực xào sa tế | mực ×2, hành tây, ớt | 25 | 68 | cấp 4 · 600 |
 | Cà ri gà | thịt gà, khoai tây ×2, cà rốt, sữa | 35 | 72 | cấp 4 · 650 |
 | Bò lúc lắc | thịt bò ×2, khoai tây, hành tây | 35 | 96 | cấp 5 · 1000 |
+
+#### 🇯🇵 Quán Nhật (13 món)
+
+| Món | Nguyên liệu | Nấu | Giá | Mở khoá |
+| --- | --- | --- | --- | --- |
+| Cơm nắm onigiri | gạo, rong biển, muối | 12 | 16 | có sẵn |
+| Trứng cuộn tamagoyaki | trứng ×2, nước tương, dầu ăn | 15 | 20 | có sẵn |
+| Súp miso | đậu phụ, rong biển, tương miso, nước | 15 | 20 | có sẵn |
+| Cơm cuộn maki | gạo, rong biển, dưa leo, cá | 22 | 36 | cấp 2 · 150 |
+| Gà teriyaki | thịt gà, nước tương, gạo | 25 | 40 | cấp 2 · 200 |
+| Sushi cá hồi | gạo, cá hồi | 20 | 48 | cấp 3 · 300 |
+| Tôm tempura | tôm ×2, bột mì, dầu ăn | 24 | 50 | cấp 3 · 350 |
+| Mì ramen | mì sợi, thịt heo, trứng, tương miso, nước | 32 | 58 | cấp 3 · 400 |
+| Mì udon nấm | mì sợi, nấm, nước tương, nước | 26 | 46 | cấp 3 · 350 |
+| Bánh takoyaki | bột mì, mực, trứng | 24 | 54 | cấp 4 · 500 |
+| Cơm heo chiên xù | gạo, thịt heo, trứng, bột mì | 32 | 66 | cấp 4 · 600 |
+| Sashimi thập cẩm | cá hồi ×2, cá | 22 | 84 | cấp 4 · 700 |
+| Cơm bò gyudon | gạo, thịt bò ×2, hành tây, nước tương | 32 | 92 | cấp 5 · 1000 |
+
+#### 🇰🇷 Quán Hàn (13 món)
+
+| Món | Nguyên liệu | Nấu | Giá | Mở khoá |
+| --- | --- | --- | --- | --- |
+| Cơm cuộn kimbap | gạo, rong biển, cà rốt, trứng | 18 | 22 | có sẵn |
+| Kimchi cải thảo | rau cải ×2, ớt, tương ớt hàn | 12 | 16 | có sẵn |
+| Trứng hấp gyeran-jjim | trứng ×2, nước, muối | 15 | 20 | có sẵn |
+| Tokbokki | bánh gạo ×2, tương ớt hàn, hành tây | 20 | 34 | cấp 2 · 150 |
+| Gà rán Hàn Quốc | thịt gà, bột mì, dầu ăn, tương ớt hàn | 28 | 46 | cấp 2 · 250 |
+| Mì cay ramyeon | mì sợi, trứng, ớt, nước | 22 | 38 | cấp 2 · 200 |
+| Canh kimchi jjigae | rau cải, thịt heo, đậu phụ, tương ớt hàn | 30 | 50 | cấp 3 · 350 |
+| Cơm trộn bibimbap | gạo, trứng, cà rốt, nấm, thịt bò | 30 | 58 | cấp 3 · 400 |
+| Canh đậu phụ non cay | đậu phụ ×2, tôm, trứng, tương ớt hàn | 28 | 54 | cấp 3 · 400 |
+| Bò nướng bulgogi | thịt bò, hành tây, nước tương | 32 | 72 | cấp 4 · 600 |
+| Ba chỉ nướng | thịt heo ×2, rau cải | 30 | 66 | cấp 4 · 550 |
+| Bánh xèo hải sản pajeon | bột mì, mực, tôm, trứng | 30 | 80 | cấp 5 · 900 |
+| Sườn bò om galbi-jjim | thịt bò ×2, cà rốt, khoai tây, nước tương | 40 | 98 | cấp 5 · 1100 |
 
 ### Nông trại
 
@@ -133,23 +218,26 @@ Con số bên dưới là **giá trị tạm để chơi thử**, chưa cân b�
 | Cà rốt | ruộng | 3 | 260 | 4 cà rốt | không | 2 |
 | Khoai tây | ruộng | 3 | 300 | 5 khoai tây | không | 3 |
 | Ớt | ruộng | 2 | 220 | 4 ớt | không | 3 |
+| Dưa leo | ruộng | 2 | 210 | 4 dưa leo | không | 1 |
 | Gà mái đẻ | chuồng | 60 | 240 | 3 trứng | mỗi 150 | 1 |
 | Bò sữa | chuồng | 250 | 480 | 3 sữa | mỗi 240 | 3 |
 | Gà thịt | chuồng | 15 | 480 | 4 thịt gà | không | 2 |
 | Heo | chuồng | 30 | 720 | 6 thịt heo | không | 2 |
 | Bò thịt | chuồng | 60 | 1200 | 7 thịt bò | không | 3 |
 | Cá giống | ao | 20 | 600 | 5 cá | không | 1 |
+| Cá hồi giống | ao | 40 | 720 | 4 cá hồi | không | 3 |
 | Tôm giống | ao | 25 | 600 | 9 tôm | không | 4 |
 
-Chỉ mua được ngoài chợ (chưa có nguồn tự làm): **mực, bánh phở**.
+Chỉ mua được ngoài chợ (chưa có nguồn tự làm): **mực, nấm và mọi đồ khô** (bánh phở, bún, mì sợi, bánh gạo, đậu phụ, rong biển, bột mì). Luôn có sẵn: gạo, nước, dầu, muối, nước mắm, nước tương, tương miso, tương ớt Hàn.
 
 ### Chợ
 
 | Sạp | Bán |
 | --- | --- |
 | Quầy thịt chú Tư | thịt bò, thịt heo, thịt gà |
-| Sạp rau - trứng - sữa cô Ba | rau cải, cà chua, hành tây, cà rốt, khoai tây, ớt, trứng, sữa, bánh phở |
-| Hàng hải sản dì Năm | cá, tôm, mực |
+| Sạp rau - trứng - sữa cô Ba | rau cải, cà chua, hành tây, cà rốt, khoai tây, ớt, dưa leo, nấm, trứng, sữa |
+| Hàng hải sản dì Năm | cá, tôm, mực, cá hồi |
+| Tiệm đồ khô chị Sáu | bánh phở, bún, mì sợi, bánh gạo, đậu phụ, rong biển, bột mì |
 
 ## CHỜ CHỦ DỰ ÁN: danh sách thời gian và thực đơn
 

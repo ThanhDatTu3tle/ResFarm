@@ -9,11 +9,7 @@ export const balance: Balance = {
 
   startMoney: 200,
   startReputation: 2.5,
-  startInventory: [
-    { item: 'egg', qty: 30 },
-    { item: 'cabbage', qty: 24 },
-    { item: 'tomato', qty: 24 },
-  ],
+  // Nguyên liệu khởi đầu: theo từng phong cách quán (CuisineDef.startInventory trong cuisines.ts)
 
   spawnInterval: 40,
   maxQueue: 5,
@@ -39,7 +35,7 @@ export const balance: Balance = {
     moodStep: 7, // 10 giây thực mỗi bậc
     moodTip: [1, 0.6, 0.25, 0],
   },
-  farmer: { home: { x: 1.25, z: 5.4 }, lanes: [-8.3, 1.25], speed: 8, workTime: 0.5 }, // chạy ~5.6 m/giây thực, làm mỗi việc ~0.7 giây
+  farmer: { home: { x: 1.25, z: 5.4 }, lanes: [1.25], speed: 8, workTime: 0.5 }, // chạy ~5.6 m/giây thực, làm mỗi việc ~0.7 giây
   farm: { waterDuration: 300, dryGrowth: 0.35 },
   marketSwing: [0.8, 1.25],
 };

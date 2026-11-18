@@ -7,7 +7,7 @@ export const progressionSystem: System = {
   commands: {
     'menu/unlock'(ctx, cmd) {
       const { state, content } = ctx;
-      if (!content.recipes.has(cmd.recipeId)) return fail('Không có món này.');
+      if (!content.recipes.has(cmd.recipeId) || content.recipes.get(cmd.recipeId).cuisine !== state.cuisine) return fail('Quán mình không bán món này.');
       if (state.menu.unlocked.includes(cmd.recipeId)) return fail('Món đã được mở.');
       const { unlock } = content.recipes.get(cmd.recipeId);
       if (state.level < unlock.level) return fail(`Cần cấp ${unlock.level}.`);

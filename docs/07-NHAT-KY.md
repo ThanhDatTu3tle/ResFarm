@@ -4,6 +4,80 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 18/11/2026 (laptop) — Đợt 11: chợ có đường, xe cộ, bảng tên sạp
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2`. **Kết quả:** typecheck sạch, 42 test qua, build qua; đã xem trong trình duyệt.
+
+1. **Khu chợ:** vỉa hè 8.8 m (gấp đôi) lát gạch, bó vỉa; đường nhựa 2 làn có vạch giữa và vạch qua đường; 8 xe (`farmkit.makeCar / makeTruck / makeScooter`) chạy vòng hai chiều, bánh xe quay, đèn xe sáng khi tối (`setVehicleLights`); 7 người đi bộ; đèn đường + cây trong bồn; camera lùi ra sau đường.
+2. **Bảng tên sạp** = `StallDef.name` (đổi tên theo chủ dự án), dựng bằng `signText` (export từ `cuisine.ts`); `StallDef.standee` = bảng chân đứng (sạp hải sản).
+
+---
+
+## 18/11/2026 (laptop) — Đợt 10: nhà màng + khu bên trong
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2`. **Kết quả:** typecheck sạch, 42 test qua, build qua; đã xem nhà màng ở nông trại và khu bên trong (8 luống có cây đang lớn).
+
+1. **Sim:** loại ô `gplot` (luống nhà kính) với `SlotTypeDef.building` (vị trí nhà trên bản đồ, cửa), `batch: 4` (mua theo lô — `farm/buySlot` thêm 4 luống, nhà dài thêm), `growMul: 1.3`; `ProducerDef.alsoIn` + `fitsSlot()` cho rau củ trồng được cả trong nhà kính; `buildingRect()` tính hình nhà theo số luống; `workSpot` của luống = cửa nhà. Không đổi cấu trúc state (reconcile tự bù 8 luống khởi đầu cho save cũ). Test mới: lô 4 luống, tối đa 20, không cần cuốc, lớn nhanh hơn ruộng, bác vào cửa.
+2. **Nông trại:** `farmkit.makeGreenhouse` (khung vòm thép trắng, màng trong mờ, cửa, quạt), dựng lại khi nhà dài thêm; viền đứt khúc phần nhà nới thêm ở đầu đông; bấm nhà → `Pick { type: 'building' }` → vào khu nhà kính.
+3. **Khu nhà kính** `areas/greenhouse.ts`: lối đi bê tông, 2 dãy luống viền trắng, ống tưới nhỏ giọt + dây treo, bàn dụng cụ, quạt quay; cây theo giai đoạn, thanh tiến độ, hiệu ứng gieo / chín / thu (bay về Kho); góc nhìn tự giãn theo chiều dài nhà.
+
+---
+
+## 18/11/2026 (laptop) — Đợt 9: chỉnh nông trại lần 2
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2`. **Kết quả:** typecheck sạch, 41 test qua, build qua; đã xem trong trình duyệt.
+
+1. **Vệt gió:** `THREE.Line` mảnh 1 px, dài ~1.2 m, sóng chạy dọc sợi (uốn lượn), mờ (opacity ≤ 0.45), tối đa 6 sợi, sinh thưa (`Stage.updateStreaks`).
+2. **Cối xay gió** phía bắc sau hàng rào (`MillTypeDef.layout` z = -7.6, bác đổ lúa ở mặt trước); lối mòn phía bắc z = -5.65. **Nhà xay lúa** sát bờ sông phía nam (x = -9.4, z = 25.4), model lật gương để bánh xe nước nhúng xuống sông.
+3. **Ao:** chỉ 1 ao (`max: 1`), 4 bậc nới rộng (+30% mỗi bậc); hình méo tự nhiên (`farmkit.pondOutline` + `outlineSlab`); viền đứt khúc theo hình ao bậc kế tiếp (`dashedOutline`), bấm vào → chọn ao, bảng hiện nút "Nới rộng". Ao nằm trên suối ở x = 9.5, z = 15.
+4. **Khu ruộng lúa:** cột sát sông là lúa nước (tối đa 2, có mương dẫn nước từ sông), cột bên cạnh là lúa mì (tối đa 2).
+5. **Lối đi:** `balance.farmer.lanes = [1.25]` (bỏ lối trái). Sửa `nextWaypoint` khi hai lối hoà điểm thì chọn lối gần chỗ đứng.
+
+---
+
+## 18/11/2026 (laptop) — Đợt 8: chỉnh theo phản hồi, ruộng lúa tự động + cối chế biến
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2`. **Kết quả:** typecheck sạch, 41 test qua, build qua; đã xem trong trình duyệt: quán nhỏ + lối WC/kho (cả 3 quán), nông trại bố cục mới, máy cày chở lúa qua cầu tới cối, bảng lọc theo chuồng, sáng sớm / trưa / tối có đèn.
+
+### Đã làm
+
+1. **Quán:** `room` 640×540 (cũ 720×600), bàn dời lại cho vừa; bếp 3.4 m dồn phải (`kitchenX1`, `kitchenCenter()`), bên trái là lối đi có vách ngăn, cửa **WC** và cửa **KHO** (`buildCorridor`). Đồ trang trí 3 quán bám theo vị trí bếp mới.
+2. **Nông trại — bố cục:** chuồng 4.2 m (cũ 3.3) có rơm rải, kiện rơm, đống rơm; ao 6 m (gấp đôi), 3 ao xếp dọc con suối về phía hạ lưu (bên phải), bác đứng bờ sau ao (`layout.work = 'back'`); suối chảy qua lần lượt các ao rồi ra khỏi bản đồ; thêm cầu ở lối dọc x = -8.3; hàng ruộng rau giãn 2.75 m (cũ 2.6 — chỗ đứng lấn 5 cm vào ô dưới, test mới bắt được).
+3. **Viền đứt khúc + ➕** ở mọi chỗ còn mua thêm ô / cối (`FarmArea.updateExpand`, `farmkit.dashedRect/dashedCircle`); bấm vào → camera lướt tới + mở bảng có nút mua (`Pick { type: 'expand' }`).
+4. **Bấm ô / cối:** `Stage.focusOn(x, z, closer)` lướt camera lại gần (55–62%); `ui.farmFocus` lọc bảng Nông trại chỉ còn loại đó (ruộng lúa đi kèm cối của nó), có nút "Xem cả nông trại"; đóng bảng thì `Stage.unfocus()`.
+5. **Ruộng lúa mì / lúa nước + cối** (save v8): `SlotTypeDef.mill`, `MillTypeDef` (`data/farm.ts`), `systems/mills.ts` (chế biến, `mill/buy`, `mill/setProduct`), việc `haul` + `farmer.carry` trong `farmer.ts` (`autoChain`: thu → gieo lại → chở tới cối ít hàng nhất; huỷ bớt vẫn giữ việc chở). 3D: `farmkit.ts` (cối xay gió, nhà xay lúa có bánh xe nước, máy cày, bao lúa, khóm lúa 3 giai đoạn đung đưa theo gió). Nguyên liệu mới: lúa mì, lúa (thóc), bánh mì; 3 món mới dùng bánh mì (đủ model).
+6. **Trời:** `env.noon` (nắng gắt buổi trưa, dịu sáng/chiều, ánh vàng hơn lúc sớm/chiều); gió = thời tiết + gió nhẹ theo giờ (chiều lộng) + cơn gió ngẫu nhiên tất định theo ngày/giờ; vệt gió trắng bay ngang ở khu ngoài trời (`Area.outdoor`). Nông trại có 10 cột đèn + 3 nguồn sáng thật bật khi tối.
+7. **Test mới:** chuỗi lúa mì → bột mì, cối (đổi thành phẩm, mua tối đa, không giao tay việc chở), huỷ bớt giữ việc chở, và **mua tối đa mọi ô + cối: không ô nào chồng nhau và đường đi của bác không xuyên qua ô / cối nào**.
+8. Dev: `?focus=pen` (mở bảng Nông trại lọc sẵn).
+
+### Còn dở
+
+- Vệt gió có trong cảnh nhưng khó thấy ở góc nhìn xa (trắng trên cỏ nhạt) — cần chủ dự án xem khi chơi thật.
+- Chưa bấm tay luồng zoom / bảng lọc / mua chỗ đứt khúc (AI không bấm trong trình duyệt). Chưa commit.
+
+---
+
+## 18/11/2026 (laptop) — Giai đoạn 2 phần đầu: sông + suối, màn mở đầu, 3 phong cách quán
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2` (tách từ `nong-dan` sau khi commit bác nông dân). **Kết quả:** typecheck sạch, 37 test qua, build qua; đã xem trong trình duyệt màn mở đầu, bước chọn quán (cả cỡ điện thoại ngang), nội thất 3 quán, 42 món, nông trại có sông.
+
+### Đã làm
+
+1. **G1 — sông + suối:** `FarmArea.buildWater()`: sông chạy dọc mép trái, suối uốn trước hàng ruộng cuối (ruộng tối đa 5 hàng), chui dưới cầu gỗ trên đường đất rồi đổ vào tâm ao đầu tiên. Dải nước dựng bằng `ribbon()` theo `CatmullRomCurve3`, vệt sóng trắng trôi theo dòng (nhanh hơn khi mưa). Camera nông trại hạ xuống 1 m cho thấy suối.
+2. **G2 — màn mở đầu:** `src/ui/title.ts` (renderer riêng, huỷ khi vào game): logo, Chơi tiếp (khi có save hợp lệ), Ván mới → 3 mặt tiền quán trên một con phố + 3 thẻ giới thiệu; bấm thẻ hoặc bấm vào quán để chọn; có save thì hỏi lại trước khi xoá. Cờ vẽ bằng SVG (Windows không có emoji cờ). `main.ts` quyết định hiện màn mở đầu hay vào thẳng game (`?fresh` / `?play`).
+3. **Sim:** `GameState.cuisine`, `CuisineDef` (`src/data/cuisines.ts`, kèm `startInventory` riêng từng quán — bỏ `balance.startInventory`), `RecipeDef.cuisine`, `DecorDef.cuisine`; `recipesFor` / `decorFor` / `defaultDecor`; mở món / mua nội thất của quán khác bị từ chối. **Save v7, không migration** (chủ dự án chốt chơi lại từ đầu); xoá migration v1→v6.
+4. **G3 — nội thất:** `src/ui/three/cuisine.ts`: Nhật (tatami, vách shoji, noren, đèn lồng giấy, mèo thần tài vẫy tay, thẻ gỗ ghi món, bonsai, tủ kính sushi trên quầy), Hàn (sàn xi măng, biển neon, bàn nướng + ống hút khói theo bàn, ghế đẩu inox, poster, két soju), Việt (đèn lồng Hội An, quạt trần quay, chữ Phúc, bàn thờ ông Địa, ghế nhựa đỏ, ống đũa + tương ớt). Mặt tiền 3 quán (`makeShopfront`) cho màn mở đầu.
+5. **G4 — thực đơn:** 16 món Việt (thêm cơm tấm, hủ tiếu, bún bò, cơm gia đình), 13 Nhật, 13 Hàn; 12 nguyên liệu mới (nước tương, miso, tương ớt Hàn vô hạn; dưa leo, nấm, cá hồi, bún, mì sợi, bánh gạo, đậu phụ, rong biển, bột mì); sạp mới "Tiệm đồ khô chị Sáu"; dưa leo và cá hồi nuôi được. Đủ model 3D cho cả 42 món.
+6. **Sửa lỗi có sẵn (Giai đoạn 1):** bồi bàn ghi món cho bàn hết nguyên liệu → khách bỏ về, `leave()` lọc lại hàng việc rồi `shift()` xoá nhầm việc kế tiếp của bàn khác → bàn đó chờ mãi, ngày không kết thúc. Giờ xoá đúng việc vừa làm (`service.ts`). Có test hồi quy.
+7. **Cài đặt:** nút "Chơi lại từ đầu" thay bằng "🏠 Màn hình chính" (lưu rồi về màn mở đầu).
+
+### Còn dở
+
+- Chưa bấm thử luồng Chơi tiếp / Ván mới / xác nhận xoá bằng tay (quy tắc: AI không bấm nút trong trình duyệt) — chủ dự án thử giúp. `?pick=jp|kr|vn` (bản dev) mở thẳng bước chọn quán để xem.
+- Chưa commit. Tiếp theo theo thứ tự đã chốt: **F2 Khách quen** (phương án ngoại hình + cách nhận ra ở `04-ROADMAP.md`).
+
+---
+
 ## 18/11/2026 (laptop) — Bác nông dân chạy theo tương tác
 
 **Model:** Claude Opus 5.5 (Claude Code, desktop). **Nhánh:** `nong-dan` (tách từ `main` sau khi gộp Giai đoạn 1). **Kết quả:** typecheck sạch, 33 test qua, build qua; đã xem trong trình duyệt (bác ra ruộng theo lối, cuốc + gieo, ra bờ ao thả cá, sang chuồng thả gà).

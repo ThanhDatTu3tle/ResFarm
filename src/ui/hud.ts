@@ -169,7 +169,7 @@ export function settingsHtml(ui: UiState, prefs: { music: boolean; sfx: boolean 
       </section>
 
       <div class="dialog-foot">
-        <button class="danger"${uiAttr('reset')}>↺ Chơi lại từ đầu</button>
+        <button${uiAttr('home')}>🏠 Màn hình chính</button>
         <button class="primary"${uiAttr('settings:close')}>Tiếp tục chơi</button>
       </div>
     </div>

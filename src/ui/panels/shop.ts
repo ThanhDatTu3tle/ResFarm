@@ -1,4 +1,4 @@
-import type { DecorDef, DecorSlot, ModifierKey } from '../../data';
+import { decorFor, type DecorDef, type DecorSlot, type ModifierKey } from '../../data';
 import { decorSlotNames } from '../../data/decor';
 import type { Game } from '../../sim/game';
 import { cmd, esc, ui } from '../dom';
@@ -54,8 +54,7 @@ export const shopPanel: Panel = {
 
     const decor = (Object.keys(decorSlotNames) as DecorSlot[])
       .map((slot) => {
-        const cards = content.decor
-          .all()
+        const cards = decorFor(content, state.cuisine)
           .filter((d) => d.slot === slot)
           .map((d) => decorCard(game, d))
           .join('');

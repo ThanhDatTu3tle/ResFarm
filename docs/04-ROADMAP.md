@@ -11,16 +11,21 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 
 **Thứ tự ưu tiên hiện tại** nằm ở `06-KINH-NGHIEM-THIET-KE.md` mục 3 (các giai đoạn, mã F*). Giai đoạn 1 đã xong; kế tiếp là Giai đoạn 2 "Có lý do quay lại" — nhưng chủ dự án muốn **tập trung vào Quán ăn**, nông trại và chợ để sau.
 
-## Giai đoạn 2 — thứ tự đã đề xuất (18/11/2026, chờ chủ dự án chốt)
+## Giai đoạn 2 — thứ tự đã chốt (18/11/2026)
 
-- [ ] **G1 · Sông + suối dẫn vào ao** *(Sonnet/Opus)* — chỉ cảnh 3D nông trại: sông chạy dọc mép bản đồ, suối uốn từ sông tới ao, cầu nhỏ chỗ suối cắt lối đi của bác nông dân. Nước động (UV trôi) dùng chung vật liệu với ao.
-- [ ] **G2 · Màn hình mở đầu + chọn phong cách quán** *(Opus)* — `state.restaurant.cuisine: 'jp'|'kr'|'vn'` (save v7; save cũ = 'vn'); menu Play/New game; màn chọn 3 quán ngoại thất xoay chậm; `CuisineDef` trong data (tên, màu, mặt tiền, danh sách món).
-- [ ] **G3 · Nội thất theo nước** *(Opus)* — Nhật: sàn gỗ + chiếu tatami, rèm noren, đèn lồng giấy, quầy sushi; Hàn: bàn nướng có ống hút, ghế đẩu inox, đèn neon, poster; Việt: bàn nhựa / gỗ, ghế đẩu đỏ, quạt trần, đèn lồng Hội An, tranh tre. Dùng hệ `DecorDef` sẵn có.
-- [ ] **G4 · Thực đơn 3 nước** *(Sonnet, cần chủ dự án duyệt danh sách món — gộp A2)* — món + model 3D món mới; nguyên liệu dùng chung một nông trại/chợ.
+- [x] **G1 · Sông + suối dẫn vào ao** *(xong 18/11/2026)* — chỉ cảnh 3D nông trại: sông chạy dọc mép bản đồ, suối uốn từ sông tới ao, cầu nhỏ chỗ suối cắt lối đi của bác nông dân. Nước động (UV trôi) dùng chung vật liệu với ao.
+- [x] **G2 · Màn hình mở đầu + chọn phong cách quán** *(xong 18/11/2026: `state.cuisine`, save v7 chơi lại từ đầu theo chủ dự án — không migration)*; menu Play/New game; màn chọn 3 quán ngoại thất xoay chậm; `CuisineDef` trong data (tên, màu, mặt tiền, danh sách món).
+- [x] **G3 · Nội thất theo nước** *(xong 18/11/2026, `src/ui/three/cuisine.ts`)* — Nhật: sàn gỗ + chiếu tatami, rèm noren, đèn lồng giấy, quầy sushi; Hàn: bàn nướng có ống hút, ghế đẩu inox, đèn neon, poster; Việt: bàn nhựa / gỗ, ghế đẩu đỏ, quạt trần, đèn lồng Hội An, tranh tre. Dùng hệ `DecorDef` sẵn có.
+- [x] **G4 · Thực đơn 3 nước** *(xong 18/11/2026: 16 món Việt, 13 Nhật, 13 Hàn, đủ model 3D; chủ dự án vẫn có thể sửa danh sách)* — món + model 3D món mới; nguyên liệu dùng chung một nông trại/chợ.
 - [ ] **F2 · Khách quen** *(Opus)* — làm sau G2 để món ruột khớp thực đơn từng nước (món ruột theo **nhóm**: đồ ngọt, mì nước, đồ chiên... nên dùng được cho cả 3 quán).
   - **Ngoại hình:** `Look` mở rộng thành dáng người (trẻ em / thiếu niên / người lớn / người già hơi khom), kiểu tóc (ngắn, dài, đuôi ngựa, hai bím, búi, hói), áo + quần/váy, màu da, phụ kiện (mũ, kính, khăn, ba lô, gậy, nơ, túi).
   - **Cách nhận ra:** (1) phụ kiện nổi bật **dành riêng cho khách quen** — khách vãng lai chỉ random từ bộ cơ bản nên thấy phụ kiện là biết; (2) lúc bước vào hiện bảng tên + bậc tim vài giây rồi thu thành ⭐ nhỏ trên đầu; (3) vòng sáng vàng dưới chân; (4) thông báo có chân dung "Bà Tư ghé quán"; (5) bong bóng gọi món có tim nếu đúng món ruột; (6) chân dung trong bảng Khách quen render từ chính model 3D.
   - **Dàn khách đề xuất (8):** bé gái 2 bím + nơ + ba lô; cậu bé mũ lưỡi trai ngược; chị văn phòng đuôi ngựa + kính + túi; anh shipper áo khoác + mũ bảo hiểm; cô giáo tóc búi + khăn choàng; chú thợ khăn vắt vai + râu; bà cụ tóc bạc búi + kính lão + gậy; ông cụ mũ phớt + râu bạc + gậy.
+- [ ] **G5 · Việc mở ra** — bếp và quầy ra món vẫn dùng chung một kiểu cho 3 quán; mặt tiền 3D chỉ có ở màn mở đầu (chưa thấy trong khu Quán); đầu bếp mặc đồng phục chung; thiếu sạp/nguồn tự làm cho đồ khô.
+- [x] **G6 · Chỉnh theo phản hồi (đợt 8)** *(xong 18/11/2026)* — quán + bếp nhỏ lại, lối WC / kho; ao ×2 dọc suối hạ lưu; chuồng rộng có rơm; viền đứt khúc chỗ mở rộng; bấm ô → zoom + bảng chỉ loại ô đó; ruộng lúa mì + lúa nước tự động (máy cày, gieo lại, chở tới cối); cối xay gió + nhà xay lúa chọn thành phẩm; nắng theo giờ, vệt gió, đèn nông trại ban đêm.
+- [x] **G6b · Chỉnh nông trại lần 2 (đợt 9)** *(xong 18/11/2026)* — vệt gió mảnh; cối xay gió về phía bắc; ao méo + nới rộng diện tích; lúa nước cạnh sông + lúa mì; nhà xay lúa bên sông.
+- [x] **G8 · Nhà màng + khu bên trong (đợt 10)** *(xong 18/11/2026)* — nới dài về phía đông, 8 → 20 luống.
+- [ ] **G7 · Việc mở ra từ đợt 8** — mặt tiền 3 quán làm đẹp lại (chủ dự án chưa ưng); vệt gió khó thấy ở góc nhìn xa (thử dạng sợi cong / lá bay); máy cày có thể bị chậm khi nhiều ruộng (hàng việc chung với việc ruộng rau) — cân nhắc người làm thuê thứ hai (N4); cân bằng giá lúa / cối / thời gian (B1).
 - Sau đó: C7 đơn hàng → F3 sổ sưu tầm → B5 dắt tay người mới → C9 offline → B1 cân bằng.
 
 ## Bác nông dân (18/11/2026)
