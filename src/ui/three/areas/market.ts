@@ -65,7 +65,8 @@ export class MarketArea implements Area {
     // Đường nhựa 2 làn: vạch giữa đứt khúc, vạch kẻ đường cho người đi bộ
     mesh(r, G.box(52, 0.04, ROAD.z2 - ROAD.z1), 0x5f646b, { p: [0, 0.02, (ROAD.z1 + ROAD.z2) / 2], cast: false });
     for (let x = -26; x < 26; x += 2.6) mesh(r, G.box(1.3, 0.045, 0.14), 0xf6f1e4, { p: [x + 0.65, 0.025, (ROAD.z1 + ROAD.z2) / 2], cast: false });
-    for (let i = 0; i < 7; i++) mesh(r, G.box(0.5, 0.045, ROAD.z2 - ROAD.z1 - 0.4), 0xf6f1e4, { p: [-1.8 + i * 0.6, 0.026, (ROAD.z1 + ROAD.z2) / 2], cast: false });
+    // Vạch qua đường (vằn ngựa): các vạch dài dọc theo chiều xe chạy, xếp nối nhau từ mép đường bên này sang bên kia
+    for (let z = ROAD.z1 + 0.5; z < ROAD.z2 - 0.3; z += 0.9) mesh(r, G.box(3.6, 0.045, 0.45), 0xf6f1e4, { p: [0, 0.026, z], cast: false });
     mesh(r, G.box(52, 0.4, 20), 0xbfd88f, { p: [0, -0.18, ROAD.z2 + 10.3], cast: false }); // bãi cỏ bên kia đường
 
     // Dãy nhà phố phía sau
@@ -170,21 +171,24 @@ export class MarketArea implements Area {
     // Bảng chân đứng nhỏ cạnh sạp (bảng phấn xanh)
     if (def.standee) {
       const s = group(g, { p: [W / 2 + 0.85, 0, 1.25], r: [0, -0.15, 0], s: 1.5 });
-      for (const sx of [-0.32, 0.32]) mesh(s, G.box(0.06, 1.2, 0.06), 0x8a5a35, { p: [sx, 0.6, 0], r: [-0.12, 0, 0] });
+      for (const sx of [-0.5, 0.5]) mesh(s, G.box(0.06, 1.2, 0.06), 0x8a5a35, { p: [sx, 0.6, 0], r: [-0.12, 0, 0] });
       mesh(s, G.box(0.06, 1.1, 0.06), 0x8a5a35, { p: [0, 0.55, -0.32], r: [0.35, 0, 0] });
       // Mặt bảng nghiêng nhẹ; chữ gắn vào mặt bảng nên nghiêng theo
       const face = group(s, { p: [0, 0.75, 0.04], r: [-0.12, 0, 0] });
-      mesh(face, G.box(0.8, 0.95, 0.05), 0x8a5a35);
-      mesh(face, G.box(0.7, 0.85, 0.06), 0x2f5d50, { p: [0, 0, 0.01] });
-      const cut = def.standee.length > 18 ? def.standee.lastIndexOf(' ', 16) : -1;
-      const lines = cut > 0 ? [def.standee.slice(0, cut), def.standee.slice(cut + 1)] : [def.standee];
+      mesh(face, G.box(1.2, 0.95, 0.05), 0x8a5a35);
+      mesh(face, G.box(1.1, 0.85, 0.06), 0x2f5d50, { p: [0, 0, 0.01] });
+      // Chữ to, chia 2 dòng ở khoảng trắng gần giữa câu
+      const mid = def.standee.length / 2;
+      const spaces = [...def.standee].map((c, i) => (c === ' ' ? i : -1)).filter((i) => i > 0);
+      const cut = spaces.length ? spaces.reduce((a, b) => (Math.abs(b - mid) < Math.abs(a - mid) ? b : a)) : -1;
+      const lines = cut > 0 && def.standee.length > 10 ? [def.standee.slice(0, cut), def.standee.slice(cut + 1)] : [def.standee];
       lines.forEach((line, k) => {
-        const t = signText(line, '#fffaf1', 0.62, 0.19);
-        t.position.set(0, 0.2 - k * 0.24, 0.05);
+        const t = signText(line, '#fffaf1', 1.0, 0.34);
+        t.position.set(0, (lines.length - 1) * 0.17 - k * 0.34, 0.05);
         face.add(t);
       });
-      const shell = emojiSprite('🐚', 0.26);
-      shell.position.set(0.2, -0.28, 0.1);
+      const shell = emojiSprite('🐚', 0.24);
+      shell.position.set(0.44, -0.33, 0.1);
       face.add(shell);
     }
 

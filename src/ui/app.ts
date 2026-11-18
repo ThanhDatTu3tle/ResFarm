@@ -185,6 +185,16 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
   game.bus.on('order/served', () => ui.area === 'restaurant' && sound.play('serve'));
   game.bus.on('party/left', (e) => e.reason !== 'paid' && ui.area === 'restaurant' && sound.play('sad'));
   game.bus.on('level/up', () => sound.play('levelup'));
+  // Nhiệm vụ hệ thống: báo khi đạt mục tiêu, nhận thưởng thì xu nảy
+  game.bus.on('quest/completed', (e) => {
+    const q = content.quests.find((x) => x.id === e.questId);
+    if (q) toast(`🎯 Hoàn thành nhiệm vụ "${q.title}" — bấm Nhận thưởng`);
+    sound.play('ripe');
+  });
+  game.bus.on('quest/claimed', () => {
+    sound.play('coin');
+    bump(moneyEl(), 0.6);
+  });
   game.bus.on('day/ended', () => sound.play('dayEnd'));
 
   // ---------- Sự kiện sim -> thông báo ----------

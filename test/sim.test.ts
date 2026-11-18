@@ -709,3 +709,49 @@ describe('nhà kính', () => {
     expect(workSpot(game.ctx, gp)).toEqual(content.slotTypes.get('gplot').building!.door);
   });
 });
+
+describe('nhiệm vụ hệ thống', () => {
+  it('làm lần lượt: đạt mục tiêu thì chờ nhận thưởng, nhận xong mở nhiệm vụ kế; thưởng không tính vào doanh thu', () => {
+    const game = newGame(7);
+    expect(content.quests.length).toBeGreaterThanOrEqual(5);
+    expect(game.state.quests).toEqual({ index: 0, progress: 0, done: false });
+    expect(game.dispatch({ type: 'quest/claim' }).ok).toBe(false); // chưa xong
+    runDay(game);
+    expect(game.state.quests.done).toBe(true); // phục vụ đủ 3 nhóm khách trong ngày đầu
+    const money = game.state.money;
+    const revenue = game.state.stats.today.revenue;
+    expect(game.dispatch({ type: 'quest/claim' }).ok).toBe(true);
+    expect(game.state.money).toBe(money + (content.quests[0].reward.money ?? 0));
+    expect(game.state.stats.today.revenue).toBe(revenue);
+    expect(game.state.quests).toEqual({ index: 1, progress: 0, done: false });
+  });
+
+  it('nhiệm vụ đếm chỉ đếm khi đang làm; nhiệm vụ trạng thái đọc từ state', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 5000, level: 9 });
+    // Đang ở nhiệm vụ 1 (phục vụ khách): thu hoạch không được tính
+    const field = game.state.farm.slots.find((s) => s.id === 'field-0')!;
+    Object.assign(field, { tilled: true });
+    game.dispatch({ type: 'farm/plant', slotId: field.id, producerId: 'cabbage' });
+    Object.assign(field, { stage: 'ready' });
+    game.dispatch({ type: 'farm/harvest', slotId: field.id });
+    expect(game.state.quests.progress).toBe(0);
+    // Sang nhiệm vụ "mở khoá món" (thứ 3): mở 1 món là xong
+    const unlockIndex = content.quests.findIndex((q) => q.goal.kind === 'unlock');
+    game.state.quests = { index: unlockIndex, progress: 0, done: false };
+    game.tick(1);
+    expect(game.state.quests.done).toBe(false);
+    const locked = content.recipes.all().find((r) => r.cuisine === game.state.cuisine && r.unlock.cost > 0)!;
+    expect(game.dispatch({ type: 'menu/unlock', recipeId: locked.id }).ok).toBe(true);
+    game.tick(1);
+    expect(game.state.quests.done).toBe(true);
+  });
+
+  it('save v8 được nâng cấp: bắt đầu từ nhiệm vụ đầu tiên', () => {
+    const old = JSON.parse(serialize(newGame().state));
+    old.version = 8;
+    delete old.quests;
+    const state = deserialize(JSON.stringify(old), content)!;
+    expect(state.quests).toEqual({ index: 0, progress: 0, done: false });
+  });
+});

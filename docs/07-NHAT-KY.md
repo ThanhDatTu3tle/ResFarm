@@ -4,6 +4,15 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 18/11/2026 (laptop) — Đợt 12: nhiệm vụ hệ thống (+ sửa chợ)
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2`. **Kết quả:** typecheck sạch, 45 test qua, build qua; đã xem thẻ nhiệm vụ đang làm / chờ nhận thưởng trên HUD.
+
+1. **Sửa chợ:** bảng chân đứng sạp hải sản thành "Chuyên các loại ốc", chữ to, 2 dòng; vạch qua đường xoay đúng (vạch dài theo chiều xe chạy, xếp nối từ mép này sang mép kia).
+2. **Nhiệm vụ hệ thống** (save v9): `QuestDef` + `src/data/quests.ts` (7 nhiệm vụ), `systems/quests.ts` — mục tiêu dạng đếm qua `bumpQuest()` (gọi ở customers.ts lúc khách trả tiền, farm.ts lúc thu hoạch, mills.ts lúc ra thành phẩm), dạng trạng thái đọc state (món đã mở, doanh thu hôm nay, uy tín); lệnh `quest/claim`; sự kiện `quest/completed`, `quest/claimed`. HUD: `questCard` trong hud.ts. 3 test mới.
+
+---
+
 ## 18/11/2026 (laptop) — Đợt 11: chợ có đường, xe cộ, bảng tên sạp
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2`. **Kết quả:** typecheck sạch, 42 test qua, build qua; đã xem trong trình duyệt.

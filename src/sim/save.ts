@@ -11,6 +11,8 @@ const migrations: Record<number, (old: any) => any> = {
   // (deserialize trả null, màn hình mở đầu chỉ còn nút Ván mới). Các migration v1→v6 cũ đã xoá; xem lịch sử git nếu cần.
   // v7 -> v8: cối chế biến (lúa mì, lúa nước) + bác nông dân chở hàng. reconcile() tạo đủ cối khởi đầu.
   7: (s) => ({ ...s, farm: { ...s.farm, mills: [], farmer: { ...s.farm.farmer, carry: null } }, version: 8 }),
+  // v8 -> v9: nhiệm vụ hệ thống (bắt đầu từ nhiệm vụ đầu tiên).
+  8: (s) => ({ ...s, quests: { index: 0, progress: 0, done: false }, version: 9 }),
 };
 
 export function serialize(state: GameState): string {
@@ -67,6 +69,9 @@ function reconcile(state: GameState, content: Content): GameState {
     if (!used || !state.decor.owned.includes(used) || content.decor.get(used).slot !== def.slot) state.decor.equipped[def.slot] = def.id;
   }
   for (const id of Object.keys(r.layout)) if (!content.tables.has(id)) delete r.layout[id];
+
+  // Nhiệm vụ: danh sách ngắn đi thì coi như đã xong hết
+  state.quests.index = Math.max(0, Math.min(state.quests.index, content.quests.length));
 
   if (!content.weathers.has(state.weather.id)) state.weather = { id: content.weathers.all()[0].id, minutesLeft: 0 };
 

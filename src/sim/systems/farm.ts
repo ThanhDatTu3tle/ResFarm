@@ -1,5 +1,6 @@
 import { fitsSlot, type ItemStack, type ProducerDef, type SlotType } from '../../data';
 import { addItem, modifier, spend } from '../helpers';
+import { bumpQuest } from './quests';
 import { createSlot, type FarmSlot } from '../state';
 import { fail, ok, type CommandResult, type SimContext, type System } from '../types';
 
@@ -165,6 +166,7 @@ function harvest(ctx: SimContext, slot: FarmSlot): CommandResult {
   if (!slot.producerId || slot.stage !== 'ready') return fail('Chưa thu hoạch được.');
   const def = ctx.content.producers.get(slot.producerId);
   for (const y of yieldsOf(ctx, slot, def)) addItem(ctx, y.item, y.qty);
+  bumpQuest(ctx, 'harvest');
   slot.cyclesDone++;
   if (def.cycles !== 'infinite' && slot.cyclesDone >= def.cycles) clearSlot(ctx, slot);
   else Object.assign(slot, { stage: 'growing', progress: 0 });

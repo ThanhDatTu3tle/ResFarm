@@ -25,6 +25,7 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [x] **G6 · Chỉnh theo phản hồi (đợt 8)** *(xong 18/11/2026)* — quán + bếp nhỏ lại, lối WC / kho; ao ×2 dọc suối hạ lưu; chuồng rộng có rơm; viền đứt khúc chỗ mở rộng; bấm ô → zoom + bảng chỉ loại ô đó; ruộng lúa mì + lúa nước tự động (máy cày, gieo lại, chở tới cối); cối xay gió + nhà xay lúa chọn thành phẩm; nắng theo giờ, vệt gió, đèn nông trại ban đêm.
 - [x] **G6b · Chỉnh nông trại lần 2 (đợt 9)** *(xong 18/11/2026)* — vệt gió mảnh; cối xay gió về phía bắc; ao méo + nới rộng diện tích; lúa nước cạnh sông + lúa mì; nhà xay lúa bên sông.
 - [x] **G8 · Nhà màng + khu bên trong (đợt 10)** *(xong 18/11/2026)* — nới dài về phía đông, 8 → 20 luống.
+- [x] **F3a · Nhiệm vụ hệ thống (đợt 12)** *(xong 18/11/2026)* — 7 nhiệm vụ dễ → khó, thẻ trên HUD, nhận thưởng. Mở rộng sau: nhiệm vụ hằng ngày ngẫu nhiên, thưởng đồ trang trí (gộp F3 sổ sưu tầm).
 - [ ] **G7 · Việc mở ra từ đợt 8** — mặt tiền 3 quán làm đẹp lại (chủ dự án chưa ưng); vệt gió khó thấy ở góc nhìn xa (thử dạng sợi cong / lá bay); máy cày có thể bị chậm khi nhiều ruộng (hàng việc chung với việc ruộng rau) — cân nhắc người làm thuê thứ hai (N4); cân bằng giá lúa / cối / thời gian (B1).
 - Sau đó: C7 đơn hàng → F3 sổ sưu tầm → B5 dắt tay người mới → C9 offline → B1 cân bằng.
 

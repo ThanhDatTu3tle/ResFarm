@@ -68,7 +68,7 @@ src/ui/three/areas/*.ts   restaurant, farm, market
 test/sim.test.ts          toàn bộ test (chỉ test sim + data)
 ```
 
-## 3. GameState (phiên bản 8)
+## 3. GameState (phiên bản 9)
 
 ```ts
 GameState {
@@ -97,6 +97,7 @@ GameState {
     farmer: { x, z, tasks: FarmerTask[], work, carry }   // bác nông dân; toạ độ mét; work = phút còn lại của việc đang làm (null = đang đi/rảnh); carry = lúa đang chở trên máy cày
     mills: { id, type: 'windmill'|'ricemill', product, input, progress }[]   // cối chế biến: input = số lúa chờ xay
   }
+  quests: { index, progress, done }   // nhiệm vụ hệ thống: đang làm content.quests[index]; done = đạt mục tiêu, chờ nhận thưởng
   market: { priceFactor: Record<itemId, hệ số> }
   weather: { id, minutesLeft }
   stats: { today, total }       // DayStats: revenue, tips, spent, dishes, guestsServed, guestsLost
@@ -134,6 +135,7 @@ farmer/doAll        { kind: 'harvest'|'water' }     xếp mọi ô cần làm th
 farmer/cancel                              bỏ các việc chưa tới lượt (việc đang làm dở và việc chở lúa vẫn giữ)
 mill/buy            { millType }           mua thêm cối (cối xay gió / nhà xay lúa)
 mill/setProduct     { millId, item }       chọn thành phẩm cối làm ra
+quest/claim                                nhận thưởng nhiệm vụ đã hoàn thành, mở nhiệm vụ kế
 ```
 
 UI dùng `farmer/*` cho mọi thao tác trên ô; `farm/till|water|plant|harvest|clear|harvestAll|waterAll` là lệnh "làm ngay", hiện chỉ test, `?do=` và bác nông dân (khi tới nơi) gọi.
@@ -156,6 +158,8 @@ order/placed   order/ready (ra quầy)   order/served (lên bàn)
 waiter/done { kind: 'menu'|'takeOrder'|'pickup'|'deliver' }
 farmer/done { kind, slotId, ok, reason? }  bác nông dân làm xong một việc (ok: false = tới nơi mà không làm được)
 mill/produced { millId, item, qty }        cối vừa làm xong thành phẩm (đã vào kho)
+quest/completed { questId }               nhiệm vụ đạt mục tiêu
+quest/claimed { questId, money }          đã nhận thưởng
 farm/ready     level/up      weather/changed
 day/ended      day/started
 ```
@@ -199,7 +203,7 @@ Người chơi đang có save thật trong trình duyệt. Mỗi lần đổi h�
 4. Nếu cần "sửa cho hợp lệ" (id bị xoá, số ô khởi đầu tăng...), thêm vào `reconcile()` — hàm này chạy sau migration ở mọi lần tải.
 5. Thêm test: lấy state mới, xoá trường mới, hạ `version`, `deserialize` lại, kiểm tra kết quả và chạy thử `tick`.
 
-v7 (phong cách quán) được chủ dự án chốt là **chơi lại từ đầu**: migration v1→v6 đã xoá, save cũ bị bỏ qua. Muốn xem mẫu migration cũ: lịch sử git trước nhánh `giai-doan-2`. Từ v7 trở đi viết migration bình thường: v7→v8 thêm cối + `farmer.carry` (`reconcile()` tạo đủ cối khởi đầu).
+v7 (phong cách quán) được chủ dự án chốt là **chơi lại từ đầu**: migration v1→v6 đã xoá, save cũ bị bỏ qua. Muốn xem mẫu migration cũ: lịch sử git trước nhánh `giai-doan-2`. Từ v7 trở đi viết migration bình thường: v7→v8 thêm cối + `farmer.carry` (`reconcile()` tạo đủ cối khởi đầu), v8→v9 thêm `quests`.
 
 `deserialize` trả `null` (tạo game mới) nếu save hỏng hoặc thiếu migration. Khoá lưu: `quan-nha-vuon/save`.
 

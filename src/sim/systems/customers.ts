@@ -1,3 +1,4 @@
+import { bumpQuest } from './quests';
 import { randInt, randRange, weightedIndex } from '../../core/rng';
 import type { TableDef } from '../../data';
 import { addReputation, addXp, earn, hasAll, modifier, removeAll } from '../helpers';
@@ -205,6 +206,8 @@ function pay(ctx: SimContext, party: Party): void {
   state.stats.total.tips += tip;
   addXp(ctx, Math.round(total * b.xpPerCoin));
   addReputation(ctx, b.reputation.paid + b.reputation.paidBonus * satisfaction);
+  bumpQuest(ctx, 'serve');
+  if (tip > 0) bumpQuest(ctx, 'happy');
   leave(ctx, party, 'paid', total, tip);
 }
 

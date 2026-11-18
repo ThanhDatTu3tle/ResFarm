@@ -3,12 +3,13 @@ import { balance } from './balance';
 import { cuisines } from './cuisines';
 import { decor } from './decor';
 import { mills, producers, slotTypes } from './farm';
+import { quests } from './quests';
 import { items } from './items';
 import { stalls } from './market';
 import { recipes } from './recipes';
 import { room, staff, tables, upgrades } from './restaurant';
 import { weathers } from './weather';
-import type { Balance, CuisineDef, CuisineId, MillTypeDef, ItemDef, ProducerDef, RecipeDef, SlotTypeDef, DecorDef, DecorSlot, RoomDef, StaffDef, StallDef, TableDef, UpgradeDef, WeatherDef, SlotType } from './types';
+import type { Balance, CuisineDef, CuisineId, MillTypeDef, ItemDef, ProducerDef, RecipeDef, SlotTypeDef, DecorDef, DecorSlot, RoomDef, StaffDef, StallDef, TableDef, UpgradeDef, WeatherDef, SlotType, QuestDef } from './types';
 
 export * from './types';
 
@@ -26,6 +27,8 @@ export interface Content {
   decor: Registry<DecorDef>;
   cuisines: Registry<CuisineDef>;
   mills: Registry<MillTypeDef>;
+  /** Nhiệm vụ hệ thống theo thứ tự làm. */
+  quests: QuestDef[];
   room: RoomDef;
   balance: Balance;
 }
@@ -43,11 +46,12 @@ export interface RawContent {
   decor: DecorDef[];
   cuisines: CuisineDef[];
   mills: MillTypeDef[];
+  quests: QuestDef[];
   room: RoomDef;
   balance: Balance;
 }
 
-export const defaultRawContent: RawContent = { items, recipes, producers, slotTypes, stalls, tables, staff, upgrades, weathers, decor, cuisines, mills, room, balance };
+export const defaultRawContent: RawContent = { items, recipes, producers, slotTypes, stalls, tables, staff, upgrades, weathers, decor, cuisines, mills, quests, room, balance };
 
 /** Dựng Content và kiểm tra tham chiếu chéo; ném lỗi nếu dữ liệu sai. */
 export function createContent(raw: RawContent = defaultRawContent): Content {
@@ -64,6 +68,7 @@ export function createContent(raw: RawContent = defaultRawContent): Content {
     decor: new Registry('decor', raw.decor),
     cuisines: new Registry('cuisine', raw.cuisines),
     mills: new Registry('mill', raw.mills),
+    quests: raw.quests,
     room: raw.room,
     balance: raw.balance,
   };
@@ -104,6 +109,12 @@ export function validateContent(c: Content): string[] {
     if (!m.products.length) errors.push(`cối ${m.id}: cần ít nhất 1 thành phẩm`);
   }
   for (const t of c.slotTypes.all()) if (t.mill && !c.mills.has(t.mill)) errors.push(`loại ô ${t.id}: cối "${t.mill}" không tồn tại`);
+  const questIds = new Set<string>();
+  for (const q of c.quests) {
+    if (questIds.has(q.id)) errors.push(`nhiệm vụ ${q.id}: trùng id`);
+    questIds.add(q.id);
+    if (!(q.goal.target > 0)) errors.push(`nhiệm vụ ${q.id}: mục tiêu phải > 0`);
+  }
   for (const r of c.recipes.all()) {
     if (!r.ingredients.length) errors.push(`món ${r.id}: không có nguyên liệu`);
     for (const ing of r.ingredients) {

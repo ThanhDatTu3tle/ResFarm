@@ -111,9 +111,25 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 ### Đợt 11 — Chợ (18/11/2026)
 
 - Chợ có thêm **đường và xe cộ chạy qua lại**; **vỉa hè rộng gấp đôi**.
-- Gian hàng có **bảng tên**: thịt "Chuyên thịt heo/lợn", rau "Tạp hóa cậu Ba", hải sản "Hải sản Tuyết Nhung" (kèm **bảng chân đứng** chữ nhỏ "Chuyên các loại ốc, nghêu, sò"), đồ khô "Chuyên đồ khô, mì, bún, phở".
+- Gian hàng có **bảng tên**: thịt "Chuyên thịt heo/lợn", rau "Tạp hóa cậu Ba", hải sản "Hải sản Tuyết Nhung" (kèm **bảng chân đứng** "Chuyên các loại ốc" — chữ to, đã đổi từ "Chuyên các loại ốc, nghêu, sò"), đồ khô "Chuyên đồ khô, mì, bún, phở".
 
 **AI tự chọn (đổi được):** tên sạp trong bảng Chợ cũng đổi theo bảng tên; "đồ kho" hiểu là "đồ khô"; xe gồm ô tô, xe tải nhỏ, xe máy (người lái đội mũ bảo hiểm), chạy 2 làn ngược chiều, đèn xe sáng khi tối; có vạch qua đường, đèn đường và cây trên vỉa hè.
+
+### Đợt 12 — Nhiệm vụ hệ thống (18/11/2026)
+
+- Thêm **nhiệm vụ hệ thống** để tăng tương tác, đỡ nhàm chán: 5–7 nhiệm vụ từ dễ đến khó, dựa trên luật hiện có của game.
+
+**AI tự chọn (đổi được, sửa ở `src/data/quests.ts`):** chuỗi 7 nhiệm vụ làm lần lượt, mỗi lúc một nhiệm vụ, hiện trên HUD; xong phải bấm "Nhận thưởng" mới mở nhiệm vụ kế; thưởng không tính vào doanh thu ngày.
+
+| # | Nhiệm vụ | Mục tiêu | Thưởng |
+| --- | --- | --- | --- |
+| 1 | 🍽️ Khai trương | Phục vụ xong 3 nhóm khách | 50 xu, 10 XP |
+| 2 | 🌱 Tay nhà nông | Thu hoạch 4 lần ở nông trại | 60 xu, 15 XP |
+| 3 | 📖 Thực đơn phong phú | Mở khoá thêm 1 món | 100 xu, 20 XP |
+| 4 | 💖 Khách vui lòng | 8 nhóm khách để lại tiền tip | 150 xu, 30 XP |
+| 5 | 🌬️ Cối quay đều | Cối xay làm ra 16 thành phẩm | 200 xu, 40 XP |
+| 6 | 🔥 Ngày đắt hàng | Doanh thu một ngày đạt 600 xu | 300 xu, 60 XP |
+| 7 | ⭐ Quán có tiếng | Uy tín đạt 4 sao | 500 xu, 100 XP |
 
 ## Quyết định mình đã tự đưa ra (đổi được)
 

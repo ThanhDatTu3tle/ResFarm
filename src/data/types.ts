@@ -22,6 +22,20 @@ export interface ItemDef {
   basePrice: number;
 }
 
+/** Loại mục tiêu nhiệm vụ hệ thống (xem src/data/quests.ts). */
+export type QuestGoalKind = 'serve' | 'happy' | 'harvest' | 'produce' | 'unlock' | 'revenue' | 'reputation';
+
+/** Một nhiệm vụ hệ thống: làm lần lượt theo thứ tự trong danh sách. */
+export interface QuestDef {
+  id: string;
+  icon: string;
+  title: string;
+  /** Một câu mô tả mục tiêu, hiện trên HUD. */
+  desc: string;
+  goal: { kind: QuestGoalKind; target: number };
+  reward: { money?: number; xp?: number };
+}
+
 /** Phong cách quán người chơi chọn lúc bắt đầu ván mới: quyết định thực đơn và nội thất. */
 export type CuisineId = 'jp' | 'kr' | 'vn';
 

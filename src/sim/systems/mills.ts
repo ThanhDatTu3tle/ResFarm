@@ -1,5 +1,6 @@
 import type { MillType } from '../../data';
 import { addItem, spend } from '../helpers';
+import { bumpQuest } from './quests';
 import { createMill, type MillState } from '../state';
 import { fail, ok, type SimContext, type System } from '../types';
 
@@ -55,6 +56,7 @@ function run(ctx: SimContext, minutes: number): void {
     }
     if (!mill.input) mill.progress = 0;
     if (made) {
+      bumpQuest(ctx, 'produce', made);
       addItem(ctx, mill.product, made);
       ctx.bus.emit('mill/produced', { millId: mill.id, item: mill.product, qty: made });
     }

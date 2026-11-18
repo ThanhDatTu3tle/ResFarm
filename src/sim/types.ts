@@ -24,6 +24,7 @@ export type Command =
   | { type: 'farmer/cancel' }
   | { type: 'mill/buy'; millType: MillType }
   | { type: 'mill/setProduct'; millId: string; item: string }
+  | { type: 'quest/claim' }
   | { type: 'farm/plant'; slotId: string; producerId: string }
   | { type: 'farm/harvest'; slotId: string }
   | { type: 'farm/harvestAll' }
@@ -72,6 +73,9 @@ export interface SimEvents {
   'farmer/done': { kind: FarmerTaskKind; slotId: string; ok: boolean; reason?: string };
   /** Cối vừa làm xong một mẻ thành phẩm (vào kho). */
   'mill/produced': { millId: string; item: string; qty: number };
+  /** Nhiệm vụ hệ thống vừa đạt mục tiêu (chờ người chơi nhận thưởng). */
+  'quest/completed': { questId: string };
+  'quest/claimed': { questId: string; money: number };
   'level/up': { level: number };
   'weather/changed': { id: string };
   'day/ended': { day: number; stats: DayStats };

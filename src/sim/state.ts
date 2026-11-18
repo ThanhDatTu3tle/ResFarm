@@ -27,6 +27,8 @@ export interface GameState {
   decor: { owned: string[]; equipped: Record<DecorSlot, string> };
   restaurant: RestaurantState;
   farm: { slots: FarmSlot[]; farmer: FarmerState; mills: MillState[] };
+  /** Nhiệm vụ hệ thống: đang làm nhiệm vụ thứ `index` (content.quests), tiến độ, đã đạt mục tiêu chưa (chờ nhận thưởng). */
+  quests: { index: number; progress: number; done: boolean };
   /** Hệ số giá chợ hôm nay theo từng nguyên liệu. */
   market: { priceFactor: Record<string, number> };
   weather: { id: string; minutesLeft: number };
@@ -175,7 +177,7 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 export function emptyStats(): DayStats {
   return { revenue: 0, tips: 0, spent: 0, dishes: 0, guestsServed: 0, guestsLost: 0 };
@@ -229,6 +231,7 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
       mills: content.mills.all().flatMap((m) => Array.from({ length: m.initial }, (_, i) => createMill(m.id, i, m.products[0]))),
     },
     market: { priceFactor: {} },
+    quests: { index: 0, progress: 0, done: false },
     weather: { id: content.weathers.all()[0].id, minutesLeft: 0 },
     stats: { today: emptyStats(), total: emptyStats() },
   };
