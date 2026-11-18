@@ -8,6 +8,8 @@ import { activeTables, findSeats } from '../src/sim/systems/customers';
 import { priceOf } from '../src/sim/systems/market';
 import { calendarOf } from '../src/sim/calendar';
 import { autoServeCommands } from '../src/sim/systems/service';
+import { buildingRect, nextWaypoint, slotCenter, slotScale, workSpot } from '../src/sim/systems/farmer';
+import { millCenter, millSpot } from '../src/sim/systems/mills';
 import { moodOf } from '../src/sim/systems/customers';
 import type { Party } from '../src/sim/state';
 
@@ -229,14 +231,14 @@ describe('sắp xếp bàn', () => {
 
   it('dời được bàn trống tới chỗ hợp lệ; chặn khi đè bàn khác, ra ngoài, bàn cố định, bàn có khách', () => {
     const game = newGame();
-    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 612, y: 301 }).ok).toBe(true);
-    expect(game.state.restaurant.layout.pair).toEqual({ x: 610, y: 300 });
-    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 400, y: 340 }).ok).toBe(false);
+    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 543, y: 301 }).ok).toBe(true);
+    expect(game.state.restaurant.layout.pair).toEqual({ x: 545, y: 300 });
+    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 350, y: 320 }).ok).toBe(false);
     expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 10, y: 300 }).ok).toBe(false);
     expect(game.dispatch({ type: 'layout/moveTable', tableId: 'counter', x: 360, y: 300 }).ok).toBe(false);
 
     game.state.restaurant.parties.push({ id: 99, size: 2, phase: 'eating', tableId: 'pair', seats: [0, 1], patience: 1, patienceMax: 1, timer: 5, orderIds: [], looks: [0, 0], called: false, wait: 0 });
-    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 610, y: 440 }).ok).toBe(false);
+    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 545, y: 300 }).ok).toBe(false);
     expect(game.dispatch({ type: 'layout/reset' }).ok).toBe(false);
     game.state.restaurant.parties = [];
     expect(game.dispatch({ type: 'layout/reset' }).ok).toBe(true);
@@ -278,21 +280,11 @@ describe('lưu / tải', () => {
     expect(serialize(b.state)).toBe(serialize(a.state));
   });
 
-  it('save phiên bản 1 được nâng cấp: có thời tiết và đủ 9 ô ruộng', () => {
+  it('save trước v7 (chưa có phong cách quán) bị bỏ qua: chơi lại từ đầu', () => {
     const old = JSON.parse(serialize(newGame().state));
-    old.version = 1;
-    delete old.weather;
-    delete old.decor;
-    delete old.restaurant.layout;
-    old.farm.slots = old.farm.slots.filter((s: { id: string }) => ['field-0', 'field-1', 'pen-0'].includes(s.id));
-    const state = deserialize(JSON.stringify(old), content)!;
-    expect(content.weathers.has(state.weather.id)).toBe(true);
-    expect(state.farm.slots.filter((s) => s.type === 'field')).toHaveLength(9);
-    expect(state.farm.slots.filter((s) => s.type === 'pond')).toHaveLength(1);
-    expect(state.farm.slots.find((s) => s.id === 'field-0')).toMatchObject({ tilled: true, wet: 0, tier: 1 });
-    expect(state.decor.equipped.floor).toBe('floor_wood');
-    expect(state.restaurant.layout).toEqual({});
-    new Game(content, { state }).tick(500);
+    old.version = 6;
+    delete old.cuisine;
+    expect(deserialize(JSON.stringify(old), content)).toBeNull();
   });
 
   it('save hỏng trả về null', () => {
@@ -417,14 +409,349 @@ describe('phục vụ (người chơi là bồi bàn)', () => {
     expect(game.state.restaurant.parties).toHaveLength(0);
   });
 
-  it('save v4 được nâng cấp: khách đang gọi món thành chờ menu, bồi bàn đứng ở chỗ chờ', () => {
-    const old = JSON.parse(serialize(quietGame().state));
-    old.version = 4;
-    delete old.restaurant.waiter;
-    old.restaurant.parties = [{ id: 500, size: 1, phase: 'ordering', tableId: 'pair', seats: [0], patience: 9, patienceMax: 9, timer: 3, orderIds: [], looks: [0] }];
+});
+
+describe('bồi bàn — lỗi đã sửa', () => {
+  it('ghi món cho bàn hết nguyên liệu (khách bỏ về) không làm mất việc kế tiếp của bàn khác', () => {
+    const game = quietGame();
+    const hungry = seatParty(game, 'pair', 2);
+    hungry.phase = 'readyToOrder';
+    const next = seatParty(game, 'medium', 2);
+    game.state.inventory = {}; // hết sạch nguyên liệu: bàn 'pair' sẽ bỏ về lúc ghi món
+    expect(game.dispatch({ type: 'service/takeOrder', partyId: hungry.id }).ok).toBe(true);
+    expect(game.dispatch({ type: 'service/menu', partyId: next.id }).ok).toBe(true);
+    game.tick(30);
+    expect(game.state.restaurant.parties.some((p) => p.id === hungry.id)).toBe(false);
+    expect(game.state.restaurant.parties.find((p) => p.id === next.id)!.phase).not.toBe('seated');
+  });
+});
+
+describe('bác nông dân', () => {
+  /** Tua tới khi bác làm hết hàng việc (tối đa `limit` phút game). */
+  function untilIdle(game: Game, limit = 200): void {
+    for (let i = 0; i < limit * 2 && game.state.farm.farmer.tasks.length; i++) game.tick(0.5);
+    expect(game.state.farm.farmer.tasks).toHaveLength(0);
+  }
+  const fresh = () => {
+    const g = newGame();
+    g.state.weather = { id: 'cloudy', minutesLeft: 99999 };
+    g.state.menu.active = [];
+    return g;
+  };
+
+  it('bấm ô thì bác chạy tới, làm xong mới có tác dụng, rồi đứng lại ở mép ô', () => {
+    const game = fresh();
+    const done: string[] = [];
+    game.bus.on('farmer/done', (e) => done.push(`${e.kind}:${e.slotId}:${e.ok}`));
+    const slot = () => game.state.farm.slots.find((s) => s.id === 'field-0')!;
+    expect(game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-0' }).ok).toBe(true);
+    expect(slot().tilled).toBe(false); // chưa tới nơi
+    game.tick(0.5);
+    expect(slot().tilled).toBe(false);
+    untilIdle(game);
+    expect(slot().tilled).toBe(true);
+    expect(done).toEqual(['till:field-0:true']);
+    const spot = workSpot(game.ctx, slot());
+    expect(game.state.farm.farmer).toMatchObject({ x: spot.x, z: spot.z, work: null });
+  });
+
+  it('xếp hàng việc nối tiếp trên cùng ô: cuốc -> gieo -> tưới đều hợp lệ ngay lúc bấm', () => {
+    const game = fresh();
+    expect(game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-4' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farmer/do', kind: 'plant', slotId: 'field-4', producerId: 'cabbage' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farmer/do', kind: 'water', slotId: 'field-4' }).ok).toBe(true);
+    untilIdle(game);
+    expect(game.state.farm.slots.find((s) => s.id === 'field-4')).toMatchObject({ tilled: true, producerId: 'cabbage' });
+    expect(game.state.farm.slots.find((s) => s.id === 'field-4')!.wet).toBeGreaterThan(0);
+  });
+
+  it('báo lỗi ngay lúc bấm: đất chưa cuốc, không đủ tiền, việc trùng', () => {
+    const game = fresh();
+    expect(game.dispatch({ type: 'farmer/do', kind: 'plant', slotId: 'field-0', producerId: 'cabbage' }).ok).toBe(false);
+    game.state.money = 0;
+    game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-0' });
+    const broke = game.dispatch({ type: 'farmer/do', kind: 'plant', slotId: 'field-0', producerId: 'cabbage' });
+    expect(broke).toEqual({ ok: false, reason: 'Không đủ tiền.' });
+    expect(game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-0' }).ok).toBe(false);
+    expect(game.state.farm.farmer.tasks).toHaveLength(1);
+    expect(game.state.money).toBe(0); // chạy thử không được tiêu tiền thật
+  });
+
+  it('thu hoạch hết: xếp mọi ô chín theo đường ngắn, thu đủ, ô nào đã có việc thì không xếp lại', () => {
+    const game = fresh();
+    for (const id of ['field-0', 'field-8', 'field-2']) {
+      Object.assign(game.state.farm.slots.find((s) => s.id === id)!, { tilled: true, producerId: 'cabbage', stage: 'ready' });
+    }
+    game.dispatch({ type: 'farmer/do', kind: 'harvest', slotId: 'field-8' });
+    expect(game.dispatch({ type: 'farmer/doAll', kind: 'harvest' }).ok).toBe(true);
+    expect(game.state.farm.farmer.tasks.map((t) => t.slotId)).toEqual(['field-8', 'field-2', 'field-0']);
+    const before = game.state.inventory.cabbage ?? 0;
+    untilIdle(game);
+    expect((game.state.inventory.cabbage ?? 0) - before).toBe(9);
+    expect(game.dispatch({ type: 'farmer/doAll', kind: 'harvest' }).ok).toBe(false);
+  });
+
+  it('huỷ việc: việc đang làm dở vẫn làm xong, việc chưa tới lượt bị bỏ', () => {
+    const game = fresh();
+    game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-0' });
+    game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-1' });
+    for (let i = 0; i < 400 && game.state.farm.farmer.work == null; i++) game.tick(0.1); // tới ô đầu
+    expect(game.dispatch({ type: 'farmer/cancel' }).ok).toBe(true);
+    untilIdle(game);
+    expect(game.state.farm.slots.find((s) => s.id === 'field-0')!.tilled).toBe(true);
+    expect(game.state.farm.slots.find((s) => s.id === 'field-1')!.tilled).toBe(false);
+  });
+
+});
+
+describe('bác nông dân đi theo lối', () => {
+  const lanes = content.balance.farmer.lanes;
+  const walk = (from: { x: number; z: number }, to: { x: number; z: number }) => {
+    const points = [from];
+    let pos = from;
+    for (let i = 0; i < 6; i++) {
+      pos = nextWaypoint(pos, to, lanes);
+      points.push(pos);
+      if (pos === to) break;
+    }
+    return points;
+  };
+
+  it('chỉ đi ngang hoặc dọc, và chỉ đi dọc trên lối', () => {
+    const game = newGame();
+    const spots = game.state.farm.slots.map((s) => workSpot(game.ctx, s));
+    const starts = [content.balance.farmer.home, ...spots];
+    for (const a of starts) {
+      for (const b of spots) {
+        const pts = walk(a, b);
+        expect(pts[pts.length - 1]).toBe(b);
+        for (let i = 1; i < pts.length; i++) {
+          const [p, q] = [pts[i - 1], pts[i]];
+          const vertical = Math.abs(p.x - q.x) < 1e-6 && Math.abs(p.z - q.z) > 1e-6;
+          const horizontal = Math.abs(p.z - q.z) < 1e-6;
+          expect(vertical || horizontal).toBe(true);
+          if (vertical) expect(lanes.some((l) => Math.abs(l - p.x) < 1e-6)).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('từ chỗ đứng ban đầu ra ruộng góc trái: ra đường đất, chạy dọc, rồi rẽ ngang vào khe ruộng', () => {
+    const game = newGame();
+    const spot = workSpot(game.ctx, game.state.farm.slots.find((s) => s.id === 'field-0')!);
+    const pts = walk(content.balance.farmer.home, spot);
+    expect(pts.slice(1)).toEqual([{ x: 1.25, z: spot.z }, spot]);
+  });
+});
+
+describe('phong cách quán (Nhật / Hàn / Việt)', () => {
+  for (const cuisine of ['jp', 'kr', 'vn'] as const) {
+    it(`quán ${cuisine}: chỉ có món của quán mình, nội thất riêng, nấu được món khởi đầu và chạy trọn ngày`, () => {
+      const game = new Game(content, { seed: 11, cuisine });
+      const { state } = game;
+      expect(state.cuisine).toBe(cuisine);
+      expect(state.menu.unlocked.length).toBeGreaterThan(0);
+      for (const id of state.menu.unlocked) expect(content.recipes.get(id).cuisine).toBe(cuisine);
+      for (const id of Object.values(state.decor.equipped)) {
+        const only = content.decor.get(id).cuisine;
+        expect(only === undefined || only === cuisine).toBe(true);
+      }
+      // Kho đầu ván đủ nấu mỗi món khởi đầu ít nhất 5 phần
+      for (const id of state.menu.unlocked) {
+        for (const ing of content.recipes.get(id).ingredients) {
+          if (content.items.get(ing.item).infinite) continue;
+          expect(state.inventory[ing.item] ?? 0).toBeGreaterThanOrEqual(ing.qty * 5);
+        }
+      }
+      runDay(game);
+      expect(game.state.stats.total.dishes).toBeGreaterThan(0);
+    });
+  }
+
+  it('không mở được món / mua được nội thất của quán khác', () => {
+    const game = new Game(content, { seed: 3, cuisine: 'jp' });
+    Object.assign(game.state, { money: 99999, level: 9 });
+    expect(game.dispatch({ type: 'menu/unlock', recipeId: 'pho' }).ok).toBe(false);
+    expect(game.dispatch({ type: 'menu/unlock', recipeId: 'ramen' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_encaustic' }).ok).toBe(false);
+    expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_hinoki' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_marble' }).ok).toBe(true); // đồ dùng chung
+  });
+
+  it('lưu / tải giữ phong cách quán; món lạ trong save bị dọn', () => {
+    const game = new Game(content, { seed: 5, cuisine: 'kr' });
+    const raw = JSON.parse(serialize(game.state));
+    raw.menu.unlocked.push('pho');
+    raw.menu.active.push('pho');
+    const state = deserialize(JSON.stringify(raw), content)!;
+    expect(state.cuisine).toBe('kr');
+    expect(state.menu.unlocked).not.toContain('pho');
+    expect(state.menu.active).not.toContain('pho');
+  });
+});
+
+describe('ruộng tự động + cối chế biến', () => {
+  /** Tua tới khi bác làm hết hàng việc. */
+  const settle = (game: Game, limit = 600) => {
+    for (let i = 0; i < limit && game.state.farm.farmer.tasks.length; i++) game.tick(1);
+    expect(game.state.farm.farmer.tasks).toHaveLength(0);
+  };
+
+  it('thu ruộng lúa mì: bác gieo lại, chở lúa tới cối xay gió, cối ra bột mì vào kho', () => {
+    const game = quietGame();
+    game.state.money = 1000;
+    const slot = game.state.farm.slots.find((s) => s.type === 'wheat')!;
+    expect(game.dispatch({ type: 'farmer/do', kind: 'plant', slotId: slot.id, producerId: 'wheat' }).ok).toBe(true);
+    settle(game);
+    Object.assign(slot, { stage: 'ready' });
+    const flour0 = game.state.inventory.flour ?? 0;
+    expect(game.dispatch({ type: 'farmer/do', kind: 'harvest', slotId: slot.id }).ok).toBe(true);
+    settle(game);
+    // Gieo lại tự động, không còn lúa mì trong kho hay trên máy cày
+    expect(slot).toMatchObject({ producerId: 'wheat', stage: 'growing' });
+    expect(game.state.inventory.wheat ?? 0).toBe(0);
+    expect(game.state.farm.farmer.carry).toBeNull();
+    const mill = game.state.farm.mills.find((m) => m.type === 'windmill')!;
+    expect(mill.input).toBeGreaterThan(0);
+    game.tick(200);
+    expect(mill.input).toBe(0);
+    expect((game.state.inventory.flour ?? 0) - flour0).toBe(8);
+  });
+
+  it('đổi thành phẩm của cối, mua thêm cối (tối đa 2), không giao tay việc chở hàng', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 99999, level: 9 });
+    const mill = game.state.farm.mills.find((m) => m.type === 'ricemill')!;
+    expect(game.dispatch({ type: 'mill/setProduct', millId: mill.id, item: 'rice_noodle' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'mill/setProduct', millId: mill.id, item: 'bread' }).ok).toBe(false);
+    mill.input = 3;
+    game.tick(40);
+    expect(game.state.inventory.rice_noodle).toBe(3);
+    expect(game.dispatch({ type: 'mill/buy', millType: 'windmill' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'mill/buy', millType: 'windmill' }).ok).toBe(false);
+    expect(game.dispatch({ type: 'farmer/do', kind: 'haul', slotId: 'wheat-0' }).ok).toBe(false);
+  });
+
+  it('huỷ bớt việc vẫn giữ việc chở hàng tới cối', () => {
+    const game = quietGame();
+    const f = game.state.farm.farmer;
+    f.carry = { item: 'wheat', qty: 5 };
+    f.tasks = [{ kind: 'till', slotId: 'field-0' }, { kind: 'haul', slotId: 'wheat-0', millId: 'windmill-0' }];
+    expect(game.dispatch({ type: 'farmer/cancel' }).ok).toBe(true);
+    expect(f.tasks.map((t) => t.kind)).toEqual(['haul']);
+    settle(game);
+    expect(game.state.farm.mills.find((m) => m.id === 'windmill-0')!.input + (game.state.inventory.flour ?? 0)).toBeGreaterThan(0);
+  });
+
+  it('mua đủ mọi ô và cối: đường đi của bác không xuyên qua ô hay cối nào', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 1e7, level: 20 });
+    for (const t of content.slotTypes.all()) while (game.dispatch({ type: 'farm/buySlot', slotType: t.id }).ok);
+    for (const m of content.mills.all()) while (game.dispatch({ type: 'mill/buy', millType: m.id }).ok);
+    for (const s of game.state.farm.slots) s.tier = (content.slotTypes.get(s.type).tiers?.length ?? 0) + 1; // ao to nhất
+    const rects = game.state.farm.slots.filter((s) => !content.slotTypes.get(s.type).building).map((s) => {
+      const c = slotCenter(game.ctx, s);
+      const h = (content.slotTypes.get(s.type).layout.size * slotScale(game.ctx, s)) / 2;
+      return { id: s.id, x1: c.x - h, x2: c.x + h, z1: c.z - h, z2: c.z + h };
+    });
+    for (const t of content.slotTypes.all()) {
+      const b = buildingRect(game.ctx, t.id);
+      if (b) rects.push({ id: t.id, ...b });
+    }
+    for (const m of game.state.farm.mills) {
+      const c = millCenter(game.ctx, m);
+      rects.push({ id: m.id, x1: c.x - 1.3, x2: c.x + 1.3, z1: c.z - 1.3, z2: c.z + 1.3 });
+    }
+    // Không ô / cối nào chồng lên nhau
+    for (const a of rects) for (const b of rects) if (a !== b) expect(a.x1 < b.x2 && a.x2 > b.x1 && a.z1 < b.z2 && a.z2 > b.z1, `${a.id} chồng ${b.id}`).toBe(false);
+    const spots = [...game.state.farm.slots.map((s) => workSpot(game.ctx, s)), ...game.state.farm.mills.map((m) => millSpot(game.ctx, m))];
+    const lanes = content.balance.farmer.lanes;
+    for (const a of [content.balance.farmer.home, ...spots]) {
+      for (const b of spots) {
+        let pos = a;
+        for (let i = 0; i < 6 && pos !== b; i++) {
+          const next = nextWaypoint(pos, b, lanes);
+          for (const r of rects) {
+            // Đoạn thẳng ngang/dọc cắt phần trong của ô?
+            const x1 = Math.min(pos.x, next.x), x2 = Math.max(pos.x, next.x), z1 = Math.min(pos.z, next.z), z2 = Math.max(pos.z, next.z);
+            const hit = x1 < r.x2 - 0.01 && x2 > r.x1 + 0.01 && z1 < r.z2 - 0.01 && z2 > r.z1 + 0.01;
+            expect(hit, `(${pos.x.toFixed(1)},${pos.z.toFixed(1)}) → (${next.x.toFixed(1)},${next.z.toFixed(1)}) xuyên ${r.id}`).toBe(false);
+          }
+          pos = next;
+        }
+      }
+    }
+  });
+});
+
+describe('nhà kính', () => {
+  it('8 luống có sẵn, nới dài thêm 4 luống mỗi lần (tối đa 20), rau trồng được không cần cuốc, lớn nhanh hơn ruộng', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 1e6, level: 10 });
+    const plots = () => game.state.farm.slots.filter((s) => s.type === 'gplot');
+    expect(plots()).toHaveLength(8);
+    expect(game.dispatch({ type: 'farm/buySlot', slotType: 'gplot' }).ok).toBe(true);
+    expect(plots()).toHaveLength(12);
+    while (game.dispatch({ type: 'farm/buySlot', slotType: 'gplot' }).ok);
+    expect(plots()).toHaveLength(20);
+    // Cà chua trồng thẳng (không cuốc) trong nhà kính và cả ngoài ruộng đã cuốc: nhà kính chín trước
+    const gp = plots()[0];
+    const field = game.state.farm.slots.find((s) => s.id === 'field-0')!;
+    field.tilled = true;
+    expect(game.dispatch({ type: 'farm/plant', slotId: gp.id, producerId: 'tomato' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farm/plant', slotId: field.id, producerId: 'tomato' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farm/plant', slotId: plots()[1].id, producerId: 'hen' }).ok).toBe(false);
+    field.wet = 1e6;
+    game.tick(200);
+    expect(gp.stage).toBe('ready');
+    expect(field.stage).toBe('growing');
+    // Bác nông dân vào cửa nhà kính để làm việc
+    expect(workSpot(game.ctx, gp)).toEqual(content.slotTypes.get('gplot').building!.door);
+  });
+});
+
+describe('nhiệm vụ hệ thống', () => {
+  it('làm lần lượt: đạt mục tiêu thì chờ nhận thưởng, nhận xong mở nhiệm vụ kế; thưởng không tính vào doanh thu', () => {
+    const game = newGame(7);
+    expect(content.quests.length).toBeGreaterThanOrEqual(5);
+    expect(game.state.quests).toEqual({ index: 0, progress: 0, done: false });
+    expect(game.dispatch({ type: 'quest/claim' }).ok).toBe(false); // chưa xong
+    runDay(game);
+    expect(game.state.quests.done).toBe(true); // phục vụ đủ 3 nhóm khách trong ngày đầu
+    const money = game.state.money;
+    const revenue = game.state.stats.today.revenue;
+    expect(game.dispatch({ type: 'quest/claim' }).ok).toBe(true);
+    expect(game.state.money).toBe(money + (content.quests[0].reward.money ?? 0));
+    expect(game.state.stats.today.revenue).toBe(revenue);
+    expect(game.state.quests).toEqual({ index: 1, progress: 0, done: false });
+  });
+
+  it('nhiệm vụ đếm chỉ đếm khi đang làm; nhiệm vụ trạng thái đọc từ state', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 5000, level: 9 });
+    // Đang ở nhiệm vụ 1 (phục vụ khách): thu hoạch không được tính
+    const field = game.state.farm.slots.find((s) => s.id === 'field-0')!;
+    Object.assign(field, { tilled: true });
+    game.dispatch({ type: 'farm/plant', slotId: field.id, producerId: 'cabbage' });
+    Object.assign(field, { stage: 'ready' });
+    game.dispatch({ type: 'farm/harvest', slotId: field.id });
+    expect(game.state.quests.progress).toBe(0);
+    // Sang nhiệm vụ "mở khoá món" (thứ 3): mở 1 món là xong
+    const unlockIndex = content.quests.findIndex((q) => q.goal.kind === 'unlock');
+    game.state.quests = { index: unlockIndex, progress: 0, done: false };
+    game.tick(1);
+    expect(game.state.quests.done).toBe(false);
+    const locked = content.recipes.all().find((r) => r.cuisine === game.state.cuisine && r.unlock.cost > 0)!;
+    expect(game.dispatch({ type: 'menu/unlock', recipeId: locked.id }).ok).toBe(true);
+    game.tick(1);
+    expect(game.state.quests.done).toBe(true);
+  });
+
+  it('save v8 được nâng cấp: bắt đầu từ nhiệm vụ đầu tiên', () => {
+    const old = JSON.parse(serialize(newGame().state));
+    old.version = 8;
+    delete old.quests;
     const state = deserialize(JSON.stringify(old), content)!;
-    expect(state.restaurant.parties[0]).toMatchObject({ phase: 'seated', called: false, wait: 0 });
-    expect(state.restaurant.waiter).toMatchObject({ ...content.room.waiterHome, tasks: [], carrying: null });
-    new Game(content, { state }).tick(300);
+    expect(state.quests).toEqual({ index: 0, progress: 0, done: false });
   });
 });

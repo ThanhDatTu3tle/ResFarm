@@ -3,7 +3,8 @@ import { calendarOf } from '../sim/calendar';
 import { readyOrders } from '../sim/systems/service';
 import type { Game } from '../sim/game';
 import { xpForLevel } from '../sim/helpers';
-import { esc, ui as uiAttr } from './dom';
+import { cmd, esc, ui as uiAttr } from './dom';
+import { currentQuest } from '../sim/systems/quests';
 import { clockText, coins } from './format';
 import type { UiState } from './panels';
 
@@ -40,6 +41,26 @@ function dayDial(minute: number): string {
   </div>`;
 }
 
+/** Thẻ nhiệm vụ hệ thống dưới tiền / uy tín: nhiệm vụ đang làm + tiến độ; xong thì nút "Nhận thưởng". */
+function questCard(game: Game): string {
+  const def = currentQuest(game.ctx);
+  const total = game.content.quests.length;
+  const q = game.state.quests;
+  if (!def) return `<div class="quest all-done" data-key="quest" title="Đã hoàn thành mọi nhiệm vụ">🏆 Xong hết ${total} nhiệm vụ!</div>`;
+  const shown = def.goal.kind === 'reputation' ? q.progress.toFixed(1) : Math.floor(q.progress);
+  const pct = Math.round((q.progress / def.goal.target) * 100);
+  const reward = [def.reward.money ? `${def.reward.money} 🪙` : '', def.reward.xp ? `${def.reward.xp} XP` : ''].filter(Boolean).join(' · ');
+  return `<div class="quest${q.done ? ' done' : ''}" data-key="quest">
+    <div class="quest-head"><span class="quest-icon">${def.icon}</span><b>${esc(def.title)}</b><em>${q.index + 1}/${total}</em></div>
+    <div class="quest-desc">${esc(def.desc)}</div>
+    ${
+      q.done
+        ? `<button class="quest-claim"${cmd({ type: 'quest/claim' })}>🎁 Nhận thưởng · ${reward}</button>`
+        : `<div class="quest-bar"><i style="width:${pct}%"></i><span>${shown}/${def.goal.target}</span></div>`
+    }
+  </div>`;
+}
+
 export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
   const { state, content } = game;
   const b = content.balance;
@@ -59,6 +80,7 @@ export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
       <div class="hud-stack">
         <span class="stat money" data-key="money">${coins(moneyShown)}</span>
         <span class="stat rep" title="Uy tín của quán">⭐ ${state.reputation.toFixed(1)}</span>
+        ${questCard(game)}
       </div>
     </div>
     <div class="hud-right">
@@ -169,7 +191,7 @@ export function settingsHtml(ui: UiState, prefs: { music: boolean; sfx: boolean 
       </section>
 
       <div class="dialog-foot">
-        <button class="danger"${uiAttr('reset')}>↺ Chơi lại từ đầu</button>
+        <button${uiAttr('home')}>🏠 Màn hình chính</button>
         <button class="primary"${uiAttr('settings:close')}>Tiếp tục chơi</button>
       </div>
     </div>

@@ -1,11 +1,14 @@
 import { EventBus } from '../core/events';
-import type { Content } from '../data';
+import type { Content, CuisineId } from '../data';
 import { createInitialState, emptyStats, type GameState } from './state';
 import { clockSystem } from './systems/clock';
 import { customerSystem } from './systems/customers';
 import { decorSystem } from './systems/decor';
 import { farmSystem } from './systems/farm';
 import { serviceSystem } from './systems/service';
+import { farmerSystem } from './systems/farmer';
+import { millSystem } from './systems/mills';
+import { questSystem } from './systems/quests';
 import { kitchenSystem } from './systems/kitchen';
 import { marketSystem } from './systems/market';
 import { progressionSystem } from './systems/progression';
@@ -13,7 +16,7 @@ import { weatherSystem } from './systems/weather';
 import { fail, ok, type Command, type CommandHandlers, type CommandResult, type SimContext, type SimEvents, type System } from './types';
 
 /** Thứ tự ở đây là thứ tự update mỗi bước. System mới thêm vào mảng này. */
-export const defaultSystems: System[] = [clockSystem, weatherSystem, customerSystem, kitchenSystem, serviceSystem, farmSystem, marketSystem, progressionSystem, decorSystem];
+export const defaultSystems: System[] = [clockSystem, weatherSystem, customerSystem, kitchenSystem, serviceSystem, farmSystem, farmerSystem, millSystem, marketSystem, progressionSystem, decorSystem, questSystem];
 
 /** Bước mô phỏng tối đa (phút game) — giữ kết quả ổn định khi tua nhanh. */
 const MAX_STEP = 1;
@@ -33,10 +36,10 @@ export class Game {
 
   constructor(
     readonly content: Content,
-    options: { state?: GameState; seed?: number } = {},
+    options: { state?: GameState; seed?: number; cuisine?: CuisineId } = {},
     private systems: System[] = defaultSystems,
   ) {
-    this.state = options.state ?? createInitialState(content, options.seed ?? Date.now());
+    this.state = options.state ?? createInitialState(content, options.seed ?? Date.now(), options.cuisine);
     this.ctx = { state: this.state, content, bus: this.bus };
     for (const sys of systems) Object.assign(this.handlers, sys.commands);
     this.handlers['day/next'] = () => this.nextDay();

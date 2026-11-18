@@ -1,164 +1,79 @@
-import type { RecipeDef } from './types';
+import type { CuisineId, RecipeDef } from './types';
 
-/** Thêm món mới: thêm 1 mục ở đây. Không cần sửa code nào khác. */
+/**
+ * Thực đơn của cả 3 phong cách quán. Mỗi món thuộc đúng một quán (`cuisine`); người chơi chỉ thấy món của quán mình.
+ * Thêm món mới: thêm 1 dòng `dish(...)` ở đây. Không cần sửa code nào khác
+ * (muốn có model 3D riêng thì thêm vào DISHES trong src/ui/three/models.ts, không có thì quán hiện emoji).
+ *
+ * dish(quán, id, tên, biểu tượng, nguyên liệu "id:số lượng ...", phút nấu, giá, cấp mở, tiền mở, độ ưa chuộng?)
+ * cấp 1 + tiền 0 = món có sẵn từ đầu.
+ */
+function dish(cuisine: CuisineId, id: string, name: string, icon: string, ingredients: string, cookTime: number, price: number, level: number, cost: number, popularity?: number): RecipeDef {
+  return {
+    id,
+    name,
+    icon,
+    cuisine,
+    ingredients: ingredients.split(' ').map((s) => {
+      const [item, qty] = s.split(':');
+      return { item, qty: Number(qty ?? 1) };
+    }),
+    cookTime,
+    price,
+    unlock: { level, cost },
+    ...(popularity != null ? { popularity } : {}),
+  };
+}
+
 export const recipes: RecipeDef[] = [
-  {
-    id: 'egg_rice',
-    name: 'Cơm trứng chiên',
-    icon: '🍳',
-    ingredients: [
-      { item: 'rice', qty: 1 },
-      { item: 'oil', qty: 1 },
-      { item: 'egg', qty: 2 },
-    ],
-    cookTime: 15,
-    price: 18,
-    unlock: { level: 1, cost: 0 },
-  },
-  {
-    id: 'stir_cabbage',
-    name: 'Rau cải xào',
-    icon: '🥗',
-    ingredients: [
-      { item: 'cabbage', qty: 2 },
-      { item: 'oil', qty: 1 },
-      { item: 'salt', qty: 1 },
-    ],
-    cookTime: 12,
-    price: 16,
-    unlock: { level: 1, cost: 0 },
-  },
-  {
-    id: 'tomato_soup',
-    name: 'Canh cà chua trứng',
-    icon: '🍲',
-    ingredients: [
-      { item: 'tomato', qty: 2 },
-      { item: 'egg', qty: 1 },
-      { item: 'water', qty: 1 },
-    ],
-    cookTime: 18,
-    price: 22,
-    unlock: { level: 1, cost: 0 },
-  },
-  {
-    id: 'chicken_rice',
-    name: 'Cơm gà',
-    icon: '🍛',
-    ingredients: [
-      { item: 'rice', qty: 1 },
-      { item: 'chicken', qty: 1 },
-      { item: 'onion', qty: 1 },
-    ],
-    cookTime: 25,
-    price: 38,
-    unlock: { level: 2, cost: 150 },
-  },
-  {
-    id: 'braised_pork',
-    name: 'Thịt kho trứng',
-    icon: '🥘',
-    ingredients: [
-      { item: 'pork', qty: 1 },
-      { item: 'egg', qty: 2 },
-      { item: 'fish_sauce', qty: 1 },
-    ],
-    cookTime: 30,
-    price: 44,
-    unlock: { level: 2, cost: 200 },
-  },
-  {
-    id: 'flan',
-    name: 'Bánh flan',
-    icon: '🍮',
-    ingredients: [
-      { item: 'egg', qty: 2 },
-      { item: 'milk', qty: 2 },
-    ],
-    cookTime: 20,
-    price: 34,
-    unlock: { level: 3, cost: 300 },
-    popularity: 0.7,
-  },
-  {
-    id: 'fried_fish',
-    name: 'Cá chiên sốt cà',
-    icon: '🐠',
-    ingredients: [
-      { item: 'fish', qty: 1 },
-      { item: 'tomato', qty: 2 },
-      { item: 'oil', qty: 1 },
-    ],
-    cookTime: 28,
-    price: 50,
-    unlock: { level: 3, cost: 350 },
-  },
-  {
-    id: 'pho',
-    name: 'Phở bò',
-    icon: '🍜',
-    ingredients: [
-      { item: 'noodle', qty: 1 },
-      { item: 'beef', qty: 1 },
-      { item: 'onion', qty: 1 },
-      { item: 'water', qty: 1 },
-    ],
-    cookTime: 30,
-    price: 58,
-    unlock: { level: 3, cost: 400 },
-    popularity: 1.4,
-  },
-  {
-    id: 'chili_shrimp',
-    name: 'Tôm rang ớt',
-    icon: '🍤',
-    ingredients: [
-      { item: 'shrimp', qty: 3 },
-      { item: 'chili', qty: 1 },
-      { item: 'onion', qty: 1 },
-    ],
-    cookTime: 25,
-    price: 66,
-    unlock: { level: 4, cost: 600 },
-  },
-  {
-    id: 'stir_squid',
-    name: 'Mực xào sa tế',
-    icon: '🦑',
-    ingredients: [
-      { item: 'squid', qty: 2 },
-      { item: 'onion', qty: 1 },
-      { item: 'chili', qty: 1 },
-    ],
-    cookTime: 25,
-    price: 68,
-    unlock: { level: 4, cost: 600 },
-  },
-  {
-    id: 'chicken_curry',
-    name: 'Cà ri gà',
-    icon: '🫕',
-    ingredients: [
-      { item: 'chicken', qty: 1 },
-      { item: 'potato', qty: 2 },
-      { item: 'carrot', qty: 1 },
-      { item: 'milk', qty: 1 },
-    ],
-    cookTime: 35,
-    price: 72,
-    unlock: { level: 4, cost: 650 },
-  },
-  {
-    id: 'shaking_beef',
-    name: 'Bò lúc lắc',
-    icon: '🍖',
-    ingredients: [
-      { item: 'beef', qty: 2 },
-      { item: 'potato', qty: 1 },
-      { item: 'onion', qty: 1 },
-    ],
-    cookTime: 35,
-    price: 96,
-    unlock: { level: 5, cost: 1000 },
-  },
+  // ---------- 🇻🇳 Quán Việt ----------
+  dish('vn', 'egg_rice', 'Cơm trứng chiên', '🍳', 'rice oil egg:2', 15, 18, 1, 0),
+  dish('vn', 'stir_cabbage', 'Rau cải xào', '🥗', 'cabbage:2 oil salt', 12, 16, 1, 0),
+  dish('vn', 'tomato_soup', 'Canh cà chua trứng', '🍲', 'tomato:2 egg water', 18, 22, 1, 0),
+  dish('vn', 'chicken_rice', 'Cơm gà', '🍛', 'rice chicken onion', 25, 38, 2, 150),
+  dish('vn', 'banh_mi', 'Bánh mì thịt', '🥖', 'bread pork cucumber', 15, 36, 2, 180, 1.3),
+  dish('vn', 'com_tam', 'Cơm tấm sườn', '🍱', 'rice pork egg fish_sauce', 28, 42, 2, 180, 1.3),
+  dish('vn', 'braised_pork', 'Thịt kho trứng', '🥘', 'pork egg:2 fish_sauce', 30, 44, 2, 200),
+  dish('vn', 'hu_tieu', 'Hủ tiếu Nam Vang', '🍜', 'rice_noodle pork shrimp water', 26, 46, 2, 250),
+  dish('vn', 'flan', 'Bánh flan', '🍮', 'egg:2 milk:2', 20, 34, 3, 300, 0.7),
+  dish('vn', 'fried_fish', 'Cá chiên sốt cà', '🐠', 'fish tomato:2 oil', 28, 50, 3, 350),
+  dish('vn', 'pho', 'Phở bò', '🍜', 'noodle beef onion water', 30, 58, 3, 400, 1.4),
+  dish('vn', 'bun_bo', 'Bún bò Huế', '🌶️', 'rice_noodle beef chili water', 32, 60, 3, 450, 1.2),
+  dish('vn', 'com_gia_dinh', 'Cơm gia đình', '🍚', 'rice pork cabbage tomato egg', 40, 78, 4, 500, 1.1),
+  dish('vn', 'chili_shrimp', 'Tôm rang ớt', '🍤', 'shrimp:3 chili onion', 25, 66, 4, 600),
+  dish('vn', 'stir_squid', 'Mực xào sa tế', '🦑', 'squid:2 onion chili', 25, 68, 4, 600),
+  dish('vn', 'chicken_curry', 'Cà ri gà', '🫕', 'chicken potato:2 carrot milk', 35, 72, 4, 650),
+  dish('vn', 'shaking_beef', 'Bò lúc lắc', '🍖', 'beef:2 potato onion', 35, 96, 5, 1000),
+
+  // ---------- 🇯🇵 Quán Nhật ----------
+  dish('jp', 'onigiri', 'Cơm nắm onigiri', '🍙', 'rice seaweed salt', 12, 16, 1, 0, 1.2),
+  dish('jp', 'tamagoyaki', 'Trứng cuộn tamagoyaki', '🍳', 'egg:2 soy_sauce oil', 15, 20, 1, 0),
+  dish('jp', 'miso_soup', 'Súp miso', '🥣', 'tofu seaweed miso water', 15, 20, 1, 0),
+  dish('jp', 'maki', 'Cơm cuộn maki', '🍣', 'rice seaweed cucumber fish', 22, 36, 2, 150, 1.2),
+  dish('jp', 'teriyaki', 'Gà teriyaki', '🍗', 'chicken soy_sauce rice', 25, 40, 2, 200),
+  dish('jp', 'katsu_sando', 'Sandwich heo chiên xù', '🥪', 'bread pork flour', 22, 50, 3, 300),
+  dish('jp', 'sushi_salmon', 'Sushi cá hồi', '🍣', 'rice salmon', 20, 48, 3, 300, 1.4),
+  dish('jp', 'tempura', 'Tôm tempura', '🍤', 'shrimp:2 flour oil', 24, 50, 3, 350),
+  dish('jp', 'ramen', 'Mì ramen', '🍜', 'wheat_noodle pork egg miso water', 32, 58, 3, 400, 1.4),
+  dish('jp', 'udon', 'Mì udon nấm', '🍲', 'wheat_noodle mushroom soy_sauce water', 26, 46, 3, 350),
+  dish('jp', 'takoyaki', 'Bánh takoyaki', '🐙', 'flour squid egg', 24, 54, 4, 500, 1.1),
+  dish('jp', 'katsudon', 'Cơm heo chiên xù', '🍛', 'rice pork egg flour', 32, 66, 4, 600),
+  dish('jp', 'sashimi', 'Sashimi thập cẩm', '🐟', 'salmon:2 fish', 22, 84, 4, 700),
+  dish('jp', 'gyudon', 'Cơm bò gyudon', '🥩', 'rice beef:2 onion soy_sauce', 32, 92, 5, 1000),
+
+  // ---------- 🇰🇷 Quán Hàn ----------
+  dish('kr', 'kimbap', 'Cơm cuộn kimbap', '🍙', 'rice seaweed carrot egg', 18, 22, 1, 0, 1.2),
+  dish('kr', 'kimchi', 'Kimchi cải thảo', '🥬', 'cabbage:2 chili gochujang', 12, 16, 1, 0),
+  dish('kr', 'gyeran_jjim', 'Trứng hấp gyeran-jjim', '🥚', 'egg:2 water salt', 15, 20, 1, 0),
+  dish('kr', 'tteokbokki', 'Tokbokki', '🍢', 'rice_cake:2 gochujang onion', 20, 34, 2, 150, 1.4),
+  dish('kr', 'kr_fried_chicken', 'Gà rán Hàn Quốc', '🍗', 'chicken flour oil gochujang', 28, 46, 2, 250, 1.4),
+  dish('kr', 'gilgeori_toast', 'Bánh mì nướng đường phố', '🍞', 'bread egg cabbage', 15, 30, 2, 150, 1.2),
+  dish('kr', 'ramyeon', 'Mì cay ramyeon', '🍜', 'wheat_noodle egg chili water', 22, 38, 2, 200),
+  dish('kr', 'kimchi_stew', 'Canh kimchi jjigae', '🍲', 'cabbage pork tofu gochujang', 30, 50, 3, 350),
+  dish('kr', 'bibimbap', 'Cơm trộn bibimbap', '🥗', 'rice egg carrot mushroom beef', 30, 58, 3, 400, 1.2),
+  dish('kr', 'sundubu', 'Canh đậu phụ non cay', '🥘', 'tofu:2 shrimp egg gochujang', 28, 54, 3, 400),
+  dish('kr', 'bulgogi', 'Bò nướng bulgogi', '🥩', 'beef onion soy_sauce', 32, 72, 4, 600, 1.1),
+  dish('kr', 'samgyeopsal', 'Ba chỉ nướng', '🥓', 'pork:2 cabbage', 30, 66, 4, 550),
+  dish('kr', 'pajeon', 'Bánh xèo hải sản pajeon', '🥞', 'flour squid shrimp egg', 30, 80, 5, 900),
+  dish('kr', 'galbijjim', 'Sườn bò om galbi-jjim', '🍖', 'beef:2 carrot potato soy_sauce', 40, 98, 5, 1100),
 ];

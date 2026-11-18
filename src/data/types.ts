@@ -22,6 +22,40 @@ export interface ItemDef {
   basePrice: number;
 }
 
+/** Loại mục tiêu nhiệm vụ hệ thống (xem src/data/quests.ts). */
+export type QuestGoalKind = 'serve' | 'happy' | 'harvest' | 'produce' | 'unlock' | 'revenue' | 'reputation';
+
+/** Một nhiệm vụ hệ thống: làm lần lượt theo thứ tự trong danh sách. */
+export interface QuestDef {
+  id: string;
+  icon: string;
+  title: string;
+  /** Một câu mô tả mục tiêu, hiện trên HUD. */
+  desc: string;
+  goal: { kind: QuestGoalKind; target: number };
+  reward: { money?: number; xp?: number };
+}
+
+/** Phong cách quán người chơi chọn lúc bắt đầu ván mới: quyết định thực đơn và nội thất. */
+export type CuisineId = 'jp' | 'kr' | 'vn';
+
+export interface CuisineDef {
+  id: CuisineId;
+  /** Tên quán hiện ở màn chọn. */
+  name: string;
+  /** Tên nước ngắn gọn (Nhật, Hàn, Việt). */
+  country: string;
+  flag: string;
+  /** Một câu giới thiệu ở màn chọn. */
+  blurb: string;
+  /** Vài món tiêu biểu để giới thiệu (id món). */
+  showcase: string[];
+  /** Màu chủ đạo cho thẻ chọn ở màn hình mở đầu (CSS). */
+  accent: string;
+  /** Nguyên liệu có sẵn trong kho lúc bắt đầu (đủ nấu các món khởi đầu vài lượt). */
+  startInventory: ItemStack[];
+}
+
 /** Món ăn. */
 export interface RecipeDef {
   id: string;
@@ -34,9 +68,14 @@ export interface RecipeDef {
   unlock: { level: number; cost: number };
   /** Trọng số khách chọn món (mặc định 1). */
   popularity?: number;
+  /** Món thuộc thực đơn của quán nào. */
+  cuisine: CuisineId;
 }
 
-export type SlotType = 'field' | 'pen' | 'pond';
+export type SlotType = 'field' | 'pen' | 'pond' | 'wheat' | 'paddy' | 'gplot';
+
+/** Loại cối chế biến ở nông trại: cối xay gió (lúa mì) và nhà xay lúa (lúa nước). */
+export type MillType = 'windmill' | 'ricemill';
 
 /**
  * "Nguồn sản xuất" đặt vào một ô nông trại: cây trồng, vật nuôi, ao cá...
@@ -49,6 +88,8 @@ export interface ProducerDef {
   name: string;
   icon: string;
   slot: SlotType;
+  /** Loại ô khác cũng trồng được giống này (vd rau củ trồng được cả trong nhà kính). */
+  alsoIn?: SlotType[];
   cost: number;
   growTime: number;
   yields: ItemStack[];
@@ -76,6 +117,49 @@ export interface SlotTypeDef {
   needsWater?: boolean;
   /** Các bậc nới rộng ô: phần tử i là chi phí/điều kiện để lên bậc i + 2 và hệ số sản lượng ở bậc đó. */
   tiers?: { cost: number; level: number; yieldMul: number }[];
+  /**
+   * Vị trí trên bản đồ nông trại (mét): ô thứ i ở (x + (i % cols)·dx, z + ⌊i / cols⌋·dz).
+   * size = cạnh ô; tierGrowth = mỗi bậc nới rộng ô to thêm bao nhiêu lần;
+   * work = bác nông dân đứng ở mép nào của ô khi làm việc (mặc định 'front' — mép phía camera).
+   * Cả sim (chỗ bác nông dân đứng) lẫn cảnh 3D đều đọc từ đây.
+   */
+  layout: { x: number; z: number; cols: number; dx: number; dz: number; size: number; tierGrowth: number; work?: 'front' | 'left' | 'back' };
+  /**
+   * Ruộng "tự động" (lúa mì, lúa nước): người chơi chỉ bấm thu hoạch, bác nông dân lái máy cày thu,
+   * tự gieo lại giống cũ rồi chở hết sản lượng tới cối loại này để chế biến.
+   */
+  mill?: MillType;
+  /** Mua thêm theo lô: mỗi lần mua thêm bấy nhiêu ô cùng lúc (luống nhà kính: nhà dài thêm, thêm 4 luống). */
+  batch?: number;
+  /** Hệ số tốc độ lớn riêng của loại ô (nhà kính lớn nhanh hơn ngoài trời). */
+  growMul?: number;
+  /**
+   * Ô nằm TRONG một toà nhà trên bản đồ nông trại (nhà kính): không vẽ trên bản đồ, bác nông dân đứng ở cửa nhà (door).
+   * x = mép tây (đầu có cửa), z = trục giữa nhà, width = bề ngang; nhà dài = cột luống × colLength + 2·endLength
+   * (mỗi cột gồm 2 luống hai bên lối đi). Bên trong vẽ ở khu riêng (areas/greenhouse.ts).
+   */
+  building?: { x: number; z: number; width: number; colLength: number; endLength: number; door: { x: number; z: number } };
+}
+
+/** Cối chế biến: nhận nguyên liệu thô (input) do bác nông dân chở tới, làm ra một trong các thành phẩm (products). */
+export interface MillTypeDef {
+  id: MillType;
+  name: string;
+  icon: string;
+  /** Nguyên liệu thô nhận vào (vd lúa mì). */
+  input: string;
+  /** Thành phẩm có thể chọn; mỗi 1 đơn vị input ra 1 đơn vị thành phẩm. Phần tử đầu là mặc định. */
+  products: string[];
+  /** Phút game để chế biến 1 đơn vị. */
+  time: number;
+  initial: number;
+  max: number;
+  /** Giá cối mua thêm thứ n (n tính từ 0) = basePrice * priceGrowth^n. */
+  basePrice: number;
+  priceGrowth: number;
+  level: number;
+  /** Cối thứ i ở (x + (i % cols)·dx, z + ⌊i / cols⌋·dz); bác nông dân đứng ở (tâm + spot) khi đổ hàng. */
+  layout: { x: number; z: number; cols: number; dx: number; dz: number; spot: { x: number; z: number } };
 }
 
 /** Sạp hàng ngoài chợ. */
@@ -86,6 +170,8 @@ export interface StallDef {
   /** Hệ số giá của sạp so với basePrice. */
   markup: number;
   items: string[];
+  /** Bảng chân đứng nhỏ cạnh sạp (dòng chữ giới thiệu thêm), không có thì thôi. */
+  standee?: string;
 }
 
 /** Bàn trong quán. Toạ độ (tâm bàn) theo hệ quy chiếu của scene, sim không dùng tới. */
@@ -156,8 +242,10 @@ export interface DecorDef {
   slot: DecorSlot;
   cost: number;
   level: number;
-  /** Món có sẵn từ đầu của slot này (mỗi slot đúng 1 món, cost = 0). */
+  /** Món có sẵn từ đầu của slot này (mỗi phong cách quán có đúng 1 món mặc định mỗi slot, cost = 0). */
   isDefault?: boolean;
+  /** Chỉ dành cho quán phong cách này; bỏ trống = quán nào cũng mua được. */
+  cuisine?: CuisineId;
   /** Màu cho tầng hiển thị, dạng 0xRRGGBB; tên khoá theo slot (xem decor.ts). */
   colors: Record<string, number>;
   /** Hệ số gameplay khi đang dùng món này. */
@@ -190,7 +278,6 @@ export interface Balance {
   nightMinutes: number;
   startMoney: number;
   startReputation: number;
-  startInventory: ItemStack[];
   /** Khoảng cách trung bình giữa hai lượt khách (phút) ở uy tín trung bình. */
   spawnInterval: number;
   maxQueue: number;
@@ -218,6 +305,16 @@ export interface Balance {
     moodStep: number;
     /** Hệ số tip theo tâm trạng: vui vẻ, bình thường, chán nản, tức giận. */
     moodTip: [number, number, number, number];
+  };
+  farmer: {
+    /** Chỗ bác nông dân đứng lúc mới vào game (mét). */
+    home: { x: number; z: number };
+    /** Toạ độ x các lối đi dọc (mét): bác chỉ chạy dọc trên các lối này, còn lại đi ngang theo khe giữa các hàng ô. */
+    lanes: number[];
+    /** Tốc độ chạy: mét mỗi phút game. */
+    speed: number;
+    /** Thời gian làm một việc (cuốc, tưới, gieo, thu) khi đã tới nơi, phút game. */
+    workTime: number;
   };
   farm: {
     /** Một lần tưới (hoặc một cơn mưa) giữ ẩm đất bao nhiêu phút. */

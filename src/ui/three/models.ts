@@ -110,6 +110,12 @@ export interface Pose {
   wave?: number;
   /** Hai tay bưng đồ trước ngực (bồi bàn). */
   carry?: boolean;
+  /** Vung cuốc: hai tay giơ lên rồi bổ xuống, người gập theo nhịp (0..1). */
+  dig?: number;
+  /** Tưới: tay phải đưa ra trước, nghiêng bình qua lại (0..1). */
+  pour?: number;
+  /** Cúi xuống đất: gieo hạt / nhổ thu hoạch / cho con vật ăn (0..1). */
+  reach?: number;
 }
 
 /** Cử động người theo thời gian t (giây thực): thở, chớp mắt, nhìn quanh + tư thế. */
@@ -120,6 +126,10 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   const walk = pose.walk ?? 0;
   const cook = pose.cook ?? 0;
   const wave = pose.wave ?? 0;
+  const dig = pose.dig ?? 0;
+  const pour = pose.pour ?? 0;
+  const reach = pose.reach ?? 0;
+  const chop = Math.sin(t * 9); // nhịp bổ cuốc
 
   // Thở + chớp mắt (mỗi ~3.7 giây, vài người thỉnh thoảng chớp đôi)
   rig.body.scale.set(1, 1 + Math.sin(k * 2.3) * 0.025, 1);
@@ -128,8 +138,9 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   for (const eye of rig.eyes) eye.scale.y = blink ? 0.12 : 1;
 
   // Đầu: nhìn quanh chậm rãi; khi nấu thì cúi xuống chảo
-  rig.head.rotation.y = Math.sin(k * 0.45) * 0.35 * (1 - walk) * (1 - cook);
-  rig.head.rotation.x = cook * 0.3 + Math.sin(k * 0.7) * 0.04;
+  const busy = Math.max(cook, dig, pour, reach);
+  rig.head.rotation.y = Math.sin(k * 0.45) * 0.35 * (1 - walk) * (1 - busy);
+  rig.head.rotation.x = Math.max(cook * 0.3, dig * 0.25, pour * 0.35, reach * 0.45) + Math.sin(k * 0.7) * 0.04;
   rig.head.rotation.z = Math.sin(k * 0.33) * 0.06;
 
   // Chân: đi thì bước luân phiên, ngồi thì duỗi ra trước
@@ -152,6 +163,21 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
     left = -1.25 + Math.sin(t * 11) * 0.04 * walk;
     right = -1.25 - Math.sin(t * 11) * 0.04 * walk;
   }
+  if (dig > 0) {
+    // Hai tay cùng cầm cán cuốc: giơ cao rồi bổ xuống trước mặt
+    const swing = -1.5 - chop * 1.1;
+    left = left * (1 - dig) + swing * dig;
+    right = right * (1 - dig) + swing * dig;
+  }
+  if (pour > 0) {
+    left = left * (1 - pour) - 0.3 * pour;
+    right = right * (1 - pour) + (-1.35 + Math.sin(t * 5) * 0.15) * pour;
+  }
+  if (reach > 0) {
+    // Cúi gập, hai tay với xuống đất, nhặt lên đặt xuống luân phiên
+    left = left * (1 - reach) + (-0.9 + Math.sin(t * 7) * 0.35) * reach;
+    right = right * (1 - reach) + (-0.9 - Math.sin(t * 7) * 0.35) * reach;
+  }
   if (wave > 0) {
     right = right * (1 - wave) - 2.6 * wave;
     rightZ = -0.18 + (-0.5 + Math.sin(t * 12) * 0.35) * wave;
@@ -159,7 +185,8 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   rig.armL.rotation.x = left;
   rig.armR.rotation.x = right;
   rig.armR.rotation.z = rightZ;
-  rig.body.rotation.x = walk * 0.08 + cook * 0.12; // nghiêng người tới trước
+  // Nghiêng người tới trước: đi, nấu, bổ cuốc theo nhịp, cúi xuống đất
+  rig.body.rotation.x = walk * 0.08 + cook * 0.12 + dig * (0.18 + Math.max(0, -chop) * 0.22) + pour * 0.1 + reach * 0.55;
 }
 
 /** Chớp mắt / vẫy đuôi cho con vật: model nào gắn `userData.eyes` / `userData.tail` thì được cử động. */
@@ -448,6 +475,249 @@ const DISHES: Record<string, (g: THREE.Group) => void> = {
     mesh(g, G.box(0.04, 0.012, 0.03), 0x5fae57, { p: [0.0, 0.06, 0.01] });
     mesh(g, G.box(0.04, 0.012, 0.03), 0xe5463c, { p: [0.05, 0.055, -0.01], r: [0, 0.6, 0] });
     mesh(g, G.torus(0.03, 0.006, 4, 12), 0xf0e3f0, { p: [-0.04, 0.055, 0.0], r: [Math.PI / 2, 0, 0], cast: false }); // hành tây
+  },
+
+  // ----- Quán Việt (thêm ở Giai đoạn 2) -----
+  com_tam: (g) => {
+    riceMound(g, -0.05, 0.02);
+    mesh(g, G.box(0.11, 0.025, 0.07), 0x9a4a22, { p: [0.06, 0.02, -0.02], r: [0, 0.4, 0] }); // sườn nướng
+    for (const x of [0.03, 0.06, 0.09]) mesh(g, G.box(0.006, 0.03, 0.06), 0x6b2f16, { p: [x, 0.035, -0.02], r: [0, 0.4, 0], cast: false });
+    friedEgg(g, 0.0, 0.03, 0.08, 0.6);
+    for (const [x, z] of [[-0.1, -0.07], [-0.07, -0.09]]) mesh(g, G.cyl(0.02, 0.02, 0.008, 10), 0x9fd07a, { p: [x, 0.006, z], cast: false }); // dưa leo
+  },
+  hu_tieu: (g) => {
+    bowl(g, 0xf3e3b8, 0xffffff, 0.16);
+    for (let i = 0; i < 3; i++) mesh(g, G.torus(0.035 + i * 0.025, 0.006, 4, 18), 0xfffaf0, { p: [0, 0.1, 0], r: [Math.PI / 2, 0, 0], cast: false });
+    for (const [x, z, r] of [[0.05, -0.04, 0.4], [-0.06, 0.02, 2.4]]) mesh(g, G.torus(0.025, 0.012, 6, 10, Math.PI * 1.3), 0xf2723a, { p: [x, 0.11, z], r: [Math.PI / 2, 0, r] }); // tôm
+    mesh(g, G.box(0.06, 0.008, 0.04), 0xe0a07a, { p: [0.0, 0.106, 0.06], cast: false }); // thịt
+    mesh(g, G.sphere(0.02, 6, 5), 0x5fae57, { p: [-0.03, 0.108, -0.06], s: [1, 0.4, 1], cast: false });
+  },
+  bun_bo: (g) => {
+    bowl(g, 0xe0662f, 0xffffff, 0.16);
+    for (let i = 0; i < 3; i++) mesh(g, G.torus(0.04 + i * 0.022, 0.006, 4, 18), 0xfffaf0, { p: [0, 0.1, 0], r: [Math.PI / 2, 0, 0], cast: false });
+    for (const [x, z, r] of [[0.05, -0.04, 0.3], [-0.05, -0.04, -0.4]]) mesh(g, G.box(0.06, 0.008, 0.045), 0x8a3f22, { p: [x, 0.106, z], r: [0, r, 0], cast: false });
+    for (const [x, z] of [[0.0, 0.06], [0.06, 0.04]]) mesh(g, G.torus(0.012, 0.004, 4, 8), 0xd92b2b, { p: [x, 0.108, z], r: [Math.PI / 2, 0, 0], cast: false }); // ớt
+  },
+  com_gia_dinh: (g) => {
+    mesh(g, G.cyl(0.05, 0.035, 0.05, 12), 0xffffff, { p: [-0.07, 0.025, 0.05] });
+    mesh(g, G.sphere(0.045, 10, 8), RICE, { p: [-0.07, 0.05, 0.05], s: [1, 0.5, 1] });
+    mesh(g, G.cyl(0.055, 0.04, 0.05, 12), 0xffffff, { p: [0.07, 0.025, 0.05] });
+    mesh(g, G.cyl(0.048, 0.048, 0.005, 12), 0xf06d4f, { p: [0.07, 0.05, 0.05], cast: false }); // canh
+    mesh(g, G.cyl(0.07, 0.07, 0.012, 14), 0xffffff, { p: [0, 0.006, -0.06] });
+    for (const [x, z] of [[-0.02, -0.06], [0.025, -0.05]]) mesh(g, G.box(0.035, 0.03, 0.035), 0xa0562a, { p: [x, 0.03, z] }); // thịt kho
+    mesh(g, G.ico(0.03, 0), 0x7cc35c, { p: [0.0, 0.03, -0.09], s: [1.3, 0.5, 1] }); // rau xào
+  },
+
+  banh_mi: (g) => {
+    const b = group(g, { p: [0, 0.04, 0], r: [0, 0.5, 0] });
+    mesh(b, G.capsule(0.045, 0.2), 0xe0a050, { r: [0, 0, Math.PI / 2] }); // ổ bánh mì
+    mesh(b, G.box(0.2, 0.025, 0.05), 0xd98a6a, { p: [0, 0.02, 0.012], cast: false }); // thịt
+    mesh(b, G.box(0.18, 0.012, 0.052), 0x7cc35c, { p: [0, 0.04, 0.012], cast: false }); // dưa leo, rau
+    for (const x of [-0.06, 0.02, 0.08]) mesh(b, G.box(0.02, 0.006, 0.05), 0xc78a30, { p: [x, 0.047, 0], r: [0, 0.6, 0], cast: false }); // vết khía
+  },
+
+  // ----- Quán Nhật -----
+  katsu_sando: (g) => {
+    for (const [x, r] of [[-0.05, 0.3], [0.06, -0.4]]) {
+      const s = group(g, { p: [x, 0, 0], r: [0, r, 0] });
+      mesh(s, G.box(0.1, 0.022, 0.1), 0xfff3d6, { p: [0, 0.012, 0] });
+      mesh(s, G.box(0.1, 0.03, 0.1), 0xd9984f, { p: [0, 0.038, 0] }); // heo chiên xù
+      mesh(s, G.box(0.1, 0.008, 0.1), 0x7cc35c, { p: [0, 0.057, 0], cast: false });
+      mesh(s, G.box(0.1, 0.022, 0.1), 0xfff3d6, { p: [0, 0.072, 0] });
+    }
+  },
+  onigiri: (g) => {
+    for (const [x, r] of [[-0.06, 0.3], [0.06, -0.3]]) {
+      const o = group(g, { p: [x, 0, 0], r: [0, r, 0] });
+      mesh(o, G.prism(), 0xf3ecd8, { s: [0.12, 0.11, 0.05] }); // nắm cơm tam giác đứng (ngả kem cho khỏi lẫn vào đĩa trắng)
+      mesh(o, G.box(0.07, 0.055, 0.056), 0x1f2a1f, { p: [0, 0.027, 0] }); // rong biển quấn đáy
+      for (const [px, py] of [[-0.015, 0.075], [0.012, 0.068], [0.0, 0.085]]) mesh(o, G.sphere(0.005, 4, 4), 0x2a1f1a, { p: [px, py, 0.026], cast: false }); // mè đen
+    }
+  },
+  tamagoyaki: (g) => {
+    for (const x of [-0.06, 0, 0.06]) {
+      mesh(g, G.box(0.05, 0.045, 0.07), 0xffd34e, { p: [x, 0.023, 0] });
+      mesh(g, G.box(0.051, 0.006, 0.071), 0xe8a92a, { p: [x, 0.03, 0], cast: false });
+    }
+  },
+  miso_soup: (g) => {
+    bowl(g, 0xc9a066, 0x8a2f2a, 0.12);
+    for (const [x, z] of [[0.03, 0.02], [-0.03, -0.02], [0.0, -0.04]]) mesh(g, G.box(0.022, 0.018, 0.022), 0xfffaf0, { p: [x, 0.1, z] });
+    for (const [x, z] of [[-0.04, 0.03], [0.04, -0.03]]) mesh(g, G.box(0.03, 0.004, 0.012), 0x2f5a2f, { p: [x, 0.1, z], r: [0, x * 20, 0], cast: false });
+  },
+  maki: (g) => {
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const x = Math.cos(a) * 0.08;
+      const z = Math.sin(a) * 0.08;
+      mesh(g, G.cyl(0.032, 0.032, 0.04, 12), 0x1f2a1f, { p: [x, 0.02, z] });
+      mesh(g, G.cyl(0.026, 0.026, 0.042, 12), RICE, { p: [x, 0.021, z] });
+      mesh(g, G.cyl(0.011, 0.011, 0.044, 8), i % 2 ? 0xf28c5a : 0x7cc35c, { p: [x, 0.022, z] });
+    }
+  },
+  teriyaki: (g) => {
+    riceMound(g, -0.06, 0.03);
+    for (const [x, z] of [[0.04, -0.03], [0.07, 0.03], [0.02, 0.05]]) mesh(g, G.box(0.05, 0.035, 0.04), 0x8a4a1e, { p: [x, 0.02, z], r: [0, x * 15, 0] });
+    for (const [x, z] of [[0.05, 0.0], [0.03, 0.03]]) mesh(g, G.sphere(0.005, 4, 4), 0xfff3d6, { p: [x, 0.04, z], cast: false }); // mè
+    mesh(g, G.cone(0.02, 0.05, 5), 0x5fae57, { p: [-0.02, 0.06, -0.06] });
+  },
+  sushi_salmon: (g) => {
+    for (const x of [-0.05, 0.05]) {
+      mesh(g, G.capsule(0.025, 0.06), RICE, { p: [x, 0.025, 0], r: [Math.PI / 2, 0, 0] });
+      mesh(g, G.box(0.06, 0.018, 0.11), 0xf28c5a, { p: [x, 0.055, 0] });
+      for (const z of [-0.03, 0, 0.03]) mesh(g, G.box(0.061, 0.019, 0.006), 0xffd2b8, { p: [x, 0.056, z], r: [0, 0.4, 0], cast: false });
+    }
+  },
+  tempura: (g) => {
+    for (const [x, z, r] of [[-0.04, 0.0, 0.3], [0.04, 0.02, -0.3], [0.0, -0.05, 1.4]]) {
+      const t = group(g, { p: [x, 0.03, z], r: [0, r, 0] });
+      mesh(t, G.capsule(0.028, 0.08), 0xf2c25a, { r: [0, 0, Math.PI / 2] });
+      mesh(t, G.cone(0.02, 0.035, 4), 0xe5463c, { p: [0.075, 0.0, 0], r: [0, 0, -Math.PI / 2] }); // đuôi tôm
+    }
+  },
+  ramen: (g) => {
+    bowl(g, 0xe8c58a, 0x2a1f1a, 0.16);
+    for (let i = 0; i < 3; i++) mesh(g, G.torus(0.04 + i * 0.022, 0.007, 4, 18), 0xf3d98a, { p: [0, 0.1, 0], r: [Math.PI / 2, 0, 0], cast: false });
+    mesh(g, G.cyl(0.04, 0.04, 0.012, 14), 0xd9a07a, { p: [0.05, 0.107, -0.03] }); // chashu
+    halfEgg(g, -0.05, 0.11, -0.02);
+    mesh(g, G.box(0.05, 0.06, 0.004), 0x1f2a1f, { p: [0.0, 0.13, -0.1], r: [-0.3, 0, 0] }); // lá rong biển
+    for (const [x, z] of [[0.0, 0.06], [0.04, 0.05]]) mesh(g, G.cyl(0.008, 0.008, 0.006, 6), 0x5fae57, { p: [x, 0.108, z], cast: false });
+  },
+  udon: (g) => {
+    bowl(g, 0xf3e3b8, 0xd9433a, 0.15);
+    for (let i = 0; i < 3; i++) mesh(g, G.torus(0.035 + i * 0.026, 0.011, 5, 18), 0xfffaf0, { p: [0, 0.1, 0], r: [Math.PI / 2, 0, 0], cast: false });
+    for (const [x, z] of [[0.04, 0.03], [-0.04, -0.03]]) {
+      mesh(g, G.sphere(0.02, 8, 6), 0x8a5a35, { p: [x, 0.118, z], s: [1, 0.6, 1] });
+      mesh(g, G.cyl(0.007, 0.009, 0.02, 6), 0xf3e9d2, { p: [x, 0.108, z], cast: false });
+    }
+  },
+  takoyaki: (g) => {
+    mesh(g, G.box(0.24, 0.015, 0.14), 0xd9b56a, { p: [0, 0.008, 0] }); // thuyền giấy
+    for (let i = 0; i < 6; i++) {
+      const x = -0.07 + (i % 3) * 0.07;
+      const z = i < 3 ? -0.03 : 0.03;
+      mesh(g, G.sphere(0.03, 10, 8), 0xc98330, { p: [x, 0.04, z] });
+      mesh(g, G.sphere(0.024, 8, 6), 0x5a2f1a, { p: [x, 0.058, z], s: [1, 0.35, 1], cast: false }); // sốt
+    }
+    for (const [x, z] of [[-0.03, 0.0], [0.04, -0.02]]) mesh(g, G.box(0.012, 0.004, 0.008), 0x5fae57, { p: [x, 0.075, z], cast: false });
+  },
+  katsudon: (g) => {
+    bowl(g, RICE, 0x2a1f1a, 0.15);
+    for (const x of [-0.05, 0, 0.05]) mesh(g, G.box(0.045, 0.025, 0.12), 0xd9984f, { p: [x, 0.11, 0], r: [0, 0, x * 2] });
+    mesh(g, G.sphere(0.04, 10, 8), 0xffd34e, { p: [0.02, 0.12, 0.03], s: [1.4, 0.25, 1], cast: false }); // trứng
+    mesh(g, G.cyl(0.008, 0.008, 0.006, 6), 0x5fae57, { p: [-0.03, 0.13, -0.03], cast: false });
+  },
+  sashimi: (g) => {
+    mesh(g, G.cone(0.035, 0.05, 8), 0xffffff, { p: [-0.08, 0.025, 0] }); // củ cải bào
+    mesh(g, G.box(0.05, 0.004, 0.05), 0x3f8f3a, { p: [-0.02, 0.012, 0], r: [0, 0.6, 0.4], cast: false }); // lá tía tô
+    for (let i = 0; i < 4; i++) mesh(g, G.box(0.03, 0.025, 0.07), 0xf28c5a, { p: [0.0 + i * 0.03, 0.02, -0.04], r: [0.25, 0, 0] });
+    for (let i = 0; i < 3; i++) mesh(g, G.box(0.03, 0.022, 0.07), 0xf6efe4, { p: [0.015 + i * 0.03, 0.018, 0.05], r: [0.25, 0, 0] });
+  },
+  gyudon: (g) => {
+    bowl(g, RICE, 0x2a1f1a, 0.15);
+    for (const [x, z, r] of [[0.04, 0.02, 0.4], [-0.04, 0.03, -0.5], [0.0, -0.04, 1.1], [0.05, -0.04, 2]]) mesh(g, G.box(0.06, 0.01, 0.04), 0x8a4a2a, { p: [x, 0.105, z], r: [0, r, 0], cast: false });
+    mesh(g, G.torus(0.025, 0.005, 4, 12), 0xf3e9d2, { p: [-0.03, 0.11, -0.03], r: [Math.PI / 2, 0, 0], cast: false });
+    mesh(g, G.box(0.03, 0.012, 0.02), 0xe5463c, { p: [0.06, 0.11, 0.06], cast: false }); // gừng hồng
+  },
+
+  // ----- Quán Hàn -----
+  gilgeori_toast: (g) => {
+    const t = group(g, { p: [0, 0, 0], r: [0, 0.3, 0] });
+    mesh(t, G.box(0.13, 0.025, 0.13), 0xe0a050, { p: [0, 0.013, 0] });
+    mesh(t, G.box(0.12, 0.03, 0.12), 0xffd34e, { p: [0, 0.04, 0] }); // trứng chiên bắp cải
+    for (const [x, z] of [[-0.03, 0.02], [0.03, -0.03]]) mesh(t, G.box(0.03, 0.006, 0.01), 0x9fd07a, { p: [x, 0.057, z], cast: false });
+    mesh(t, G.box(0.13, 0.025, 0.13), 0xe8b060, { p: [0, 0.068, 0] });
+    mesh(t, G.box(0.08, 0.004, 0.012), 0xd9341e, { p: [0, 0.083, 0], r: [0, 0.4, 0], cast: false }); // sốt
+  },
+  kimbap: (g) => {
+    for (let i = 0; i < 7; i++) {
+      const x = -0.09 + i * 0.03;
+      const s = group(g, { p: [x * 1.05, 0.016, (i % 2) * 0.012], r: [0.5, 0, 0] }); // lát nghiêng ngửa mặt cho thấy nhân
+      mesh(s, G.cyl(0.034, 0.034, 0.024, 12), 0x1f2a1f);
+      mesh(s, G.cyl(0.028, 0.028, 0.026, 12), RICE);
+      for (const [c, dx, dz] of [[0xf28c28, -0.008, 0], [0xffd34e, 0.008, 0], [0x5fae57, 0, 0.01]] as const) mesh(s, G.box(0.008, 0.028, 0.008), c, { p: [dx, 0, dz], cast: false });
+    }
+  },
+  kimchi: (g) => {
+    for (let i = 0; i < 7; i++) {
+      const a = i * 0.9;
+      const r = i === 0 ? 0 : 0.07;
+      mesh(g, G.ico(0.05, 0), i % 2 ? 0xd9542f : 0xf0a070, { p: [Math.cos(a) * r, 0.03 + (i === 0 ? 0.03 : 0), Math.sin(a) * r], s: [1, 0.55, 1], r: [a, a, 0] });
+    }
+  },
+  gyeran_jjim: (g) => {
+    mesh(g, G.cyl(0.11, 0.08, 0.08, 16), 0x3b2a2a, { p: [0, 0.04, 0] }); // nồi đất
+    mesh(g, G.sphere(0.1, 14, 10), 0xffd34e, { p: [0, 0.075, 0], s: [1, 0.65, 1] });
+    for (const [x, z] of [[0.02, 0.03], [-0.03, -0.01]]) mesh(g, G.box(0.02, 0.004, 0.006), 0x5fae57, { p: [x, 0.14, z], cast: false });
+  },
+  tteokbokki: (g) => {
+    mesh(g, G.cyl(0.14, 0.14, 0.012, 16), 0xd9341e, { p: [0, 0.006, 0], cast: false }); // sốt đỏ
+    for (const [x, z, r] of [[0.05, 0.03, 0.3], [-0.05, 0.04, -0.5], [0.0, -0.05, 1.2], [-0.06, -0.03, 0.9], [0.06, -0.04, -1]]) mesh(g, G.capsule(0.018, 0.05), 0xf6efe4, { p: [x, 0.03, z], r: [Math.PI / 2, 0, r] });
+    mesh(g, G.box(0.05, 0.012, 0.035), 0xe0b070, { p: [0.0, 0.03, 0.02], r: [0, 0.7, 0] }); // chả cá
+    for (const [x, z] of [[0.02, -0.02], [-0.02, 0.06]]) mesh(g, G.sphere(0.005, 4, 4), 0xfff3d6, { p: [x, 0.05, z], cast: false });
+  },
+  kr_fried_chicken: (g) => {
+    for (const [x, z, c] of [[0.05, 0.03, 0xd9984f], [-0.05, 0.04, 0xc0402a], [0.0, -0.05, 0xd9984f], [-0.06, -0.04, 0xc0402a], [0.06, -0.04, 0xd9984f]] as const) {
+      mesh(g, G.ico(0.045, 1), c, { p: [x, 0.04, z], s: [1, 0.8, 1] });
+    }
+    mesh(g, G.box(0.04, 0.03, 0.04), 0xffffff, { p: [0.0, 0.03, 0.08] }); // củ cải muối
+  },
+  ramyeon: (g) => {
+    mesh(g, G.cyl(0.13, 0.12, 0.08, 16), 0xd4a537, { p: [0, 0.04, 0] }); // nồi nhôm vàng
+    for (const sx of [-1, 1]) mesh(g, G.box(0.04, 0.012, 0.02), 0xd4a537, { p: [sx * 0.15, 0.07, 0] });
+    mesh(g, G.cyl(0.115, 0.115, 0.01, 16), 0xd9542f, { p: [0, 0.078, 0], cast: false });
+    for (let i = 0; i < 4; i++) mesh(g, G.torus(0.02 + i * 0.022, 0.006, 4, 14), 0xf3d98a, { p: [0.01, 0.084, 0], r: [Math.PI / 2, 0, i], cast: false });
+    halfEgg(g, -0.04, 0.09, 0.03);
+  },
+  kimchi_stew: (g) => {
+    mesh(g, G.cyl(0.13, 0.1, 0.09, 16), 0x2a2420, { p: [0, 0.045, 0] }); // nồi đá
+    mesh(g, G.cyl(0.115, 0.115, 0.01, 16), 0xd9341e, { p: [0, 0.088, 0], cast: false });
+    for (const [x, z] of [[0.04, 0.02], [-0.04, -0.03]]) mesh(g, G.box(0.03, 0.025, 0.03), 0xfffaf0, { p: [x, 0.095, z] });
+    for (const [x, z] of [[-0.03, 0.05], [0.03, -0.05]]) mesh(g, G.ico(0.025, 0), 0xf0a070, { p: [x, 0.095, z], s: [1, 0.4, 1] });
+  },
+  bibimbap: (g) => {
+    mesh(g, G.cyl(0.14, 0.1, 0.08, 16), 0x2a2420, { p: [0, 0.04, 0] });
+    mesh(g, G.cyl(0.125, 0.125, 0.012, 16), RICE, { p: [0, 0.082, 0], cast: false });
+    for (const [i, c] of [0xf28c28, 0x5fae57, 0x8a5a35, 0x7a3e22, 0xffe08a].entries()) {
+      const a = (i / 5) * Math.PI * 2;
+      mesh(g, G.sphere(0.035, 8, 6), c, { p: [Math.cos(a) * 0.075, 0.09, Math.sin(a) * 0.075], s: [1.2, 0.35, 1.2], cast: false });
+    }
+    friedEgg(g, 0, 0.095, 0, 0.55);
+  },
+  sundubu: (g) => {
+    mesh(g, G.cyl(0.13, 0.1, 0.09, 16), 0x2a2420, { p: [0, 0.045, 0] });
+    mesh(g, G.cyl(0.115, 0.115, 0.01, 16), 0xe04a2a, { p: [0, 0.088, 0], cast: false });
+    mesh(g, G.sphere(0.06, 12, 8), 0xfffaf0, { p: [-0.02, 0.09, 0], s: [1.3, 0.35, 1] }); // đậu non
+    mesh(g, G.sphere(0.025, 10, 8), YOLK, { p: [0.05, 0.095, 0.03], s: [1, 0.6, 1], cast: false });
+    mesh(g, G.torus(0.02, 0.008, 6, 10, Math.PI * 1.3), 0xf2723a, { p: [0.04, 0.097, -0.05], r: [Math.PI / 2, 0, 0.4] });
+  },
+  bulgogi: (g) => {
+    for (const [x, z, r] of [[0.04, 0.02, 0.4], [-0.04, 0.03, -0.5], [0.0, -0.04, 1.1], [0.05, -0.05, 2], [-0.05, -0.04, 0.2]]) mesh(g, G.box(0.07, 0.012, 0.045), 0x6b3418, { p: [x, 0.012 + Math.abs(x) * 0.1, z], r: [0.1, r, 0] });
+    mesh(g, G.torus(0.03, 0.006, 4, 12), 0xf3e9d2, { p: [0.02, 0.03, 0.0], r: [Math.PI / 2, 0, 0], cast: false });
+    for (const [x, z] of [[0.0, 0.02], [-0.02, -0.02], [0.03, -0.03]]) mesh(g, G.sphere(0.005, 4, 4), 0xfff3d6, { p: [x, 0.035, z], cast: false });
+    mesh(g, G.box(0.04, 0.006, 0.006), 0x5fae57, { p: [-0.03, 0.035, 0.04], cast: false });
+  },
+  samgyeopsal: (g) => {
+    for (const x of [-0.05, 0.0, 0.05]) {
+      mesh(g, G.box(0.04, 0.02, 0.13), 0xd98a6a, { p: [x, 0.012, -0.02] });
+      mesh(g, G.box(0.041, 0.006, 0.131), 0xfff3e6, { p: [x, 0.014, -0.02], cast: false }); // lớp mỡ
+    }
+    for (const [x, z] of [[-0.07, 0.08], [0.06, 0.08]]) mesh(g, G.sphere(0.045, 10, 6), 0x7cc35c, { p: [x, 0.01, z], s: [1.2, 0.2, 1] }); // xà lách
+  },
+  pajeon: (g) => {
+    mesh(g, G.cyl(0.14, 0.14, 0.02, 20), 0xe8b45a, { p: [0, 0.012, 0] });
+    for (let i = 0; i < 5; i++) mesh(g, G.box(0.18, 0.006, 0.01), 0x5fae57, { p: [0, 0.024, -0.08 + i * 0.04], r: [0, 0.2, 0], cast: false }); // hành lá
+    for (const [x, z] of [[0.05, 0.03], [-0.05, -0.02]]) mesh(g, G.torus(0.018, 0.007, 5, 10), 0xfaf0e6, { p: [x, 0.026, z], r: [Math.PI / 2, 0, 0], cast: false });
+    mesh(g, G.torus(0.02, 0.008, 6, 10, Math.PI * 1.3), 0xf2723a, { p: [0.0, 0.028, 0.06], r: [Math.PI / 2, 0, 1] });
+  },
+  galbijjim: (g) => {
+    bowl(g, 0x7a3e1e, 0x3b2a2a, 0.16);
+    for (const [x, z, r] of [[0.04, 0.02, 0.4], [-0.04, 0.03, -0.5], [0.0, -0.05, 1.1]]) {
+      mesh(g, G.box(0.06, 0.04, 0.04), 0x6b3418, { p: [x, 0.11, z], r: [0, r, 0] });
+      mesh(g, G.cyl(0.008, 0.008, 0.07, 6), 0xf3e9d2, { p: [x, 0.13, z], r: [0, r, Math.PI / 2] }); // xương sườn
+    }
+    mesh(g, G.cyl(0.02, 0.02, 0.015, 10), 0xf28c28, { p: [0.06, 0.11, -0.04] });
+    mesh(g, G.box(0.035, 0.03, 0.035), 0xf3dc9a, { p: [-0.06, 0.11, -0.04] });
   },
 };
 

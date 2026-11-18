@@ -1,13 +1,15 @@
 import { Registry } from '../core/registry';
 import { balance } from './balance';
+import { cuisines } from './cuisines';
 import { decor } from './decor';
-import { producers, slotTypes } from './farm';
+import { mills, producers, slotTypes } from './farm';
+import { quests } from './quests';
 import { items } from './items';
 import { stalls } from './market';
 import { recipes } from './recipes';
 import { room, staff, tables, upgrades } from './restaurant';
 import { weathers } from './weather';
-import type { Balance, ItemDef, ProducerDef, RecipeDef, SlotTypeDef, DecorDef, DecorSlot, RoomDef, StaffDef, StallDef, TableDef, UpgradeDef, WeatherDef } from './types';
+import type { Balance, CuisineDef, CuisineId, MillTypeDef, ItemDef, ProducerDef, RecipeDef, SlotTypeDef, DecorDef, DecorSlot, RoomDef, StaffDef, StallDef, TableDef, UpgradeDef, WeatherDef, SlotType, QuestDef } from './types';
 
 export * from './types';
 
@@ -23,6 +25,10 @@ export interface Content {
   upgrades: Registry<UpgradeDef>;
   weathers: Registry<WeatherDef>;
   decor: Registry<DecorDef>;
+  cuisines: Registry<CuisineDef>;
+  mills: Registry<MillTypeDef>;
+  /** Nhiệm vụ hệ thống theo thứ tự làm. */
+  quests: QuestDef[];
   room: RoomDef;
   balance: Balance;
 }
@@ -38,11 +44,14 @@ export interface RawContent {
   upgrades: UpgradeDef[];
   weathers: WeatherDef[];
   decor: DecorDef[];
+  cuisines: CuisineDef[];
+  mills: MillTypeDef[];
+  quests: QuestDef[];
   room: RoomDef;
   balance: Balance;
 }
 
-export const defaultRawContent: RawContent = { items, recipes, producers, slotTypes, stalls, tables, staff, upgrades, weathers, decor, room, balance };
+export const defaultRawContent: RawContent = { items, recipes, producers, slotTypes, stalls, tables, staff, upgrades, weathers, decor, cuisines, mills, quests, room, balance };
 
 /** Dựng Content và kiểm tra tham chiếu chéo; ném lỗi nếu dữ liệu sai. */
 export function createContent(raw: RawContent = defaultRawContent): Content {
@@ -57,6 +66,9 @@ export function createContent(raw: RawContent = defaultRawContent): Content {
     upgrades: new Registry('upgrade', raw.upgrades),
     weathers: new Registry('weather', raw.weathers),
     decor: new Registry('decor', raw.decor),
+    cuisines: new Registry('cuisine', raw.cuisines),
+    mills: new Registry('mill', raw.mills),
+    quests: raw.quests,
     room: raw.room,
     balance: raw.balance,
   };
@@ -88,6 +100,21 @@ export function validateContent(c: Content): string[] {
       obtainable.add(y.item);
     }
   }
+  for (const m of c.mills.all()) {
+    needItem(m.input, `cối ${m.id}`);
+    for (const p of m.products) {
+      needItem(p, `cối ${m.id}`);
+      obtainable.add(p);
+    }
+    if (!m.products.length) errors.push(`cối ${m.id}: cần ít nhất 1 thành phẩm`);
+  }
+  for (const t of c.slotTypes.all()) if (t.mill && !c.mills.has(t.mill)) errors.push(`loại ô ${t.id}: cối "${t.mill}" không tồn tại`);
+  const questIds = new Set<string>();
+  for (const q of c.quests) {
+    if (questIds.has(q.id)) errors.push(`nhiệm vụ ${q.id}: trùng id`);
+    questIds.add(q.id);
+    if (!(q.goal.target > 0)) errors.push(`nhiệm vụ ${q.id}: mục tiêu phải > 0`);
+  }
   for (const r of c.recipes.all()) {
     if (!r.ingredients.length) errors.push(`món ${r.id}: không có nguyên liệu`);
     for (const ing of r.ingredients) {
@@ -97,18 +124,44 @@ export function validateContent(c: Content): string[] {
       }
     }
   }
-  if (!c.recipes.all().some((r) => r.unlock.level <= 1 && r.unlock.cost === 0)) errors.push('không có món khởi đầu nào');
+  for (const cu of c.cuisines.all()) {
+    if (!c.recipes.all().some((r) => r.cuisine === cu.id && r.unlock.level <= 1 && r.unlock.cost === 0)) errors.push(`quán ${cu.id}: không có món khởi đầu nào`);
+    for (const id of cu.showcase) if (!c.recipes.has(id) || c.recipes.get(id).cuisine !== cu.id) errors.push(`quán ${cu.id}: món giới thiệu "${id}" không thuộc thực đơn`);
+    for (const s of cu.startInventory) needItem(s.item, `startInventory của quán ${cu.id}`);
+  }
+  for (const r of c.recipes.all()) if (!c.cuisines.has(r.cuisine)) errors.push(`món ${r.id}: quán "${r.cuisine}" không tồn tại`);
   for (const t of c.tables.all()) {
     if (t.requiresUpgrade && !c.upgrades.has(t.requiresUpgrade)) errors.push(`bàn ${t.id}: nâng cấp "${t.requiresUpgrade}" không tồn tại`);
   }
   for (const u of c.upgrades.all()) {
     if (u.requires && !c.upgrades.has(u.requires)) errors.push(`nâng cấp ${u.id}: "${u.requires}" không tồn tại`);
   }
-  for (const slot of ['floor', 'wall', 'furniture'] satisfies DecorSlot[]) {
-    const defaults = c.decor.all().filter((d) => d.slot === slot && d.isDefault);
-    if (defaults.length !== 1 || defaults[0].cost !== 0) errors.push(`nội thất "${slot}": cần đúng 1 món mặc định giá 0`);
+  for (const cu of c.cuisines.all()) {
+    for (const slot of ['floor', 'wall', 'furniture'] satisfies DecorSlot[]) {
+      const defaults = defaultDecor(c, cu.id).filter((d) => d.slot === slot);
+      if (defaults.length !== 1 || defaults[0].cost !== 0) errors.push(`quán ${cu.id}, nội thất "${slot}": cần đúng 1 món mặc định giá 0`);
+    }
   }
   if (!c.weathers.all().length) errors.push('cần ít nhất 1 kiểu thời tiết');
-  for (const s of c.balance.startInventory) needItem(s.item, 'startInventory');
   return errors;
+}
+
+/** Nội thất bán cho quán phong cách này (món riêng của quán + món dùng chung). */
+export function decorFor(c: Content, cuisine: CuisineId): DecorDef[] {
+  return c.decor.all().filter((d) => !d.cuisine || d.cuisine === cuisine);
+}
+
+/** Nội thất có sẵn từ đầu của quán phong cách này (mỗi slot một món). */
+export function defaultDecor(c: Content, cuisine: CuisineId): DecorDef[] {
+  return decorFor(c, cuisine).filter((d) => d.isDefault);
+}
+
+/** Giống này trồng / nuôi được ở loại ô này không (ô chính hoặc alsoIn). */
+export function fitsSlot(p: ProducerDef, type: SlotType): boolean {
+  return p.slot === type || !!p.alsoIn?.includes(type);
+}
+
+/** Thực đơn đầy đủ của quán phong cách này. */
+export function recipesFor(c: Content, cuisine: CuisineId): RecipeDef[] {
+  return c.recipes.all().filter((r) => r.cuisine === cuisine);
 }

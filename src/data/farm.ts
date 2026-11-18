@@ -1,34 +1,55 @@
-import type { ProducerDef, SlotTypeDef } from './types';
+import type { MillTypeDef, ProducerDef, SlotTypeDef } from './types';
 
 export const slotTypes: SlotTypeDef[] = [
-  { id: 'field', name: 'Ruộng', icon: '🌱', initial: 9, max: 15, basePrice: 80, priceGrowth: 1.45, level: 1, needsTilling: true, needsWater: true },
-  { id: 'pen', name: 'Chuồng', icon: '🏚️', initial: 2, max: 6, basePrice: 200, priceGrowth: 1.6, level: 1 },
+  { id: 'field', name: 'Ruộng', icon: '🌱', initial: 9, max: 15, basePrice: 80, priceGrowth: 1.45, level: 1, needsTilling: true, needsWater: true, layout: { x: -6.6, z: -1.6, cols: 3, dx: 2.6, dz: 2.75, size: 2.3, tierGrowth: 0 } },
+  { id: 'pen', name: 'Chuồng', icon: '🏚️', initial: 2, max: 6, basePrice: 200, priceGrowth: 1.6, level: 1, layout: { x: 4.6, z: -1.6, cols: 3, dx: 5.0, dz: 5.2, size: 4.2, tierGrowth: 0 } },
   {
     id: 'pond',
     name: 'Ao cá',
     icon: '🌊',
     initial: 1,
-    max: 3,
+    max: 1, // chỉ một ao: mở rộng = nới rộng diện tích ao (tiers), không đào thêm ao mới
     basePrice: 350,
     priceGrowth: 1.7,
     level: 3,
+    // Ao trên con suối phía hạ lưu (bên phải đường đất); size = bề ngang ao (hình méo tự nhiên, xem areas/farm.ts).
+    // Mỗi bậc nới rộng to thêm 30%: 6 → 7.8 → 9.6 → 11.4 m. Bác đứng bờ sau ao.
+    layout: { x: 9.5, z: 15, cols: 1, dx: 0, dz: 0, size: 6, tierGrowth: 0.3, work: 'back' },
     // Nới rộng ao: nuôi được nhiều hơn
     tiers: [
       { cost: 400, level: 2, yieldMul: 1.6 },
       { cost: 1000, level: 4, yieldMul: 2.4 },
+      { cost: 2200, level: 6, yieldMul: 3.4 },
     ],
   },
+  // Bên kia con suối, đối diện ruộng rau: cột sát sông là ruộng lúa nước, cột bên cạnh là ruộng lúa mì (ô to).
+  // Thu hoạch tự động (máy cày) → gieo lại → chở tới cối (lúa mì: cối xay gió phía bắc; lúa nước: nhà xay lúa bên sông).
+  { id: 'wheat', name: 'Ruộng lúa mì', icon: '🌾', initial: 1, max: 2, basePrice: 300, priceGrowth: 1.5, level: 1, mill: 'windmill', layout: { x: -1.5, z: 15.4, cols: 1, dx: 0, dz: 4.6, size: 3.8, tierGrowth: 0, work: 'back' } },
+  // Nhà lồng / nhà màng phía nam ao: luống bên trong (2 dãy, lối đi ở giữa). Nới rộng = nhà dài thêm về phía đông, +4 luống mỗi lần.
+  // Cây trong nhà kính không cần cuốc / tưới (có tưới nhỏ giọt) và lớn nhanh hơn 30%.
+  { id: 'gplot', name: 'Luống nhà kính', icon: '🏡', initial: 8, max: 20, batch: 4, basePrice: 700, priceGrowth: 1.6, level: 3, growMul: 1.3, layout: { x: 0, z: 0, cols: 2, dx: 1.9, dz: 2.8, size: 1.5, tierGrowth: 0 }, building: { x: 4, z: 23.8, width: 5.2, colLength: 1.9, endLength: 0.8, door: { x: 3.3, z: 23.8 } } },
+  { id: 'paddy', name: 'Ruộng lúa nước', icon: '🌾', initial: 1, max: 2, basePrice: 300, priceGrowth: 1.5, level: 2, mill: 'ricemill', layout: { x: -5.8, z: 15.4, cols: 1, dx: 0, dz: 4.6, size: 3.8, tierGrowth: 0, work: 'back' } },
+];
+
+/**
+ * Cối chế biến ở nông trại. Bác nông dân tự chở lúa tới; cối làm ra thành phẩm người chơi chọn và cho thẳng vào kho.
+ * Thêm thành phẩm: thêm id nguyên liệu vào products (nguyên liệu phải có trong items.ts).
+ */
+export const mills: MillTypeDef[] = [
+  { id: 'windmill', name: 'Cối xay gió', icon: '🌬️', input: 'wheat', products: ['flour', 'wheat_noodle', 'bread'], time: 10, initial: 1, max: 2, basePrice: 900, priceGrowth: 1.8, level: 2, layout: { x: -7.6, z: -7.6, cols: 2, dx: 4.2, dz: 0, spot: { x: 0, z: 1.95 } } }, // phía bắc, sau hàng rào (cổng ở lối dọc x = -8.3)
+  { id: 'ricemill', name: 'Nhà xay lúa', icon: '🏚️', input: 'paddy_rice', products: ['noodle', 'rice_noodle', 'rice_cake'], time: 10, initial: 1, max: 2, basePrice: 900, priceGrowth: 1.8, level: 2, layout: { x: -9.4, z: 25.4, cols: 2, dx: 4.4, dz: 0, spot: { x: 0, z: -1.95 } } }, // sát bờ sông, bánh xe nước nhúng xuống sông
 ];
 
 /** Thêm cây/con mới: thêm 1 mục ở đây (xem ProducerDef trong types.ts). */
 export const producers: ProducerDef[] = [
   // Cây trồng — thu 1 lần
-  { id: 'cabbage', name: 'Rau cải', icon: '🥬', slot: 'field', cost: 2, growTime: 180, yields: [{ item: 'cabbage', qty: 3 }], cycles: 1, level: 1 },
-  { id: 'tomato', name: 'Cà chua', icon: '🍅', slot: 'field', cost: 3, growTime: 240, yields: [{ item: 'tomato', qty: 4 }], cycles: 1, level: 1 },
-  { id: 'onion', name: 'Hành tây', icon: '🧅', slot: 'field', cost: 2, growTime: 200, yields: [{ item: 'onion', qty: 4 }], cycles: 1, level: 1 },
-  { id: 'carrot', name: 'Cà rốt', icon: '🥕', slot: 'field', cost: 3, growTime: 260, yields: [{ item: 'carrot', qty: 4 }], cycles: 1, level: 2 },
-  { id: 'potato', name: 'Khoai tây', icon: '🥔', slot: 'field', cost: 3, growTime: 300, yields: [{ item: 'potato', qty: 5 }], cycles: 1, level: 3 },
-  { id: 'chili', name: 'Ớt', icon: '🌶️', slot: 'field', cost: 2, growTime: 220, yields: [{ item: 'chili', qty: 4 }], cycles: 1, level: 3 },
+  { id: 'cabbage', name: 'Rau cải', icon: '🥬', slot: 'field', alsoIn: ['gplot'], cost: 2, growTime: 180, yields: [{ item: 'cabbage', qty: 3 }], cycles: 1, level: 1 },
+  { id: 'tomato', name: 'Cà chua', icon: '🍅', slot: 'field', alsoIn: ['gplot'], cost: 3, growTime: 240, yields: [{ item: 'tomato', qty: 4 }], cycles: 1, level: 1 },
+  { id: 'onion', name: 'Hành tây', icon: '🧅', slot: 'field', alsoIn: ['gplot'], cost: 2, growTime: 200, yields: [{ item: 'onion', qty: 4 }], cycles: 1, level: 1 },
+  { id: 'carrot', name: 'Cà rốt', icon: '🥕', slot: 'field', alsoIn: ['gplot'], cost: 3, growTime: 260, yields: [{ item: 'carrot', qty: 4 }], cycles: 1, level: 2 },
+  { id: 'potato', name: 'Khoai tây', icon: '🥔', slot: 'field', alsoIn: ['gplot'], cost: 3, growTime: 300, yields: [{ item: 'potato', qty: 5 }], cycles: 1, level: 3 },
+  { id: 'cucumber', name: 'Dưa leo', icon: '🥒', slot: 'field', alsoIn: ['gplot'], cost: 2, growTime: 210, yields: [{ item: 'cucumber', qty: 4 }], cycles: 1, level: 1 },
+  { id: 'chili', name: 'Ớt', icon: '🌶️', slot: 'field', alsoIn: ['gplot'], cost: 2, growTime: 220, yields: [{ item: 'chili', qty: 4 }], cycles: 1, level: 3 },
 
   // Vật nuôi cho sản phẩm định kỳ
   { id: 'hen', name: 'Gà mái đẻ', icon: '🐔', slot: 'pen', cost: 60, growTime: 240, yields: [{ item: 'egg', qty: 3 }], cycles: 'infinite', regrowTime: 150, level: 1 },
@@ -39,7 +60,12 @@ export const producers: ProducerDef[] = [
   { id: 'pig', name: 'Heo', icon: '🐖', slot: 'pen', cost: 30, growTime: 720, yields: [{ item: 'pork', qty: 6 }], cycles: 1, level: 2 },
   { id: 'cattle', name: 'Bò thịt', icon: '🐂', slot: 'pen', cost: 60, growTime: 1200, yields: [{ item: 'beef', qty: 7 }], cycles: 1, level: 3 },
 
+  // Ruộng tự động (thu bằng máy cày, gieo lại tự động)
+  { id: 'wheat', name: 'Lúa mì', icon: '🌾', slot: 'wheat', cost: 6, growTime: 420, yields: [{ item: 'wheat', qty: 8 }], cycles: 1, level: 1 },
+  { id: 'rice_crop', name: 'Lúa nước', icon: '🌾', slot: 'paddy', cost: 6, growTime: 480, yields: [{ item: 'paddy_rice', qty: 9 }], cycles: 1, level: 2 },
+
   // Ao
   { id: 'fish_fry', name: 'Cá giống', icon: '🐟', slot: 'pond', cost: 20, growTime: 600, yields: [{ item: 'fish', qty: 5 }], cycles: 1, level: 1 },
+  { id: 'salmon_fry', name: 'Cá hồi giống', icon: '🐠', slot: 'pond', cost: 40, growTime: 720, yields: [{ item: 'salmon', qty: 4 }], cycles: 1, level: 3 },
   { id: 'shrimp_fry', name: 'Tôm giống', icon: '🦐', slot: 'pond', cost: 25, growTime: 600, yields: [{ item: 'shrimp', qty: 9 }], cycles: 1, level: 4 },
 ];

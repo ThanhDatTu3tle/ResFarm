@@ -1,5 +1,5 @@
-import type { Content } from '../data';
-import { createSlot, SAVE_VERSION, type GameState } from './state';
+import { decorFor, defaultDecor, type Content } from '../data';
+import { createMill, createSlot, SAVE_VERSION, type GameState } from './state';
 
 /**
  * Lưu/tải. State là JSON thuần nên lưu = JSON.stringify.
@@ -7,23 +7,12 @@ import { createSlot, SAVE_VERSION, type GameState } from './state';
  * migrations[phiên bản cũ] trả về state ở phiên bản kế tiếp.
  */
 const migrations: Record<number, (old: any) => any> = {
-  // v1 -> v2: thêm thời tiết (id rỗng sẽ được reconcile() thay bằng thời tiết mặc định).
-  1: (s) => ({ ...s, weather: { id: '', minutesLeft: 0 }, version: 2 }),
-  // v2 -> v3: thêm nội thất và bố cục bàn (reconcile() điền món mặc định).
-  // v3 -> v4: ô nông trại có thêm trạng thái đất + bậc nới rộng (ruộng cũ coi như đã cuốc để không làm khó save cũ).
-  3: (s) => ({ ...s, farm: { ...s.farm, slots: s.farm.slots.map((slot: object) => ({ ...slot, tilled: true, wet: 0, tier: 1 })) }, version: 4 }),
-  2: (s) => ({ ...s, decor: { owned: [], equipped: {} }, restaurant: { ...s.restaurant, layout: {} }, version: 3 }),
-  // v4 -> v5: thêm bồi bàn. Khách đang 'ordering' (bản cũ tự gọi món) thành 'seated' chờ menu; vị trí bồi bàn
-  // để reconcile() đặt về chỗ đứng chờ.
-  4: (s) => ({
-    ...s,
-    restaurant: {
-      ...s.restaurant,
-      parties: s.restaurant.parties.map((p: { phase: string }) => ({ ...p, phase: p.phase === 'ordering' ? 'seated' : p.phase, called: false, wait: 0 })),
-      waiter: { x: -1, y: -1, tasks: [], carrying: null },
-    },
-    version: 5,
-  }),
+  // v7 (chọn phong cách quán Nhật / Hàn / Việt): chủ dự án chốt bản này CHƠI LẠI TỪ ĐẦU — save v1–v6 bị bỏ qua
+  // (deserialize trả null, màn hình mở đầu chỉ còn nút Ván mới). Các migration v1→v6 cũ đã xoá; xem lịch sử git nếu cần.
+  // v7 -> v8: cối chế biến (lúa mì, lúa nước) + bác nông dân chở hàng. reconcile() tạo đủ cối khởi đầu.
+  7: (s) => ({ ...s, farm: { ...s.farm, mills: [], farmer: { ...s.farm.farmer, carry: null } }, version: 8 }),
+  // v8 -> v9: nhiệm vụ hệ thống (bắt đầu từ nhiệm vụ đầu tiên).
+  8: (s) => ({ ...s, quests: { index: 0, progress: 0, done: false }, version: 9 }),
 };
 
 export function serialize(state: GameState): string {
@@ -50,7 +39,8 @@ export function deserialize(raw: string | null, content: Content): GameState | n
 /** Dọn các tham chiếu tới nội dung đã bị xoá/đổi tên để save cũ không làm vỡ game. */
 function reconcile(state: GameState, content: Content): GameState {
   for (const id of Object.keys(state.inventory)) if (!content.items.has(id)) delete state.inventory[id];
-  state.menu.unlocked = state.menu.unlocked.filter((id) => content.recipes.has(id));
+  if (!content.cuisines.has(state.cuisine)) state.cuisine = 'vn';
+  state.menu.unlocked = state.menu.unlocked.filter((id) => content.recipes.has(id) && content.recipes.get(id).cuisine === state.cuisine);
   state.menu.active = state.menu.active.filter((id) => state.menu.unlocked.includes(id));
   state.upgrades = state.upgrades.filter((id) => content.upgrades.has(id));
 
@@ -70,14 +60,18 @@ function reconcile(state: GameState, content: Content): GameState {
     return { id: def.id, orderId: old && r.orders.some((o) => o.id === old.orderId) ? old.orderId : null };
   });
 
-  // Nội thất: luôn sở hữu món mặc định; slot nào đang dùng món không hợp lệ thì quay về mặc định.
-  state.decor.owned = state.decor.owned.filter((id) => content.decor.has(id));
-  for (const def of content.decor.all().filter((d) => d.isDefault)) {
+  // Nội thất: luôn sở hữu món mặc định của quán; slot nào đang dùng món không hợp lệ thì quay về mặc định.
+  const allowed = new Set(decorFor(content, state.cuisine).map((d) => d.id));
+  state.decor.owned = state.decor.owned.filter((id) => allowed.has(id));
+  for (const def of defaultDecor(content, state.cuisine)) {
     if (!state.decor.owned.includes(def.id)) state.decor.owned.push(def.id);
     const used = state.decor.equipped[def.slot];
     if (!used || !state.decor.owned.includes(used) || content.decor.get(used).slot !== def.slot) state.decor.equipped[def.slot] = def.id;
   }
   for (const id of Object.keys(r.layout)) if (!content.tables.has(id)) delete r.layout[id];
+
+  // Nhiệm vụ: danh sách ngắn đi thì coi như đã xong hết
+  state.quests.index = Math.max(0, Math.min(state.quests.index, content.quests.length));
 
   if (!content.weathers.has(state.weather.id)) state.weather = { id: content.weathers.all()[0].id, minutesLeft: 0 };
 
@@ -86,6 +80,23 @@ function reconcile(state: GameState, content: Content): GameState {
   for (const type of content.slotTypes.all()) {
     for (let n = state.farm.slots.filter((s) => s.type === type.id).length; n < type.initial; n++) state.farm.slots.push(createSlot(type.id, n));
   }
+  // Cối: bỏ loại không còn, đủ số cối khởi đầu, thành phẩm phải hợp lệ
+  state.farm.mills = state.farm.mills.filter((m) => content.mills.has(m.type));
+  for (const def of content.mills.all()) {
+    for (let n = state.farm.mills.filter((m) => m.type === def.id).length; n < def.initial; n++) state.farm.mills.push(createMill(def.id, n, def.products[0]));
+  }
+  for (const m of state.farm.mills) if (!content.mills.get(m.type).products.includes(m.product)) m.product = content.mills.get(m.type).products[0];
+  // Bác nông dân: bỏ việc trỏ tới ô / giống không còn
+  const farmer = state.farm.farmer;
+  if (farmer.x < -500) Object.assign(farmer, content.balance.farmer.home, { work: null });
+  farmer.tasks = farmer.tasks.filter((t) => (t.kind === 'haul' ? state.farm.mills.some((m) => m.id === t.millId) : state.farm.slots.some((s) => s.id === t.slotId)) && (!t.producerId || content.producers.has(t.producerId)));
+  if (farmer.carry && !content.items.has(farmer.carry.item)) farmer.carry = null;
+  // Đang chở hàng mà mất việc chở (cối bị xoá) thì cho vào kho luôn
+  if (farmer.carry && !farmer.tasks.some((t) => t.kind === 'haul')) {
+    state.inventory[farmer.carry.item] = (state.inventory[farmer.carry.item] ?? 0) + farmer.carry.qty;
+    farmer.carry = null;
+  }
+  if (!farmer.tasks.length) farmer.work = null;
   for (const slot of state.farm.slots) {
     if (slot.producerId && !content.producers.has(slot.producerId)) Object.assign(slot, { producerId: null, stage: 'growing', progress: 0, cyclesDone: 0 });
     if (slot.lastProducerId && !content.producers.has(slot.lastProducerId)) slot.lastProducerId = null;

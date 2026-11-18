@@ -1,5 +1,6 @@
-import type { ItemStack, ProducerDef, SlotType } from '../../data';
+import { fitsSlot, type ItemStack, type ProducerDef, type SlotType } from '../../data';
 import { addItem, modifier, spend } from '../helpers';
+import { bumpQuest } from './quests';
 import { createSlot, type FarmSlot } from '../state';
 import { fail, ok, type CommandResult, type SimContext, type System } from '../types';
 
@@ -46,7 +47,7 @@ export const farmSystem: System = {
       if (slot.producerId) return fail('Ô này đang được dùng.');
       if (!ctx.content.producers.has(cmd.producerId)) return fail('Không có giống này.');
       const def = ctx.content.producers.get(cmd.producerId);
-      if (def.slot !== slot.type) return fail(`${def.name} không hợp với loại ô này.`);
+      if (!fitsSlot(def, slot.type)) return fail(`${def.name} không hợp với loại ô này.`);
       if (ctx.content.slotTypes.get(slot.type).needsTilling && !slot.tilled) return fail('Đất chưa tơi xốp, cuốc đất trước đã.');
       if (ctx.state.level < def.level) return fail(`Cần cấp ${def.level}.`);
       if (!spend(ctx, def.cost)) return fail('Không đủ tiền.');
@@ -74,10 +75,11 @@ export const farmSystem: System = {
       const def = ctx.content.slotTypes.get(cmd.slotType);
       const owned = slotsOfType(ctx, cmd.slotType).length;
       if (ctx.state.level < def.level) return fail(`Cần cấp ${def.level}.`);
-      if (owned >= def.max) return fail('Đã đạt số ô tối đa.');
+      if (owned >= def.max) return fail(def.building ? 'Nhà kính đã dài tối đa.' : 'Đã đạt số ô tối đa.');
       if (!spend(ctx, slotPrice(ctx, cmd.slotType))) return fail('Không đủ tiền.');
-      // Ô chỉ được thêm, không bao giờ bị xoá, nên `owned` là chỉ số duy nhất.
-      ctx.state.farm.slots.push(createSlot(cmd.slotType, owned));
+      // Ô chỉ được thêm, không bao giờ bị xoá, nên `owned` là chỉ số duy nhất. Loại mua theo lô thì thêm cả lô.
+      const n = Math.min(def.batch ?? 1, def.max - owned);
+      for (let i = 0; i < n; i++) ctx.state.farm.slots.push(createSlot(cmd.slotType, owned + i));
       return ok();
     },
     'farm/upgradeSlot'(ctx, cmd) {
@@ -100,7 +102,7 @@ export function slotsOfType(ctx: SimContext, type: SlotType): FarmSlot[] {
 /** Giá mua ô kế tiếp của loại này. */
 export function slotPrice(ctx: SimContext, type: SlotType): number {
   const def = ctx.content.slotTypes.get(type);
-  const bought = Math.max(0, slotsOfType(ctx, type).length - def.initial);
+  const bought = Math.max(0, Math.floor((slotsOfType(ctx, type).length - def.initial) / (def.batch ?? 1)));
   return Math.round(def.basePrice * Math.pow(def.priceGrowth, bought));
 }
 
@@ -152,7 +154,7 @@ function grow(ctx: SimContext, minutes: number): void {
       slot.wet = Math.max(0, slot.wet - minutes);
     }
     if (!slot.producerId || slot.stage !== 'growing') continue;
-    slot.progress += minutes * speed * moisture;
+    slot.progress += minutes * speed * moisture * (content.slotTypes.get(slot.type).growMul ?? 1);
     if (slot.progress >= cycleTime(content.producers.get(slot.producerId), slot)) {
       slot.stage = 'ready';
       ctx.bus.emit('farm/ready', { slotId: slot.id });
@@ -164,6 +166,7 @@ function harvest(ctx: SimContext, slot: FarmSlot): CommandResult {
   if (!slot.producerId || slot.stage !== 'ready') return fail('Chưa thu hoạch được.');
   const def = ctx.content.producers.get(slot.producerId);
   for (const y of yieldsOf(ctx, slot, def)) addItem(ctx, y.item, y.qty);
+  bumpQuest(ctx, 'harvest');
   slot.cyclesDone++;
   if (def.cycles !== 'infinite' && slot.cyclesDone >= def.cycles) clearSlot(ctx, slot);
   else Object.assign(slot, { stage: 'growing', progress: 0 });

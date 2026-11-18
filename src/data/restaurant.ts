@@ -5,24 +5,25 @@ import type { RoomDef, StaffDef, TableDef, UpgradeDef } from './types';
  * Quán khởi đầu nhỏ để còn chỗ nâng cấp: muốn nới rộng thì tăng width/height và vùng dining.
  */
 export const room: RoomDef = {
-  width: 720,
-  height: 600,
-  kitchenDepth: 112,
-  dining: { x1: 15, y1: 215, x2: 705, y2: 545 },
+  width: 640,
+  height: 540,
+  kitchenDepth: 100,
+  dining: { x1: 15, y1: 200, x2: 625, y2: 525 },
+  // Bếp gọn ở phía phải tường sau; phía trái là lối đi vào WC và kho hàng (chỉ là cảnh, xem areas/restaurant.ts).
   // Quầy ra món ở góc phải, giữa bếp và khu ăn; bồi bàn đứng chờ ngay trước quầy
-  pass: { x: 610, y: 150 },
-  waiterHome: { x: 610, y: 200 },
+  pass: { x: 545, y: 135 },
+  waiterHome: { x: 545, y: 185 },
 };
 
 /** x, y là vị trí MẶC ĐỊNH của tâm bàn; người chơi dời bàn thì vị trí mới nằm ở state.restaurant.layout. */
 export const tables: TableDef[] = [
   // Dãy bàn dài 4 ghế đơn ngay trước bếp cho khách đi một mình — gắn với bếp nên không dời được
-  { id: 'counter', name: 'Quầy trước bếp', seats: 4, shared: true, fixed: true, x: 360, y: 150, w: 360, h: 34 },
-  { id: 'big', name: 'Bàn lớn', seats: 6, x: 400, y: 340, w: 200, h: 84 },
-  { id: 'medium', name: 'Bàn vừa', seats: 4, x: 150, y: 300, w: 120, h: 76 },
-  { id: 'pair', name: 'Bàn đôi', seats: 2, x: 610, y: 440, w: 70, h: 70 },
+  { id: 'counter', name: 'Quầy trước bếp', seats: 4, shared: true, fixed: true, x: 330, y: 140, w: 280, h: 34 },
+  { id: 'big', name: 'Bàn lớn', seats: 6, x: 350, y: 320, w: 200, h: 84 },
+  { id: 'medium', name: 'Bàn vừa', seats: 4, x: 120, y: 285, w: 120, h: 76 },
+  { id: 'pair', name: 'Bàn đôi', seats: 2, x: 545, y: 440, w: 70, h: 70 },
   // Mở rộng về sau
-  { id: 'patio', name: 'Bàn góc vườn', seats: 4, requiresUpgrade: 'patio', x: 150, y: 465, w: 120, h: 76 },
+  { id: 'patio', name: 'Bàn góc vườn', seats: 4, requiresUpgrade: 'patio', x: 120, y: 445, w: 120, h: 76 },
 ];
 
 export const staff: StaffDef[] = [
