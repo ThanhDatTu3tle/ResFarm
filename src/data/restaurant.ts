@@ -9,6 +9,9 @@ export const room: RoomDef = {
   height: 600,
   kitchenDepth: 112,
   dining: { x1: 15, y1: 215, x2: 705, y2: 545 },
+  // Quầy ra món ở góc phải, giữa bếp và khu ăn; bồi bàn đứng chờ ngay trước quầy
+  pass: { x: 610, y: 150 },
+  waiterHome: { x: 610, y: 200 },
 };
 
 /** x, y là vị trí MẶC ĐỊNH của tâm bàn; người chơi dời bàn thì vị trí mới nằm ở state.restaurant.layout. */

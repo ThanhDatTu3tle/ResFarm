@@ -8,7 +8,10 @@
   --accent-dark: #c2562a;
   --green: #5a9e4b;
   --red: #c8483a;
-  font-family: system-ui, 'Segoe UI', sans-serif;
+  --wood: #c98b4f;
+  --wood-dark: #8a5a35;
+  font-family: 'Mali', system-ui, 'Segoe UI', sans-serif;
+  font-weight: 500;
   font-size: 15px;
   color: var(--text);
 }
@@ -67,40 +70,379 @@ h3 {
   left: 0;
   right: 0;
   display: flex;
-  flex-wrap: wrap;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 8px;
   padding: 10px 12px;
   pointer-events: none;
 }
 
-.hud-group {
+.hud-left,
+.hud-right {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 8px;
   pointer-events: auto;
+}
+
+.hud-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
 }
 
 .stat {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 11px;
+  padding: 5px 12px;
   border-radius: 999px;
-  background: rgba(255, 250, 241, 0.92);
-  box-shadow: 0 2px 0 rgba(59, 42, 30, 0.18);
-  font-weight: 700;
+  border: 2px solid var(--wood);
+  background: var(--card);
+  box-shadow: 0 2px 0 var(--wood-dark);
+  font-weight: 800;
   white-space: nowrap;
 }
 
-.stat .bar {
-  width: 70px;
+.stat.money {
+  font-size: 16px;
+  min-width: 96px;
+  justify-content: flex-end;
 }
 
-.status {
+/* Huy hiệu cấp: số cấp trong vòng tiến độ kinh nghiệm */
+.level-badge {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--wood);
+  background: var(--card);
+  box-shadow: 0 2px 0 var(--wood-dark);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.level-badge svg {
+  position: absolute;
+  inset: 3px;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  transform: rotate(-90deg);
+}
+
+.level-badge circle {
+  fill: none;
+  stroke-width: 4;
+}
+
+.level-badge .track {
+  stroke: var(--line);
+}
+
+.level-badge .fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s ease-out;
+}
+
+.level-badge b {
+  font-size: 19px;
+  font-weight: 900;
+  color: var(--accent-dark);
+}
+
+.level-badge span {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Đồng hồ: vòng ngày đêm + lịch + thời tiết + giờ */
+.clock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px 6px;
+  border-radius: 14px;
+  border: 2px solid var(--wood);
+  background: var(--card);
+  box-shadow: 0 2px 0 var(--wood-dark);
+}
+
+.clock-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dial {
+  position: relative;
+  width: 64px;
+  height: 34px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 34px 34px 6px 6px;
+  border: 2px solid var(--wood-dark);
+  background: #2b3566;
+}
+
+.dial-disc {
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  /* 0° (đỉnh) = trưa, 90° = hoàng hôn, 180° = nửa đêm, 270° = bình minh */
+  background: conic-gradient(#9fd8f5 0deg 60deg, #f7c26b 82deg, #f08a5d 96deg, #2b3566 122deg 238deg, #f08a5d 264deg, #f7c26b 278deg, #9fd8f5 300deg 360deg);
+  transition: transform 0.5s linear;
+}
+
+.dial-disc i {
+  position: absolute;
+  left: 50%;
+  font-style: normal;
+  font-size: 15px;
+  line-height: 1;
+  translate: -50% 0;
+}
+
+.dial-disc .sun {
+  top: 3px;
+}
+
+.dial-disc .moon {
+  bottom: 3px;
+  rotate: 180deg;
+}
+
+.dial-pin {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 0;
+  height: 0;
+  translate: -50% 0;
+  border: 5px solid transparent;
+  border-top-color: var(--wood-dark);
+}
+
+.date {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  min-width: 78px;
+}
+
+.date b {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.date b em {
+  font-style: normal;
+  font-size: 20px;
+  color: var(--accent-dark);
+}
+
+.date span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.clock-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 2px dashed var(--line);
+}
+
+.clock-row .weather {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 24px;
+  border-radius: 8px;
+  background: #e7f4fb;
+  font-size: 16px;
+}
+
+.clock-row .time {
+  font-size: 18px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.tag {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.tag.rush {
   background: #fde3d3;
   color: var(--accent-dark);
+}
+
+.tag.closed {
+  background: #e3e6f5;
+  color: #3d4878;
+}
+
+.tag.paused,
+.tag.fast {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Nút bánh răng mở Cài đặt */
+button.gear {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--wood);
+  background: var(--card);
+  box-shadow: 0 2px 0 var(--wood-dark);
+  font-size: 22px;
+  line-height: 1;
+}
+
+button.gear:hover:not(:disabled) {
+  border-color: var(--accent);
+  rotate: 30deg;
+}
+
+/* ---------- Bảng Cài đặt ---------- */
+.dialog.settings {
+  gap: 10px;
+  width: min(460px, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  text-align: left;
+  border: 3px solid var(--wood);
+  box-shadow: 0 4px 0 var(--wood-dark);
+  animation: pop-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pop-in {
+  from {
+    scale: 0.85;
+    opacity: 0;
+  }
+}
+
+.dialog-head,
+.dialog-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dialog.settings h3 {
+  margin: 4px 0 6px;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dialog.settings section {
+  padding-top: 8px;
+  border-top: 2px dashed var(--line);
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+button.toggle-row,
+button.wide {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 8px 12px;
+}
+
+.switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--line);
+  transition: background-color 0.2s;
+}
+
+.switch i {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(59, 42, 30, 0.3);
+  transition: translate 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.toggle-row.is-on .switch {
+  background: var(--green);
+}
+
+.toggle-row.is-on .switch i {
+  translate: 16px 0;
+}
+
+.guide {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.guide li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.guide li span {
+  flex: none;
+  width: 26px;
+  font-size: 18px;
+  text-align: center;
+}
+
+.dialog-foot {
+  padding-top: 10px;
+  border-top: 2px dashed var(--line);
 }
 
 #areabar {
@@ -119,6 +461,10 @@ h3 {
   text-align: center;
   pointer-events: none;
   max-width: calc(100% - 180px);
+}
+
+#areabar:empty {
+  display: none;
 }
 
 #areabar .btns {
@@ -269,6 +615,11 @@ button.primary {
 button.mini {
   padding: 3px 8px;
   font-size: 13px;
+}
+
+/* Nút bật/tắt đang tắt (nhạc, âm thanh) */
+button.off {
+  opacity: 0.5;
 }
 
 button.danger {
@@ -558,10 +909,44 @@ button.water {
     gap: 4px;
   }
   .stat {
-    padding: 3px 8px;
+    padding: 2px 9px;
   }
-  .stat .bar {
+  .stat.money {
+    font-size: 14px;
+    min-width: 0;
+  }
+  .level-badge {
     width: 44px;
+    height: 44px;
+  }
+  .level-badge b {
+    font-size: 15px;
+  }
+  .clock {
+    padding: 4px 6px;
+    gap: 2px;
+  }
+  .dial {
+    width: 52px;
+    height: 28px;
+  }
+  .dial-disc {
+    width: 52px;
+    height: 52px;
+  }
+  .dial-disc i {
+    font-size: 12px;
+  }
+  .date b em {
+    font-size: 16px;
+  }
+  .clock-row .time {
+    font-size: 15px;
+  }
+  button.gear {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
   }
   button {
     padding: 4px 8px;
@@ -617,5 +1002,174 @@ button.water {
   #rotate span {
     color: var(--muted);
     font-size: 14px;
+  }
+}
+
+/* ---------- Juice: hiệu ứng nảy, bay, chữ nổi (src/ui/juice.ts) ---------- */
+#fx {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  overflow: hidden;
+}
+
+#fx .fly {
+  position: absolute;
+  left: 0;
+  top: 0;
+  line-height: 1;
+  filter: drop-shadow(0 2px 2px rgba(59, 42, 30, 0.3));
+  will-change: transform;
+}
+
+#fx .float-text {
+  position: absolute;
+  font-weight: 800;
+  font-size: 17px;
+  white-space: nowrap;
+  -webkit-text-stroke: 4px #fff;
+  paint-order: stroke fill;
+}
+
+#fx .float-text.good {
+  color: var(--green);
+}
+
+#fx .float-text.bad {
+  color: var(--red);
+}
+
+/* Nút lún xuống khi bấm rồi bật lại (dùng thuộc tính scale để không đè transform sẵn có của nút) */
+button {
+  transition: scale 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.15s, border-color 0.15s;
+}
+
+button:active:not(:disabled) {
+  scale: 0.92;
+  transition-duration: 0.06s;
+}
+
+.toast {
+  animation: toast-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toast-in {
+  from {
+    scale: 0.6;
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .toast {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* ---------- Phục vụ: khay quầy ra món + thanh đang cầm món ---------- */
+#service {
+  position: absolute;
+  left: 50%;
+  bottom: 62px;
+  transform: translateX(-50%);
+  z-index: 5;
+  width: max-content;
+  max-width: calc(100% - 200px);
+}
+
+#service:empty {
+  display: none;
+}
+
+.service-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 2px solid var(--wood);
+  background: var(--card);
+  box-shadow: 0 3px 0 var(--wood-dark);
+  animation: pop-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.service-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pass-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 520px;
+}
+
+button.pass-dish {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+  text-align: left;
+  padding: 6px 12px 6px 8px;
+}
+
+button.pass-dish .dish-icon {
+  grid-row: span 2;
+}
+
+button.pass-dish small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.dish-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.service-card.carrying {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  border-color: var(--accent);
+  box-shadow: 0 3px 0 var(--accent-dark);
+}
+
+.service-card.carrying div {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.service-card.carrying span:not(.dish-icon) {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+button.side .badge {
+  top: -6px;
+  right: -6px;
+  background: var(--red);
+  font-size: 12px;
+  min-width: 22px;
+  line-height: 22px;
+  animation: pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (max-height: 540px) {
+  #service {
+    bottom: 44px;
+    max-width: calc(100% - 140px);
+  }
+  .service-card {
+    padding: 6px 8px;
   }
 }

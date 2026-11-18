@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import type { SlotType } from '../../../data';
 import type { Game } from '../../../sim/game';
 import type { FarmSlot } from '../../../sim/state';
-import { cycleTime, needsWatering } from '../../../sim/systems/farm';
-import { LOOKS, makeAnimals, makeBush, makeCrop, makeFence, makePerson, makeTree } from '../models';
+import { cycleTime, needsWatering, yieldsOf } from '../../../sim/systems/farm';
+import { easeOutBack, wobble } from '../../ease';
+import { Particles } from '../fx';
+import { animateCreature, animatePerson, cropStageOf, LOOKS, makeAnimals, makeBush, makeCrop, makeFence, makePerson, makeTree, type CropStage } from '../models';
 import { collectSway, sway, type Area, type Env, type Pick } from '../stage';
 import { Bar3D, emojiSprite, G, group, mesh, seeded, toon, type V3 } from '../toon';
 
@@ -42,13 +44,30 @@ interface SlotView {
   weeds?: THREE.Object3D;
   drop: THREE.Sprite;
   hoe: THREE.Sprite;
+  /** Trạng thái ô ở khung hình trước — so sánh để biết vừa xảy ra chuyện gì (gieo, chín, thu...) mà phát hiệu ứng. */
+  prev: SlotSnapshot | null;
+  /** Mốc env.t của các hiệu ứng đang chạy: ô bị nhún, cây bật lên khi gieo, cây nảy khi chín. */
+  kickAt: number;
+  popAt: number;
+  ripeAt: number;
+  /** Giai đoạn lớn của cây đang dựng (chỉ ruộng). */
+  cropStage: CropStage;
 }
+
+interface SlotSnapshot {
+  producerId: string | null;
+  stage: FarmSlot['stage'];
+  tilled: boolean;
+  wet: number;
+}
+
+/** Biểu tượng bay ra khi thu hoạch: tối đa bấy nhiêu cái mỗi ô. */
+const MAX_HARVEST_ICONS = 4;
 
 export class FarmArea implements Area {
   id = 'farm';
   label = 'Nông trại';
   icon = '🌾';
-  hint = 'Bấm ô đất để cuốc, gieo, tưới, thu hoạch · bấm chuồng/ao để nuôi';
   root = new THREE.Group();
   view = { position: [0.8, 15.5, 18] as V3, target: [0.8, 0, 2] as V3, orbit: 1 };
   rainBox = { min: [-20, 0, -14] as V3, max: [20, 15, 14] as V3 };
@@ -56,8 +75,14 @@ export class FarmArea implements Area {
   private slots = new Map<string, SlotView>();
   private swayNodes: THREE.Object3D[];
   private blades: THREE.Group;
+  private farmer!: THREE.Group;
   private ringMat = new THREE.MeshBasicMaterial({ color: 0xffd23e });
   private waterMat = toon(0x5bbbe8, { transparent: true, opacity: 0.85 });
+  private fx = new Particles(this.root);
+  /** Gọi khi một ô vừa được thu hoạch: vị trí thế giới + biểu tượng sản phẩm (app.ts cho chúng bay về HUD). */
+  onHarvest: (slotId: string, world: THREE.Vector3, icons: string[]) => void = () => {};
+  /** Gọi khi một ô vừa được gieo / cuốc / tưới / chín (app.ts phát âm thanh). */
+  onAction: (kind: 'plant' | 'till' | 'water' | 'ripe') => void = () => {};
 
   constructor(private game: Game) {
     this.blades = this.buildScenery();
@@ -106,7 +131,7 @@ export class FarmArea implements Area {
     makeFence(r, 2.1, -4.4, 15.5, -4.4);
 
     // Bác nông dân đứng trông vườn
-    const farmer = makePerson(LOOKS[2], 'straw');
+    const farmer = (this.farmer = makePerson(LOOKS[2], 'straw'));
     farmer.position.set(1.25, 0, 5.4);
     farmer.scale.setScalar(1.15);
     r.add(farmer);
@@ -159,12 +184,13 @@ export class FarmArea implements Area {
     const drop = emojiSprite('💧', 0.6);
     const hoe = emojiSprite('⛏️', 0.6);
     g.add(bar.group, drop, hoe);
-    return { ...view, g, content: group(g, { p: [0, slot.type === 'field' ? 0.2 : 0.1, 0] }), producerId: undefined, tier: 1, movers: [], ready: null, bar, ring, type: slot.type, drop, hoe };
+    return { ...view, g, content: group(g, { p: [0, slot.type === 'field' ? 0.2 : 0.1, 0] }), producerId: undefined, tier: 1, movers: [], ready: null, bar, ring, type: slot.type, drop, hoe, prev: null, kickAt: -99, popAt: -99, ripeAt: -99, cropStage: 2 };
   }
 
   /** Dựng lại thứ đang trồng/nuôi trong ô khi producer hoặc bậc của ô đổi. */
-  private fill(view: SlotView, producerId: string | null, tier: number): void {
+  private fill(view: SlotView, producerId: string | null, tier: number, cropStage: CropStage): void {
     view.content.clear();
+    view.cropStage = cropStage;
     view.movers = [];
     view.ready = null;
     view.producerId = producerId;
@@ -174,7 +200,7 @@ export class FarmArea implements Area {
 
     if (view.type === 'field') {
       for (const [x, z] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) {
-        const crop = makeCrop(producerId);
+        const crop = makeCrop(producerId, cropStage);
         crop.position.set(x, 0, z);
         view.content.add(crop);
         view.movers.push({ g: crop, x, z, phase: x * 3 + z });
@@ -203,7 +229,48 @@ export class FarmArea implements Area {
     view.content.add(view.ready);
   }
 
-  update(env: Env): void {
+  /** So trạng thái ô với khung hình trước và phát hiệu ứng cho thay đổi vừa xảy ra. */
+  private react(view: SlotView, slot: FarmSlot, prev: SlotSnapshot, env: Env): void {
+    const { content, ctx } = this.game;
+    const t = env.t;
+    const at = (y: number) => view.g.localToWorld(new THREE.Vector3(0, y, 0));
+
+    if (prev.producerId && prev.stage === 'ready' && (slot.stage !== 'ready' || slot.producerId !== prev.producerId)) {
+      // Vừa thu hoạch: sản phẩm bật tung ra rồi (ở app.ts) bay về nút Kho
+      const def = content.producers.get(prev.producerId);
+      const icons: string[] = [];
+      for (const y of yieldsOf(ctx, slot, def)) for (let i = 0; i < y.qty && icons.length < MAX_HARVEST_ICONS; i++) icons.push(content.items.get(y.item).icon);
+      for (const icon of new Set(icons)) this.fx.burst(icon, at(0.6), { count: icons.filter((i) => i === icon).length + 1, up: 4.2, spread: 1.3, life: 0.7, size: 0.55 });
+      this.fx.burst('✨', at(0.8), { count: 4, up: 2, spread: 1.6, gravity: 2, life: 0.6, size: 0.35 });
+      view.kickAt = t;
+      this.onHarvest(slot.id, at(0.8), icons);
+    }
+    if (slot.producerId && slot.producerId !== prev.producerId) {
+      // Vừa gieo/thả giống: cây con bật lên từ đất
+      view.popAt = t;
+      view.kickAt = t;
+      this.onAction('plant');
+      this.fx.burst('🌱', at(0.4), { count: 3, up: 2.5, spread: 0.9, life: 0.55, size: 0.3 });
+    }
+    if (slot.tilled && !prev.tilled) {
+      view.kickAt = t;
+      this.onAction('till');
+      this.fx.burst('💨', at(0.3), { count: 5, up: 1.2, spread: 1.8, gravity: 1, life: 0.6, size: 0.4 });
+    }
+    // Tưới tay (mưa làm ẩm cả loạt thì thôi, để khỏi rối mắt)
+    if (slot.wet > prev.wet + 1 && env.rain < 0.3) {
+      view.kickAt = t;
+      this.onAction('water');
+      this.fx.burst('💧', at(1.6), { count: 4, up: 0, spread: 0.7, gravity: 7, life: 0.5, size: 0.35, stagger: 0.05 });
+    }
+    if (slot.producerId && slot.producerId === prev.producerId && prev.stage !== 'ready' && slot.stage === 'ready') {
+      view.ripeAt = t;
+      this.onAction('ripe');
+      this.fx.burst('✨', at(1), { count: 5, up: 1.5, spread: 1.4, gravity: 1, life: 0.8, size: 0.35 });
+    }
+  }
+
+  update(env: Env, dt: number): void {
     const { state, content, ctx } = this.game;
     const counts: Partial<Record<SlotType, number>> = {};
 
@@ -211,8 +278,25 @@ export class FarmArea implements Area {
       const index = (counts[slot.type] = (counts[slot.type] ?? -1) + 1);
       let view = this.slots.get(slot.id);
       if (!view) this.slots.set(slot.id, (view = this.buildSlot(slot, index)));
-      if (view.producerId !== slot.producerId || view.tier !== slot.tier) this.fill(view, slot.producerId, slot.tier);
-      view.g.scale.setScalar(1 + TIER_GROWTH * (slot.tier - 1));
+      // Ruộng: cây đổi hình theo giai đoạn (mầm -> cây non -> trưởng thành); lên giai đoạn thì nảy một cái
+      const growing0 = slot.producerId ? content.producers.get(slot.producerId) : null;
+      const cropStage: CropStage = view.type === 'field' && growing0 && slot.stage !== 'ready' ? cropStageOf(slot.progress / cycleTime(growing0, slot)) : 2;
+      if (view.producerId !== slot.producerId || view.tier !== slot.tier || view.cropStage !== cropStage) {
+        const grew = view.producerId === slot.producerId && view.tier === slot.tier && cropStage > view.cropStage;
+        this.fill(view, slot.producerId, slot.tier, cropStage);
+        if (grew) {
+          view.popAt = env.t;
+          this.fx.burst('🍃', view.g.localToWorld(new THREE.Vector3(0, 0.6, 0)), { count: 3, up: 1.6, spread: 1, gravity: 2, life: 0.6, size: 0.28 });
+        }
+      }
+      const snapshot: SlotSnapshot = { producerId: slot.producerId, stage: slot.stage, tilled: slot.tilled, wet: slot.wet };
+      if (view.prev) this.react(view, slot, view.prev, env);
+      view.prev = snapshot;
+
+      // Squash & stretch cả ô khi vừa có thao tác: dẹt xuống rồi nảy lại
+      const base = 1 + TIER_GROWTH * (slot.tier - 1);
+      const squash = wobble(env.t - view.kickAt, 0.45);
+      view.g.scale.set(base * (1 + 0.06 * squash), base * (1 - 0.12 * squash), base * (1 + 0.06 * squash));
       view.ring.visible = env.selectedSlot === slot.id;
 
       const def = slot.producerId ? content.producers.get(slot.producerId) : null;
@@ -236,11 +320,16 @@ export class FarmArea implements Area {
       const frac = slot.stage === 'ready' ? 1 : Math.min(1, slot.progress / cycleTime(def, slot));
       if (growing) view.bar.set(frac);
       // Lứa đầu: lớn dần. Các lứa sau (gà đẻ, bò sữa): đã trưởng thành.
-      const scale = slot.cyclesDone > 0 ? 1 : 0.3 + 0.7 * frac;
+      // Mỗi giai đoạn đã có hình riêng nên chỉ lớn thêm chút trong giai đoạn; con vật lứa đầu vẫn lớn dần
+      const scale = slot.cyclesDone > 0 ? 1 : view.type === 'field' ? 0.8 + 0.2 * frac : 0.3 + 0.7 * frac;
       const fit = view.type === 'field' ? 1 : 1 / (1 + TIER_GROWTH * (slot.tier - 1));
+      // Bật lên lúc mới gieo; nảy lò xo lúc vừa chín; chín rồi thì "thở" nhẹ cho biết đang chờ thu
+      const pop = easeOutBack((env.t - view.popAt) / 0.45);
+      const ripe = slot.stage === 'ready' ? 1 + 0.35 * wobble(env.t - view.ripeAt, 0.8, 14) + 0.03 * Math.sin(env.t * 4 + index) : 1;
 
       for (const m of view.movers) {
-        m.g.scale.setScalar(scale * fit);
+        if (view.type !== 'field') animateCreature(m.g, env.t, m.phase);
+        m.g.scale.set(scale * fit * pop, scale * fit * pop * ripe, scale * fit * pop);
         if (view.type === 'field') {
           m.g.rotation.z = Math.sin(env.t * (1.4 + env.wind * 2) + m.phase) * (0.03 + env.wind * 0.12);
         } else if (view.type === 'pen') {
@@ -257,9 +346,13 @@ export class FarmArea implements Area {
       if (view.ready) {
         view.ready.visible = slot.stage === 'ready';
         view.ready.position.y = top + 0.05 + bob * 2;
+        view.ready.scale.setScalar(0.75 * Math.max(0.001, easeOutBack((env.t - view.ripeAt) / 0.4)));
       }
     }
 
+    this.fx.update(dt);
+    // Bác nông dân thở, chớp mắt, thỉnh thoảng vẫy tay chào
+    animatePerson(this.farmer, env.t, { wave: Math.max(0, Math.min(1, (Math.sin(env.t * 0.35) - 0.85) * 8)) });
     sway(this.swayNodes, env);
     this.blades.rotation.z -= 0.004 + env.wind * 0.09;
     this.waterMat.color.setHex(0x5bbbe8).multiplyScalar(0.55 + 0.45 * env.day);

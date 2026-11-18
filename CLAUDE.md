@@ -2,7 +2,9 @@
 
 Game quản lý quán ăn kết hợp nông trại, đồ hoạ 3D phong cách hoạt hình, chạy trên trình duyệt. File này là bản đồ kiến trúc: đọc xong là biết sửa ở đâu.
 
-Tài liệu nội bộ chi tiết hơn (tầm nhìn, kiến trúc sâu, lộ trình đồ hoạ, roadmap, chi phí) nằm ở `notes/` nếu thư mục đó có trên máy — bắt đầu từ `notes/00-DOC-TRUOC.md`. Thư mục này không có trong repo.
+Tài liệu chi tiết hơn (tầm nhìn, kiến trúc sâu, đồ hoạ, roadmap, chi phí, kinh nghiệm thiết kế, nhật ký từng phiên) nằm ở `docs/` — bắt đầu từ `docs/00-DOC-TRUOC.md`, rồi đọc mục mới nhất của `docs/07-NHAT-KY.md` để nối tiếp phiên trước. **Repo công khai: không đưa thông tin cá nhân vào repo**; ghi chú riêng tư để ở `notes/` (không lên GitHub). Không commit thẳng vào `main` (Netlify deploy từ `main`) — làm ở nhánh riêng rồi gộp qua Pull Request.
+
+Skill Three.js cài trong `.claude/skills/` (điểm vào: `threejs-game-director`; không nằm trong repo — cách cài lại ở `docs/00-DOC-TRUOC.md`). Khi dùng, giữ nguyên kiến trúc và quy ước trong file này — các skill đó mặc định dựng game mới từ scaffold riêng. Cách chọn skill và nguyên tắc thiết kế cozy game: `docs/06-KINH-NGHIEM-THIET-KE.md`.
 
 ## Chạy dự án
 
@@ -36,6 +38,8 @@ Tham số URL để thử nhanh (ghép được với nhau):
 
 Ví dụ: `http://localhost:5184/?fresh&seed=5&ff=720&weather=rain&area=market`.
 
+Phím tắt: `Space` tạm dừng / chạy tiếp, `Esc` đóng bảng Cài đặt. Mở Cài đặt thì game tự tạm dừng.
+
 Lưu ý: vòng lặp chạy bằng `requestAnimationFrame` nên khi tab bị ẩn game tạm dừng — muốn kiểm tra khi tab không hiển thị thì dùng `?ff=`.
 
 ## Thời gian trong game
@@ -49,7 +53,7 @@ Mọi thời lượng trong `src/data` (nấu món, cây lớn, kiên nhẫn c�
 
 ## Công nghệ
 
-Vite + TypeScript (strict), không framework. Thư viện runtime duy nhất là **Three.js**. Mọi model 3D ghép từ khối cơ bản bằng code (không có file model/texture), vật liệu toon — cùng phong cách với dự án `co-thu-3d`. Bảng điều khiển là HTML thường phủ lên canvas.
+Vite + TypeScript (strict), không framework. Thư viện runtime duy nhất là **Three.js**. Font chữ là **Mali** (OFL, gói `@fontsource/mali`, nhập trong `src/main.ts`, tự lưu trong bản build — có đủ dấu tiếng Việt). Đổi font thì chọn font có subset `vietnamese`. Mọi model 3D ghép từ khối cơ bản bằng code (không có file model/texture), vật liệu toon — cùng phong cách với dự án `co-thu-3d`. Bảng điều khiển là HTML thường phủ lên canvas.
 
 ## Kiến trúc: 4 tầng, phụ thuộc một chiều
 
@@ -84,9 +88,11 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 | File | Việc |
 | --- | --- |
 | `clock.ts` | Giờ trong ngày, pha `open → closing → summary` |
+| `calendar.ts` (không phải system) | `calendarOf(day)`: thứ, ngày trong mùa, mùa, năm — ngày 1 = Thứ Hai mùng 1 Xuân năm 1, mùa 28 ngày. Tên mùa/thứ ở `src/data/calendar.ts` |
 | `weather.ts` | Thời tiết đổi ngẫu nhiên; hiệu ứng gameplay lấy từ `WeatherDef.effects` |
-| `customers.ts` | Khách tới, xếp hàng, xếp bàn, gọi món (trừ nguyên liệu ngay), chờ, ăn, trả tiền/bỏ về |
-| `kitchen.ts` | Đầu bếp nhận đơn và nấu |
+| `customers.ts` | Khách tới, xếp hàng, xếp bàn, chờ menu → xem menu → chờ ghi món → chờ món (tâm trạng `moodOf`) → ăn → trả tiền (tip theo tâm trạng) / bỏ về |
+| `service.ts` | Người chơi là bồi bàn: lệnh `service/menu`, `service/takeOrder`, `service/deliver`; bồi bàn đi thật trong sim (`state.restaurant.waiter`) và làm việc theo hàng. `autoServeCommands` = người chơi mẫu cho test/cân bằng |
+| `kitchen.ts` | Đầu bếp nhận đơn và nấu; xong thì đặt ra quầy ra món (`ready`) |
 | `farm.ts` | Ô nông trại: cuốc đất, gieo/nuôi, tưới (mưa tự làm ẩm), lớn, thu hoạch, mua ô, nới rộng ô |
 | `market.ts` | Mua ở sạp chợ, giá dao động theo ngày |
 | `progression.ts` | Mở khoá/bật tắt món, mua nâng cấp (trang thiết bị) |
@@ -101,19 +107,27 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 ```
 src/ui/app.ts              tạo Game + Stage, vòng lặp, lưu tự động, xử lý click, HUD, nút chuyển khu, ngăn kéo
 src/ui/three/toon.ts       vật liệu toon, hình học có cache, mesh()/group(), emojiSprite(), Bar3D
-src/ui/three/models.ts     model dùng chung: người, cây, hàng rào, rau củ, con vật, cột đèn, thùng hàng
+src/ui/three/models.ts     model dùng chung: người, cây, hàng rào, rau củ, con vật, cột đèn, thùng hàng;
+                           animatePerson(g, t, pose) (thở, chớp mắt, đi, ngồi, ăn, nấu, vẫy) và animateCreature (chớp mắt, vẫy đuôi);
+                           makeCrop(id, giai đoạn 0..2), makeDish(recipeId) — món chưa có trong DISHES thì quán hiện emoji
 src/ui/three/stage.ts      renderer, camera, ánh sáng, bầu trời ngày/đêm, mây, sao, mưa, bấm chọn (raycast)
 src/ui/three/areas/*.ts    mỗi file một KHU (màn hình 3D): restaurant, farm, market
 src/ui/panels/*.ts         các bảng HTML trong ngăn kéo: Quán, Thực đơn, Siêu thị, Chợ, Nông trại, Kho
 src/ui/dom.ts              esc(), cmd(), ui(), bar(), morph()
+src/ui/ease.ts             easing dùng chung (easeOutBack, easeOutElastic, wobble cho squash & stretch)
+src/ui/hud.ts              HUD (huy hiệu cấp, tiền, uy tín, đồng hồ ngày đêm + lịch + thời tiết) và bảng Cài đặt (nút bánh răng)
+src/ui/audio.ts            âm thanh tổng hợp bằng Web Audio (không file): Sound.play(tên), nhạc nền tự sinh, tiếng mưa; bật/tắt lưu localStorage
+src/ui/juice.ts            hiệu ứng DOM: flyIcon (bay về HUD), bump, floatText, Counter (số tiền chạy dần)
+src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 ```
 
 - **Camera**: `OrbitControls` — kéo để xoay, lăn chuột / chụm hai ngón để zoom, bấm đúp để về góc mặc định. Giới hạn xoay ngang của từng khu là `view.orbit`; giới hạn zoom tính từ khoảng cách mặc định (`resetView()` trong `stage.ts`).
 - **Khu (Area)**: interface trong `stage.ts`. Mỗi khu có `root` (Group), `view` (vị trí camera + `orbit`), `rainBox`, và `update(env, dt, speed)` đọc `game.state` mỗi khung hình để đồng bộ hình ảnh. Mọi khu đều được update dù đang ẩn. Thứ tự mảng `areas` trong `app.ts` là thứ tự trái → phải của các nút chuyển khu hai bên màn hình.
 - **Env**: `stage.ts` tính mỗi khung hình từ giờ game và `WeatherDef.visual`: `day`, `night`, `rain`, `clouds`, `wind`, `dim` (0..1) và `t` (giây thực). Khu dùng nó cho đèn, cây đung đưa, cối xay gió...
-- **Bấm vật thể 3D**: gắn `obj.userData.pick = { type, id }` (kiểu `Pick`); `Stage` raycast rồi gọi `stage.onPick`, xử lý trong `app.ts`. Hiện có `slot` (ô nông trại: chín thì thu hoạch, chưa thì mở panel Nông trại), `stall` (mở panel Chợ lọc theo sạp) và `table` (bàn trong quán, chỉ dùng để kéo).
+- **Bấm vật thể 3D**: gắn `obj.userData.pick = { type, id }` (kiểu `Pick`); `Stage` raycast (bỏ qua vật đang ẩn) rồi gọi `stage.onPick`, xử lý trong `app.ts`. Hiện có `slot` (ô nông trại), `stall` (sạp chợ), `table` (kéo bàn; ngoài chế độ sắp xếp = bấm khách ở bàn đó), `party` (khách / bong bóng chat: mang menu, ghi món, hoặc giao món đang chọn) và `pass` (quầy ra món: mở khay chọn món, `ui.serving`).
 - **Kéo vật thể 3D**: `stage.dragFilter(pick)` trả true thì vật đó kéo được (camera tạm khoá); `stage.onDrag(pick, x, z, end)` nhận toạ độ mặt sàn. Chế độ sắp xếp bàn (`ui.editLayout`) dùng cơ chế này: `RestaurantArea.dragTable()` vẽ xem trước, thả ra thì `app.ts` gửi lệnh `layout/moveTable`.
 - **Màu quán theo nội thất**: `RestaurantArea` giữ bộ vật liệu riêng (`mats`) và mỗi khung hình tô lại theo `state.decor.equipped`.
+- **Juice (hiệu ứng phản hồi)**: khu tự phát hiệu ứng bằng cách so state với khung hình trước (vd `FarmArea.react()`: gieo → cây bật lên, chín → nảy lò xo, thu → sản phẩm bung ra), không cần sự kiện sim mới. Muốn hiệu ứng DOM (bay về HUD) thì khu gọi callback (`farm.onHarvest`, `restaurant.onPaid`), `app.ts` chiếu toạ độ bằng `stage.toScreen()` rồi gọi `flyIcon`. Nút bấm lún bằng CSS `scale` (không đè `transform`).
 - **Hình cho nội dung mới**: thứ gì chưa có model riêng đều hiện bằng `emojiSprite(icon)` — món ăn trên đĩa, hàng trên sạp, sản phẩm chín, producer lạ. Nên thêm data là thấy ngay trong cảnh 3D; dựng model riêng là việc làm đẹp sau.
 - **Panel**: mỗi panel là hàm thuần `(game, ui) → chuỗi HTML`. `morph()` vá DOM tại chỗ nên không cần quản lý cập nhật thủ công. Nút bấm gắn `cmd({...})` cho lệnh sim (có kiểm tra kiểu), `ui('tên:tham số')` cho hành động thuần giao diện (xử lý trong `app.ts`). Phần tử trong danh sách nên có `data-key`.
 - **Toạ độ quán**: `RoomDef`/`TableDef` dùng toạ độ 2D (hiện 720×600, 55 đơn vị = 1 mét); `areas/restaurant.ts` quy đổi sang mét bằng `wx()`/`wz()` và tự dựng phòng theo `content.room`.
@@ -166,7 +180,7 @@ src/ui/dom.ts              esc(), cmd(), ui(), bar(), morph()
 Theo thứ tự đề xuất:
 
 1. **Cân bằng kinh tế** — các con số hiện chỉ đủ để chơi thử, chưa tinh chỉnh.
-2. **Bồi bàn / khâu phục vụ** — thêm trạng thái `ready` cho `Order` giữa `cooking` và `served` (ghi chú trong `kitchen.ts`).
+2. ~~Bồi bàn / khâu phục vụ~~ — đã có (người chơi đóng vai). Tiếp theo: thuê bồi bàn tự động khi người chơi ở khu khác (dùng `autoServeCommands`), bưng 2 món một lượt.
 3. **Thuê và nâng cấp nhân viên** — `StaffDef` đã tách riêng; cần lệnh thuê và lương theo ngày.
 4. **Thức ăn chăn nuôi, chế biến** (xay bột, làm phô mai...) — mở rộng `ProducerDef` với `inputs: ItemStack[]`, hoặc thêm system "xưởng" theo cùng mô hình.
 5. **Nâng hạng quán** (quán → nhà hàng): nới phòng theo cấp (đưa kích thước phòng vào state), bếp to hơn, thêm bàn; xoay bàn 90° khi sắp xếp; mua thêm bàn lẻ ở Siêu thị; đồ trang trí đặt tự do (cây, tranh, đèn).

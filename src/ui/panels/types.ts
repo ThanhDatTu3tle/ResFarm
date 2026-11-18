@@ -13,6 +13,12 @@ export interface UiState {
   selectedStall: string | null;
   /** Đang ở chế độ kéo-thả sắp xếp bàn ghế trong quán. */
   editLayout: boolean;
+  /** Bảng Cài đặt (nút bánh răng) đang mở — game tạm dừng trong lúc mở. */
+  settings: boolean;
+  /** Đang mở khay chọn món ở quầy ra món. */
+  passOpen: boolean;
+  /** Món (id đơn) đã chọn ở quầy ra món, chờ người chơi bấm vào bàn cần giao. */
+  serving: number | null;
 }
 
 /**

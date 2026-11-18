@@ -31,6 +31,9 @@ export type Command =
   | { type: 'decor/equip'; decorId: string }
   | { type: 'layout/moveTable'; tableId: string; x: number; y: number }
   | { type: 'layout/reset' }
+  | { type: 'service/menu'; partyId: number }
+  | { type: 'service/takeOrder'; partyId: number }
+  | { type: 'service/deliver'; orderId: number; partyId: number }
   | { type: 'day/next' };
 
 export type CommandType = Command['type'];
@@ -43,7 +46,8 @@ export type CommandHandlers = {
 export const ok = (): CommandResult => ({ ok: true });
 export const fail = (reason: string): CommandResult => ({ ok: false, reason });
 
-export type LeaveReason = 'paid' | 'queueTimeout' | 'foodTimeout' | 'noFood';
+/** serviceTimeout: chờ mang menu / chờ ghi món quá lâu. */
+export type LeaveReason = 'paid' | 'queueTimeout' | 'serviceTimeout' | 'foodTimeout' | 'noFood';
 
 /** SỰ KIỆN sim phát ra cho UI (hiệu ứng, âm thanh, thông báo). UI không được sửa state khi nghe sự kiện. */
 export interface SimEvents {
@@ -51,7 +55,14 @@ export interface SimEvents {
   'party/seated': { partyId: number; tableId: string };
   'party/left': { partyId: number; tableId: string | null; size: number; reason: LeaveReason; total: number; tip: number };
   'order/placed': { orderId: number; recipeId: string };
+  /** Bếp nấu xong, món nằm ở quầy ra món. */
+  'order/ready': { orderId: number; recipeId: string };
+  /** Món đã được bồi bàn mang lên bàn. */
   'order/served': { orderId: number; recipeId: string };
+  /** Nhóm khách cần bồi bàn: mang menu (menu) hoặc tới ghi món (order). */
+  'party/needs': { partyId: number; need: 'menu' | 'order' };
+  /** Bồi bàn vừa làm xong một việc. */
+  'waiter/done': { kind: 'menu' | 'takeOrder' | 'pickup' | 'deliver'; partyId: number | null };
   'farm/ready': { slotId: string };
   'level/up': { level: number };
   'weather/changed': { id: string };

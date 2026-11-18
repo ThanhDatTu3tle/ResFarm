@@ -26,6 +26,7 @@ export const restaurantPanel: Panel = {
       .join('');
 
     const queued = orders.filter((o) => o.status === 'queued');
+    const atPass = orders.filter((o) => o.status === 'ready');
     const tables = activeTables(ctx)
       .map((t) => {
         const used = occupiedSeats(ctx, t.id).length;
@@ -37,6 +38,7 @@ export const restaurantPanel: Panel = {
     const waiting = parties.filter((p) => p.phase === 'queue').length;
     return `
       <h3>Gian bếp</h3>${chefs}
+      <div class="muted">🔔 Món chờ ở quầy ra món: ${atPass.length ? atPass.map((o) => content.recipes.get(o.recipeId).icon).join(' ') : 'không có'}</div>
       <div class="muted">Đơn đang chờ: ${queued.length ? queued.map((o) => content.recipes.get(o.recipeId).icon).join(' ') : 'không có'}</div>
       <div class="row"><h3 class="grow">Bàn ăn</h3><button class="mini"${ui('edit')}>🪑 Sắp xếp bàn</button></div><div class="chips">${tables}</div>
       <div class="muted">Khách đang xếp hàng: ${waiting} nhóm</div>

@@ -2,10 +2,13 @@ import * as THREE from 'three';
 import type { TableDef } from '../../../data';
 import type { Game } from '../../../sim/game';
 import { canPlaceTable, LAYOUT_GRID, seatSpots, tablePos } from '../../../sim/layout';
-import { activeTables } from '../../../sim/systems/customers';
-import { LOOKS, makeBush, makePerson } from '../models';
+import { activeTables, moodOf } from '../../../sim/systems/customers';
+import { isReserved, needOf, wantedOrder } from '../../../sim/systems/service';
+import { animatePerson, LOOKS, makeBush, makeDish, makePerson } from '../models';
 import type { Area, Env, Pick } from '../stage';
-import { Bar3D, emojiSprite, G, group, mesh, textSprite, toon } from '../toon';
+import { Bar3D, bubbleSprite, emojiSprite, G, group, mesh, textSprite, toon } from '../toon';
+import { easeOutBack, wobble } from '../../ease';
+import { Particles } from '../fx';
 
 /**
  * KHU QUÁN — nội thất quán ăn tông ấm, nhìn kiểu "cắt mái".
@@ -13,7 +16,32 @@ import { Bar3D, emojiSprite, G, group, mesh, textSprite, toon } from '../toon';
  *    quy đổi sang mét bằng wx()/wz(). Nới rộng quán chỉ cần sửa data.
  *  - Màu sàn, tường, bàn ghế lấy từ nội thất đang dùng (state.decor.equipped).
  *  - Chế độ sắp xếp: kéo bàn (Pick {type:'table'}) -> dragTable()/endDrag().
+ *  - Phục vụ: bồi bàn (người chơi) vẽ theo state.restaurant.waiter; bong bóng chat trên đầu khách (Pick {type:'party'})
+ *    báo việc cần làm; quầy ra món (Pick {type:'pass'}) bày các món bếp đã nấu xong.
  */
+
+/** Mặt theo tâm trạng khi chờ món: vui vẻ, bình thường, chán nản, tức giận. */
+const MOOD_FACES = ['😄', '🙂', '😒', '😠'];
+/** Chỗ đặt đĩa trên quầy ra món (mét, so với tâm quầy). */
+const PASS_SLOTS: [number, number][] = [
+  [-0.5, -0.12],
+  [0, -0.12],
+  [0.5, -0.12],
+  [-0.5, 0.2],
+  [0, 0.2],
+  [0.5, 0.2],
+];
+const PASS_TOP = 1.02;
+
+interface PartyFx {
+  bar: Bar3D;
+  /** Bong bóng chính (cần menu / chọn xong / tâm trạng) và bong bóng các món đã gọi. */
+  main: THREE.Sprite | null;
+  mainKey: string;
+  dishes: THREE.Sprite | null;
+  dishesKey: string;
+  holder: THREE.Group;
+}
 
 const UNIT = 55; // số đơn vị toạ độ 2D ứng với 1 mét trong cảnh
 const WALK_SPEED = 4.2;
@@ -30,6 +58,9 @@ interface Actor {
   /** Độ cao khi đã vào chỗ (ngồi ghế thì nhô lên). */
   restY: number;
   leaving: boolean;
+  /** Đã có ghế (để ngồi khi tới nơi) và đang ăn (đưa tay lên miệng). */
+  seated: boolean;
+  eating: boolean;
 }
 
 interface TableView {
@@ -44,7 +75,6 @@ export class RestaurantArea implements Area {
   id = 'restaurant';
   label = 'Quán ăn';
   icon = '🏠';
-  hint = 'Kéo để xoay · lăn chuột hoặc chụm 2 ngón để phóng to';
   root = new THREE.Group();
   view: Area['view'];
   rainBox: Area['rainBox'];
@@ -73,9 +103,18 @@ export class RestaurantArea implements Area {
   private windowMat = toon(0xbfe6ff, { transparent: true, opacity: 0.3 });
 
   private actors = new Map<string, Actor>();
-  private dishes = new Map<number, { g: THREE.Group; sprite: THREE.Sprite }>();
-  private partyFx = new Map<number, { bar: Bar3D; book: THREE.Sprite }>();
-  private chefs: { g: THREE.Group; icon: THREE.Sprite; iconFor: string; bar: Bar3D }[] = [];
+  /** servedAt: mốc env.t lúc món vừa ra bàn (để đĩa nảy lên), -1 = chưa ra. */
+  private dishes = new Map<number, { g: THREE.Group; sprite: THREE.Sprite; food: THREE.Group | null; servedAt: number }>();
+  /** Gọi khi một nhóm khách trả tiền: vị trí thế giới của bàn + số tiền (app.ts cho xu bay về HUD). */
+  onPaid: (world: THREE.Vector3, amount: number) => void = () => {};
+  private partyFx = new Map<number, PartyFx>();
+  /** Đĩa trên quầy ra món theo id đơn. */
+  private passPlates = new Map<number, THREE.Group>();
+  private passBell!: THREE.Sprite;
+  private waiter!: { g: THREE.Group; ring: THREE.Mesh; hand: THREE.Group; handKey: string; lastX: number; lastZ: number };
+  /** smoke: giây còn lại tới lần phả khói bếp kế tiếp. */
+  private chefs: { g: THREE.Group; icon: THREE.Sprite; iconFor: string; bar: Bar3D; smoke: number }[] = [];
+  private fx = new Particles(this.root);
   private tables = new Map<string, TableView>();
   private drag: { id: string; x: number; y: number } | null = null;
   private floats: { sprite: THREE.Sprite; life: number }[] = [];
@@ -115,6 +154,9 @@ export class RestaurantArea implements Area {
         }
       }
       if (!anchor) return;
+      // Khách vui: tim bay lên (có tip thì nhiều tim hơn)
+      if (e.reason === 'paid') this.fx.burst(e.tip > 0 ? '💖' : '😊', anchor.clone().setY(1.7), { count: e.tip > 0 ? 4 : 1, up: 1.6, spread: 0.7, gravity: 0.6, life: 1.3, size: 0.4, stagger: 0.08 });
+      if (e.reason === 'paid') this.onPaid(this.root.localToWorld(anchor.clone().setY(1.2)), e.total + e.tip);
       const sprite = e.reason === 'paid' ? textSprite(`+${e.total + e.tip}`, '#2f8f3a') : emojiSprite('💢', 0.8);
       sprite.position.set(anchor.x, 2, anchor.z);
       this.root.add(sprite);
@@ -221,6 +263,9 @@ export class RestaurantArea implements Area {
     mesh(r, G.box(1, 2.2, 0.85), 0xe9eef2, { p: [-2.6, 1.1, z] });
     mesh(r, G.box(0.06, 0.6, 0.06), 0x9aa6b2, { p: [-2.25, 1.5, z + 0.46] });
 
+    this.buildPass();
+    this.buildWaiter();
+
     // Đầu bếp đứng sau quầy, quay mặt ra phòng ăn
     const staff = this.game.content.staff.all();
     staff.forEach((def, i) => {
@@ -234,8 +279,67 @@ export class RestaurantArea implements Area {
       const icon = emojiSprite('🍳', 0.5);
       icon.position.set(0, 2.3, 0);
       g.add(icon);
-      this.chefs.push({ g, icon, iconFor: '', bar });
+      this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2 });
     });
+  }
+
+  /** Quầy ra món: bếp nấu xong đặt đĩa ở đây, đèn giữ nóng phía trên, chuông báo khi có món chờ. */
+  private buildPass(): void {
+    const pass = this.game.content.room.pass;
+    const g = group(this.root, { p: [this.wx(pass.x), 0, this.wz(pass.y)] });
+    g.userData.pick = { type: 'pass', id: 'pass' } satisfies Pick;
+    mesh(g, G.box(1.7, PASS_TOP - 0.06, 0.8), 0x9aa6b2, { p: [0, (PASS_TOP - 0.06) / 2, 0] });
+    mesh(g, G.box(1.85, 0.06, 0.95), 0xdfe5ea, { p: [0, PASS_TOP - 0.03, 0] });
+    mesh(g, G.box(1.7, 0.08, 0.04), 0xe2703a, { p: [0, PASS_TOP - 0.25, 0.41] }); // viền cam phía trước
+    // Đèn giữ nóng
+    for (const side of [-1, 1]) mesh(g, G.cyl(0.03, 0.03, 0.9, 6), 0x5f6b77, { p: [side * 0.82, PASS_TOP + 0.45, -0.3] });
+    mesh(g, G.box(1.75, 0.08, 0.22), 0x5f6b77, { p: [0, PASS_TOP + 0.9, -0.2] });
+    mesh(g, G.box(1.6, 0.03, 0.16), this.bulbMat, { p: [0, PASS_TOP + 0.85, -0.2], cast: false });
+    this.passBell = emojiSprite('🔔', 0.5);
+    this.passBell.position.set(0, PASS_TOP + 1.35, 0);
+    g.add(this.passBell);
+    // Hộp chứa đĩa (để vị trí đĩa theo quầy)
+    g.userData.plates = group(g, { p: [0, PASS_TOP, 0] });
+  }
+
+  /** Bồi bàn — nhân vật của người chơi: áo xanh, tạp dề trắng, vòng sáng dưới chân cho dễ nhận ra. */
+  private buildWaiter(): void {
+    const g = makePerson({ shirt: 0x3f8fd2, hair: 0x2a1f1a, skin: 0xffd9b8 });
+    const rig = g.userData.rig;
+    mesh(rig.body, G.box(0.36, 0.34, 0.05), 0xffffff, { p: [0, 0.14, 0.18] }); // tạp dề
+    mesh(rig.head, G.box(0.42, 0.06, 0.3), 0xe2574c, { p: [0, 0.36, 0.06], r: [-0.2, 0, 0] }); // mũ lưỡi trai đỏ
+    const ring = mesh(g, G.torus(0.42, 0.04, 6, 24), new THREE.MeshBasicMaterial({ color: 0xffd23e }), { p: [0, 0.03, 0], r: [Math.PI / 2, 0, 0], cast: false, receive: false });
+    const hand = group(g, { p: [0, 0.98, 0.34] });
+    g.scale.setScalar(1.1);
+    const home = this.game.state.restaurant.waiter;
+    g.position.set(this.wx(home.x), 0, this.wz(home.y));
+    this.root.add(g);
+    this.waiter = { g, ring, hand, handKey: '', lastX: g.position.x, lastZ: g.position.z };
+  }
+
+  /** Món đang trên tay bồi bàn: đĩa có model món, hoặc menu / sổ ghi món khi đang đi làm việc đó. */
+  private setWaiterHand(key: string, recipeId: string | null): void {
+    const w = this.waiter;
+    if (w.handKey === key) return;
+    w.handKey = key;
+    w.hand.clear();
+    if (!key) return;
+    if (recipeId) {
+      mesh(w.hand, G.cyl(0.2, 0.14, 0.04, 14), 0xffffff);
+      const food = makeDish(recipeId);
+      if (food) {
+        food.position.y = 0.02;
+        w.hand.add(food);
+      } else {
+        const icon = emojiSprite(this.game.content.recipes.get(recipeId).icon, 0.4);
+        icon.position.y = 0.22;
+        w.hand.add(icon);
+      }
+    } else {
+      const icon = emojiSprite(key === 'menu' ? '📖' : '📝', 0.42);
+      icon.position.y = 0.1;
+      w.hand.add(icon);
+    }
   }
 
   /** Dựng một bàn + ghế trong group riêng (gốc ở tâm bàn) để dời được cả cụm. */
@@ -273,6 +377,128 @@ export class RestaurantArea implements Area {
     hand.position.set(0, 1.75, 0);
     g.add(hand);
     return { def: t, g, pad, hand };
+  }
+
+  // ---------- Phục vụ ----------
+
+  /** Dựng lại bong bóng khi nội dung đổi; bong bóng chờ người chơi bấm thì nhún nhảy cho dễ thấy. */
+  private updateBubbles(fx: PartyFx, party: import('../../../sim/state').Party, env: Env): void {
+    const { ctx, state, content } = this.game;
+    const need = needOf(party);
+    let main = '';
+    if (party.phase === 'seated') main = '📖';
+    else if (party.phase === 'browsing') main = '💭';
+    else if (party.phase === 'readyToOrder') main = '😊';
+    else if (party.phase === 'waitingFood') main = MOOD_FACES[moodOf(ctx, party)];
+    const waiting = party.phase === 'waitingFood' ? state.restaurant.orders.filter((o) => o.partyId === party.id && o.status !== 'served').map((o) => content.recipes.get(o.recipeId).icon) : [];
+    const dishesKey = waiting.join('|');
+
+    if (fx.mainKey !== main) {
+      if (fx.main) fx.holder.remove(fx.main);
+      fx.main = main ? bubbleSprite([main], 0.8) : null;
+      if (fx.main) fx.holder.add(fx.main);
+      fx.mainKey = main;
+    }
+    if (fx.dishesKey !== dishesKey) {
+      if (fx.dishes) fx.holder.remove(fx.dishes);
+      fx.dishes = waiting.length ? bubbleSprite(waiting, 0.62) : null;
+      if (fx.dishes) fx.holder.add(fx.dishes);
+      fx.dishesKey = dishesKey;
+    }
+
+    // Người chơi đang cầm món: bàn nào nhận được món đó thì bong bóng món nhún lên
+    const carrying = env.serving != null ? state.restaurant.orders.find((o) => o.id === env.serving) : null;
+    const wants = !!carrying && party.phase === 'waitingFood' && !!wantedOrder(ctx, party, carrying.recipeId);
+    const beat = 1 + Math.max(0, Math.sin(env.t * 6 + party.id)) * 0.18;
+    // Kích thước gốc của bong bóng (lúc dựng) để nhún theo tỉ lệ mà không cộng dồn
+    const base = (sprite: THREE.Sprite) => (sprite.userData.base ??= sprite.scale.clone()) as THREE.Vector3;
+    if (fx.main) {
+      const k = need ? beat : 1;
+      fx.main.scale.copy(base(fx.main)).multiplyScalar(k);
+      fx.main.material.opacity = party.called ? 0.55 : 1;
+    }
+    if (fx.dishes) {
+      const k = wants ? beat * 1.15 : 1;
+      fx.dishes.scale.copy(base(fx.dishes)).multiplyScalar(k);
+    }
+    // Hai bong bóng đứng cạnh nhau, căn giữa trên đầu nhóm khách
+    const mw = fx.main ? base(fx.main).x : 0;
+    const dw = fx.dishes ? base(fx.dishes).x : 0;
+    const gap = fx.main && fx.dishes ? 0.06 : 0;
+    const left = -(mw + gap + dw) / 2;
+    if (fx.main) fx.main.position.set(left + mw / 2, 0, 0);
+    if (fx.dishes) fx.dishes.position.set(left + mw + gap + dw / 2, 0.04, 0);
+  }
+
+  /** Đĩa trên quầy ra món: món đã nấu xong chờ bưng; món người chơi đang chọn thì nảy lên. */
+  private updatePass(env: Env): void {
+    const { state, ctx } = this.game;
+    const plates: THREE.Group = this.passBell.parent!.userData.plates;
+    const ready = state.restaurant.orders.filter((o) => o.status === 'ready');
+    const keep = new Set(ready.map((o) => o.id));
+    for (const [id, g] of this.passPlates) {
+      if (keep.has(id)) continue;
+      plates.remove(g);
+      this.passPlates.delete(id);
+    }
+    ready.slice(0, PASS_SLOTS.length).forEach((o, i) => {
+      let g = this.passPlates.get(o.id);
+      if (!g) {
+        g = group(plates);
+        mesh(g, G.cyl(0.2, 0.14, 0.04, 14), 0xffffff);
+        const food = makeDish(o.recipeId);
+        if (food) {
+          food.position.y = 0.02;
+          g.add(food);
+        } else {
+          const icon = emojiSprite(this.game.content.recipes.get(o.recipeId).icon, 0.36);
+          icon.position.y = 0.2;
+          g.add(icon);
+        }
+        g.userData.born = env.t;
+        this.passPlates.set(o.id, g);
+      }
+      const [x, z] = PASS_SLOTS[i];
+      const picked = env.serving === o.id;
+      const reserved = isReserved(ctx, o.id);
+      const pop = easeOutBack(Math.min(1, (env.t - g.userData.born) / 0.35), 3);
+      g.position.set(x, picked ? 0.12 + Math.abs(Math.sin(env.t * 6)) * 0.08 : 0.02, z);
+      g.scale.setScalar(Math.max(0.001, pop) * (picked ? 1.15 : reserved ? 0.85 : 1));
+    });
+    const waitingDishes = ready.some((o) => !isReserved(ctx, o.id));
+    this.passBell.visible = waitingDishes;
+    this.passBell.position.y = PASS_TOP + 1.35 + Math.abs(Math.sin(env.t * 5)) * 0.1;
+    this.passBell.material.rotation = Math.sin(env.t * 12) * 0.25;
+  }
+
+  /** Bồi bàn đi theo vị trí trong sim (làm mượt), quay mặt theo hướng đi, cầm thứ đang mang. */
+  private updateWaiter(env: Env, dt: number): void {
+    const { state } = this.game;
+    const sim = state.restaurant.waiter;
+    const w = this.waiter;
+    const tx = this.wx(sim.x);
+    const tz = this.wz(sim.y);
+    const pos = w.g.position;
+    pos.x += (tx - pos.x) * Math.min(1, dt * 12);
+    pos.z += (tz - pos.z) * Math.min(1, dt * 12);
+    const dx = pos.x - w.lastX;
+    const dz = pos.z - w.lastZ;
+    const moving = Math.hypot(dx, dz) > 0.004;
+    w.lastX = pos.x;
+    w.lastZ = pos.z;
+    if (moving) w.g.rotation.y = Math.atan2(dx, dz);
+    else if (!sim.tasks.length) w.g.rotation.y += (0 - w.g.rotation.y) * Math.min(1, dt * 5); // rảnh: quay mặt ra phòng
+    pos.y = moving ? Math.abs(Math.sin(env.t * 11)) * 0.06 : 0;
+
+    const carrying = sim.carrying != null ? state.restaurant.orders.find((o) => o.id === sim.carrying) : null;
+    const task = sim.tasks[0];
+    if (carrying) this.setWaiterHand(`dish:${carrying.id}`, carrying.recipeId);
+    else if (task?.kind === 'menu') this.setWaiterHand('menu', null);
+    else if (task?.kind === 'takeOrder') this.setWaiterHand('note', null);
+    else this.setWaiterHand('', null);
+    animatePerson(w.g, env.t, { walk: moving ? 1 : 0, carry: !!carrying });
+    (w.ring.material as THREE.MeshBasicMaterial).opacity = 1;
+    w.ring.scale.setScalar(1 + Math.sin(env.t * 4) * 0.06);
   }
 
   // ---------- Sắp xếp bàn ----------
@@ -336,9 +562,17 @@ export class RestaurantArea implements Area {
       if (!chef) return;
       const order = orders.find((o) => o.id === s.orderId);
       chef.icon.visible = chef.bar.group.visible = !!order;
-      chef.g.position.y = order ? Math.abs(Math.sin(env.t * 9 + i)) * 0.05 : 0;
-      chef.g.rotation.y = order ? Math.sin(env.t * 4 + i) * 0.25 : 0;
+      chef.g.position.y = order ? Math.abs(Math.sin(env.t * 9 + i)) * 0.03 : 0;
+      chef.g.rotation.y = order ? Math.sin(env.t * 2 + i) * 0.15 : 0;
+      // Đang nấu thì đảo chảo; rảnh thì thỉnh thoảng vẫy tay chào khách
+      const idleWave = Math.max(0, Math.min(1, (Math.sin(env.t * 0.4 + i * 2.5) - 0.88) * 9));
+      animatePerson(chef.g, env.t, { cook: order ? 1 : 0, wave: order ? 0 : idleWave });
       if (!order) return;
+      // Khói bếp bốc lên từ chảo khi đang nấu
+      if ((chef.smoke -= dt) <= 0) {
+        chef.smoke = 0.35 + Math.random() * 0.2;
+        this.fx.burst('☁️', new THREE.Vector3(chef.g.position.x + (Math.random() - 0.5) * 0.4, 1.5, this.backZ + 0.6), { count: 1, up: 0.5, spread: 0.12, gravity: -0.6, life: 1.5, size: 0.32 });
+      }
       const recipe = content.recipes.get(order.recipeId);
       if (chef.iconFor !== recipe.icon) {
         chef.g.remove(chef.icon);
@@ -369,11 +603,14 @@ export class RestaurantArea implements Area {
         let actor = this.actors.get(key);
         if (!actor) {
           const g = makePerson(LOOKS[party.looks[i] % LOOKS.length]);
+          g.userData.pick = { type: 'party', id: String(party.id) } satisfies Pick;
           const [sx, sz] = this.firstFrame ? [tx, tz] : this.door;
           g.position.set(sx, 0, sz);
           this.root.add(g);
-          this.actors.set(key, (actor = { g, tx, tz, face: 0, restY: 0, leaving: false }));
+          this.actors.set(key, (actor = { g, tx, tz, face: 0, restY: 0, leaving: false, seated: false, eating: false }));
         }
+        actor.seated = !!spot;
+        actor.eating = party.phase === 'eating';
         actor.tx = tx;
         actor.tz = tz;
         actor.face = spot ? Math.atan2(this.wx(spot.dishX) - tx, this.wz(spot.dishY) - tz) : Math.PI;
@@ -383,18 +620,22 @@ export class RestaurantArea implements Area {
       }
       if (!spots) queueX += party.size * 0.55 + 0.35;
 
-      // Biểu tượng gọi món + thanh kiên nhẫn
+      // Bong bóng chat (việc người chơi cần làm / tâm trạng / món đã gọi) + thanh kiên nhẫn
       let fx = this.partyFx.get(party.id);
       if (!fx) {
-        fx = { bar: new Bar3D(0.9), book: emojiSprite('📖', 0.5) };
-        this.root.add(fx.bar.group, fx.book);
+        const holder = group(this.root);
+        holder.userData.pick = { type: 'party', id: String(party.id) } satisfies Pick;
+        fx = { bar: new Bar3D(0.9), main: null, mainKey: '', dishes: null, dishesKey: '', holder };
+        this.root.add(fx.bar.group);
         this.partyFx.set(party.id, fx);
       }
-      fx.bar.group.position.set(cx, 1.95, cz);
-      fx.book.position.set(cx, 2.05, cz);
-      fx.book.visible = party.phase === 'ordering';
-      fx.bar.group.visible = party.phase === 'queue' || party.phase === 'waitingFood';
-      fx.bar.set(party.patience / party.patienceMax, true);
+      this.updateBubbles(fx, party, env);
+      fx.holder.position.set(cx, 1.75, cz);
+      const patience = party.patience / party.patienceMax;
+      fx.bar.group.position.set(cx, 1.62, cz);
+      fx.bar.group.visible =
+        party.phase === 'queue' || ((party.phase === 'seated' || party.phase === 'readyToOrder') && !party.called) || (party.phase === 'waitingFood' && patience < 0.35);
+      fx.bar.set(patience, true);
 
       // Đĩa thức ăn
       if (table && spots) {
@@ -409,11 +650,31 @@ export class RestaurantArea implements Area {
             const sprite = emojiSprite(content.recipes.get(order.recipeId).icon, 0.42);
             sprite.position.y = 0.26;
             g.add(sprite);
-            this.dishes.set(id, (dish = { g, sprite }));
+            // Món có model 3D thì bày lên đĩa khi ra món; emoji chỉ còn làm bong bóng "đang chờ món"
+            const food = makeDish(order.recipeId);
+            if (food) {
+              food.position.y = 0.02;
+              food.visible = false;
+              g.add(food);
+            }
+            this.dishes.set(id, (dish = { g, sprite, food, servedAt: -1 }));
           }
           const served = order.status === 'served';
-          dish.sprite.material.opacity = served ? 1 : 0.3;
-          dish.sprite.position.y = served ? 0.24 : 0.3 + Math.sin(env.t * 3 + id) * 0.03;
+          if (served && dish.servedAt < 0) dish.servedAt = env.t;
+          dish.g.visible = served;
+          dish.g.position.set(this.wx(spot.dishX), (table.shared ? COUNTER_TOP : TABLE_TOP) + 0.02, this.wz(spot.dishY));
+          dish.sprite.position.y = 0.24;
+          // Món vừa ra: đĩa nảy lên rồi đáp xuống, đĩa dẹt-giãn một nhịp
+          const since = served ? env.t - dish.servedAt : 99;
+          const pop = served && since < 0.5 ? easeOutBack(since / 0.4, 3) : 1;
+          dish.sprite.scale.setScalar(0.42 * pop);
+          if (dish.food) {
+            dish.food.visible = served;
+            dish.sprite.visible = !served;
+            dish.food.scale.setScalar(1.1 * Math.max(0.001, pop));
+          }
+          const squash = wobble(since, 0.4);
+          dish.g.scale.set(1 + 0.15 * squash, 1 - 0.3 * squash, 1 + 0.15 * squash);
         });
       }
     }
@@ -427,9 +688,12 @@ export class RestaurantArea implements Area {
     }
     for (const [id, fx] of this.partyFx) {
       if (seenParties.has(id)) continue;
-      this.root.remove(fx.bar.group, fx.book);
+      this.root.remove(fx.bar.group, fx.holder);
       this.partyFx.delete(id);
     }
+
+    this.updatePass(env);
+    this.updateWaiter(env, dt);
 
     // Di chuyển khách
     const step = WALK_SPEED * dt * Math.max(1, speed);
@@ -448,13 +712,18 @@ export class RestaurantArea implements Area {
         }
         pos.set(actor.tx, actor.restY, actor.tz);
         actor.g.rotation.y = actor.face;
+        const sit = actor.seated && !actor.leaving;
+        animatePerson(actor.g, env.t, { sit, eat: sit && actor.eating });
       } else {
         pos.x += (dx / dist) * step;
         pos.z += (dz / dist) * step;
         pos.y = Math.abs(Math.sin(env.t * 11 + pos.x)) * 0.07;
         actor.g.rotation.y = Math.atan2(dx, dz);
+        animatePerson(actor.g, env.t, { walk: 1 });
       }
     }
+
+    this.fx.update(dt);
 
     // Chữ nổi
     for (const f of this.floats) {

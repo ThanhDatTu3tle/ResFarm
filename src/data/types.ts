@@ -140,6 +140,10 @@ export interface RoomDef {
   kitchenDepth: number;
   /** Vùng được phép đặt bàn. */
   dining: { x1: number; y1: number; x2: number; y2: number };
+  /** Quầy ra món (bếp nấu xong đặt món ở đây, bồi bàn tới lấy). */
+  pass: { x: number; y: number };
+  /** Chỗ bồi bàn đứng chờ khi rảnh. */
+  waiterHome: { x: number; y: number };
 }
 
 export type DecorSlot = 'floor' | 'wall' | 'furniture';
@@ -194,13 +198,27 @@ export interface Balance {
   /** Trọng số cỡ nhóm khách, chỉ số mảng = số người. */
   partySizeWeights: number[];
   queuePatience: number;
-  orderTime: number;
   foodPatience: number;
   foodPatiencePerGuest: number;
   eatTime: number;
   tipRate: number;
   xpPerCoin: number;
   reputation: { paid: number; paidBonus: number; timeout: number; noFood: number };
+  /** Khâu phục vụ (người chơi đóng vai bồi bàn). */
+  service: {
+    /** Tốc độ đi của bồi bàn: đơn vị mặt bằng (55 = 1 mét) mỗi phút game. */
+    waiterSpeed: number;
+    /** Khách xem menu mất bao lâu [min, max] (phút game). */
+    browseTime: [number, number];
+    /** Khách chờ được mang menu tới bao lâu thì bỏ về. */
+    menuPatience: number;
+    /** Khách chờ được tới ghi món bao lâu thì bỏ về. */
+    orderPatience: number;
+    /** Món đã ra quầy mà chưa mang tới: cứ chừng này phút khách tụt một bậc tâm trạng; quá bậc cuối thì bỏ về. */
+    moodStep: number;
+    /** Hệ số tip theo tâm trạng: vui vẻ, bình thường, chán nản, tức giận. */
+    moodTip: [number, number, number, number];
+  };
   farm: {
     /** Một lần tưới (hoặc một cơn mưa) giữ ẩm đất bao nhiêu phút. */
     waterDuration: number;

@@ -7,7 +7,18 @@ import type { LeaveReason, SimContext, System } from '../types';
 /** Số kiểu ngoại hình khách mà scene biết vẽ. */
 export const LOOK_COUNT = 8;
 
-/** Vòng đời khách: tới -> xếp hàng -> ngồi bàn -> gọi món -> chờ món -> ăn -> trả tiền / bỏ về. */
+/** Bốn bậc tâm trạng khi chờ món: 0 vui vẻ, 1 bình thường, 2 chán nản, 3 tức giận. */
+export type Mood = 0 | 1 | 2 | 3;
+
+/** Tâm trạng hiện tại của nhóm (chỉ tụt khi món đã ra quầy mà người chơi chưa mang tới). */
+export function moodOf(ctx: SimContext, party: Party): Mood {
+  return Math.min(3, Math.floor(party.wait / ctx.content.balance.service.moodStep)) as Mood;
+}
+
+/**
+ * Vòng đời khách: tới -> xếp hàng -> ngồi bàn (chờ menu) -> xem menu -> chờ ghi món -> chờ món -> ăn -> trả tiền.
+ * Mang menu, ghi món, bưng món là việc của bồi bàn (người chơi) — xem systems/service.ts.
+ */
 export const customerSystem: System = {
   id: 'customers',
   update(ctx, dt) {
@@ -31,28 +42,52 @@ export const customerSystem: System = {
           if (spot) {
             p.tableId = spot.tableId;
             p.seats = spot.seats;
-            p.phase = 'ordering';
-            p.timer = b.orderTime;
+            p.phase = 'seated';
+            p.called = false;
+            p.patience = p.patienceMax = b.service.menuPatience * modifier(ctx, 'patience');
             ctx.bus.emit('party/seated', { partyId: p.id, tableId: spot.tableId });
+            ctx.bus.emit('party/needs', { partyId: p.id, need: 'menu' });
           } else {
             p.patience -= dt;
             if (p.patience <= 0) leave(ctx, p, 'queueTimeout');
           }
           break;
         }
-        case 'ordering':
+        case 'seated':
+        case 'readyToOrder':
+          // Bồi bàn đang tới thì khách chờ được, không mất kiên nhẫn
+          if (!p.called) {
+            p.patience -= dt;
+            if (p.patience <= 0) leave(ctx, p, 'serviceTimeout');
+          }
+          break;
+        case 'browsing':
           p.timer -= dt;
-          if (p.timer <= 0) placeOrders(ctx, p);
+          if (p.timer <= 0) {
+            p.phase = 'readyToOrder';
+            p.called = false;
+            p.patience = p.patienceMax = b.service.orderPatience * modifier(ctx, 'patience');
+            ctx.bus.emit('party/needs', { partyId: p.id, need: 'order' });
+          }
           break;
         case 'waitingFood': {
-          const allServed = p.orderIds.every((id) => r.orders.find((o) => o.id === id)?.status === 'served');
-          if (allServed) {
+          const mine = r.orders.filter((o) => o.partyId === p.id);
+          if (mine.length && mine.every((o) => o.status === 'served')) {
             p.phase = 'eating';
             p.timer = b.eatTime;
-          } else {
-            p.patience -= dt;
-            if (p.patience <= 0) leave(ctx, p, 'foodTimeout');
+            break;
           }
+          // Tâm trạng chỉ tụt khi có món đã nấu xong mà chưa mang tới (việc của người chơi)
+          if (mine.some((o) => o.status === 'ready' || o.status === 'carrying')) {
+            p.wait += dt;
+            if (p.wait >= b.service.moodStep * 4) {
+              leave(ctx, p, 'foodTimeout');
+              break;
+            }
+          }
+          // Bếp quá tải: chờ quá lâu cũng bỏ về
+          p.patience -= dt;
+          if (p.patience <= 0) leave(ctx, p, 'foodTimeout');
           break;
         }
         case 'eating':
@@ -111,13 +146,26 @@ function spawnParty(ctx: SimContext): void {
     timer: 0,
     orderIds: [],
     looks: Array.from({ length: size }, () => randInt(state.rng, 0, LOOK_COUNT - 1)),
+    called: false,
+    wait: 0,
   };
   state.restaurant.parties.push(party);
   ctx.bus.emit('party/arrived', { partyId: party.id });
 }
 
-/** Mỗi khách gọi 1 món trong số món đang bán VÀ còn đủ nguyên liệu; nguyên liệu bị trừ ngay khi gọi. */
-function placeOrders(ctx: SimContext, party: Party): void {
+/** Khách nhận menu: xem trong 3–7 giây thực rồi mới chọn xong. */
+export function startBrowsing(ctx: SimContext, party: Party): void {
+  const [min, max] = ctx.content.balance.service.browseTime;
+  party.phase = 'browsing';
+  party.called = false;
+  party.timer = randRange(ctx.state.rng, min, max);
+}
+
+/**
+ * Bồi bàn ghi món: mỗi khách gọi 1 món trong số món đang bán VÀ còn đủ nguyên liệu; nguyên liệu bị trừ ngay.
+ * Không còn món nào nấu được thì cả nhóm bỏ về.
+ */
+export function placeOrders(ctx: SimContext, party: Party): void {
   const { state, content } = ctx;
   for (let i = 0; i < party.size; i++) {
     const options = state.menu.active.map((id) => content.recipes.get(id)).filter((r) => hasAll(ctx, r.ingredients));
@@ -135,6 +183,8 @@ function placeOrders(ctx: SimContext, party: Party): void {
   }
   const patience = (content.balance.foodPatience + content.balance.foodPatiencePerGuest * party.size) * modifier(ctx, 'patience');
   party.phase = 'waitingFood';
+  party.called = false;
+  party.wait = 0;
   party.patience = party.patienceMax = patience;
 }
 
@@ -147,7 +197,8 @@ function pay(ctx: SimContext, party: Party): void {
     const order = state.restaurant.orders.find((o) => o.id === id);
     if (order) total += Math.round(content.recipes.get(order.recipeId).price * priceMul);
   }
-  const satisfaction = Math.max(0, Math.min(1, party.patience / party.patienceMax));
+  // Hài lòng theo tâm trạng lúc được phục vụ xong (vui vẻ = tip đủ, tức giận = không tip)
+  const satisfaction = b.service.moodTip[moodOf(ctx, party)];
   const tip = Math.round(total * b.tipRate * satisfaction * modifier(ctx, 'tip'));
   earn(ctx, total + tip);
   state.stats.today.tips += tip;
@@ -163,6 +214,10 @@ function leave(ctx: SimContext, party: Party, reason: LeaveReason, total = 0, ti
   const r = state.restaurant;
   r.orders = r.orders.filter((o) => o.partyId !== party.id);
   for (const s of r.staff) if (s.orderId != null && party.orderIds.includes(s.orderId)) s.orderId = null;
+  // Bồi bàn bỏ các việc của nhóm này; món đang bưng của họ thì coi như đổ đi
+  const w = r.waiter;
+  w.tasks = w.tasks.filter((t) => t.partyId !== party.id);
+  if (w.carrying != null && party.orderIds.includes(w.carrying)) w.carrying = null;
   r.parties = r.parties.filter((p) => p.id !== party.id);
 
   const key = reason === 'paid' ? 'guestsServed' : 'guestsLost';

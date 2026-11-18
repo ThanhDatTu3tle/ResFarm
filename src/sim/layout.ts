@@ -82,3 +82,17 @@ export function canPlaceTable(ctx: SimContext, tableId: string, x: number, y: nu
   }
   return null;
 }
+
+/**
+ * Chỗ bồi bàn đứng khi phục vụ một nhóm khách: quầy đơn thì đứng sau lưng khách,
+ * bàn đôi (ghế hai bên) thì đứng phía trước bàn, bàn khác thì đứng ở đầu bàn bên phải.
+ */
+export function serviceSpot(t: TableDef, at: Point, seats: number[]): Point {
+  if (t.shared) {
+    const spots = seatSpots(t, at);
+    const xs = seats.map((i) => spots[i]?.x ?? at.x);
+    return { x: xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length), y: at.y + t.h / 2 + 60 };
+  }
+  if (t.seats === 2) return { x: at.x, y: at.y + t.h / 2 + 24 };
+  return { x: at.x + t.w / 2 + 24, y: at.y };
+}

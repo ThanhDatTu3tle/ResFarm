@@ -41,7 +41,11 @@ export interface ClockState {
   phase: DayPhase;
 }
 
-export type PartyPhase = 'queue' | 'ordering' | 'waitingFood' | 'eating';
+/**
+ * queue: xếp hàng chờ bàn · seated: đã ngồi, chờ bồi bàn mang menu · browsing: đang xem menu
+ * · readyToOrder: chọn xong, chờ bồi bàn tới ghi món · waitingFood: chờ món · eating: đang ăn.
+ */
+export type PartyPhase = 'queue' | 'seated' | 'browsing' | 'readyToOrder' | 'waitingFood' | 'eating';
 
 /** Một nhóm khách. */
 export interface Party {
@@ -59,9 +63,14 @@ export interface Party {
   orderIds: number[];
   /** Ngoại hình từng khách (chỉ để vẽ). */
   looks: number[];
+  /** Bồi bàn đã nhận việc cho nhóm này (đang trên đường mang menu / tới ghi món). */
+  called: boolean;
+  /** Phút món của nhóm đã nằm ở quầy ra món mà chưa được mang tới — quyết định tâm trạng. */
+  wait: number;
 }
 
-export type OrderStatus = 'queued' | 'cooking' | 'served';
+/** queued: chờ bếp · cooking: đang nấu · ready: nằm ở quầy ra món · carrying: bồi bàn đang bưng · served: đã lên bàn. */
+export type OrderStatus = 'queued' | 'cooking' | 'ready' | 'carrying' | 'served';
 
 export interface Order {
   id: number;
@@ -78,6 +87,18 @@ export interface StaffState {
   orderId: number | null;
 }
 
+/** Việc của bồi bàn, làm lần lượt theo thứ tự người chơi giao. */
+export type WaiterTask = { kind: 'menu'; partyId: number } | { kind: 'takeOrder'; partyId: number } | { kind: 'deliver'; orderId: number; partyId: number };
+
+export interface WaiterState {
+  /** Vị trí theo toạ độ mặt bằng. */
+  x: number;
+  y: number;
+  tasks: WaiterTask[];
+  /** Món đang bưng trên tay (id đơn), null = tay không. */
+  carrying: number | null;
+}
+
 export interface RestaurantState {
   parties: Party[];
   orders: Order[];
@@ -86,6 +107,8 @@ export interface RestaurantState {
   spawnTimer: number;
   /** Vị trí bàn người chơi đã dời (tableId -> tâm bàn). Bàn không có ở đây thì ở vị trí mặc định. */
   layout: Record<string, { x: number; y: number }>;
+  /** Bồi bàn — do người chơi điều khiển bằng cách bấm vào khách / quầy ra món. */
+  waiter: WaiterState;
 }
 
 export interface FarmSlot {
@@ -114,7 +137,7 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 export function emptyStats(): DayStats {
   return { revenue: 0, tips: 0, spent: 0, dishes: 0, guestsServed: 0, guestsLost: 0 };
@@ -156,6 +179,7 @@ export function createInitialState(content: Content, seed: number): GameState {
       staff: content.staff.all().map((s) => ({ id: s.id, orderId: null })),
       spawnTimer: 10,
       layout: {},
+      waiter: { ...content.room.waiterHome, tasks: [], carrying: null },
     },
     farm: {
       slots: content.slotTypes.all().flatMap((t) => Array.from({ length: t.initial }, (_, i) => createSlot(t.id, i))),
