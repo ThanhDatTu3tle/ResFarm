@@ -4,6 +4,14 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 20/11/2026 (laptop) — Giai đoạn 10: sửa bên trong Tiệm 25caaaaa
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-10` (tách từ `giai-doan-9` vì `main` chưa gộp giai đoạn 9). **Kết quả:** typecheck sạch, 91 test qua; đã xem trên localhost lúc 21:35 (`?seed=1&ff=935&stall=snack`): tiệm sáng đèn, hai người trong đội ngồi hai bên bàn, ly matcha trên mặt bàn.
+
+1. `areas/stall.ts`: `addLamps` (đèn thả trần + PointLight theo `env.night`), ghế lưu kèm tâm bàn (`seats[].table`) để đặt đĩa món trên bàn, ghế hai bên bàn, thứ tự bàn, tường bên dài 9.05 m.
+
+---
+
 ## 20/11/2026 (laptop) — Giai đoạn 9: bưng món theo màu bàn
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-9`. **Kết quả:** typecheck sạch, 91 test qua (thêm 3 test); đã xem trên localhost (`?ff=150&ffserve&pickup`): bàn chờ món có bong bóng nền màu, bồi bàn cầm 2 món cùng màu, thanh "Đang cầm" phía dưới. **Chưa thử bằng tay:** bấm quầy / bấm bàn.
