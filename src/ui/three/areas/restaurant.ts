@@ -13,6 +13,7 @@ import { HOLD_MS, type Area, type Env, type Pick } from '../stage';
 import { Bar3D, bubbleSprite, emojiSprite, G, group, mesh, textSprite, toon, paintSeason } from '../toon';
 import { easeOutBack, wobble } from '../../ease';
 import { Particles } from '../fx';
+import { FestiveSet } from '../festive';
 
 /**
  * KHU QUÁN — nội thất quán ăn tông ấm, nhìn kiểu "cắt mái".
@@ -192,6 +193,19 @@ export class RestaurantArea implements Area {
 
     this.label = game.content.cuisines.get(game.state.cuisine).name;
     this.buildRoom();
+    // Trang trí lễ hội: dây treo dọc hai tường bên, đồ đứng hai bên cửa (chỉ hiện vào ngày lễ)
+    {
+      const { halfW, backZ, frontZ } = this;
+      const x = halfW - 0.3;
+      this.festive = new FestiveSet(
+        this.root,
+        [
+          [[-x, 3.5, backZ + 0.8], [-x, 3.5, frontZ - 0.3]],
+          [[x, 3.5, backZ + 0.8], [x, 3.5, frontZ - 0.3]],
+        ],
+        [[-2.2, 0, frontZ + 0.55], [2.2, 0, frontZ + 0.55]],
+      );
+    }
     this.buildKitchen();
     this.interior = decorateInterior(game.state.cuisine, this.root, { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, kitchenZ: this.kitchenZ, kitchenX1: this.kitchenX1, wallH: WALL_H });
 
@@ -946,8 +960,10 @@ export class RestaurantArea implements Area {
   // ---------- Đồng bộ với state mỗi khung hình ----------
 
   private paintedSeason = -1;
+  private festive: FestiveSet | null = null;
 
   update(env: Env, dt: number, speed: number): void {
+    this.festive?.update(this.game, env.t, env.wind);
     // Chỉ đổi nền cỏ ngoài quán (chậu cây trong nhà giữ xanh)
     if (this.paintedSeason !== env.season) {
       this.paintedSeason = env.season;

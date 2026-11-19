@@ -14,7 +14,7 @@ import { priceOf } from '../sim/systems/market';
 import { stockOf } from '../sim/helpers';
 import { clockText, coins } from './format';
 import { panels, type UiState } from './panels';
-import { isSeasonEnd, isYearEnd } from '../sim/calendar';
+import { festivalOf, isSeasonEnd, isYearEnd, nextFestival, seasonPriceFactor } from '../sim/calendar';
 import type { DayStats } from '../sim/state';
 
 /**
@@ -123,6 +123,7 @@ export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
           <span class="time">${time}</span>
           ${tag}${speed}
         </div>
+        ${festivalTag(game)}
         ${endDay}
         ${state.crew.pending.length ? `<button class="meal-call"${uiAttr('meal')}>🍜 Gọi món cho đội (${state.crew.pending.length})</button>` : ''}
       </div>
@@ -454,11 +455,30 @@ export function buyHtml(game: Game, ui: UiState): string {
   const item = content.items.get(ui.buyItem);
   const price = priceOf(ctx, stallId, item.id);
   const factor = state.market.priceFactor[item.id] ?? 1;
-  const trend = factor > 1.08 ? '<span class="bad-text">▲ hôm nay đắt</span>' : factor < 0.92 ? '<span class="good-text">▼ hôm nay rẻ</span>' : '';
+  const sf = seasonPriceFactor(ctx, item.id);
+  const trend = [
+    sf < 1 ? '<span class="good-text">đúng mùa</span>' : sf > 1 ? '<span class="bad-text">trái mùa</span>' : '',
+    factor > 1.08 ? '<span class="bad-text">▲ hôm nay đắt</span>' : factor < 0.92 ? '<span class="good-text">▼ hôm nay rẻ</span>' : '',
+  ].filter(Boolean).join(' · ');
   const btns = [1, 5, 10].map((n) => `<button${cmd({ type: 'market/buy', stallId, itemId: item.id, qty: n })}${state.money >= price * n ? '' : ' disabled'}>Mua ${n} · ${coins(price * n)}</button>`).join('');
   return `<div class="service-card buy-card" data-key="buy-${item.id}">
     <div class="service-head"><b><span class="dish-icon">${item.icon}</span> ${esc(item.name)}</b><button class="x-close"${uiAttr('buy:close')} aria-label="Đóng">✕</button></div>
     <div class="muted">${coins(price)} / 1 ${trend} · trong kho: ${stockOf(ctx, item.id)}</div>
     <div class="btns">${btns}</div>
   </div>`;
+}
+
+/** Dải lễ hội dưới đồng hồ: hôm nay là lễ gì (di chuột / giữ để xem hiệu ứng), hoặc lễ sắp tới trong 3 ngày. */
+function festivalTag(game: Game): string {
+  const day = game.state.clock.day;
+  const today = festivalOf(day);
+  if (today) return `<div class="festival-tag today" title="${esc(today.desc)}">${today.icon} ${esc(today.name)}</div>`;
+  const next = nextFestival(day + 1, 2);
+  return next ? `<div class="festival-tag" title="${esc(next.def.desc)}">${next.def.icon} ${next.inDays === 0 ? 'Mai' : `${next.inDays + 1} ngày nữa`}: ${esc(next.def.name)}</div>` : '';
+}
+
+/** Màn hết ngày: báo trước lễ ngày mai. */
+export function tomorrowFestivalHtml(game: Game): string {
+  const f = festivalOf(game.state.clock.day + 1);
+  return f ? `<div class="festival-next"><b>${f.icon} Ngày mai: ${esc(f.name)}</b><span>${esc(f.desc)} Nhớ đi chợ mua đủ nguyên liệu!</span></div>` : '';
 }

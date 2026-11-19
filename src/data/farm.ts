@@ -46,13 +46,13 @@ export const mills: MillTypeDef[] = [
 /** Thêm cây/con mới: thêm 1 mục ở đây (xem ProducerDef trong types.ts). */
 export const producers: ProducerDef[] = [
   // Cây trồng — thu 1 lần
-  { id: 'cabbage', name: 'Rau cải', icon: '🥬', slot: 'field', alsoIn: ['gplot'], cost: 2, growTime: 180, yields: [{ item: 'cabbage', qty: 3 }], cycles: 1, level: 1 },
-  { id: 'tomato', name: 'Cà chua', icon: '🍅', slot: 'field', alsoIn: ['gplot'], cost: 3, growTime: 240, yields: [{ item: 'tomato', qty: 4 }], cycles: 1, level: 1 },
-  { id: 'onion', name: 'Hành tây', icon: '🧅', slot: 'field', alsoIn: ['gplot'], cost: 2, growTime: 200, yields: [{ item: 'onion', qty: 4 }], cycles: 1, level: 1 },
-  { id: 'carrot', name: 'Cà rốt', icon: '🥕', slot: 'field', alsoIn: ['gplot'], cost: 3, growTime: 260, yields: [{ item: 'carrot', qty: 4 }], cycles: 1, level: 2 },
-  { id: 'potato', name: 'Khoai tây', icon: '🥔', slot: 'field', alsoIn: ['gplot'], cost: 3, growTime: 300, yields: [{ item: 'potato', qty: 5 }], cycles: 1, level: 3 },
-  { id: 'cucumber', name: 'Dưa leo', icon: '🥒', slot: 'field', alsoIn: ['gplot'], cost: 2, growTime: 210, yields: [{ item: 'cucumber', qty: 4 }], cycles: 1, level: 1 },
-  { id: 'chili', name: 'Ớt', icon: '🌶️', slot: 'field', alsoIn: ['gplot'], cost: 2, growTime: 220, yields: [{ item: 'chili', qty: 4 }], cycles: 1, level: 3 },
+  { id: 'cabbage', name: 'Rau cải', icon: '🥬', slot: 'field', seasons: [0, 2], alsoIn: ['gplot'], cost: 2, growTime: 180, yields: [{ item: 'cabbage', qty: 3 }], cycles: 1, level: 1 },
+  { id: 'tomato', name: 'Cà chua', icon: '🍅', slot: 'field', seasons: [0, 1], alsoIn: ['gplot'], cost: 3, growTime: 240, yields: [{ item: 'tomato', qty: 4 }], cycles: 1, level: 1 },
+  { id: 'onion', name: 'Hành tây', icon: '🧅', slot: 'field', seasons: [0, 1, 2], alsoIn: ['gplot'], cost: 2, growTime: 200, yields: [{ item: 'onion', qty: 4 }], cycles: 1, level: 1 },
+  { id: 'carrot', name: 'Cà rốt', icon: '🥕', slot: 'field', seasons: [0, 2], alsoIn: ['gplot'], cost: 3, growTime: 260, yields: [{ item: 'carrot', qty: 4 }], cycles: 1, level: 2 },
+  { id: 'potato', name: 'Khoai tây', icon: '🥔', slot: 'field', seasons: [1, 2], alsoIn: ['gplot'], cost: 3, growTime: 300, yields: [{ item: 'potato', qty: 5 }], cycles: 1, level: 3 },
+  { id: 'cucumber', name: 'Dưa leo', icon: '🥒', slot: 'field', seasons: [0, 1], alsoIn: ['gplot'], cost: 2, growTime: 210, yields: [{ item: 'cucumber', qty: 4 }], cycles: 1, level: 1 },
+  { id: 'chili', name: 'Ớt', icon: '🌶️', slot: 'field', seasons: [1, 2], alsoIn: ['gplot'], cost: 2, growTime: 220, yields: [{ item: 'chili', qty: 4 }], cycles: 1, level: 3 },
 
   // Vật nuôi cho sản phẩm định kỳ
   { id: 'hen', name: 'Gà mái đẻ', icon: '🐔', slot: 'pen', cost: 60, growTime: 240, yields: [{ item: 'egg', qty: 3 }], cycles: 'infinite', regrowTime: 150, level: 1 },
@@ -69,8 +69,8 @@ export const producers: ProducerDef[] = [
   { id: 'apple_tree', name: 'Cây táo', icon: '🍎', slot: 'orchard', cost: 60, growTime: 480, yields: [{ item: 'apple', qty: 6 }], cycles: 'infinite', regrowTime: 300, level: 1 },
   { id: 'mango_tree', name: 'Cây xoài', icon: '🥭', slot: 'orchard', cost: 90, growTime: 540, yields: [{ item: 'mango', qty: 5 }], cycles: 'infinite', regrowTime: 320, level: 2 },
   { id: 'banana_tree', name: 'Cây chuối', icon: '🍌', slot: 'orchard', cost: 70, growTime: 420, yields: [{ item: 'banana', qty: 8 }], cycles: 'infinite', regrowTime: 260, level: 2 },
-  { id: 'wheat', name: 'Lúa mì', icon: '🌾', slot: 'wheat', cost: 6, growTime: 420, yields: [{ item: 'wheat', qty: 8 }], cycles: 1, level: 1 },
-  { id: 'rice_crop', name: 'Lúa nước', icon: '🌾', slot: 'paddy', cost: 6, growTime: 480, yields: [{ item: 'paddy_rice', qty: 9 }], cycles: 1, level: 2 },
+  { id: 'wheat', name: 'Lúa mì', icon: '🌾', slot: 'wheat', seasons: [0, 2], cost: 6, growTime: 420, yields: [{ item: 'wheat', qty: 8 }], cycles: 1, level: 1 },
+  { id: 'rice_crop', name: 'Lúa nước', icon: '🌾', slot: 'paddy', seasons: [1, 2], cost: 6, growTime: 480, yields: [{ item: 'paddy_rice', qty: 9 }], cycles: 1, level: 2 },
 
   // Ao
   { id: 'fish_fry', name: 'Cá giống', icon: '🐟', slot: 'pond', cost: 20, growTime: 600, yields: [{ item: 'fish', qty: 5 }], cycles: 1, level: 1 },

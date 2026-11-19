@@ -1,4 +1,5 @@
 import { randRange } from '../../core/rng';
+import { seasonPriceFactor } from '../calendar';
 import { addItem, spend } from '../helpers';
 import { fail, ok, type SimContext, type System } from '../types';
 
@@ -22,7 +23,7 @@ export const marketSystem: System = {
 /** Giá 1 đơn vị hôm nay tại sạp. */
 export function priceOf(ctx: SimContext, stallId: string, itemId: string): number {
   const base = ctx.content.items.get(itemId).basePrice * ctx.content.stalls.get(stallId).markup;
-  return Math.max(1, Math.round(base * (ctx.state.market.priceFactor[itemId] ?? 1)));
+  return Math.max(1, Math.round(base * (ctx.state.market.priceFactor[itemId] ?? 1) * seasonPriceFactor(ctx, itemId)));
 }
 
 function rollPrices(ctx: SimContext): void {

@@ -153,6 +153,12 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** món dùng trái cây (Đĩa trái cây, Chè chuối, Sandwich trái cây, Trà trái cây hwachae); hàng rong mới bán nguyên liệu có sẵn với giá cao hơn 10%; nhóm 5–6 người chỉ tới khi có bàn đủ chỗ; khay 2 ô dành cho bàn đôi / quầy, 4 ô cho bàn từ 3 ghế; mỗi ca để lại 3 vết bẩn, vết cũ bẩn thêm, mỗi bậc bẩn làm khách kém kiên nhẫn 1.5% (tối đa −20%).
 
+### Giai đoạn 6 — Mùa vụ và lễ hội (19/11/2026)
+
+- Chủ dự án chọn hướng "mùa vụ + lễ hội" cho giai đoạn 6. Bỏ Tết Đoan Ngọ, giữ 5 lễ.
+
+**AI tự chọn (đổi được):** mùa của từng giống (rau cải Xuân/Thu, cà chua Xuân/Hạ, hành tây Xuân/Hạ/Thu, cà rốt Xuân/Thu, khoai tây Hạ/Thu, dưa leo Xuân/Hạ, ớt Hạ/Thu, lúa mì Xuân/Thu, lúa nước Hạ/Thu); cây ăn quả, vật nuôi, cá quanh năm (chỉ nghỉ Đông); cây trái mùa héo kiểu Stardew (cây chín thì giữ); giá chợ ×0.85 / ×1.3, món hợp mùa +20% (Xuân tươi mát, Hạ món lạnh / trái cây, Thu nướng / om, Đông món nước nóng); 5 lễ hội và hiệu ứng (bảng trong Sổ tay); năm đầu không ăn Tết ngày khai trương; bão dập 35% ô ngoài trời mất nửa tiến độ.
+
 ### Đợt 18 — HUD gọn lại, bốn mùa (19/11/2026)
 
 - Thẻ nhiệm vụ nằm cạnh tiền và sao. Đồng xu luôn màu vàng.

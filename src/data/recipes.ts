@@ -84,3 +84,26 @@ export const recipes: RecipeDef[] = [
   dish('kr', 'pajeon', 'Bánh xèo hải sản pajeon', '🥞', 'flour squid shrimp egg', 30, 80, 5, 900),
   dish('kr', 'galbijjim', 'Sườn bò om galbi-jjim', '🍖', 'beef:2 carrot potato soy_sauce', 40, 98, 5, 1100),
 ];
+
+/**
+ * Món hợp mùa (0 Xuân, 1 Hạ, 2 Thu, 3 Đông): đúng mùa bán đắt hơn (`balance.seasons.dishBonus`).
+ * Xuân món tươi mát, Hạ món lạnh / trái cây, Thu món nướng / om, Đông món nước nóng.
+ */
+const SEASONAL: Record<string, number[]> = {
+  // Quán Việt
+  banh_mi: [0], stir_cabbage: [0], com_tam: [0],
+  che_chuoi: [1], fruit_plate: [1], flan: [1],
+  braised_pork: [2], chicken_curry: [2], shaking_beef: [2],
+  pho: [3], bun_bo: [3], hu_tieu: [3], tomato_soup: [3],
+  // Quán Nhật
+  onigiri: [0], maki: [0], sushi_salmon: [0],
+  fruit_sando: [1], sashimi: [1], takoyaki: [1],
+  teriyaki: [2], gyudon: [2], katsudon: [2],
+  ramen: [3], udon: [3], miso_soup: [3],
+  // Quán Hàn
+  kimbap: [0], bibimbap: [0], pajeon: [0],
+  hwachae: [1], kr_fried_chicken: [1],
+  samgyeopsal: [2], bulgogi: [2], galbijjim: [2],
+  kimchi_stew: [3], sundubu: [3], ramyeon: [3],
+};
+for (const r of recipes) if (SEASONAL[r.id]) r.seasons = SEASONAL[r.id];

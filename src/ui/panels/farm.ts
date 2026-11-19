@@ -3,7 +3,7 @@ import type { Game } from '../../sim/game';
 import type { FarmSlot } from '../../sim/state';
 import { cycleTime, needsWatering, nextTier, slotPrice, slotsOfType, yieldsOf } from '../../sim/systems/farm';
 import { isAutoSlot, queuedKinds } from '../../sim/systems/farmer';
-import { isFrozen, seasonOf } from '../../sim/calendar';
+import { canPlantNow, isFrozen, seasonNames, seasonOf } from '../../sim/calendar';
 import { millPrice, millsOfType } from '../../sim/systems/mills';
 import { bar, cmd, esc, ui } from '../dom';
 import { coins, duration } from '../format';
@@ -34,7 +34,7 @@ function slotCard(game: Game, slot: FarmSlot, uiState: UiState): string {
       return `<div class="slot hard ${selected}" data-key="${slot.id}"${ui(`slot:${slot.id}`)}>${coming}<span class="big">🧑‍🌾</span><b>Bác đang tới</b></div>`;
     }
     const last = slot.lastProducerId ? content.producers.get(slot.lastProducerId) : null;
-    const replant = last
+    const replant = last && canPlantNow(ctx, last, slot.type)
       ? `<button class="mini"${cmd({ type: 'farmer/do', kind: 'plant', slotId: slot.id, producerId: last.id })}${state.money >= last.cost ? '' : ' disabled'} title="Trồng/nuôi lại ${esc(last.name)}">↻ ${last.icon}</button>`
       : '';
     return `<div class="slot empty ${wet} ${selected}" data-key="${slot.id}"${ui(`slot:${slot.id}`)}>${tier}<span class="muted">${type.needsTilling ? 'Sẵn sàng gieo' : 'Trống'}</span>${replant}</div>`;
@@ -85,12 +85,22 @@ function slotDetail(game: Game, slot: FarmSlot): string {
   const options = content.producers
     .all()
     .filter((p) => fitsSlot(p, slot.type))
+    // Giống hợp mùa xếp trước; giống trái mùa (ngoài trời) vẫn hiện nhưng không gieo được
+    .sort((a, b) => Number(canPlantNow(ctx, b, slot.type)) - Number(canPlantNow(ctx, a, slot.type)))
     .map((p) => {
       const levelOk = state.level >= p.level;
-      return `<div class="row" data-key="${p.id}"><span class="big">${p.icon}</span>
-        <div class="grow"><b>${esc(p.name)}</b>
+      const inSeason = canPlantNow(ctx, p, slot.type);
+      const indoor = !!type.building;
+      const seasonTag = p.seasons && !indoor
+        ? `<span class="season-tag${inSeason ? ' ok' : ''}">${inSeason ? 'Đúng mùa' : 'Trái mùa'} · ${seasonNames(p.seasons)}</span>`
+        : '';
+      const btn = !inSeason
+        ? `<button disabled title="Chỉ gieo ngoài trời vào mùa ${seasonNames(p.seasons ?? [])}">Trái mùa</button>`
+        : `<button${cmd({ type: 'farmer/do', kind: 'plant', slotId: slot.id, producerId: p.id })}${levelOk && state.money >= p.cost ? '' : ' disabled'}>${levelOk ? coins(p.cost) : `🔒 Cấp ${p.level}`}</button>`;
+      return `<div class="row${inSeason ? '' : ' off-season'}" data-key="${p.id}"><span class="big">${p.icon}</span>
+        <div class="grow"><b>${esc(p.name)}</b> ${seasonTag}
           <div class="muted">${duration(p.growTime)} → ${yieldsText(game, slot, p)}${p.cycles === 1 ? '' : ` mỗi ${duration(p.regrowTime ?? p.growTime)}`}</div></div>
-        <button${cmd({ type: 'farmer/do', kind: 'plant', slotId: slot.id, producerId: p.id })}${levelOk && state.money >= p.cost ? '' : ' disabled'}>${levelOk ? coins(p.cost) : `🔒 Cấp ${p.level}`}</button></div>`;
+        ${btn}</div>`;
     })
     .join('');
   return `<div class="card"><b>Chọn thứ để trồng / nuôi</b>${options}${upgrade}</div>`;

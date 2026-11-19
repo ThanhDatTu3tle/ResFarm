@@ -70,6 +70,8 @@ export interface RecipeDef {
   popularity?: number;
   /** Món thuộc thực đơn của quán nào. */
   cuisine: CuisineId;
+  /** Món hợp mùa (chỉ số mùa 0 Xuân … 3 Đông): đúng mùa thì giá bán × `balance.seasons.dishBonus`. */
+  seasons?: number[];
 }
 
 export type SlotType = 'field' | 'pen' | 'pond' | 'wheat' | 'paddy' | 'gplot' | 'orchard';
@@ -97,6 +99,11 @@ export interface ProducerDef {
   regrowTime?: number;
   /** Cấp độ tối thiểu để dùng. */
   level: number;
+  /**
+   * Mùa trồng được ngoài trời (0 Xuân, 1 Hạ, 2 Thu, 3 Đông). Bỏ trống = quanh năm (vẫn nghỉ mùa Đông nếu ở ngoài trời).
+   * Sang mùa không hợp thì cây đang lớn ngoài trời héo. Trong nhà kính trồng quanh năm.
+   */
+  seasons?: number[];
 }
 
 /** Loại ô nông trại và luật mua thêm ô. */
@@ -306,6 +313,10 @@ export interface WeatherDef {
   effects?: Partial<Record<ModifierKey, number>>;
   /** Trời này làm ẩm đất (khỏi tưới). */
   wetsSoil?: boolean;
+  /** Đất khô nhanh gấp mấy lần (nắng nóng). */
+  dryRate?: number;
+  /** Bão: lúc trời chuyển sang kiểu này, mỗi ô rau / lúa ngoài trời đang lớn có xác suất này bị dập, mất nửa tiến độ. */
+  damage?: number;
   /** snow: tuyết rơi 0..1 (mùa đông lúc nào cũng có tuyết lất phất). */
   visual: { rain: number; clouds: number; wind: number; dim: number; snow?: number };
 }
@@ -366,6 +377,8 @@ export interface Balance {
   };
   /** Biên độ giá chợ theo ngày [min, max]. */
   marketSwing: [number, number];
+  /** Mùa vụ: giá chợ của nông sản đúng mùa / trái mùa (nhân thêm), giá món hợp mùa. */
+  seasons: { inSeasonPrice: number; offSeasonPrice: number; dishBonus: number };
   /** Khách quen (F2). */
   regulars: {
     /** Xác suất một nhóm khách mới là khách quen (khi còn khách quen chưa ghé hôm nay). */

@@ -1,4 +1,4 @@
-import { randRange, weightedIndex } from '../../core/rng';
+import { rand, randRange, weightedIndex } from '../../core/rng';
 import type { SimContext, System } from '../types';
 import { calendarOf } from '../calendar';
 import type { WeatherDef } from '../../data';
@@ -28,4 +28,19 @@ function rollWeather(ctx: SimContext): void {
   const def = all[weightedIndex(state.rng, all.map((w) => weightOf(ctx, w)))];
   state.weather = { id: def.id, minutesLeft: randRange(state.rng, def.duration[0], def.duration[1]) };
   ctx.bus.emit('weather/changed', { id: def.id });
+  if (def.damage) stormDamage(ctx, def.damage);
+}
+
+/** Bão quét qua: mỗi ô rau / lúa ngoài trời đang lớn có xác suất `chance` bị dập, mất nửa tiến độ (nhà kính không sao). */
+function stormDamage(ctx: SimContext, chance: number): void {
+  const { state, content } = ctx;
+  let damaged = 0;
+  for (const slot of state.farm.slots) {
+    const type = content.slotTypes.get(slot.type);
+    if (!slot.producerId || slot.stage !== 'growing' || type.building || !type.needsTilling && !type.mill) continue;
+    if (rand(state.rng) >= chance) continue;
+    slot.progress *= 0.5;
+    damaged++;
+  }
+  if (damaged) ctx.bus.emit('farm/storm', { damaged });
 }

@@ -1,4 +1,6 @@
 import type * as THREE from 'three';
+import { festivals, seasons } from '../data/calendar';
+import { calendarOf } from '../sim/calendar';
 import { createContent, type Content, type CuisineId, type MillType } from '../data';
 import { Game } from '../sim/game';
 import { deserialize, serialize } from '../sim/save';
@@ -9,7 +11,7 @@ import type { Command } from '../sim/types';
 import { cmd, esc, morph, ui as uiAttr } from './dom';
 import { coins } from './format';
 import { Sound } from './audio';
-import { billHtml, buyHtml, mealHtml, moneyText, periodSummaryHtml, SIDE_PANELS, hudHtml, questHtml, serviceAlerts, serviceHtml, settingsHtml, SPEEDS, trayFor } from './hud';
+import { billHtml, buyHtml, mealHtml, moneyText, periodSummaryHtml, tomorrowFestivalHtml, SIDE_PANELS, hudHtml, questHtml, serviceAlerts, serviceHtml, settingsHtml, SPEEDS, trayFor } from './hud';
 import { memberOf } from '../sim/systems/crew';
 import { farmerBlocked } from '../sim/systems/farmer';
 import { isReserved, needOf } from '../sim/systems/service';
@@ -247,6 +249,21 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
   game.bus.on('crew/left', () => {
     if (game.state.crew.pending.length && !ui.settings) [ui.mealOpen, ui.mealStall] = [true, null];
   });
+  // Mùa vụ, lễ hội
+  game.bus.on('festival/started', (e) => {
+    const f = festivals.find((x) => x.id === e.id);
+    if (!f) return;
+    toast(`${f.icon} Hôm nay là ${f.name}! ${f.desc}${e.gift ? ` Nhận ${e.gift} xu tiền mừng.` : ''}`, 'good', '', 5200);
+    sound.play('levelup');
+  });
+  game.bus.on('farm/withered', (e) => toast(`🥀 Sang mùa mới: ${e.count} ô rau / lúa trái mùa ngoài trời đã héo. Xem bảng Nông trại để gieo giống hợp mùa.`, 'bad', '', 5200));
+  game.bus.on('farm/storm', (e) => toast(`🌀 Bão quét qua nông trại: ${e.damaged} ô rau / lúa bị dập, chậm lớn hơn.`, 'bad', '', 4200));
+  game.bus.on('day/started', () => {
+    const cal = calendarOf(game.state.clock.day);
+    if (cal.dayOfSeason !== 1 || game.state.clock.day <= 1) return;
+    const s = seasons[cal.season];
+    toast(`${s.icon} Bắt đầu mùa ${s.name}${s.frozen ? ' — ngoài trời đóng băng, chỉ nhà kính trồng được.' : '. Rau củ hợp mùa ở chợ rẻ hơn, món hợp mùa bán được giá.'}`, 'good', '', 4800);
+  });
   game.bus.on('shift/lastCall', () => toast('🔕 Ngưng nhận khách mới — phục vụ nốt khách đang ở quán rồi đóng cửa.', '', '', 3600));
   game.bus.on('shift/started', (e) => {
     toast(`🔔 Mở cửa ${e.index === 0 ? 'ca sáng' : 'ca chiều tối'}! Khách sắp tới.`, 'good');
@@ -403,6 +420,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
               <div><span>Khách hài lòng</span><b>${today.guestsServed}</b></div>
               <div><span>Khách bỏ về</span><b>${today.guestsLost}</b></div>
             </div>
+            ${tomorrowFestivalHtml(game)}
             ${periodSummaryHtml(game)}
             <h3>📦 Trong kho còn</h3>
             ${stockHtml()}

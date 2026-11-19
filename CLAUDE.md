@@ -96,8 +96,9 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 | File | Việc |
 | --- | --- |
 | `clock.ts` | Giờ trong ngày, pha `open → closing → summary` |
-| `calendar.ts` (không phải system) | `calendarOf(day)`: thứ, ngày trong mùa, mùa, năm — ngày 1 = Thứ Hai mùng 1 Xuân năm 1, mùa 28 ngày (4 tuần), 4 mùa / năm. Tên mùa/thứ ở `src/data/calendar.ts`. `seasonOf(ctx)`, `isFrozen(ctx, slotType)` (mùa Đông `frozen`: ô ngoài trời không cuốc / gieo / tưới, cây và con vật ngừng lớn, bác không tự gieo lại; nhà kính vẫn trồng), `isSeasonEnd` / `isYearEnd`. Thống kê cộng dồn `stats.season` / `stats.year` (cộng lúc hết ngày ở clock.ts, đếm lại ở `nextDay` khi sang mùa / năm) → tổng kết ở màn hết ngày 28 (`periodSummaryHtml`) |
-| `weather.ts` | Thời tiết đổi ngẫu nhiên theo trọng số của mùa (`WeatherDef.seasonWeights`: Hạ nắng nhiều, Thu gió nhiều, Đông không mưa mà có tuyết `snow`); sang mùa mà thời tiết không hợp thì đổi ngay; hiệu ứng gameplay lấy từ `WeatherDef.effects` |
+| `calendar.ts` (không phải system) | `calendarOf(day)`: thứ, ngày trong mùa, mùa, năm — ngày 1 = Thứ Hai mùng 1 Xuân năm 1, mùa 28 ngày (4 tuần), 4 mùa / năm. Tên mùa/thứ ở `src/data/calendar.ts`. `seasonOf(ctx)`, `isFrozen(ctx, slotType)` (mùa Đông `frozen`: ô ngoài trời không cuốc / gieo / tưới, cây và con vật ngừng lớn, bác không tự gieo lại; nhà kính vẫn trồng), `isSeasonEnd` / `isYearEnd`. Thống kê cộng dồn `stats.season` / `stats.year` (cộng lúc hết ngày ở clock.ts, đếm lại ở `nextDay` khi sang mùa / năm) → tổng kết ở màn hết ngày 28 (`periodSummaryHtml`). **Mùa vụ:** `ProducerDef.seasons` (mùa gieo ngoài trời; bỏ trống = quanh năm) → `canPlantNow`; đầu mùa cây trái mùa đang lớn ngoài trời héo (`witherOffSeason` trong farm.ts, sự kiện `farm/withered`); `seasonPriceFactor` (rau đúng mùa rẻ / trái mùa đắt ở chợ, `balance.seasons`); `RecipeDef.seasons` + `seasonalPrice` (món hợp mùa bán đắt hơn). **Lễ hội:** `festivals` trong `src/data/calendar.ts` (mùa + ngày, `effects` nhân vào `modifier()`, `gift`, `decor`), `festivalOf(day)` (ngày 1 của ván không tính), `nextFestival` |
+| `festival.ts` | Sáng ngày lễ: cộng tiền mừng (`FestivalDef.gift`, không tính vào doanh thu) + sự kiện `festival/started` |
+| `weather.ts` | Thời tiết đổi ngẫu nhiên theo trọng số của mùa (thêm `storm` Bão: `damage` = xác suất dập mỗi ô rau / lúa ngoài trời, mất nửa tiến độ, sự kiện `farm/storm`; `heat` Nắng nóng: `dryRate` đất khô nhanh gấp đôi) (`WeatherDef.seasonWeights`: Hạ nắng nhiều, Thu gió nhiều, Đông không mưa mà có tuyết `snow`); sang mùa mà thời tiết không hợp thì đổi ngay; hiệu ứng gameplay lấy từ `WeatherDef.effects` |
 | `customers.ts` | Khách tới, xếp hàng, xếp bàn, chờ menu → xem menu → chờ ghi món → chờ món (tâm trạng `moodOf`) → ăn → trả tiền (tip theo tâm trạng) / bỏ về |
 | `service.ts` | Người chơi là bồi bàn: lệnh `service/menu`, `service/takeOrder`, `service/deliver { orderIds }` (bưng cả khay một lượt), `service/clean` (dọn chén dĩa dơ — `restaurant.dirty`, ghế dơ không xếp khách), `service/mop` (lau vết bẩn — `restaurant.stains`, làm khách kém kiên nhẫn); `addStains` gọi lúc hết ca. Bồi bàn đi thật trong sim (`state.restaurant.waiter`), làm việc theo hàng, rảnh thì đứng yên tại chỗ. `autoServeCommands` = người chơi mẫu cho test/cân bằng |
 | `kitchen.ts` | Đầu bếp nhận đơn và nấu; xong thì đặt ra quầy ra món (`ready`) |
@@ -206,7 +207,11 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 
 **Thêm trang thiết bị (nâng cấp)** — 1 mục `UpgradeDef` trong `src/data/restaurant.ts`; hiện ở cuối panel Siêu thị. Hiệu ứng dạng hệ số: `modifiers: { cookSpeed: 1.2 }`. Chỉ số mới: thêm key vào `ModifierKey` rồi gọi `modifier(ctx, 'key')` ở nơi cần.
 
-**Thêm kiểu thời tiết** — 1 mục trong `src/data/weather.ts`: `effects` cho gameplay, `visual` cho hình ảnh.
+**Thêm kiểu thời tiết** — 1 mục trong `src/data/weather.ts` (thêm vào CUỐI mảng để không đổi kết quả ngẫu nhiên của mùa khác): `effects` cho gameplay, `visual` cho hình ảnh, `seasonWeights` cho từng mùa.
+
+**Thêm lễ hội** — 1 mục `FestivalDef` trong `src/data/calendar.ts` (`season`, `day`, `effects`, `gift`, `decor`: `tet` / `lantern` / `xmas` / `bunting`). Trang trí dựng sẵn trong `ui/three/festive.ts` (`FestiveSet`: dây treo + đồ đứng, quán và chợ mỗi khu một bộ, chỉ hiện ngày lễ). HUD hiện dải lễ dưới đồng hồ, màn hết ngày báo lễ ngày mai.
+
+**Mùa vụ cho giống / món** — `seasons: [0, 2]` trong mục `ProducerDef` (`farm.ts`) hoặc bảng `SEASONAL` cuối `recipes.ts`.
 
 **Thêm khu mới (màn hình 3D)** — viết class `implements Area` trong `src/ui/three/areas/`, thêm vào mảng `areas` trong `app.ts`.
 
@@ -235,7 +240,7 @@ Theo thứ tự đề xuất:
 3. **Thuê và nâng cấp nhân viên** — `StaffDef` đã tách riêng; cần lệnh thuê và lương theo ngày.
 4. **Thức ăn chăn nuôi, chế biến** (xay bột, làm phô mai...) — mở rộng `ProducerDef` với `inputs: ItemStack[]`, hoặc thêm system "xưởng" theo cùng mô hình.
 5. ~~Nâng hạng quán, xoay bàn, mua thêm bàn, đồ trang trí tự do~~ — đã có (đợt 13). Tiếp theo: bếp to hơn theo hạng, đồ treo tường, mặt tiền có biển tên.
-6. **Thời tiết sâu hơn** — đã có mùa trong năm + thời tiết theo mùa (đợt 18). Tiếp theo: bão làm hỏng cây, nắng hạn cần tưới, món / giống cây theo mùa.
+6. **Thời tiết sâu hơn** — đã có mùa trong năm, thời tiết theo mùa, giống / món theo mùa, bão, nắng nóng, lễ hội (giai đoạn 6). Tiếp theo: món đặc biệt chỉ bán ngày lễ, sự kiện ngẫu nhiên (khách VIP, thanh tra).
 7. **Bán nông sản dư, hợp đồng giao hàng, sự kiện ngẫu nhiên** (khách VIP, thanh tra).
 8. **Mở rộng nông trại** — thêm loài cá và bậc ao, cho vật nuôi ăn, hiệu ứng khi tưới/cuốc, công cụ nâng cấp (bình tưới to tưới nhiều ô).
 8. **Tiến trình khi offline** — `tick()` nhận số phút bất kỳ nên chỉ cần lưu mốc thời gian thực và tua bù có giới hạn.
