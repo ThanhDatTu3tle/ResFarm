@@ -1,4 +1,6 @@
 import { seasons, weekdays } from '../data/calendar';
+import { craftableCount } from '../sim/helpers';
+import type { RecipeDef } from '../data';
 import { calendarOf } from '../sim/calendar';
 import { readyOrders } from '../sim/systems/service';
 import type { Game } from '../sim/game';
@@ -106,6 +108,7 @@ export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
       <div class="hud-stack">
         <span class="stat money" data-key="money"><span class="num">${moneyText(moneyShown)}</span>${COIN}</span>
         <span class="stat rep" title="Uy tín của quán">⭐ ${state.reputation.toFixed(1)}</span>
+        ${lowStockChip(game)}
       </div>
       ${questCard(game)}
     </div>
@@ -283,6 +286,10 @@ export function settingsHtml(ui: UiState, prefs: { music: boolean; sfx: boolean 
       <section>
         <h3>Tốc độ</h3>
         <div class="segmented">${SPEEDS.map((s) => `<button class="${ui.speed === s ? 'on' : ''}"${uiAttr(`speed:${s}`)}>${s === 0 ? '⏸ Dừng' : `▶ x${s}`}</button>`).join('')}</div>
+      </section>
+
+      <section>
+        <button class="wide"${uiAttr('guide:0')}>📘 Hướng dẫn chơi</button>
       </section>
 
       <section>
@@ -481,4 +488,23 @@ function festivalTag(game: Game): string {
 export function tomorrowFestivalHtml(game: Game): string {
   const f = festivalOf(game.state.clock.day + 1);
   return f ? `<div class="festival-next"><b>${f.icon} Ngày mai: ${esc(f.name)}</b><span>${esc(f.desc)} Nhớ đi chợ mua đủ nguyên liệu!</span></div>` : '';
+}
+
+/** Món đang bán còn nấu được ít hơn `balance.lowStockPortions` phần (ít nhất trước). */
+export function lowStock(game: Game): { recipe: RecipeDef; count: number }[] {
+  const { state, content, ctx } = game;
+  return state.menu.active
+    .map((id) => content.recipes.get(id))
+    .map((recipe) => ({ recipe, count: craftableCount(ctx, recipe.ingredients) }))
+    .filter((l) => l.count < content.balance.lowStockPortions)
+    .sort((a, b) => a.count - b.count);
+}
+
+/** Thẻ cảnh báo dưới số tiền: món sắp hết nguyên liệu; bấm mở bảng Thực đơn. */
+function lowStockChip(game: Game): string {
+  const low = lowStock(game);
+  if (!low.length) return '';
+  const first = low[0];
+  const title = low.map((l) => `${l.recipe.name}: ${l.count ? `còn ${l.count} phần` : 'hết'}`).join(' · ');
+  return `<button class="stock-warn" data-key="stock-warn"${uiAttr('drawer:menu')} title="${esc(title)}">⚠️ ${first.count ? 'Sắp hết' : 'Hết'}: ${first.recipe.icon} ${esc(first.recipe.name)}${low.length > 1 ? ` <em>+${low.length - 1}</em>` : ''}</button>`;
 }

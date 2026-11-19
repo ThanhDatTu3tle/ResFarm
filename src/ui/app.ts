@@ -1,4 +1,6 @@
 import type * as THREE from 'three';
+import { guideHtml } from './tutorial';
+import { inShift } from '../sim/systems/customers';
 import { festivals, seasons } from '../data/calendar';
 import { calendarOf } from '../sim/calendar';
 import { createContent, type Content, type CuisineId, type MillType } from '../data';
@@ -11,7 +13,7 @@ import type { Command } from '../sim/types';
 import { cmd, esc, morph, ui as uiAttr } from './dom';
 import { coins } from './format';
 import { Sound } from './audio';
-import { billHtml, buyHtml, mealHtml, moneyText, periodSummaryHtml, tomorrowFestivalHtml, SIDE_PANELS, hudHtml, questHtml, serviceAlerts, serviceHtml, settingsHtml, SPEEDS, trayFor } from './hud';
+import { billHtml, buyHtml, lowStock, mealHtml, moneyText, periodSummaryHtml, tomorrowFestivalHtml, SIDE_PANELS, hudHtml, questHtml, serviceAlerts, serviceHtml, settingsHtml, SPEEDS, trayFor } from './hud';
 import { memberOf } from '../sim/systems/crew';
 import { farmerBlocked } from '../sim/systems/farmer';
 import { isReserved, needOf } from '../sim/systems/service';
@@ -76,6 +78,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     <div id="settings"></div>
     <div id="service"></div>
     <div id="buy"></div>
+    <div id="guide"></div>
     <div id="toasts"></div>
     <div id="photobar"><button class="primary" data-ui="snap">📸 Chụp ảnh quán</button><button data-ui="photo:close">✕ Thoát</button></div>
     <div id="rotate">
@@ -119,6 +122,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     mealStall: null,
     stallView: null,
     buyItem: null,
+    guide: null,
   };
   // Chỉ bản dev: ?stall=seafood mở thẳng bên trong một quầy chợ (sạp nguyên liệu / Tiệm 25caaaaa)
   const devStall = import.meta.env.DEV ? params.get('stall') : null;
@@ -264,6 +268,22 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     const s = seasons[cal.season];
     toast(`${s.icon} Bắt đầu mùa ${s.name}${s.frozen ? ' — ngoài trời đóng băng, chỉ nhà kính trồng được.' : '. Rau củ hợp mùa ở chợ rẻ hơn, món hợp mùa bán được giá.'}`, 'good', '', 4800);
   });
+  // Món đang bán sắp hết nguyên liệu: báo một lần mỗi khi món tụt xuống dưới ngưỡng (trong giờ mở cửa)
+  let lowShown = new Set<string>();
+  const checkLowStock = () => {
+    const low = lowStock(game);
+    const ids = new Set(low.map((l) => l.recipe.id));
+    if (game.state.clock.phase === 'open' && inShift(game.ctx)) {
+      const fresh = low.filter((l) => !lowShown.has(l.recipe.id));
+      if (fresh.length) {
+        const l = fresh[0];
+        toast(`⚠️ ${l.recipe.icon} ${l.recipe.name} ${l.count ? `chỉ còn đủ nguyên liệu cho ${l.count} phần` : 'đã hết nguyên liệu'}${fresh.length > 1 ? ` (và ${fresh.length - 1} món khác)` : ''} — ra chợ hoặc nông trại nhé.`, 'bad', '', 4200);
+      }
+    }
+    lowShown = ids;
+  };
+  game.bus.on('order/ready', checkLowStock);
+  game.bus.on('shift/started', checkLowStock);
   game.bus.on('shift/lastCall', () => toast('🔕 Ngưng nhận khách mới — phục vụ nốt khách đang ở quán rồi đóng cửa.', '', '', 3600));
   game.bus.on('shift/started', (e) => {
     toast(`🔔 Mở cửa ${e.index === 0 ? 'ca sáng' : 'ca chiều tối'}! Khách sắp tới.`, 'good');
@@ -292,15 +312,32 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     if (e.heartUp || e.gift) sound.play('levelup');
   });
   // Quán lên hạng: phòng to hơn nên dựng lại cả khu quán
-  game.bus.on('restaurant/upgraded', (e) => {
-    const tier = content.room.tiers[e.tier - 1];
+  const rebuildRestaurant = () => {
     const next = new RestaurantArea(game);
     next.onPaid = restaurant.onPaid;
     restaurant.dispose();
     stage.replaceArea(restaurant, next);
     restaurant = next;
+  };
+  game.bus.on('restaurant/upgraded', (e) => {
+    const tier = content.room.tiers[e.tier - 1];
+    rebuildRestaurant();
     toast(`${tier.icon} Quán lên hạng: ${tier.name}!`, 'good');
     sound.play('levelup');
+  });
+  // Bếp lên hạng / thuê thêm đầu bếp: dựng lại gian bếp + quầy line
+  let lastKitchen = { tier: game.state.restaurant.kitchenTier, chefs: game.state.restaurant.staff.length };
+  game.bus.on('kitchen/changed', (e) => {
+    rebuildRestaurant();
+    if (e.tier > lastKitchen.tier) {
+      const t = content.balance.kitchen.tiers[e.tier - 1];
+      toast(`${t.icon} Bếp lên hạng: ${t.name}! Thuê thêm đầu bếp ở bảng Nhân viên.`, 'good', '', 4200);
+      sound.play('levelup');
+    } else if (e.chefs > lastKitchen.chefs) {
+      toast('🧑‍🍳 Đầu bếp mới vào bếp! Giao món cho từng người ở bảng Nhân viên.', 'good', '', 4200);
+      sound.play('bell');
+    }
+    lastKitchen = { tier: e.tier, chefs: e.chefs };
   });
 
   // ---------- Sự kiện sim -> thông báo ----------
@@ -341,6 +378,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
 
     morph($('hud'), hudHtml(game, ui, money.value));
     morph($('settings'), settingsHtml(ui, sound.prefs));
+    morph($('guide'), ui.guide == null ? '' : guideHtml(ui.guide, uiAttr, 'Chơi tiếp'));
     // Món đã chọn không còn ở quầy (khách bỏ về...) thì bỏ chọn
     if (ui.serving != null) {
       const o = state.restaurant.orders.find((x) => x.id === ui.serving);
@@ -738,6 +776,11 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
       if (ui.trayPick === Number(arg)) ui.trayPick = null;
     }
     else if (action === 'quest') ui.questOpen = arg !== 'close';
+    else if (action === 'guide') {
+      // Mở hướng dẫn từ Cài đặt: đóng Cài đặt, game vẫn tạm dừng tới khi đóng hướng dẫn
+      ui.settings = false;
+      ui.guide = arg === 'close' ? null : Number(arg) || 0;
+    }
     else if (action === 'meal') {
       ui.mealOpen = arg !== 'close';
       if (arg !== 'close') ui.mealStall = null;
@@ -773,7 +816,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
   // Phím tắt: Esc đóng Cài đặt, Space tạm dừng / chạy tiếp
   let resumeSpeed = 1;
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && ui.mealOpen) ui.mealOpen = false;
+    if (e.key === 'Escape' && ui.guide != null) ui.guide = null;
+    else if (e.key === 'Escape' && ui.mealOpen) ui.mealOpen = false;
     else if (e.key === 'Escape' && ui.buyItem) ui.buyItem = null;
     else if (e.key === 'Escape' && ui.questOpen) ui.questOpen = false;
     else if (e.key === 'Escape' && ui.photo) {

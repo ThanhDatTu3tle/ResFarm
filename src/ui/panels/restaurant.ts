@@ -1,4 +1,6 @@
 import { activeTables, occupiedSeats } from '../../sim/systems/customers';
+import type { Game } from '../../sim/game';
+import { kitchenTierOf, passSlots } from '../../sim/systems/kitchen';
 import { bar, cmd, esc, ui } from '../dom';
 import { bonusText } from './shop';
 import { coins } from '../format';
@@ -64,7 +66,7 @@ export const restaurantPanel: Panel = {
         <div class="row shop-actions"><button class="mini"${ui('rename')}>✏️ Đổi tên quán</button><button class="mini"${ui('photo')}>📸 Chụp ảnh quán</button></div>
       </div>
       ${upgrade}${storage}
-      <h3>Gian bếp</h3>${chefs}
+      <h3>Gian bếp</h3>${kitchenCard(game)}${chefs}
       <div class="muted">🔔 Món chờ ở quầy ra món: ${atPass.length ? atPass.map((o) => content.recipes.get(o.recipeId).icon).join(' ') : 'không có'}</div>
       <div class="muted">Đơn đang chờ: ${queued.length ? queued.map((o) => content.recipes.get(o.recipeId).icon).join(' ') : 'không có'}</div>
       <div class="row"><h3 class="grow">Bàn ăn</h3><button class="mini"${ui('edit')}>🪑 Sắp xếp quán</button></div><div class="chips">${tables}</div>
@@ -80,3 +82,18 @@ export const restaurantPanel: Panel = {
       </div>`;
   },
 };
+
+/** Hạng bếp hiện tại + nút nâng hạng (bếp + quầy line). */
+function kitchenCard(game: Game): string {
+  const { state, content, ctx } = game;
+  const tiers = content.balance.kitchen.tiers;
+  const cur = kitchenTierOf(ctx);
+  const next = tiers[state.restaurant.kitchenTier];
+  const now = `<div class="muted">${cur.icon} <b>${esc(cur.name)}</b> · ${state.restaurant.staff.length}/${cur.chefs} đầu bếp · quầy line ${passSlots(ctx)} đĩa</div>`;
+  const up = next
+    ? `<div class="card" data-key="kitchen-next"><div class="row"><span class="big">${next.icon}</span>
+        <div class="grow"><b>Mở rộng bếp: ${esc(next.name)}</b><div class="muted">${esc(next.desc)}</div></div>
+        <button${cmd({ type: 'kitchen/upgrade' })}${state.level >= next.level && state.money >= next.cost ? '' : ' disabled'}>${state.level >= next.level ? coins(next.cost) : `🔒 Cấp ${next.level}`}</button></div></div>`
+    : '<div class="muted">🏅 Bếp đã ở hạng cao nhất.</div>';
+  return now + up;
+}

@@ -2469,3 +2469,111 @@ button.x-close {
 .row.off-season {
   opacity: 0.6;
 }
+
+/* ---------- Giai đoạn 7: bếp, cảnh báo nguyên liệu, hướng dẫn ---------- */
+button.stock-warn {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 2px solid var(--red);
+  background: #fff1ee;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 0 rgba(200, 72, 58, 0.35);
+  animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+button.stock-warn em {
+  font-style: normal;
+  opacity: 0.8;
+}
+.low-note {
+  margin: 4px 0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #fff1ee;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 700;
+}
+.card.low-stock {
+  border-color: var(--red);
+}
+.chef-dishes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin-top: 6px;
+}
+.guide-backdrop {
+  z-index: 40;
+}
+.dialog.guide {
+  width: min(560px, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  text-align: left;
+}
+.dialog.guide h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.guide-icon {
+  font-size: 30px;
+}
+.guide-points {
+  margin: 8px 0 12px;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  line-height: 1.45;
+}
+.guide-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.guide-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+button.guide-dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border-radius: 50%;
+  border: 0;
+  background: var(--line);
+  box-shadow: none;
+}
+button.guide-dot.on {
+  background: var(--accent);
+}
+.title-menu .guide-btn {
+  background: #fff;
+}
+@media (max-height: 540px) {
+  .guide-points {
+    gap: 4px;
+    font-size: 13px;
+  }
+  .guide-icon {
+    font-size: 24px;
+  }
+}
+
+.guide-points li {
+  display: list-item;
+  text-align: left;
+}
+.guide-points li b {
+  display: inline;
+}
+

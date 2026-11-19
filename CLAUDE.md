@@ -30,6 +30,7 @@ Tham số URL để thử nhanh (ghép được với nhau):
 | `?cuisine=jp` | Kèm `?fresh`: phong cách quán của ván tạm (`jp` / `kr` / `vn`, mặc định `vn`) |
 | `?play` | Bỏ qua màn mở đầu, vào thẳng ván đang lưu |
 | `?pick=kr` | (chỉ bản dev) mở thẳng bước chọn quán ở màn mở đầu |
+| `?guide=0` | (chỉ bản dev) mở sẵn trang hướng dẫn chơi ở màn mở đầu (số trang đếm từ 0) |
 | `?focus=pen` | (chỉ bản dev) bảng Nông trại chỉ hiện một loại ô / cối (kèm `?tab=farm`) |
 | `?seed=7` | Seed cho game mới |
 | `?ff=300` | Tua 300 phút game lúc tải (720 ≈ 20:00, trời tối) |
@@ -101,7 +102,7 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 | `weather.ts` | Thời tiết đổi ngẫu nhiên theo trọng số của mùa (thêm `storm` Bão: `damage` = xác suất dập mỗi ô rau / lúa ngoài trời, mất nửa tiến độ, sự kiện `farm/storm`; `heat` Nắng nóng: `dryRate` đất khô nhanh gấp đôi) (`WeatherDef.seasonWeights`: Hạ nắng nhiều, Thu gió nhiều, Đông không mưa mà có tuyết `snow`); sang mùa mà thời tiết không hợp thì đổi ngay; hiệu ứng gameplay lấy từ `WeatherDef.effects` |
 | `customers.ts` | Khách tới, xếp hàng, xếp bàn, chờ menu → xem menu → chờ ghi món → chờ món (tâm trạng `moodOf`) → ăn → trả tiền (tip theo tâm trạng) / bỏ về |
 | `service.ts` | Người chơi là bồi bàn: lệnh `service/menu`, `service/takeOrder`, `service/deliver { orderIds }` (bưng cả khay một lượt), `service/clean` (dọn chén dĩa dơ — `restaurant.dirty`, ghế dơ không xếp khách), `service/mop` (lau vết bẩn — `restaurant.stains`, làm khách kém kiên nhẫn); `addStains` gọi lúc hết ca. Bồi bàn đi thật trong sim (`state.restaurant.waiter`), làm việc theo hàng, rảnh thì đứng yên tại chỗ. `autoServeCommands` = người chơi mẫu cho test/cân bằng |
-| `kitchen.ts` | Đầu bếp nhận đơn và nấu; xong thì đặt ra quầy ra món (`ready`) |
+| `kitchen.ts` | Đầu bếp nhận đơn và nấu; xong thì đặt ra quầy line (`ready`). **Hạng bếp** `restaurant.kitchenTier` (`balance.kitchen.tiers`: số đầu bếp tối đa, sức chứa quầy line `passSlots` — đầy đĩa thì bếp chờ, chỗ nhân viên phục vụ cộng thêm): `kitchen/upgrade`. Đầu bếp thuê thêm = `StaffDef.hire` (`chef/hire`, `chef/fire`). **Giao món**: `StaffState.dishes` (null = mọi món), `chef/setDish`; `cooks()`, `uncookedDishes()` (món không ai nấu). Đổi bếp phát `kitchen/changed` → app.ts dựng lại khu quán |
 | `farm.ts` | Ô nông trại: cuốc đất, gieo/nuôi, tưới (mưa tự làm ẩm), lớn, thu hoạch, mua ô, nới rộng ô |
 | `quests.ts` | Nhiệm vụ hệ thống: chuỗi `content.quests` làm lần lượt; mục tiêu đếm qua `bumpQuest(ctx, kind, n)`, mục tiêu trạng thái đọc state; lệnh `quest/claim` |
 | `helpers.ts` | Nhân viên phục vụ thuê thêm (`restaurant.helpers`, mỗi bậc hạng quán +1, tối đa 4): `helper/hire`, `helper/fire`, `helper/setJob` (bưng món / menu + ghi món / dọn bàn / lau sàn); nhân viên rảnh tự nhận việc (`pickTask`); đi lại / làm việc dùng chung `stepWorker` trong service.ts |
@@ -124,7 +125,8 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 
 ```
 src/main.ts                hiện màn mở đầu (ui/title.ts) hoặc vào thẳng game (?fresh / ?play)
-src/ui/title.ts            màn mở đầu: Chơi tiếp / Ván mới, chọn phong cách quán trên cảnh 3D 3 mặt tiền (renderer riêng)
+src/ui/title.ts            màn mở đầu: Chơi tiếp / Ván mới / Hướng dẫn chơi, chọn phong cách quán trên cảnh 3D 3 mặt tiền (renderer riêng)
+src/ui/tutorial.ts         hướng dẫn chơi: các trang `GUIDE` + `guideHtml` (dùng chung cho màn mở đầu và Cài đặt → Hướng dẫn, `ui.guide`)
 src/ui/three/cuisine.ts    hình theo phong cách quán: decorateInterior, tableExtras, counterExtras, buildSeat, makeShopfront
 src/ui/three/people.ts     khách quen (makeRegular: dáng, tóc, phụ kiện theo PersonStyle) + thú cưng (makePet)
 src/ui/three/props.ts      đồ trang trí đặt tự do (makeProp theo PropDef.model)
@@ -237,7 +239,7 @@ Theo thứ tự đề xuất:
 
 1. **Cân bằng kinh tế** — đã chỉnh lần 1 ở đợt 16 (mô phỏng 6 ngày: lãi ~100–300 xu/ngày); còn lương nhân viên (G11).
 2. ~~Bồi bàn / khâu phục vụ~~ — đã có (người chơi đóng vai). Tiếp theo: thuê bồi bàn tự động khi người chơi ở khu khác (dùng `autoServeCommands`), bưng 2 món một lượt.
-3. **Thuê và nâng cấp nhân viên** — `StaffDef` đã tách riêng; cần lệnh thuê và lương theo ngày.
+3. **Lương nhân viên** — đã có thuê đầu bếp theo hạng bếp + giao món (giai đoạn 7); lương theo ngày tạm để dành (chủ dự án chưa cần).
 4. **Thức ăn chăn nuôi, chế biến** (xay bột, làm phô mai...) — mở rộng `ProducerDef` với `inputs: ItemStack[]`, hoặc thêm system "xưởng" theo cùng mô hình.
 5. ~~Nâng hạng quán, xoay bàn, mua thêm bàn, đồ trang trí tự do~~ — đã có (đợt 13). Tiếp theo: bếp to hơn theo hạng, đồ treo tường, mặt tiền có biển tên.
 6. **Thời tiết sâu hơn** — đã có mùa trong năm, thời tiết theo mùa, giống / món theo mùa, bão, nắng nóng, lễ hội (giai đoạn 6). Tiếp theo: món đặc biệt chỉ bán ngày lễ, sự kiện ngẫu nhiên (khách VIP, thanh tra).

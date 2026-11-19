@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { guideHtml } from './tutorial';
 import type { Content, CuisineId } from '../data';
 import { esc } from './dom';
 import { animatePerson, makeBush, makeTree } from './three/models';
@@ -80,9 +81,14 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
   // ---------- Trạng thái + giao diện ----------
   let step: Step = 'menu';
   let focus: CuisineId = 'vn';
+  /** Trang hướng dẫn đang mở (null = đóng). */
+  let guide: number | null = null;
   // Chỉ bản dev: ?pick=jp|kr|vn mở thẳng bước chọn quán (để xem / chụp giao diện)
   const pick = import.meta.env.DEV ? new URLSearchParams(location.search).get('pick') : null;
   if (pick && content.cuisines.has(pick)) [step, focus] = ['pick', pick as CuisineId];
+  // Chỉ bản dev: ?guide=2 mở sẵn trang hướng dẫn số 2 (đếm từ 0)
+  const devGuide = import.meta.env.DEV ? new URLSearchParams(location.search).get('guide') : null;
+  if (devGuide != null) guide = Number(devGuide) || 0;
   const camPos = new THREE.Vector3(0, 7, 21);
   const camLook = new THREE.Vector3(0, 2, 0);
 
@@ -104,8 +110,10 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
         <div class="title-menu">
           ${opts.hasSave ? `<button class="primary big" data-title="continue">▶ Chơi tiếp</button>` : ''}
           <button class="${opts.hasSave ? '' : 'primary '}big" data-title="new">✨ Ván mới</button>
+          <button class="big guide-btn" data-title="guide:0">📘 Hướng dẫn chơi</button>
           ${opts.hasSave ? '' : `<p class="muted">Tiến trình tự lưu trong trình duyệt này.</p>`}
-        </div>`;
+        </div>
+        ${guide != null ? guideHtml(guide, (a) => ` data-title="${a}"`, opts.hasSave ? 'Xong' : 'Mở quán thôi!') : ''}`;
     } else {
       uiEl.innerHTML = `<div class="pick-head"><button class="mini" data-title="back" aria-label="Quay lại">←</button><h2>Chọn phong cách quán</h2></div>
         <div class="cuisine-cards">${ORDER.map(card).join('')}</div>
@@ -129,6 +137,13 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
     if (!el) return;
     const [action, arg] = el.dataset.title!.split(':');
     if (action === 'continue') return finish(null);
+    if (action === 'guide') {
+      // Trang cuối bấm "Mở quán thôi!" (chưa có ván) thì sang bước chọn quán luôn
+      const done = arg === 'close';
+      guide = done ? null : Number(arg) || 0;
+      if (done && !opts.hasSave && el.classList.contains('primary')) step = 'pick';
+      return render();
+    }
     if (action === 'new') {
       step = 'pick';
       shops.find((s) => s.id === focus)!.focusAt = clock.elapsedTime;
