@@ -2615,3 +2615,44 @@ button.guide-dot.on {
   justify-content: flex-end;
   max-width: 180px;
 }
+
+/* ---------- Giai đoạn 9: bưng món theo màu bàn ---------- */
+.service-card.carrying {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.carry-dishes {
+  display: flex;
+  gap: 6px;
+}
+.carry-dish {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--c);
+  border: 3px solid #4a3626;
+  font-size: 22px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+}
+button.service-card.pass-hint {
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* Thanh đang cầm món: hai món nằm ngang, emoji to rõ (đè các luật cũ của .service-card.carrying) */
+.service-card.carrying .carry-dishes {
+  flex-direction: row;
+  gap: 6px;
+}
+.service-card.carrying span.carry-dish {
+  font-size: 22px;
+  color: inherit;
+  line-height: 1;
+}
+.service-card.carrying > span {
+  max-width: 220px;
+}
+

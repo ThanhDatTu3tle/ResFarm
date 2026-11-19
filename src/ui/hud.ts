@@ -1,4 +1,5 @@
 import { seasons, weekdays } from '../data/calendar';
+import { partyColor } from './colors';
 import { defOf } from '../sim/systems/events';
 import { craftableCount } from '../sim/helpers';
 import type { RecipeDef } from '../data';
@@ -9,9 +10,6 @@ import { xpForLevel } from '../sim/helpers';
 import { cmd, esc, ui as uiAttr } from './dom';
 import { currentQuest } from '../sim/systems/quests';
 import { acceptingGuests, inShift } from '../sim/systems/customers';
-import { isReserved, pendingOrders } from '../sim/systems/service';
-import type { Party } from '../sim/state';
-import { tableById } from '../sim/layout';
 import { billDue, billTotal, crewMembers, mealBudget } from '../sim/systems/crew';
 import { priceOf } from '../sim/systems/market';
 import { stockOf } from '../sim/helpers';
@@ -189,74 +187,31 @@ export function serviceAlerts(game: Game): number {
 }
 
 /**
- * Khay ở quầy ra món: danh sách món đã nấu xong để chọn bưng; chọn rồi thì thành thanh nhắc
- * "đang cầm món — bấm vào bàn cần giao".
+ * Thanh phục vụ phía dưới khu quán: món bồi bàn đang cầm (mỗi món một màu = màu bàn đã gọi), đang ra quầy lấy món,
+ * hoặc nhắc "quầy line có món" (bấm để đi lấy).
  */
-export function serviceHtml(game: Game, ui: UiState): string {
-  const { state, content } = game;
-  if (ui.serving != null && !ui.passOpen) {
-    const order = state.restaurant.orders.find((o) => o.id === ui.serving);
-    if (!order) return '';
-    const recipe = content.recipes.get(order.recipeId);
-    return `<div class="service-card carrying" data-key="carry">
-      <span class="dish-icon">${recipe.icon}</span>
-      <div><b>${esc(recipe.name)}</b><span>Bấm vào bàn đã gọi món này để giao</span></div>
-      <button class="mini"${uiAttr('serve:')}>✕ Thôi</button>
-    </div>`;
+export function serviceHtml(game: Game): string {
+  const { state, content, ctx } = game;
+  const r = state.restaurant;
+  const w = r.waiter;
+  const max = content.balance.service.carryMax;
+  const carried = w.carrying.map((id) => r.orders.find((o) => o.id === id)).filter((o): o is NonNullable<typeof o> => !!o);
+  if (carried.length) {
+    const chips = carried
+      .map((o) => {
+        const party = r.parties.find((p) => p.id === o.partyId);
+        const color = partyColor(party?.color) ?? '#fffaf1';
+        return `<span class="carry-dish" style="--c:${color}" title="${esc(content.recipes.get(o.recipeId).name)}">${content.recipes.get(o.recipeId).icon}</span>`;
+      })
+      .join('');
+    const more = carried.length < max && readyOrders(ctx).length ? `<button class="mini"${uiAttr('pickup')}>+ Lấy thêm món</button>` : '';
+    return `<div class="service-card carrying" data-key="carry"><div class="carry-dishes">${chips}</div><span>Bấm vào bàn có bong bóng <b>cùng màu</b> để giao</span>${more}</div>`;
   }
-  if (!ui.passOpen) return '';
-  const inTray = new Set([...ui.tray2, ...ui.tray4]);
-  const ready = readyOrders(game.ctx).filter((o) => !inTray.has(o.id));
-  const tableName = (partyId: number) => {
-    const p = state.restaurant.parties.find((x) => x.id === partyId);
-    return p?.tableId ? (tableById(game.ctx, p.tableId)?.name ?? '') : '';
-  };
-  const dish = (id: number) => {
-    const o = state.restaurant.orders.find((x) => x.id === id);
-    return o ? content.recipes.get(o.recipeId) : null;
-  };
-  const tray = (kind: 2 | 4, ids: number[]) => {
-    const slots = Array.from({ length: kind }, (_, i) => {
-      const id = ids[i];
-      const r = id != null ? dish(id) : null;
-      return r
-        ? `<button class="tray-slot full" data-key="s${id}"${uiAttr(`trayOut:${id}`)} title="Bấm để bỏ ra"><span class="dish-icon">${r.icon}</span></button>`
-        : '<span class="tray-slot"></span>';
-    }).join('');
-    const picked = ui.trayPick === kind;
-    // Gợi ý bàn khớp đúng các món trong khay (người chơi vẫn tự bấm bàn để bưng)
-    const match = ids.length ? trayParty(game, ids, kind) : null;
-    const matchName = match?.tableId ? (tableById(game.ctx, match.tableId)?.name ?? '') : '';
-    const hint = picked ? '👉 Bấm vào bàn để bưng' : match ? `✅ Đủ món cho ${esc(matchName)}` : ids.length ? 'Chưa đủ bộ món của bàn nào' : 'Kéo món vào đây';
-    return `<div class="tray${picked ? ' picked' : ''}${match ? ' match' : ''}" data-tray="${kind}">
-      <div class="tray-head"><b>${kind === 2 ? '🍽️ Khay bàn đôi' : '🍱 Khay bàn bốn'}</b>${ids.length ? `<button class="mini"${uiAttr(`trayClear:${kind}`)} title="Bỏ hết món ra">✕</button>` : ''}</div>
-      <div class="tray-slots s${kind}">${slots}</div>
-      <button class="tray-take${picked ? ' on' : ''}"${uiAttr(`trayPick:${kind}`)}${ids.length ? '' : ' disabled'}>${picked ? '✋ Đang cầm khay — bấm lại để đặt xuống' : '🛎️ Cầm khay đi bưng'}</button>
-      <small class="tray-hint-line">${hint}</small>
-    </div>`;
-  };
-  const held = ui.serving != null ? state.restaurant.orders.find((o) => o.id === ui.serving) : null;
-  const heldBar = held
-    ? `<div class="held-bar"><span class="dish-icon">${content.recipes.get(held.recipeId).icon}</span><span>Đang cầm <b>${esc(content.recipes.get(held.recipeId).name)}</b> — bấm bàn đã gọi món này</span><button class="mini"${uiAttr('serve:')}>✕</button></div>`
+  if (w.tasks.some((t) => t.kind === 'pickup')) return `<div class="service-card carrying" data-key="carry"><span>🏃 Đang ra quầy line lấy món…</span></div>`;
+  const n = readyOrders(ctx).length;
+  return n
+    ? `<button class="service-card pass-hint" data-key="pass-hint"${uiAttr('pickup')}>🔔 Quầy line có ${n} món — bấm quầy (hoặc ở đây) để bưng, tối đa ${max} món một lượt</button>`
     : '';
-  return `<div class="service-card pass" data-key="pass">
-    <div class="service-head"><b>🔔 Quầy ra món</b><button class="x-close"${uiAttr('pass:close')} aria-label="Đóng">✕</button></div>
-    ${heldBar}
-    ${
-      ready.length
-        ? `<div class="pass-list">${ready
-            .map((o) => {
-              const r = content.recipes.get(o.recipeId);
-              return `<button class="pass-dish${ui.serving === o.id ? ' on' : ''}" data-key="o${o.id}" data-order="${o.id}"${uiAttr(`serve:${o.id}`)}><span class="dish-icon">${r.icon}</span><b>${esc(r.name)}</b><small>${esc(tableName(o.partyId))}</small></button>`;
-            })
-            .join('')}</div>`
-        : inTray.size
-          ? ''
-          : '<p class="muted">Chưa có món nào nấu xong. Bếp nấu xong món sẽ hiện ở đây.</p>'
-    }
-    <div class="trays">${tray(2, ui.tray2)}${tray(4, ui.tray4)}</div>
-    <p class="muted tray-hint">Bấm một món rồi bấm bàn đã gọi để giao một món. Hoặc kéo món vào khay, bấm "Cầm khay" rồi bấm bàn để bưng cả khay.</p>
-  </div>`;
 }
 
 const GUIDE: [string, string][] = [
@@ -317,37 +272,6 @@ export function settingsHtml(ui: UiState, prefs: { music: boolean; sfx: boolean 
   </div>`;
 }
 
-/**
- * Nhóm khách nhận được cả khay này: các món trong khay khớp đúng những món nhóm còn chờ, và nhóm ngồi bàn hợp khay
- * (khay 2 ô: bàn đôi / quầy ghế đơn; khay 4 ô: bàn từ 3 ghế). Bàn đông hơn 4 người: khay 4 ô đầy là giao trước một đợt.
- */
-export function trayParty(game: Game, ids: number[], kind: 2 | 4): Party | null {
-  const { ctx, state } = game;
-  const orders = ids.map((id) => state.restaurant.orders.find((o) => o.id === id));
-  if (!orders.length || orders.some((o) => !o || o.status !== 'ready' || isReserved(ctx, o.id))) return null;
-  const have = orders.map((o) => o!.recipeId).sort();
-  for (const party of state.restaurant.parties) {
-    if (party.phase !== 'waitingFood' || !party.tableId) continue;
-    const t = tableById(ctx, party.tableId);
-    if (!t || (kind === 2 ? !(t.shared || t.seats <= 2) : t.shared || t.seats <= 2)) continue;
-    const need = pendingOrders(ctx, party).map((o) => o.recipeId).sort();
-    if (need.length === have.length && need.every((r, i) => r === have[i])) return party;
-    // Bàn hơn 4 người: khay 4 ô đầy, toàn món bàn đó còn chờ -> giao trước
-    if (kind === 4 && have.length === 4 && need.length > 4) {
-      const left = [...need];
-      if (have.every((r) => { const i = left.indexOf(r); if (i < 0) return false; left.splice(i, 1); return true; })) return party;
-    }
-  }
-  return null;
-}
-
-/** Khay nên chứa món này: theo bàn của người đã gọi (bàn đôi / quầy → khay 2 ô, bàn lớn → khay 4 ô). */
-export function trayFor(game: Game, orderId: number): 2 | 4 {
-  const o = game.state.restaurant.orders.find((x) => x.id === orderId);
-  const p = o && game.state.restaurant.parties.find((x) => x.id === o.partyId);
-  const t = p?.tableId ? tableById(game.ctx, p.tableId) : null;
-  return !t || t.shared || t.seats <= 2 ? 2 : 4;
-}
 
 /** Bảng chi tiết nhiệm vụ: nhiệm vụ đang làm (mô tả, tiến độ, phần thưởng) + danh sách cả chuỗi. */
 export function questHtml(game: Game, ui: UiState): string {

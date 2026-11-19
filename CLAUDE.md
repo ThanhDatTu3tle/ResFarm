@@ -43,7 +43,7 @@ Tham số URL để thử nhanh (ghép được với nhau):
 | `?event=critic` | (chỉ bản dev) ép sự kiện ngẫu nhiên xảy ra ngay khi quán mở (`critic` / `inspector` / `tour_bus` / `outage` / `big_tippers`) |
 | `?rich` | (chỉ bản dev) nhiều tiền + cấp 9, để thử mua sắm |
 | `?edit` | (chỉ bản dev) mở sẵn chế độ sắp xếp bàn |
-| `?pass` | (chỉ bản dev) mở sẵn khay quầy ra món |
+| `?ffserve` | (chỉ bản dev) kèm `?ff=150`: lúc tua tự mang menu + ghi món (không bưng) để xem bong bóng màu bàn và món trên quầy line; thêm `&pickup` thì bồi bàn ra quầy lấy món luôn |
 | `?do=[...]` | (chỉ bản dev) chạy sẵn một mảng Command dạng JSON đã mã hoá URL, trước khi tua |
 
 Ví dụ: `http://localhost:5184/?fresh&cuisine=jp&seed=5&ff=720&weather=rain&area=market`.
@@ -104,7 +104,7 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 | `festival.ts` | Sáng ngày lễ: cộng tiền mừng (`FestivalDef.gift`, không tính vào doanh thu) + sự kiện `festival/started` |
 | `weather.ts` | Thời tiết đổi ngẫu nhiên theo trọng số của mùa (thêm `storm` Bão: `damage` = xác suất dập mỗi ô rau / lúa ngoài trời, mất nửa tiến độ, sự kiện `farm/storm`; `heat` Nắng nóng: `dryRate` đất khô nhanh gấp đôi) (`WeatherDef.seasonWeights`: Hạ nắng nhiều, Thu gió nhiều, Đông không mưa mà có tuyết `snow`); sang mùa mà thời tiết không hợp thì đổi ngay; hiệu ứng gameplay lấy từ `WeatherDef.effects` |
 | `customers.ts` | Khách tới, xếp hàng, xếp bàn, chờ menu → xem menu → chờ ghi món → chờ món (tâm trạng `moodOf`) → ăn → trả tiền (tip theo tâm trạng) / bỏ về |
-| `service.ts` | Người chơi là bồi bàn: lệnh `service/menu`, `service/takeOrder`, `service/deliver { orderIds }` (bưng cả khay một lượt), `service/clean` (dọn chén dĩa dơ — `restaurant.dirty`, ghế dơ không xếp khách), `service/mop` (lau vết bẩn — `restaurant.stains`, làm khách kém kiên nhẫn); `addStains` gọi lúc hết ca. Bồi bàn đi thật trong sim (`state.restaurant.waiter`), làm việc theo hàng, rảnh thì đứng yên tại chỗ. `autoServeCommands` = người chơi mẫu cho test/cân bằng |
+| `service.ts` | Người chơi là bồi bàn: lệnh `service/menu`, `service/takeOrder`, `service/pickup` (bấm quầy line: ra lấy món ra quầy sớm nhất — `passQueue`, theo `Order.readyAt` — tối đa `balance.service.carryMax` = 2 món), `service/serve { partyId }` (bấm bàn: giao đúng những món đang cầm của bàn đó, không đổi chủ món cùng loại), `service/deliver { orderIds }` (nhân viên thuê / test: lấy món của một bàn ở quầy rồi giao một lượt), `service/clean` (dọn chén dĩa dơ — `restaurant.dirty`, ghế dơ không xếp khách), `service/mop` (lau vết bẩn — `restaurant.stains`, làm khách kém kiên nhẫn); `addStains` gọi lúc hết ca. Bồi bàn đi thật trong sim (`state.restaurant.waiter`), làm việc theo hàng, rảnh thì đứng yên tại chỗ. `autoServeCommands` = người chơi mẫu cho test/cân bằng |
 | `kitchen.ts` | Đầu bếp nhận đơn và nấu; xong thì đặt ra quầy line (`ready`). **Hạng bếp** `restaurant.kitchenTier` (`balance.kitchen.tiers`: số đầu bếp tối đa, sức chứa quầy line `passSlots` — đầy đĩa thì bếp chờ, chỗ nhân viên phục vụ cộng thêm): `kitchen/upgrade`. Đầu bếp thuê thêm = `StaffDef.hire` (`chef/hire`, `chef/fire`). **Giao món**: `StaffState.dishes` (null = mọi món), `chef/setDish`; `cooks()`, `uncookedDishes()` (món không ai nấu). Đổi bếp phát `kitchen/changed` → app.ts dựng lại khu quán |
 | `farm.ts` | Ô nông trại: cuốc đất, gieo/nuôi, tưới (mưa tự làm ẩm), lớn, thu hoạch, mua ô, nới rộng ô |
 | `quests.ts` | Nhiệm vụ hệ thống: chuỗi `content.quests` làm lần lượt; mục tiêu đếm qua `bumpQuest(ctx, kind, n)`, mục tiêu trạng thái đọc state; lệnh `quest/claim` |
@@ -196,7 +196,7 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 
 **Thêm sạp chợ** — 1 mục trong `src/data/market.ts`; khu chợ tự dựng thêm sạp, bảng tên (= `name`) và bảng chân đứng nếu có `standee`. `kind`: `stall` (sạp mái bạt, mặc định) / `kiosk` (tiệm nhỏ) xếp trong dãy chợ; `cart` / `pole` / `bike` (xe đẩy, gánh, xe đạp bán dạo) đứng trên vỉa hè ở `spot`. Bấm sạp thì camera lướt vào sát sạp (`MarketArea.stallCenter`). Xe cộ trên đường trước chợ: `farmkit.makeCar/makeTruck/makeScooter`, danh sách xe trong `MarketArea.buildScenery`.
 
-**Khay ở quầy ra món** — bấm quầy mở bảng quầy **trong ngăn kéo bên phải** (`serviceHtml` trong hud.ts, cảnh 3D thu hẹp lại nên vẫn thấy bàn): bấm một món = cầm món đó rồi bấm bàn để giao (`ui.serving`); kéo món vào khay 2 ô hoặc 4 ô (`ui.tray2/tray4`), bấm "Cầm khay" (`ui.trayPick`) rồi bấm bàn → `service/deliver` cả khay. Không tự bưng: `trayParty()` chỉ để gợi ý bàn khớp món.
+**Bưng món theo màu bàn** — lúc ghi món (`placeOrders`) nhóm khách được gán `Party.color` (màu đầu tiên chưa bàn nào dùng, `balance.service.partyColors` = 8; bảng màu ở `src/ui/colors.ts`). Bong bóng cảm xúc + bong bóng món của nhóm tô nền màu đó (`bubbleSprite(icons, size, bg)`), đĩa trên quầy line có vòng màu, món đang cầm hiện thành bong bóng màu trên đầu người phục vụ (`RestaurantArea.updateCarryBadges`) và ở thanh dưới (`serviceHtml` trong hud.ts). Bấm quầy → `service/pickup`, bấm bàn → `service/serve`. Đã bỏ khay kéo thả.
 
 **Vườn cây ăn quả / ô đặt tay** — `SlotTypeDef.layout.spots` (vị trí từng ô + `work` riêng) thay cho lưới khi ô nằm nhiều cụm; `initialPlants` = cây trồng sẵn ở ô khởi đầu. Hình cây: `farmkit.makeFruitTree`.
 

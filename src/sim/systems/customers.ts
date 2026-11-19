@@ -207,6 +207,12 @@ export function placeOrders(ctx: SimContext, party: Party): void {
     leave(ctx, party, 'noFood');
     return;
   }
+  // Màu bàn: màu đầu tiên chưa bàn nào đang dùng (hết màu thì quay vòng)
+  if (party.color == null) {
+    const used = new Set(state.restaurant.parties.filter((p) => p !== party && p.color != null).map((p) => p.color));
+    const n = content.balance.service.partyColors;
+    party.color = Array.from({ length: n }, (_, i) => i).find((i) => !used.has(i)) ?? party.id % n;
+  }
   const patience = (content.balance.foodPatience + content.balance.foodPatiencePerGuest * party.size) * modifier(ctx, 'patience');
   party.phase = 'waitingFood';
   party.called = false;

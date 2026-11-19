@@ -112,11 +112,14 @@ function reconcile(state: GameState, content: Content): GameState {
   for (const p of r.parties) if (p.regular && !content.regulars.has(p.regular)) p.regular = null;
   // Bồi bàn: bỏ việc trỏ tới khách / món không còn; món đang bưng mà không còn trên tay thì trả về quầy
   if (r.waiter.x < 0) Object.assign(r.waiter, content.room.waiterHome);
-  r.helpers = r.helpers.slice(0, Math.max(0, r.tier - 1));
+  // Chỗ nhân viên: theo hạng quán + phần cộng của hạng bếp (khớp maxHelpers trong systems/helpers.ts)
+  const kitchenBonus = content.balance.kitchen.tiers[Math.max(1, Math.floor(r.kitchenTier) || 1) - 1]?.helpers ?? 0;
+  r.helpers = r.helpers.slice(0, Math.min(4, Math.max(0, r.tier - 1) + kitchenBonus));
   for (const w of [r.waiter, ...r.helpers]) {
   w.tasks = w.tasks.filter((t) => {
     if (t.kind === 'clean') return tableIds.has(t.tableId);
     if (t.kind === 'mop') return r.stains.some((s) => s.id === t.stainId);
+    if (t.kind === 'pickup') return true;
     if (!r.parties.some((p) => p.id === t.partyId)) return false;
     if (t.kind === 'deliver') t.orderIds = t.orderIds.filter((id) => r.orders.some((o) => o.id === id));
     return t.kind !== 'deliver' || t.orderIds.length > 0;

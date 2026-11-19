@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { partyColor } from '../../colors';
 import { passSlots } from '../../../sim/systems/kitchen';
 import type { RoomDef, TableDef } from '../../../data';
 import type { Game } from '../../../sim/game';
@@ -7,7 +8,7 @@ import { heartsOf } from '../../../sim/systems/regulars';
 import { makePet, makeRegular } from '../people';
 import { animateProp, makeProp } from '../props';
 import { activeTables, moodOf } from '../../../sim/systems/customers';
-import { isReserved, needOf, wantedOrder } from '../../../sim/systems/service';
+import { isReserved, needOf } from '../../../sim/systems/service';
 import { animateCreature, animatePerson, LOOKS, makeBush, makeDish, makePerson } from '../models';
 import { buildSeat, counterExtras, decorateInterior, seatStyle, signText, tableExtras, type InteriorAnimator } from '../cuisine';
 import { HOLD_MS, type Area, type Env, type Pick } from '../stage';
@@ -540,22 +541,25 @@ export class RestaurantArea implements Area {
     const waiting = party.phase === 'waitingFood' ? state.restaurant.orders.filter((o) => o.partyId === party.id && o.status !== 'served').flatMap((o) => (o.fav ? ['💖', content.recipes.get(o.recipeId).icon] : [content.recipes.get(o.recipeId).icon])) : [];
     const dishesKey = waiting.join('|');
 
-    if (fx.mainKey !== main) {
+    // Đã gọi món: bong bóng mang màu bàn (món của bàn này trên quầy / trên tay bồi bàn cùng màu)
+    const color = party.phase === 'waitingFood' ? partyColor(party.color) : null;
+    const mainKey = `${main}|${color ?? ''}`;
+    if (fx.mainKey !== mainKey) {
       if (fx.main) fx.holder.remove(fx.main);
-      fx.main = main ? bubbleSprite([main], 0.8) : null;
+      fx.main = main ? bubbleSprite([main], 0.8, color) : null;
       if (fx.main) fx.holder.add(fx.main);
-      fx.mainKey = main;
+      fx.mainKey = mainKey;
     }
-    if (fx.dishesKey !== dishesKey) {
+    const dishKey = `${dishesKey}|${color ?? ''}`;
+    if (fx.dishesKey !== dishKey) {
       if (fx.dishes) fx.holder.remove(fx.dishes);
-      fx.dishes = waiting.length ? bubbleSprite(waiting, 0.62) : null;
+      fx.dishes = waiting.length ? bubbleSprite(waiting, 0.62, color) : null;
       if (fx.dishes) fx.holder.add(fx.dishes);
-      fx.dishesKey = dishesKey;
+      fx.dishesKey = dishKey;
     }
 
-    // Người chơi đang cầm món: bàn nào nhận được món đó thì bong bóng món nhún lên
-    const carrying = env.serving != null ? state.restaurant.orders.find((o) => o.id === env.serving) : null;
-    const wants = !!carrying && party.phase === 'waitingFood' && !!wantedOrder(ctx, party, carrying.recipeId);
+    // Bồi bàn đang cầm món của bàn này: bong bóng nhún lên cho dễ thấy
+    const wants = party.phase === 'waitingFood' && state.restaurant.waiter.carrying.some((id) => state.restaurant.orders.find((o) => o.id === id)?.partyId === party.id);
     const beat = 1 + Math.max(0, Math.sin(env.t * 6 + party.id)) * 0.18;
     // Kích thước gốc của bong bóng (lúc dựng) để nhún theo tỉ lệ mà không cộng dồn
     const base = (sprite: THREE.Sprite) => (sprite.userData.base ??= sprite.scale.clone()) as THREE.Vector3;
@@ -602,11 +606,14 @@ export class RestaurantArea implements Area {
           icon.position.y = 0.2;
           g.add(icon);
         }
+        // Vòng màu dưới đĩa = màu bàn đã gọi món này
+        const pc = partyColor(this.game.state.restaurant.parties.find((p) => p.id === o.partyId)?.color);
+        if (pc) mesh(g, G.cyl(0.24, 0.24, 0.02, 18), new THREE.MeshBasicMaterial({ color: pc }), { p: [0, -0.01, 0], cast: false });
         g.userData.born = env.t;
         this.passPlates.set(o.id, g);
       }
       const [x, z] = this.passXY[i];
-      const picked = env.serving === o.id;
+      const picked = false;
       const reserved = isReserved(ctx, o.id);
       const pop = easeOutBack(Math.min(1, (env.t - g.userData.born) / 0.35), 3);
       g.position.set(x, picked ? 0.12 + Math.abs(Math.sin(env.t * 6)) * 0.08 : 0.02, z);
@@ -656,6 +663,27 @@ export class RestaurantArea implements Area {
     else if (task?.kind === 'mop') this.setWaiterHand('mop', null, w);
     else this.setWaiterHand('', null, w);
     if (!still) animatePerson(w.g, env.t, { walk: moving ? 1 : 0, carry: carrying.length > 0 });
+    this.updateCarryBadges(w.g, carrying.map((o) => o!));
+  }
+
+  /** Món đang cầm hiện trên đầu người phục vụ, mỗi món một bong bóng màu của bàn đã gọi. */
+  private updateCarryBadges(g: THREE.Group, orders: import('../../../sim/state').Order[]): void {
+    const { state, content } = this.game;
+    const items = orders.map((o) => ({ icon: content.recipes.get(o.recipeId).icon, color: partyColor(state.restaurant.parties.find((p) => p.id === o.partyId)?.color) }));
+    const key = items.map((i) => `${i.icon}${i.color}`).join('|');
+    if (g.userData.badgeKey === key) return;
+    g.userData.badgeKey = key;
+    let holder = g.userData.badges as THREE.Group | undefined;
+    if (!holder) {
+      holder = group(g, { p: [0, 2.15, 0] });
+      g.userData.badges = holder;
+    }
+    holder.clear();
+    items.forEach((it, i) => {
+      const s = bubbleSprite([it.icon], 0.42, it.color);
+      s.position.x = (i - (items.length - 1) / 2) * 0.46;
+      holder!.add(s);
+    });
   }
 
   private helperViews = new Map<string, { g: THREE.Group; hand: THREE.Group; handKey: string; lastX: number; lastZ: number; bar: Bar3D; status: THREE.Sprite; statusKey: string }>();

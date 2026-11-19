@@ -29,7 +29,9 @@ export const balance: Balance = {
   xpPerCoin: 0.5,
   reputation: { paid: 0.01, paidBonus: 0.03, timeout: -0.1, noFood: -0.1 }, // G10: uy tín lên chậm hơn (~0.4 sao/ngày khi phục vụ tốt) để khách quen mở dần
   service: {
-    waiterSpeed: 300, // băng qua quán mất ~6 giây thực (đi thong thả cho dễ theo dõi)
+    waiterSpeed: 300,
+    carryMax: 2,
+    partyColors: 8, // băng qua quán mất ~6 giây thực (đi thong thả cho dễ theo dõi)
     browseTime: [4.5, 10.5], // 3–7 giây thực
     menuPatience: 96, // ~64 giây thực
     orderPatience: 96,

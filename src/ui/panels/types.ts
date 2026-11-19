@@ -15,10 +15,6 @@ export interface UiState {
   editLayout: boolean;
   /** Bảng Cài đặt (nút bánh răng) đang mở — game tạm dừng trong lúc mở. */
   settings: boolean;
-  /** Đang mở khay chọn món ở quầy ra món. */
-  passOpen: boolean;
-  /** Món (id đơn) đã chọn ở quầy ra món, chờ người chơi bấm vào bàn cần giao. */
-  serving: number | null;
   /**
    * Bảng Nông trại chỉ hiện một loại ô (SlotType) hoặc một loại cối (MillType) — khi người chơi bấm vào ô / cối / chỗ mở rộng
    * trong cảnh 3D. null = hiện tất cả (mở từ nút Nông trại).
@@ -28,11 +24,6 @@ export interface UiState {
   editSelected: string | null;
   /** Chế độ chụp ảnh: ẩn hết bảng biểu, chỉ còn cảnh 3D + nút chụp. */
   photo: boolean;
-  /** Khay ở quầy ra món: món (id đơn) đã xếp vào khay bàn đôi (2 ô) và khay bàn bốn (4 ô). Đủ món của một bàn thì bưng đi. */
-  tray2: number[];
-  tray4: number[];
-  /** Khay đang cầm (đã bấm khay ở quầy), bấm bàn để bưng cả khay tới; null = không cầm. */
-  trayPick: 2 | 4 | null;
   /** Đang mở bảng chi tiết nhiệm vụ. */
   questOpen: boolean;
   /** Bảng gọi món cho cả đội ở chợ: đang mở không, đang chọn cho ai, chỉ hiện thực đơn của hàng nào (null = mọi hàng). */

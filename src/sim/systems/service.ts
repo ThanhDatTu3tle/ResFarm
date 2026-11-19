@@ -6,9 +6,11 @@ import { awayReason, dropWork, tire } from './crew';
 import { placeOrders, startBrowsing } from './customers';
 
 /**
- * PHỤC VỤ — người chơi đóng vai bồi bàn. Bấm vào khách / quầy ra món / bàn dơ / vết bẩn là giao việc; bồi bàn làm lần lượt:
+ * PHỤC VỤ — người chơi đóng vai bồi bàn. Bấm vào khách / quầy line / bàn dơ / vết bẩn là giao việc; bồi bàn làm lần lượt:
  * đi tới nơi (tốc độ balance.service.waiterSpeed, theo toạ độ mặt bằng) rồi mới mang menu / ghi món / bưng món / dọn / lau.
- *  - Bưng món: cả khay một lượt (service/deliver với nhiều orderIds) — lấy hết ở quầy rồi giao cho bàn.
+ *  - Bưng món (người chơi): bấm quầy line → `service/pickup`: ra quầy lấy món ra quầy sớm nhất, tối đa `carryMax` món;
+ *    rồi bấm bàn → `service/serve`: giao những món đang cầm của bàn đó (món mang màu bàn — xem `Party.color`).
+ *  - Nhân viên thuê / test: `service/deliver` (lấy đúng các món của một bàn ở quầy rồi giao một lượt).
  *  - Rảnh việc thì bồi bàn đứng yên tại chỗ (không chạy về quầy).
  * Vị trí bồi bàn nằm trong state nên cảnh 3D chỉ việc vẽ theo, và mọi thứ vẫn tất định.
  */
@@ -83,6 +85,7 @@ export function passSpot(ctx: SimContext): Point {
 
 function targetOf(ctx: SimContext, task: WaiterTask, w: WaiterState): Point | null {
   const r = ctx.state.restaurant;
+  if (task.kind === 'pickup') return passSpot(ctx);
   if (task.kind === 'clean') {
     const t = tableById(ctx, task.tableId);
     return t && r.dirty[t.id]?.length ? serviceSpot(t, tablePos(ctx, t), r.dirty[t.id]) : null;
@@ -109,6 +112,16 @@ function act(ctx: SimContext, task: WaiterTask, w: WaiterState): boolean {
   if (task.kind === 'mop') {
     r.stains = r.stains.filter((s) => s.id !== task.stainId);
     bus.emit('waiter/done', { kind: 'mop', partyId: null });
+    return true;
+  }
+  if (task.kind === 'pickup') {
+    // Tới quầy: lấy món ra quầy sớm nhất cho đủ tay
+    const room = ctx.content.balance.service.carryMax - w.carrying.length;
+    for (const o of passQueue(ctx).slice(0, Math.max(0, room))) {
+      o.status = 'carrying';
+      w.carrying.push(o.id);
+    }
+    bus.emit('waiter/done', { kind: 'pickup', partyId: null });
     return true;
   }
   const party = r.parties.find((p) => p.id === task.partyId);
@@ -157,6 +170,11 @@ function swapOwners(ctx: SimContext, a: Order, b: Order): void {
   [a.fav, b.fav] = [b.fav, a.fav];
 }
 
+/** Món đang chờ ở quầy line chưa ai nhận, xếp theo lúc ra quầy (sớm trước). */
+export function passQueue(ctx: SimContext): Order[] {
+  return readyOrders(ctx).sort((a, b) => (a.readyAt ?? 0) - (b.readyAt ?? 0) || a.id - b.id);
+}
+
 /** Hết ca: sàn có thêm vết bẩn ở khu ăn uống, vết cũ chưa lau thì bẩn thêm một bậc. */
 export function addStains(ctx: SimContext): void {
   const { state, content } = ctx;
@@ -194,6 +212,34 @@ export const serviceSystem: System = {
       if (party.called) return fail('Đang tới ghi món cho bàn này rồi.');
       party.called = true;
       ctx.state.restaurant.waiter.tasks.push({ kind: 'takeOrder', partyId: party.id });
+      return ok();
+    },
+    'service/pickup'(ctx) {
+      const blocked = waiterBlocked(ctx);
+      if (blocked) return fail(blocked);
+      const w = ctx.state.restaurant.waiter;
+      const max = ctx.content.balance.service.carryMax;
+      if (w.tasks.some((t) => t.kind === 'pickup')) return fail('Đang ra quầy lấy món rồi.');
+      if (w.carrying.length >= max) return fail(`Đang cầm ${max} món rồi — bấm bàn cùng màu để giao.`);
+      if (!passQueue(ctx).length) return fail('Quầy line chưa có món nào nấu xong.');
+      w.tasks.push({ kind: 'pickup' });
+      return ok();
+    },
+    'service/serve'(ctx, cmd) {
+      const blocked = waiterBlocked(ctx);
+      if (blocked) return fail(blocked);
+      const r = ctx.state.restaurant;
+      const w = r.waiter;
+      const party = r.parties.find((p) => p.id === cmd.partyId);
+      if (!party || party.phase !== 'waitingFood') return fail('Bàn này không chờ món.');
+      // Món đang cầm chưa hứa giao cho bàn nào
+      const promised = new Set(w.tasks.flatMap((t) => (t.kind === 'deliver' ? t.orderIds : [])));
+      const free = w.carrying.map((id) => r.orders.find((o) => o.id === id)).filter((o): o is Order => !!o && !promised.has(o.id));
+      if (!free.length) return fail(w.tasks.some((t) => t.kind === 'pickup') ? 'Đợi lấy món ở quầy xong đã.' : 'Chưa cầm món nào — bấm quầy line để lấy món.');
+      // Chỉ giao đúng món mang màu bàn này (món của bàn khác dù cùng loại cũng không đổi chủ)
+      const mine = free.filter((o) => o.partyId === party.id);
+      if (!mine.length) return fail('Món đang cầm không phải của bàn này — giao cho bàn có bong bóng cùng màu nhé.');
+      w.tasks.push({ kind: 'deliver', orderIds: mine.map((o) => o.id), partyId: party.id });
       return ok();
     },
     'service/deliver'(ctx, cmd) {

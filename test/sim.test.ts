@@ -1473,3 +1473,75 @@ describe('đơn đặt hàng, bán hàng dư, sự kiện', () => {
     expect(loaded.event).toBeNull();
   });
 });
+
+describe('bưng món theo màu bàn', () => {
+  /** Hai bàn đã gọi món, món đã ra quầy theo thứ tự cho trước. */
+  function setup() {
+    const game = quietGame();
+    const [r1, r2] = game.state.menu.active;
+    const a = seatParty(game, 'pair', 2);
+    const b = seatParty(game, 'medium', 1);
+    for (const p of [a, b]) {
+      p.phase = 'readyToOrder';
+      game.state.inventory = { ...game.state.inventory };
+    }
+    const order = (party: Party, recipeId: string, readyAt: number) => {
+      const o = { id: game.state.nextId++, partyId: party.id, recipeId, status: 'ready' as const, progress: 999, readyAt };
+      game.state.restaurant.orders.push(o);
+      party.orderIds.push(o.id);
+      party.phase = 'waitingFood';
+      return o;
+    };
+    const oB = order(b, r2, 10); // ra quầy sớm nhất
+    const oA1 = order(a, r1, 20);
+    const oA2 = order(a, r2, 30);
+    a.color = 0;
+    b.color = 1;
+    return { game, a, b, oA1, oA2, oB };
+  }
+  const walk = (game: Game) => {
+    for (let i = 0; i < 200 && game.state.restaurant.waiter.tasks.length; i++) game.tick(1);
+  };
+
+  it('bấm quầy: bồi bàn lấy tối đa 2 món, món ra quầy trước lấy trước', () => {
+    const { game, oB, oA1, oA2 } = setup();
+    expect(game.dispatch({ type: 'service/pickup' }).ok).toBe(true);
+    walk(game);
+    expect(game.state.restaurant.waiter.carrying).toEqual([oB.id, oA1.id]);
+    expect(game.state.restaurant.orders.find((o) => o.id === oA2.id)!.status).toBe('ready');
+    expect(game.dispatch({ type: 'service/pickup' }).ok).toBe(false); // tay đầy
+  });
+
+  it('bấm bàn: chỉ giao món của bàn đó; bàn không gọi món đang cầm thì báo lỗi', () => {
+    const { game, a, b, oB, oA1 } = setup();
+    game.dispatch({ type: 'service/pickup' });
+    walk(game);
+    // Bàn b chỉ gọi món r2; bàn a cũng gọi r2 nhưng món r2 đang cầm là của b — bấm a chỉ giao món của a
+    expect(game.dispatch({ type: 'service/serve', partyId: a.id }).ok).toBe(true);
+    walk(game);
+    expect(game.state.restaurant.orders.find((o) => o.id === oA1.id)!.status).toBe('served');
+    expect(game.state.restaurant.orders.find((o) => o.id === oB.id)!.partyId).toBe(b.id);
+    expect(game.state.restaurant.waiter.carrying).toEqual([oB.id]);
+    expect(game.dispatch({ type: 'service/serve', partyId: b.id }).ok).toBe(true);
+    walk(game);
+    expect(game.state.restaurant.waiter.carrying).toEqual([]);
+    expect(game.dispatch({ type: 'service/serve', partyId: a.id }).ok).toBe(false); // không cầm gì
+    game.dispatch({ type: 'service/pickup' });
+    walk(game); // lấy nốt món r2 của bàn a
+    expect(game.dispatch({ type: 'service/serve', partyId: b.id }).ok).toBe(false); // món đang cầm không phải của b
+  });
+
+  it('gọi món thì bàn được gán màu, hai bàn đang chờ không trùng màu', () => {
+    const game = quietGame();
+    const a = seatParty(game, 'pair', 2);
+    const b = seatParty(game, 'medium', 2);
+    for (const p of [a, b]) {
+      p.phase = 'readyToOrder';
+      game.dispatch({ type: 'service/takeOrder', partyId: p.id });
+    }
+    walk(game);
+    expect(a.color).toBeDefined();
+    expect(b.color).toBeDefined();
+    expect(a.color).not.toBe(b.color);
+  });
+});

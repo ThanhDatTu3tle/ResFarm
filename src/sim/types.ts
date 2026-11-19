@@ -56,6 +56,10 @@ export type Command =
   | { type: 'service/clean'; tableId: string }
   | { type: 'service/mop'; stainId: number }
   | { type: 'contract/deliver'; contractId: number }
+  /** Bồi bàn ra quầy line lấy món nấu xong sớm nhất (tối đa balance.service.carryMax). */
+  | { type: 'service/pickup' }
+  /** Giao các món đang cầm của bàn này. */
+  | { type: 'service/serve'; partyId: number }
   | { type: 'market/sell'; itemId: string; qty: number }
   | { type: 'kitchen/upgrade' }
   | { type: 'chef/hire' }
