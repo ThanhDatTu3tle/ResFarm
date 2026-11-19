@@ -36,7 +36,9 @@ Tham số URL để thử nhanh (ghép được với nhau):
 | `?area=farm` | Mở sẵn khu `farm` / `restaurant` / `market` |
 | `?tab=menu` | Mở sẵn một panel trong ngăn kéo |
 | `?speed=4` | Tốc độ ban đầu |
-| `?weather=rain` | (chỉ bản dev) ép thời tiết |
+| `?weather=rain` | (chỉ bản dev) ép thời tiết (`snow` = tuyết rơi) |
+| `?day=85` | (chỉ bản dev) nhảy tới ngày đó trong lịch để xem mùa: 1 Xuân, 29 Hạ, 57 Thu, 85 Đông; 28 / 112 = ngày cuối mùa / cuối năm (kèm `?ff=1100` để thấy tổng kết) |
+| `?stall=seafood` | (chỉ bản dev) mở thẳng bên trong một quầy chợ (`meat` / `produce` / `seafood` / `dry` / `snack`) |
 | `?rich` | (chỉ bản dev) nhiều tiền + cấp 9, để thử mua sắm |
 | `?edit` | (chỉ bản dev) mở sẵn chế độ sắp xếp bàn |
 | `?pass` | (chỉ bản dev) mở sẵn khay quầy ra món |
@@ -94,8 +96,8 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 | File | Việc |
 | --- | --- |
 | `clock.ts` | Giờ trong ngày, pha `open → closing → summary` |
-| `calendar.ts` (không phải system) | `calendarOf(day)`: thứ, ngày trong mùa, mùa, năm — ngày 1 = Thứ Hai mùng 1 Xuân năm 1, mùa 28 ngày. Tên mùa/thứ ở `src/data/calendar.ts` |
-| `weather.ts` | Thời tiết đổi ngẫu nhiên; hiệu ứng gameplay lấy từ `WeatherDef.effects` |
+| `calendar.ts` (không phải system) | `calendarOf(day)`: thứ, ngày trong mùa, mùa, năm — ngày 1 = Thứ Hai mùng 1 Xuân năm 1, mùa 28 ngày (4 tuần), 4 mùa / năm. Tên mùa/thứ ở `src/data/calendar.ts`. `seasonOf(ctx)`, `isFrozen(ctx, slotType)` (mùa Đông `frozen`: ô ngoài trời không cuốc / gieo / tưới, cây và con vật ngừng lớn, bác không tự gieo lại; nhà kính vẫn trồng), `isSeasonEnd` / `isYearEnd`. Thống kê cộng dồn `stats.season` / `stats.year` (cộng lúc hết ngày ở clock.ts, đếm lại ở `nextDay` khi sang mùa / năm) → tổng kết ở màn hết ngày 28 (`periodSummaryHtml`) |
+| `weather.ts` | Thời tiết đổi ngẫu nhiên theo trọng số của mùa (`WeatherDef.seasonWeights`: Hạ nắng nhiều, Thu gió nhiều, Đông không mưa mà có tuyết `snow`); sang mùa mà thời tiết không hợp thì đổi ngay; hiệu ứng gameplay lấy từ `WeatherDef.effects` |
 | `customers.ts` | Khách tới, xếp hàng, xếp bàn, chờ menu → xem menu → chờ ghi món → chờ món (tâm trạng `moodOf`) → ăn → trả tiền (tip theo tâm trạng) / bỏ về |
 | `service.ts` | Người chơi là bồi bàn: lệnh `service/menu`, `service/takeOrder`, `service/deliver { orderIds }` (bưng cả khay một lượt), `service/clean` (dọn chén dĩa dơ — `restaurant.dirty`, ghế dơ không xếp khách), `service/mop` (lau vết bẩn — `restaurant.stains`, làm khách kém kiên nhẫn); `addStains` gọi lúc hết ca. Bồi bàn đi thật trong sim (`state.restaurant.waiter`), làm việc theo hàng, rảnh thì đứng yên tại chỗ. `autoServeCommands` = người chơi mẫu cho test/cân bằng |
 | `kitchen.ts` | Đầu bếp nhận đơn và nấu; xong thì đặt ra quầy ra món (`ready`) |
@@ -137,15 +139,16 @@ src/ui/three/areas/*.ts    mỗi file một KHU (màn hình 3D): restaurant, far
 src/ui/panels/*.ts         các bảng HTML trong ngăn kéo: Quán, Thực đơn, Siêu thị, Chợ, Nông trại, Kho
 src/ui/dom.ts              esc(), cmd(), ui(), bar(), morph()
 src/ui/ease.ts             easing dùng chung (easeOutBack, easeOutElastic, wobble cho squash & stretch)
-src/ui/hud.ts              HUD (huy hiệu cấp, tiền, uy tín, đồng hồ ngày đêm + lịch + thời tiết) và bảng Cài đặt (nút bánh răng)
+src/ui/hud.ts              HUD: trái = huy hiệu cấp, tiền (đồng xu vàng CSS `i.coin` — `coins()` trả HTML), uy tín, thẻ nhiệm vụ; phải = đồng hồ ("Thứ 2 Ngày 1", "Mùa Xuân · Năm 1", trạng thái Mở cửa / Đông khách / Nghỉ trưa / Đóng cửa) + cột nút tròn dưới bánh răng (`SIDE_PANELS`: Nông trại, Quán, Chợ, Nhân viên, Siêu thị); bảng Cài đặt. Thanh dưới (`#tools`, app.ts) = nút sang khu trái (xanh ngọc) + Khách quen, Thực đơn, Kho + nút sang khu phải
 src/ui/audio.ts            âm thanh tổng hợp bằng Web Audio (không file): Sound.play(tên), nhạc nền tự sinh, tiếng mưa; bật/tắt lưu localStorage
 src/ui/juice.ts            hiệu ứng DOM: flyIcon (bay về HUD), bump, floatText, Counter (số tiền chạy dần)
 src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 ```
 
-- **Camera**: `OrbitControls` — kéo để xoay, lăn chuột / chụm hai ngón để zoom, bấm đúp để về góc mặc định. Giới hạn xoay ngang của từng khu là `view.orbit`; giới hạn zoom tính từ khoảng cách mặc định (`resetView()` trong `stage.ts`).
+- **Camera**: `OrbitControls` — kéo để xoay, lăn chuột / chụm hai ngón để zoom (`zoomToCursor`: zoom vào đúng chỗ con trỏ / tâm hai ngón; `Stage.clampTarget` cho tâm nhìn trôi tối đa `TARGET_ROAM` m khi zoom sát, lùi ra hết cỡ thì về giữa khu), bấm đúp để về góc mặc định. Giới hạn xoay ngang của từng khu là `view.orbit`; giới hạn zoom tính từ khoảng cách mặc định (`resetView()` trong `stage.ts`).
 - **Khu (Area)**: interface trong `stage.ts`. Mỗi khu có `root` (Group), `view` (vị trí camera + `orbit`), `rainBox`, và `update(env, dt, speed)` đọc `game.state` mỗi khung hình để đồng bộ hình ảnh. Mọi khu đều được update dù đang ẩn. Thứ tự mảng `areas` trong `app.ts` là thứ tự trái → phải của các nút chuyển khu hai bên màn hình.
-- **Env**: `stage.ts` tính mỗi khung hình từ giờ game và `WeatherDef.visual`: `day`, `night`, `rain`, `clouds`, `wind`, `dim` (0..1) và `t` (giây thực). Khu dùng nó cho đèn, cây đung đưa, cối xay gió...
+- **Env**: `stage.ts` tính mỗi khung hình từ giờ game và `WeatherDef.visual`: `day`, `night`, `rain`, `clouds`, `wind`, `dim`, `snow` (0..1), `season` (0..3) và `t` (giây thực). Khu dùng nó cho đèn, cây đung đưa, cối xay gió...
+- **Mùa trong cảnh**: `stage.ts` pha tông trời / nắng theo mùa (`SEASON_SKY`, `SEASON_SUN`: Hạ vàng cam, Thu cam, Đông trắng lạnh), Thu gió lộng hơn + lá cam bay, Đông tuyết rơi (`updateFlakes`, hạt `Points`), đặt `wardrobe.winter` (models.ts) để mọi người quàng khăn (`userData.scarf`) và `wardrobe.rain` (trời mưa) để người ngoài chợ đã gắn `addUmbrella` (người đi chợ, hàng rong vỉa hè) giơ dù lên. Khu ngoài trời gọi `paintSeason(root, season)` (toon.ts) khi sang mùa: tán lá (khối ico xanh) và nền cỏ (`GROUND`) đổi màu; quán / nhà kính / quầy chợ chỉ đổi nền cỏ. Nông trại mùa Đông: nước đóng băng (`waterMat`), dòng nước ngừng chảy.
 - **Bấm vật thể 3D**: gắn `obj.userData.pick = { type, id }` (kiểu `Pick`); `Stage` raycast (bỏ qua vật đang ẩn) rồi gọi `stage.onPick(pick, held)`, xử lý trong `app.ts` (vết bẩn `stain` chỉ cần bấm một cái — bấm giữ trên trình duyệt hay bật menu của trình duyệt). Hiện có `slot` (ô nông trại), `stall` (sạp chợ), `table` (kéo bàn; ngoài chế độ sắp xếp = bấm khách ở bàn đó), `party` (khách / bong bóng chat: mang menu, ghi món, hoặc giao món đang chọn), `pass` (quầy ra món: mở khay chọn món, `ui.serving`) `prop` (đồ trang trí: kéo / chọn ở chế độ sắp xếp, `ui.editSelected`), `goods` (khay hàng trong quầy chợ → bảng mua `buyHtml`, `ui.buyItem`) và `menuboard` (bảng menu Tiệm 25caaaaa → bảng gọi món cho cả đội).
 - **Kéo vật thể 3D**: `stage.dragFilter(pick)` trả true thì vật đó kéo được (camera tạm khoá); `stage.onDrag(pick, x, z, end)` nhận toạ độ mặt sàn. Chế độ sắp xếp (`ui.editLayout`) dùng cơ chế này cho bàn và đồ trang trí: `RestaurantArea.dragItem()` vẽ xem trước, thả ra thì `app.ts` gửi `layout/moveTable` / `prop/move` và chọn món đó (`ui.editSelected`, thanh trên cùng hiện nút xoay / cất / bán).
 - **Màu quán theo nội thất**: `RestaurantArea` giữ bộ vật liệu riêng (`mats`) và mỗi khung hình tô lại theo `state.decor.equipped`.
@@ -181,7 +184,7 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 
 **Thêm nhiệm vụ** — 1 mục trong `src/data/quests.ts` (thêm vào cuối, giữ id cũ). Loại mục tiêu mới: thêm vào `QuestGoalKind`, rồi hoặc gọi `bumpQuest` ở chỗ chuyện xảy ra (đếm), hoặc thêm nhánh trong `stateValue` của `systems/quests.ts` (đọc state).
 
-**Bên trong quầy chợ** (`areas/stall.ts`, khu `stall`) — bấm sạp nguyên liệu hoặc Tiệm 25caaaaa ở chợ thì `StallArea.show(id)` + `setArea('stall')` (như nhà kính): sạp nguyên liệu có khay hàng xếp bậc + biển giá hôm nay (bấm khay mua 1/5/10), tiệm có biển logo, bảng menu, bàn ghế cho cả đội ngồi ăn. Khu này không nằm trên thanh chuyển khu (chỉ có nút "‹ Chợ" để ra). Logo tiệm là ảnh `public/shop/tiem-25caaaaa.jpg` (đã cắt bỏ số điện thoại), dùng chung cho biển trên nóc tiệm ngoài chợ (`logoBoard`).
+**Bên trong quầy chợ** (`areas/stall.ts`, khu `stall`) — bấm sạp nguyên liệu hoặc Tiệm 25caaaaa ở chợ thì `StallArea.show(id)` + `setArea('stall')` (như nhà kính): sạp nguyên liệu có khay hàng xếp bậc + biển giá hôm nay (bấm khay mua 1/5/10), mái bạt cao 5 m để thấy bảng hiệu; tiệm có sàn trắng ngà, biển logo, bảng menu chân đứng gần cửa (tên món + giá hai cột), bàn ghế cho cả đội ngồi ăn. Khu này không nằm trên thanh chuyển khu (chỉ có nút "‹ Chợ" để ra). Logo tiệm là ảnh `public/shop/tiem-25caaaaa.jpg` (đã cắt bỏ số điện thoại), dùng chung cho biển trên nóc tiệm ngoài chợ (`logoBoard`).
 
 **Hàng rong / tiệm ăn vặt** (`StallDef.menu`, `items: []`) — không bán nguyên liệu: là chỗ cả đội ra ăn giờ nghỉ (món, giá, năng lượng hồi). Bảng Chợ chỉ hiện thực đơn; cảnh chợ vẽ người trong đội ngồi ăn theo `crew.meals` (`MarketArea.updateEaters`).
 
@@ -232,7 +235,7 @@ Theo thứ tự đề xuất:
 3. **Thuê và nâng cấp nhân viên** — `StaffDef` đã tách riêng; cần lệnh thuê và lương theo ngày.
 4. **Thức ăn chăn nuôi, chế biến** (xay bột, làm phô mai...) — mở rộng `ProducerDef` với `inputs: ItemStack[]`, hoặc thêm system "xưởng" theo cùng mô hình.
 5. ~~Nâng hạng quán, xoay bàn, mua thêm bàn, đồ trang trí tự do~~ — đã có (đợt 13). Tiếp theo: bếp to hơn theo hạng, đồ treo tường, mặt tiền có biển tên.
-6. **Thời tiết sâu hơn** — bão làm hỏng cây, nắng hạn cần tưới, món theo mùa; mùa trong năm.
+6. **Thời tiết sâu hơn** — đã có mùa trong năm + thời tiết theo mùa (đợt 18). Tiếp theo: bão làm hỏng cây, nắng hạn cần tưới, món / giống cây theo mùa.
 7. **Bán nông sản dư, hợp đồng giao hàng, sự kiện ngẫu nhiên** (khách VIP, thanh tra).
 8. **Mở rộng nông trại** — thêm loài cá và bậc ao, cho vật nuôi ăn, hiệu ứng khi tưới/cuốc, công cụ nâng cấp (bình tưới to tưới nhiều ô).
 8. **Tiến trình khi offline** — `tick()` nhận số phút bất kỳ nên chỉ cần lưu mốc thời gian thực và tua bù có giới hạn.

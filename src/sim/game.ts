@@ -2,6 +2,7 @@ import { EventBus } from '../core/events';
 import type { Content, CuisineId } from '../data';
 import { createInitialState, emptyStats, type GameState } from './state';
 import { clockSystem } from './systems/clock';
+import { calendarOf } from './calendar';
 import { customerSystem } from './systems/customers';
 import { decorSystem } from './systems/decor';
 import { farmSystem } from './systems/farm';
@@ -70,6 +71,10 @@ export class Game {
     if (state.clock.phase !== 'summary') return fail('Ngày chưa kết thúc.');
     state.clock = { day: state.clock.day + 1, minute: content.balance.openMinute, phase: 'open' };
     state.stats.today = emptyStats();
+    // Sang mùa mới / năm mới: bắt đầu đếm lại (tổng kết đã hiện ở màn hết ngày cuối mùa)
+    const cal = calendarOf(state.clock.day);
+    if (cal.dayOfSeason === 1) state.stats.season = emptyStats();
+    if (cal.dayOfSeason === 1 && cal.season === 0) state.stats.year = emptyStats();
     state.restaurant.spawnTimer = 10;
     for (const sys of this.systems) sys.onDayStart?.(this.ctx);
     this.bus.emit('day/started', { day: state.clock.day });

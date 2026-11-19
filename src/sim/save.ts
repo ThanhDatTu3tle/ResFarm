@@ -58,6 +58,8 @@ const migrations: Record<number, (old: any) => any> = {
       version: 13,
     };
   },
+  // v13 -> v14: thống kê theo mùa / năm (bắt đầu đếm từ lúc nâng cấp).
+  13: (s) => ({ ...s, stats: { ...s.stats, season: { ...s.stats.today }, year: { ...s.stats.today } }, version: 14 }),
 };
 
 export function serialize(state: GameState): string {

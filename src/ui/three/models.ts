@@ -92,9 +92,40 @@ export function makePerson(look: Look, hat: 'none' | 'chef' | 'straw' = 'none'):
     }
   }
 
+  // Khăn quàng cổ (chỉ hiện mùa đông — xem `wardrobe`), mỗi người một màu
+  const scarfColor = SCARVES[personSeed % SCARVES.length];
+  const scarf = group(body, { p: [0, NECK_Y - HIP_Y - 0.02, 0] });
+  mesh(scarf, G.torus(0.165, 0.062, 6, 16), scarfColor, { r: [Math.PI / 2, 0, 0] });
+  mesh(scarf, G.box(0.1, 0.22, 0.05), scarfColor, { p: [0.08, -0.13, 0.17], r: [0.25, 0, 0.18] }); // đuôi khăn thả trước ngực
+  scarf.visible = false;
+  g.userData.scarf = scarf;
+
   g.userData.rig = { body, head, armL: arms[0], armR: arms[1], legL: legs[0], legR: legs[1], eyes, seed: (personSeed++ * 1.618) % 10 } satisfies Rig;
   return g;
 }
+
+const SCARVES = [0xd9473f, 0x3f7fd9, 0xe8a33a, 0x4fa86a, 0x9a5fc4, 0xe8739a];
+
+/** Đồ mặc theo mùa / thời tiết cho mọi người trong cảnh: Stage đặt mỗi khung hình, animatePerson đọc. */
+export const wardrobe = { winter: false, rain: false };
+
+/**
+ * Gắn cây dù (ẩn sẵn) vào tay phải — chỉ người đứng ngoài trời (chợ) mới gắn. Trời mưa (`wardrobe.rain`) thì
+ * animatePerson giơ tay cầm dù lên che đầu.
+ */
+export function addUmbrella(person: THREE.Object3D, color: number): void {
+  const rig = person.userData.rig as Rig | undefined;
+  if (!rig) return;
+  // Tay giơ ra trước UMBRELLA_ARM rad nên xoay ngược lại để cán dù đứng thẳng
+  const u = group(rig.armR, { p: [0, -0.27, 0], r: [-UMBRELLA_ARM, 0, 0] });
+  mesh(u, G.cyl(0.018, 0.018, 1.15, 6), 0x5a3b2a, { p: [0, 0.55, 0] });
+  mesh(u, G.cone(0.62, 0.3, 12), color, { p: [0, 1.25, 0] });
+  mesh(u, G.sphere(0.035, 6, 5), color, { p: [0, 1.42, 0] });
+  u.visible = false;
+  person.userData.umbrella = u;
+}
+const UMBRELLA_ARM = -1.0;
+export const UMBRELLA_COLORS = [0xe2574c, 0x3f7fd9, 0xf2b23e, 0x5fae57, 0x9a6bd1, 0xe8739a, 0x3fb6a8];
 
 /** Tư thế cho animatePerson. Các giá trị số là cường độ 0..1. */
 export interface Pose {
@@ -122,6 +153,11 @@ export interface Pose {
 export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): void {
   const rig = g.userData.rig as Rig | undefined;
   if (!rig) return;
+  const scarf = g.userData.scarf as THREE.Object3D | undefined;
+  if (scarf) scarf.visible = wardrobe.winter;
+  const umbrella = g.userData.umbrella as THREE.Object3D | undefined;
+  const holding = !!umbrella && wardrobe.rain;
+  if (umbrella) umbrella.visible = holding;
   const k = t + rig.seed;
   const walk = pose.walk ?? 0;
   const cook = pose.cook ?? 0;
@@ -181,6 +217,11 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   if (wave > 0) {
     right = right * (1 - wave) - 2.6 * wave;
     rightZ = -0.18 + (-0.5 + Math.sin(t * 12) * 0.35) * wave;
+  }
+  if (holding) {
+    // Cầm dù: tay phải giơ cố định trước ngực (không vẫy, không đung đưa)
+    right = UMBRELLA_ARM;
+    rightZ = -0.18;
   }
   rig.armL.rotation.x = left;
   rig.armR.rotation.x = right;

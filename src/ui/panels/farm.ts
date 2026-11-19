@@ -3,6 +3,7 @@ import type { Game } from '../../sim/game';
 import type { FarmSlot } from '../../sim/state';
 import { cycleTime, needsWatering, nextTier, slotPrice, slotsOfType, yieldsOf } from '../../sim/systems/farm';
 import { isAutoSlot, queuedKinds } from '../../sim/systems/farmer';
+import { isFrozen, seasonOf } from '../../sim/calendar';
 import { millPrice, millsOfType } from '../../sim/systems/mills';
 import { bar, cmd, esc, ui } from '../dom';
 import { coins, duration } from '../format';
@@ -153,7 +154,7 @@ export const farmPanel: Panel = {
   render(game, uiState) {
     const { state, content, ctx } = game;
     const anyReady = state.farm.slots.some((s) => s.producerId && s.stage === 'ready');
-    const anyDry = state.farm.slots.some((s) => s.producerId && s.stage === 'growing' && needsWatering(ctx, s));
+    const anyDry = state.farm.slots.some((s) => s.producerId && s.stage === 'growing' && needsWatering(ctx, s) && !isFrozen(ctx, s.type));
 
     // Bấm vào ô / cối / chỗ mở rộng trong cảnh 3D: chỉ hiện đúng loại đó (ruộng lúa đi kèm cối của nó)
     const focus = uiState.farmFocus;
@@ -172,7 +173,10 @@ export const farmPanel: Panel = {
       ? `<span class="grow">🧑‍🌾 Bác nông dân còn <b>${tasks.length}</b> việc</span><button class="mini"${cmd({ type: 'farmer/cancel' })} title="Bỏ các việc chưa tới lượt">Huỷ bớt</button>`
       : '<span class="grow muted">🧑‍🌾 Bác nông dân đang rảnh — bấm ô để giao việc</span>';
 
-    return `${focusBar}${focus ? '' : '<p class="muted">Ruộng: cuốc đất → gieo → tưới (trời mưa khỏi tưới) → thu. Ruộng lúa thu tự động bằng máy cày. Qua đêm nông trại và cối vẫn chạy.</p>'}
+    const winter = seasonOf(ctx).frozen
+      ? '<p class="winter-note">❄️ Mùa đông: đất ngoài trời đóng băng, chuồng và ao nghỉ — cây ngoài trời ngừng lớn tới mùa Xuân. Nhà kính vẫn trồng bình thường.</p>'
+      : '';
+    return `${winter}${focusBar}${focus ? '' : '<p class="muted">Ruộng: cuốc đất → gieo → tưới (trời mưa khỏi tưới) → thu. Ruộng lúa thu tự động bằng máy cày. Qua đêm nông trại và cối vẫn chạy.</p>'}
       <div class="row farmer-status">${farmer}</div>
       <div class="row"><span class="grow"></span>
         <button${cmd({ type: 'farmer/doAll', kind: 'water' })}${anyDry ? '' : ' disabled'}>💧 Tưới hết</button>

@@ -4,6 +4,17 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 19/11/2026 (laptop) — Đợt 18: HUD gọn lại, bốn mùa
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-5`. **Kết quả:** typecheck sạch, 74 test qua; đã xem trên localhost (1000×470): HUD mới, cột nút tròn, thanh dưới có nút chuyển khu, ngăn kéo với nút ✕ to, nông trại / chợ mùa Đông (tuyết, nước đóng băng), Hạ, Thu, màn tổng kết ngày 112 (mùa Đông + năm 1). **Chưa thử bằng tay:** bấm các nút mới (chỉ xem), khăn quàng nhìn gần.
+
+1. Sim: `SAVE_VERSION` 14 (`stats.season` / `stats.year`); `WeatherDef.seasonWeights` + thời tiết `snow`; `SeasonDef.frozen` → `isFrozen` chặn cuốc / gieo / tưới ngoài trời, cây ngừng lớn, `autoChain` không gieo lại.
+2. UI: `SIDE_PANELS` (hud.ts), `coins()` trả HTML đồng xu CSS, `periodSummaryHtml`, `button.x-close`, `?day=` (dev).
+3. Cảnh: `Env.season` / `snow`, `updateFlakes`, `paintSeason`, `wardrobe.winter` + khăn quàng trong `makePerson`.
+4. Bổ sung: `addUmbrella` + `wardrobe.rain` (người ngoài chợ cầm dù khi mưa); `areas/stall.ts` mái sạp 5 m, menu Tiệm 25caaaaa thành bảng chân đứng gần cửa, sàn trắng ngà; `?stall=` (dev).
+
+---
+
 ## 19/11/2026 (laptop) — Đợt 17: gọi món cho cả đội, vào bên trong quầy chợ
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-4`. **Kết quả:** typecheck sạch, 70 test qua; đã xem trên localhost: bên trong sạp Tạp hoá (khay + biển giá + bảng mua), bên trong Tiệm 25caaaaa (logo, menu, cả đội ngồi ăn), bảng gọi món (kiểm tra DOM). **Chưa thử bằng tay:** bấm chọn người / món trong bảng gọi món, nút mua trong quầy, nút "‹ Chợ".

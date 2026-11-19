@@ -38,7 +38,8 @@ export interface GameState {
   weather: { id: string; minutesLeft: number };
   /** Cả đội (bếp, phục vụ, bác nông dân): giờ nghỉ ra chợ ăn, bữa đang ăn, hoá đơn chờ trả. */
   crew: CrewState;
-  stats: { today: DayStats; total: DayStats };
+  /** season / year: cộng dồn từ đầu mùa / đầu năm (cộng lúc hết mỗi ngày) — để tổng kết mùa, năm. */
+  stats: { today: DayStats; total: DayStats; season: DayStats; year: DayStats };
 }
 
 /** open: đang đón khách · closing: hết giờ, chờ khách cuối về · summary: tổng kết ngày, sim tạm dừng. */
@@ -288,7 +289,7 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 13;
+export const SAVE_VERSION = 14;
 
 /** Tên quán mặc định khi tạo ván mới. */
 export const DEFAULT_SHOP_NAME = 'Quán Nhà Vườn';
@@ -363,6 +364,6 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
     profile: { name: DEFAULT_SHOP_NAME, pet: null, pets: [] },
     weather: { id: content.weathers.all()[0].id, minutesLeft: 0 },
     crew: { restaurantAway: null, farmerAway: null, pending: [], meals: [], bill: [] },
-    stats: { today: emptyStats(), total: emptyStats() },
+    stats: { today: emptyStats(), total: emptyStats(), season: emptyStats(), year: emptyStats() },
   };
 }

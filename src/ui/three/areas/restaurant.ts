@@ -10,7 +10,7 @@ import { isReserved, needOf, wantedOrder } from '../../../sim/systems/service';
 import { animateCreature, animatePerson, LOOKS, makeBush, makeDish, makePerson } from '../models';
 import { buildSeat, counterExtras, decorateInterior, seatStyle, signText, tableExtras, type InteriorAnimator } from '../cuisine';
 import { HOLD_MS, type Area, type Env, type Pick } from '../stage';
-import { Bar3D, bubbleSprite, emojiSprite, G, group, mesh, textSprite, toon } from '../toon';
+import { Bar3D, bubbleSprite, emojiSprite, G, group, mesh, textSprite, toon, paintSeason } from '../toon';
 import { easeOutBack, wobble } from '../../ease';
 import { Particles } from '../fx';
 
@@ -945,7 +945,14 @@ export class RestaurantArea implements Area {
 
   // ---------- Đồng bộ với state mỗi khung hình ----------
 
+  private paintedSeason = -1;
+
   update(env: Env, dt: number, speed: number): void {
+    // Chỉ đổi nền cỏ ngoài quán (chậu cây trong nhà giữ xanh)
+    if (this.paintedSeason !== env.season) {
+      this.paintedSeason = env.season;
+      paintSeason(this.root, env.season, false);
+    }
     const { state, content, ctx } = this.game;
     const { parties, orders, staff } = state.restaurant;
     this.interior(env, dt);

@@ -5,13 +5,13 @@ import { priceOf } from '../../../sim/systems/market';
 import { signText } from '../cuisine';
 import { animatePerson, LOOKS, makePerson } from '../models';
 import type { Area, Env, Pick } from '../stage';
-import { emojiSprite, G, group, mesh, type V3 } from '../toon';
+import { emojiSprite, G, group, mesh, paintSeason, type V3 } from '../toon';
 
 /**
  * KHU BÊN TRONG QUẦY CHỢ (bấm sạp ở chợ thì camera "đi vào" đây, giống nhà kính ở nông trại).
  *  - Sạp nguyên liệu: quầy gỗ bày các khay hàng, mỗi khay một nguyên liệu với biển giá hôm nay; bấm khay → Pick 'goods'
  *    (app.ts mở bảng mua nhỏ). Người bán đứng sau quầy.
- *  - Tiệm 25caaaaa: phòng hồng, quầy pha chế có biển logo, bảng menu treo tường (bấm → Pick 'menuboard', mở bảng gọi món
+ *  - Tiệm 25caaaaa: phòng hồng, quầy pha chế có biển logo, bảng menu (bảng chân đứng gần cửa; bấm → Pick 'menuboard', mở bảng gọi món
  *    cho cả đội), bàn ghế nhỏ — người trong đội gọi món ở tiệm thì ngồi ăn ở đây.
  * Dựng lại khi đổi sạp (show) hoặc sang ngày mới (giá đổi).
  */
@@ -93,10 +93,11 @@ export class StallArea implements Area {
     mesh(g, G.box(12, 0.1, 9), 0xe8dcc4, { p: [0, 0, -1], receive: true });
     for (let i = -5; i <= 5; i++) mesh(g, G.box(0.03, 0.11, 9), 0xd6c7aa, { p: [i, 0.01, -1], cast: false });
     // Vách sau + hai bên (vải bạt) và mái sọc
-    mesh(g, G.box(10, 3.6, 0.15), 0xf6efe0, { p: [0, 1.8, -4.2] });
-    for (const sx of [-1, 1]) mesh(g, G.box(0.15, 3.6, 4.4), 0xf6efe0, { p: [sx * 5, 1.8, -2.1] });
-    for (let i = 0; i < 10; i++) mesh(g, G.box(1, 0.08, 4.8), i % 2 ? color : 0xffffff, { p: [-4.5 + i, 3.7, -2], r: [0.12, 0, 0], cast: false });
-    for (const sx of [-4.85, 4.85]) mesh(g, G.cyl(0.08, 0.08, 3.7, 8), 0x8a5a35, { p: [sx, 1.85, 0.3] });
+    // Mái nâng cao (5 m) để từ góc nhìn mặc định thấy trọn bảng hiệu trên vách sau
+    mesh(g, G.box(10, 4.9, 0.15), 0xf6efe0, { p: [0, 2.45, -4.2] });
+    for (const sx of [-1, 1]) mesh(g, G.box(0.15, 4.9, 4.4), 0xf6efe0, { p: [sx * 5, 2.45, -2.1] });
+    for (let i = 0; i < 10; i++) mesh(g, G.box(1, 0.08, 4.8), i % 2 ? color : 0xffffff, { p: [-4.5 + i, 5.0, -2], r: [0.12, 0, 0], cast: false });
+    for (const sx of [-4.85, 4.85]) mesh(g, G.cyl(0.08, 0.08, 5.0, 8), 0x8a5a35, { p: [sx, 2.5, 0.3] });
     // Kệ thùng gỗ sau lưng người bán
     for (let row = 0; row < 2; row++) {
       mesh(g, G.box(8, 0.08, 0.7), 0x8a5a35, { p: [0, 0.9 + row * 0.9, -3.7] });
@@ -158,8 +159,8 @@ export class StallArea implements Area {
   /** Tiệm 25caaaaa: phòng hồng, quầy pha chế có biển logo, bảng menu, bàn ghế cho cả đội ngồi ăn. */
   private buildKiosk(def: StallDef): void {
     const g = this.content;
-    mesh(g, G.box(11, 0.1, 9), 0xe9a3b8, { p: [0, 0, -1], receive: true });
-    for (let i = 0; i < 11; i++) for (let j = 0; j < 9; j++) if ((i + j) % 2) mesh(g, G.box(1, 0.11, 1), 0xd9849f, { p: [-5 + i, 0.001, -5 + j], cast: false });
+    // Sàn trắng ngà trơn cho đỡ rối mắt
+    mesh(g, G.box(11, 0.1, 9), 0xf7f0e1, { p: [0, 0, -1], receive: true });
     mesh(g, G.box(11, 3.8, 0.15), 0xf4a7bd, { p: [0, 1.9, -5.4] });
     for (const sx of [-1, 1]) mesh(g, G.box(0.15, 3.8, 5), 0xf4a7bd, { p: [sx * 5.5, 1.9, -2.9] });
     // Sọc tường như logo
@@ -178,28 +179,36 @@ export class StallArea implements Area {
     staff.scale.setScalar(1.2);
     g.add(staff);
     this.vendor = staff;
-    // Bảng menu treo tường trái: bấm để gọi món cho cả đội
-    const board = group(g, { p: [-3.3, 1.75, -5.25] });
-    board.userData.pick = { type: 'menuboard', id: def.id } satisfies Pick;
-    mesh(board, G.box(2.6, 2.3, 0.1), 0x3b3f4a);
-    mesh(board, G.box(2.4, 2.1, 0.05), 0x2f4f3f, { p: [0, 0, 0.05] });
-    const title = signText('MENU', '#ffe08a', 1.6, 0.36);
-    title.position.set(0, 0.8, 0.09);
+    // Bảng menu chân đứng (kiểu giá vẽ) đặt gần cửa, quay về phía người xem cho dễ đọc; bấm để gọi món cho cả đội
+    const stand = group(g, { p: [-3.5, 0, 0.3], r: [0, 0.38, 0] });
+    stand.userData.pick = { type: 'menuboard', id: def.id } satisfies Pick;
+    for (const sx of [-0.95, 0.95]) mesh(stand, G.box(0.09, 2.9, 0.09), 0x8a5a35, { p: [sx, 1.4, 0.05], r: [-0.1, 0, 0] }); // hai chân trước
+    mesh(stand, G.box(0.09, 2.8, 0.09), 0x8a5a35, { p: [0, 1.35, -0.45], r: [0.28, 0, 0] }); // chân chống sau
+    mesh(stand, G.box(2.1, 0.08, 0.16), 0x8a5a35, { p: [0, 0.62, 0.1] }); // gờ đỡ bảng
+    const board = group(stand, { p: [0, 1.75, 0.12], r: [-0.1, 0, 0] });
+    mesh(board, G.box(2.3, 2.3, 0.1), 0x6b4a2f);
+    mesh(board, G.box(2.12, 2.12, 0.05), 0x2f4f3f, { p: [0, 0, 0.05] });
+    const title = signText('MENU', '#ffe08a', 1.4, 0.42);
+    title.position.set(0, 0.78, 0.09);
     board.add(title);
     (def.menu ?? []).forEach((d, i) => {
-      const line = signText(`${d.name}  ${d.price} xu`, '#ffffff', 2.1, 0.3);
-      line.position.set(0.12, 0.38 - i * 0.38, 0.09);
-      board.add(line);
+      const y = 0.32 - i * 0.4;
+      const name = signText(d.name, '#ffffff', 1.18, 0.3);
+      name.position.set(-0.12, y, 0.09);
+      board.add(name);
+      const price = signText(`${d.price} xu`, '#ffe08a', 0.5, 0.3);
+      price.position.set(0.8, y, 0.09);
+      board.add(price);
       const icon = emojiSprite(d.icon, 0.3);
-      icon.position.set(-1.0, 0.38 - i * 0.38, 0.12);
+      icon.position.set(-0.88, y, 0.12);
       board.add(icon);
     });
-    const hint = emojiSprite('👆', 0.45);
-    hint.position.set(1.15, -0.85, 0.2);
+    const hint = emojiSprite('👆', 0.5);
+    hint.position.set(1.05, -1.0, 0.25);
     board.add(hint);
-    this.bobbers.push({ obj: hint, y: -0.85, phase: 0 });
+    this.bobbers.push({ obj: hint, y: -1.0, phase: 0 });
     // Bàn tròn + ghế đẩu: chỗ ngồi cho người trong đội
-    for (const [tx, tz] of [[-2.6, -1.2], [0.4, -0.6], [3.2, -1.4], [-1.2, 1.4], [2.0, 1.6]] as const) {
+    for (const [tx, tz] of [[-3.4, -2.7], [0.4, -0.6], [3.2, -1.4], [-1.2, 1.4], [2.0, 1.6]] as const) {
       mesh(g, G.cyl(0.55, 0.55, 0.06, 18), 0xffffff, { p: [tx, 0.8, tz] });
       mesh(g, G.cyl(0.06, 0.1, 0.78, 8), 0xf28fb0, { p: [tx, 0.4, tz] });
       for (const a of [0, Math.PI]) {
@@ -239,7 +248,14 @@ export class StallArea implements Area {
     });
   }
 
+  private paintedSeason = -1;
+
   update(env: Env): void {
+    // Nền cỏ ngoài nhà đổi theo mùa (cây trồng bên trong giữ nguyên)
+    if (this.paintedSeason !== env.season) {
+      this.paintedSeason = env.season;
+      paintSeason(this.root, env.season, false);
+    }
     if (this.stallId && this.game.state.clock.day !== this.day) this.build(); // giá đổi theo ngày
     if (this.vendor) animatePerson(this.vendor, env.t, { wave: Math.max(0, Math.min(1, (Math.sin(env.t * 0.5) - 0.8) * 6)) });
     for (const b of this.bobbers) b.obj.position.y = b.y + Math.abs(Math.sin(env.t * 2.4 + b.phase)) * 0.05;

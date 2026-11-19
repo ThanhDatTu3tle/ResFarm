@@ -153,6 +153,16 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** món dùng trái cây (Đĩa trái cây, Chè chuối, Sandwich trái cây, Trà trái cây hwachae); hàng rong mới bán nguyên liệu có sẵn với giá cao hơn 10%; nhóm 5–6 người chỉ tới khi có bàn đủ chỗ; khay 2 ô dành cho bàn đôi / quầy, 4 ô cho bàn từ 3 ghế; mỗi ca để lại 3 vết bẩn, vết cũ bẩn thêm, mỗi bậc bẩn làm khách kém kiên nhẫn 1.5% (tối đa −20%).
 
+### Đợt 18 — HUD gọn lại, bốn mùa (19/11/2026)
+
+- Thẻ nhiệm vụ nằm cạnh tiền và sao. Đồng xu luôn màu vàng.
+- 5 nút Nông trại, Quán, Chợ, Nhân viên, Siêu thị thành nút tròn chỉ có icon, xếp dọc dưới nút Cài đặt. Thanh dưới còn Khách quen, Thực đơn, Kho và 2 nút chuyển khu (đổi màu cho dễ phân biệt). Nút ✕ của các bảng to hơn.
+- Đồng hồ viết chữ rõ ràng: Thứ 2 Ngày 1, Mùa Xuân, Mở cửa / Nghỉ trưa / Đóng cửa.
+- Lịch như Stardew Valley: 4 mùa, mỗi mùa 28 ngày. Cuối mùa, cuối năm có tổng kết doanh thu.
+- Thời tiết bốn mùa: Xuân đẹp như cũ, Hạ tông vàng cam, Thu gió mạnh và cam nhiều hơn vàng, Đông tuyết rơi, mọi người quàng khăn. Mùa Đông không trồng trọt và chăn nuôi ngoài trời, sông hồ đóng băng; nhà kính vẫn trồng được.
+
+**AI tự chọn (đổi được):** mùa Đông cây ngoài trời đang trồng dở chỉ ngừng lớn (không chết), sang Xuân lớn tiếp; ruộng tự động không gieo lại giữa mùa Đông; thời tiết mùa Đông có "Tuyết rơi" thay cho mưa; tổng kết hiện ngay trên màn hết ngày 28 (không thêm màn riêng); save cũ bắt đầu đếm doanh thu mùa / năm từ lúc nâng cấp.
+
 ### Đợt 17 — Gọi món cho cả đội, vào bên trong quầy chợ (19/11/2026)
 
 - Trưa: quán đóng 12:00, 11:30 ngưng nhận khách. Tối: quán đóng 21:00, 20:30 ngưng nhận khách. Đóng cửa xong cả đội (nhân viên, đầu bếp, bác nông dân) ra chợ ăn.

@@ -13,7 +13,9 @@ import { billDue, billTotal, crewMembers, mealBudget } from '../sim/systems/crew
 import { priceOf } from '../sim/systems/market';
 import { stockOf } from '../sim/helpers';
 import { clockText, coins } from './format';
-import type { UiState } from './panels';
+import { panels, type UiState } from './panels';
+import { isSeasonEnd, isYearEnd } from '../sim/calendar';
+import type { DayStats } from '../sim/state';
 
 /**
  * HUD trên cảnh 3D: bên trái là tiền + uy tín + huy hiệu cấp, bên phải là "đồng hồ" (vòng ngày đêm, lịch,
@@ -56,7 +58,7 @@ function questCard(game: Game): string {
   if (!def) return `<div class="quest all-done" data-key="quest" title="Đã hoàn thành mọi nhiệm vụ">🏆 Xong hết ${total} nhiệm vụ!</div>`;
   const shown = def.goal.kind === 'reputation' ? q.progress.toFixed(1) : Math.floor(q.progress);
   const pct = Math.round((q.progress / def.goal.target) * 100);
-  const reward = [def.reward.money ? `${def.reward.money} 🪙` : '', def.reward.xp ? `${def.reward.xp} XP` : ''].filter(Boolean).join(' · ');
+  const reward = [def.reward.money ? coins(def.reward.money) : '', def.reward.xp ? `${def.reward.xp} XP` : ''].filter(Boolean).join(' · ');
   return `<div class="quest${q.done ? ' done' : ''}" data-key="quest"${uiAttr('quest')} title="Bấm để xem chi tiết nhiệm vụ">
     <div class="quest-head"><span class="quest-icon">${def.icon}</span><b>${esc(def.title)}</b><em>${q.index + 1}/${total}</em></div>
     <div class="quest-desc">${esc(def.desc)}</div>
@@ -81,15 +83,17 @@ export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
   const nextShift = b.shifts.find((s) => s.from > state.clock.minute);
   // Giờ làm tròn 10 phút cho gọn mắt, như đồng hồ treo tường
   const time = clockText(Math.floor(state.clock.minute / 10) * 10);
+  // Trạng thái quán viết thẳng bằng chữ (không icon) cho dễ đọc
+  const lunch = nextShift && nextShift !== b.shifts[0];
   const tag = working && !acceptingGuests(game.ctx)
-    ? `<span class="tag closed" title="Đã ngưng nhận khách mới, phục vụ nốt khách đang ở quán">🔕 Ngưng nhận khách</span>`
+    ? `<span class="tag closed" title="Đã ngưng nhận khách mới, phục vụ nốt khách đang ở quán">Ngưng nhận khách</span>`
     : rush
-    ? `<span class="tag rush" title="Giờ cao điểm: khách tới đông">🔥 Đông</span>`
+    ? `<span class="tag rush" title="Giờ cao điểm: khách tới đông">Đông khách</span>`
     : working
-      ? `<span class="tag open" title="Quán đang mở cửa đón khách">🍽️ Mở</span>`
-      : nextShift
-        ? `<span class="tag closed" title="Giờ nghỉ: đi chợ, ra nông trại; mở lại lúc ${clockText(nextShift.from)}">😴 Nghỉ tới ${clockText(nextShift.from)}</span>`
-        : `<span class="tag closed" title="Quán đã đóng cửa">🌙 Đóng cửa</span>`;
+      ? `<span class="tag open" title="Quán đang mở cửa đón khách">Mở cửa</span>`
+      : lunch
+        ? `<span class="tag closed" title="Giờ nghỉ: đi chợ, ra nông trại; mở lại lúc ${clockText(nextShift.from)}">Nghỉ trưa</span>`
+        : `<span class="tag closed" title="${nextShift ? `Quán mở cửa lúc ${clockText(nextShift.from)}` : 'Quán đã đóng cửa'}">Đóng cửa</span>`;
   // Sau 21:00 (quán đã đóng, cả đội ở chợ): cho kết thúc ngày sớm
   const endDay =
     open && state.clock.minute >= b.crew.endDayAfter
@@ -100,18 +104,18 @@ export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
   return `<div class="hud-left">
       ${levelBadge(state.level, state.xp / xpForLevel(state.level))}
       <div class="hud-stack">
-        <span class="stat money" data-key="money">${coins(moneyShown)}</span>
+        <span class="stat money" data-key="money"><span class="num">${moneyText(moneyShown)}</span>${COIN}</span>
         <span class="stat rep" title="Uy tín của quán">⭐ ${state.reputation.toFixed(1)}</span>
-        ${questCard(game)}
       </div>
+      ${questCard(game)}
     </div>
     <div class="hud-right">
       <div class="clock" title="${esc(`${weekday.name}, ngày ${cal.dayOfSeason} mùa ${season.name}, năm ${cal.year}`)}">
         <div class="clock-top">
           ${dayDial(state.clock.minute)}
           <div class="date">
-            <b>${weekday.short}<em>${cal.dayOfSeason}</em></b>
-            <span>${season.icon} ${esc(season.name)} · Năm ${cal.year}</span>
+            <b>${weekday.short} <em>Ngày ${cal.dayOfSeason}</em></b>
+            <span>Mùa ${esc(season.name)} · Năm ${cal.year}</span>
           </div>
         </div>
         <div class="clock-row">
@@ -122,8 +126,54 @@ export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
         ${endDay}
         ${state.crew.pending.length ? `<button class="meal-call"${uiAttr('meal')}>🍜 Gọi món cho đội (${state.crew.pending.length})</button>` : ''}
       </div>
-      <button class="gear"${uiAttr('settings')} title="Cài đặt" aria-label="Cài đặt">⚙️</button>
+      <div class="side-col">
+        <button class="gear"${uiAttr('settings')} title="Cài đặt" aria-label="Cài đặt">⚙️</button>
+        ${sideButtons(game, ui)}
+      </div>
     </div>`;
+}
+
+/** Đồng xu vàng vẽ bằng CSS (emoji 🪙 mỗi máy một kiểu, có máy ra màu bạc). */
+export const COIN = '<i class="coin" aria-hidden="true"></i>';
+
+/** Số tiền trên HUD (không kèm icon). */
+export function moneyText(amount: number): string {
+  return Math.round(amount).toLocaleString('vi-VN');
+}
+
+/** Bảng mở bằng nút tròn dọc bên phải dưới bánh răng (chỉ icon); các bảng còn lại nằm ở thanh dưới. */
+export const SIDE_PANELS = ['farm', 'restaurant', 'market', 'crew', 'shop'];
+
+function sideButtons(game: Game, ui: UiState): string {
+  return SIDE_PANELS.map((id) => panels.find((p) => p.id === id)!)
+    .map((p) => {
+      const badge = p.badge?.(game) ?? 0;
+      return `<button class="round${ui.drawer === p.id ? ' on' : ''}" data-key="side-${p.id}"${uiAttr(`drawer:${p.id}`)} title="${esc(p.label)}" aria-label="${esc(p.label)}">${p.icon}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
+    })
+    .join('');
+}
+
+/** Tổng kết mùa / năm ở màn hết ngày cuối mùa (ngày 28) — doanh thu, chi, lãi, khách. */
+export function periodSummaryHtml(game: Game): string {
+  const { state } = game;
+  const day = state.clock.day;
+  if (!isSeasonEnd(day)) return '';
+  const cal = calendarOf(day);
+  const card = (title: string, s: DayStats) => `<div class="period">
+      <h3>${title}</h3>
+      <div class="stats">
+        <div><span>Doanh thu</span><b>${coins(s.revenue)}</b></div>
+        <div><span>Trong đó tip</span><b>${coins(s.tips)}</b></div>
+        <div><span>Đã chi</span><b>${coins(s.spent)}</b></div>
+        <div><span>Lãi</span><b class="${s.revenue - s.spent >= 0 ? 'good-text' : 'bad-text'}">${coins(s.revenue - s.spent)}</b></div>
+        <div><span>Món đã nấu</span><b>${s.dishes}</b></div>
+        <div><span>Khách hài lòng</span><b>${s.guestsServed}</b></div>
+      </div>
+    </div>`;
+  const next = seasons[(cal.season + 1) % seasons.length];
+  return `${card(`${seasons[cal.season].icon} Tổng kết mùa ${seasons[cal.season].name} năm ${cal.year}`, state.stats.season)}
+    ${isYearEnd(day) ? card(`🎆 Tổng kết năm ${cal.year}`, state.stats.year) : ''}
+    <p class="muted">Ngày mai sang mùa ${next.name}${next.frozen ? ' — đất ngoài trời đóng băng, chỉ trồng được trong nhà kính; chuồng và ao nghỉ tới mùa Xuân' : ''}${seasons[cal.season].frozen ? ' — băng tan, nông trại ngoài trời làm lại được' : ''}.</p>`;
 }
 
 /** Số việc phục vụ đang chờ người chơi (khách cần menu / chờ ghi món + món nằm ở quầy chưa ai bưng). */
@@ -185,7 +235,7 @@ export function serviceHtml(game: Game, ui: UiState): string {
     ? `<div class="held-bar"><span class="dish-icon">${content.recipes.get(held.recipeId).icon}</span><span>Đang cầm <b>${esc(content.recipes.get(held.recipeId).name)}</b> — bấm bàn đã gọi món này</span><button class="mini"${uiAttr('serve:')}>✕</button></div>`
     : '';
   return `<div class="service-card pass" data-key="pass">
-    <div class="service-head"><b>🔔 Quầy ra món</b><button class="mini"${uiAttr('pass:close')} aria-label="Đóng">✕</button></div>
+    <div class="service-head"><b>🔔 Quầy ra món</b><button class="x-close"${uiAttr('pass:close')} aria-label="Đóng">✕</button></div>
     ${heldBar}
     ${
       ready.length
@@ -226,7 +276,7 @@ export function settingsHtml(ui: UiState, prefs: { music: boolean; sfx: boolean 
     </button>`;
   return `<div class="backdrop" data-key="settings"${uiAttr('settings:close')}>
     <div class="dialog settings" role="dialog" aria-label="Cài đặt"${uiAttr('noop')}>
-      <div class="dialog-head"><h2>⚙️ Cài đặt</h2><button class="mini"${uiAttr('settings:close')} aria-label="Đóng">✕</button></div>
+      <div class="dialog-head"><h2>⚙️ Cài đặt</h2><button class="x-close"${uiAttr('settings:close')} aria-label="Đóng">✕</button></div>
       <p class="muted">Game tạm dừng trong lúc mở bảng này.</p>
 
       <section>
@@ -296,7 +346,7 @@ export function questHtml(game: Game, ui: UiState): string {
   const { state, content } = game;
   const q = state.quests;
   const def = currentQuest(game.ctx);
-  const reward = (r: { money?: number; xp?: number }) => [r.money ? `${r.money} 🪙` : '', r.xp ? `${r.xp} XP` : ''].filter(Boolean).join(' · ');
+  const reward = (r: { money?: number; xp?: number }) => [r.money ? coins(r.money) : '', r.xp ? `${r.xp} XP` : ''].filter(Boolean).join(' · ');
   const current = def
     ? `<div class="quest-detail${q.done ? ' done' : ''}">
         <div class="row"><span class="big">${def.icon}</span><div class="grow"><b>${esc(def.title)}</b><div class="muted">Nhiệm vụ ${q.index + 1}/${content.quests.length}</div></div></div>
@@ -314,7 +364,7 @@ export function questHtml(game: Game, ui: UiState): string {
     .join('');
   return `<div class="backdrop" data-key="questdlg"${uiAttr('quest:close')}>
     <div class="dialog quest-dialog" role="dialog" aria-label="Nhiệm vụ"${uiAttr('noop')}>
-      <div class="dialog-head"><h2>🎯 Nhiệm vụ</h2><button class="mini"${uiAttr('quest:close')} aria-label="Đóng">✕</button></div>
+      <div class="dialog-head"><h2>🎯 Nhiệm vụ</h2><button class="x-close"${uiAttr('quest:close')} aria-label="Đóng">✕</button></div>
       ${current}
       <h3>Cả chuỗi nhiệm vụ</h3>
       <ul class="quest-list">${list}</ul>
@@ -377,7 +427,7 @@ export function mealHtml(game: Game, ui: UiState): string {
   const who = pending.find((p) => p.who === ui.mealWho);
   return `<div class="backdrop" data-key="meal"${uiAttr('meal:close')}>
     <div class="dialog meal-dialog" role="dialog" aria-label="Gọi món cho cả đội"${uiAttr('noop')}>
-      <div class="dialog-head"><h2>🍜 Gọi món cho cả đội</h2><button class="mini"${uiAttr('meal:close')} aria-label="Đóng">✕</button></div>
+      <div class="dialog-head"><h2>🍜 Gọi món cho cả đội</h2><button class="x-close"${uiAttr('meal:close')} aria-label="Đóng">✕</button></div>
       <p class="muted">${
         pending.length
           ? `Chọn người rồi bấm món. Chưa chọn trước <b>${clockText(deadline!)}</b> thì mọi người tự chọn. Còn ${coins(budget)} cho bữa này.`
@@ -407,7 +457,7 @@ export function buyHtml(game: Game, ui: UiState): string {
   const trend = factor > 1.08 ? '<span class="bad-text">▲ hôm nay đắt</span>' : factor < 0.92 ? '<span class="good-text">▼ hôm nay rẻ</span>' : '';
   const btns = [1, 5, 10].map((n) => `<button${cmd({ type: 'market/buy', stallId, itemId: item.id, qty: n })}${state.money >= price * n ? '' : ' disabled'}>Mua ${n} · ${coins(price * n)}</button>`).join('');
   return `<div class="service-card buy-card" data-key="buy-${item.id}">
-    <div class="service-head"><b><span class="dish-icon">${item.icon}</span> ${esc(item.name)}</b><button class="mini"${uiAttr('buy:close')} aria-label="Đóng">✕</button></div>
+    <div class="service-head"><b><span class="dish-icon">${item.icon}</span> ${esc(item.name)}</b><button class="x-close"${uiAttr('buy:close')} aria-label="Đóng">✕</button></div>
     <div class="muted">${coins(price)} / 1 ${trend} · trong kho: ${stockOf(ctx, item.id)}</div>
     <div class="btns">${btns}</div>
   </div>`;
