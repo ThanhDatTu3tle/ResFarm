@@ -48,6 +48,8 @@ export const balance: Balance = {
     chefHireCost: 400,
   },
   lowStockPortions: 3,
+  events: { chance: 0.55, fromDay: 2 },
+  contracts: { perDay: 2, extraAtLevel: 4, due: 21 * 60, rewardMul: [1.6, 2.2], xpRatio: 0.3, rep: 0.02, sellRatio: 0.5 },
   // Rau củ đúng mùa rẻ hơn, trái mùa đắt hơn; món hợp mùa bán đắt hơn 20%
   seasons: { inSeasonPrice: 0.85, offSeasonPrice: 1.3, dishBonus: 1.2 },
   regulars: { chance: 0.22, heartVisits: [1, 3, 6, 10, 15], tipPerHeart: 0.12, favoriteTip: 0.5, favoriteRep: 0.04, giftHearts: 3, maxPartySize: 2 },

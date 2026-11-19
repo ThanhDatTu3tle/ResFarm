@@ -45,6 +45,13 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [x] **Giao diện:** chừa tai thỏ / góc bo (env(safe-area-inset-*)), chừa góc logo Netlify; bảng nhiệm vụ bấm xem chi tiết.
 - [x] **G10 · Việc mở ra từ đợt 14** (xong ở đợt 16) — cân bằng lại kinh tế theo ngày 12 phút + 2 ca (B1: doanh thu / ngày giảm vì ít khách hơn); trái cây mới có 4 món dùng — thêm món, bán ở chợ; hàng rong chợ mới bán nguyên liệu có sẵn (chưa có món riêng như ly cà phê, bánh tráng); kéo thả khay chưa thử bằng tay trên điện thoại.
 
+## Giai đoạn 8 — Đơn đặt hàng, bán hàng dư, sự kiện ngẫu nhiên (19/11/2026)
+
+- [x] Bán lại nguyên liệu trong kho bằng nửa giá gốc (theo mùa), nút Bán 1 / 5 / hết ở bảng Kho.
+- [x] Bảng **Đơn hàng** (thanh dưới): mỗi sáng 2 đơn (3 từ cấp 4) từ khách ngoài, giao đủ hàng trước 21:00 → thưởng cao hơn giá chợ ×1.6–2.2 + XP + uy tín; quá hạn không phạt.
+- [x] Sự kiện ngẫu nhiên (55% mỗi ngày, trừ ngày đầu và ngày lễ): Nhà phê bình ẩm thực, Thanh tra vệ sinh (báo trước giờ tới), Xe du lịch ghé, Mất điện, Khách sộp; dải sự kiện dưới đồng hồ + thông báo kết quả.
+- [ ] **G17 · Việc mở ra** — đơn đặt món mang về (bếp nấu rồi đóng hộp); chưa thử bằng tay nút giao đơn / bán hàng trên điện thoại.
+
 ## Giai đoạn 7 — Mở rộng bếp, giao món cho đầu bếp, hướng dẫn, cảnh báo nguyên liệu (19/11/2026)
 
 - [x] Hạng bếp (Bếp nhỏ → Bếp đôi → Bếp chuyên nghiệp): thêm đầu bếp tối đa (2/3/4), quầy line dài ra (6/8/10 đĩa — đầy thì bếp chờ), thêm chỗ nhân viên phục vụ (+0/+1/+2); cảnh bếp có bàn sơ chế, lò nướng.
@@ -139,8 +146,8 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [ ] **C4 · Thức ăn chăn nuôi và chế biến** *(Opus)* — `ProducerDef.inputs` (vật nuôi cần cám/cỏ mỗi chu kỳ); loại ô mới "xưởng" biến nguyên liệu thành nguyên liệu (lúa → bột, sữa → phô mai). Mô hình giống producer nên tái dùng `farm.ts`.
 - [ ] **C5 · Mở rộng ao cá** *(Sonnet)* — thêm loài (cá chép, cá hồi, mực nuôi...), thêm bậc ao, cho ăn. Hiện ao có 3 bậc và 2 loài.
 - [ ] **C6 · Thời tiết sâu hơn** *(Opus)* — bão làm hỏng cây chưa thu, nắng gắt làm đất khô nhanh, mùa trong năm, món theo mùa. Thêm trường vào `WeatherDef` thay vì viết `if` theo id.
-- [ ] **C7 · Bán nông sản dư và đơn hàng** *(Opus)* — bán lại cho chợ giá thấp; bảng đơn đặt hàng mỗi ngày (giao đủ N món nhận thưởng).
-- [ ] **C8 · Sự kiện ngẫu nhiên** *(Opus)* — khách VIP, thanh tra vệ sinh, ngày lễ đông khách. Dạng `EventDef` trong data + system `events`.
+- [x] **C7 · Bán nông sản dư và đơn hàng** *(Opus — xong ở giai đoạn 8)* — bán lại cho chợ giá thấp; bảng đơn đặt hàng mỗi ngày (giao đủ N món nhận thưởng).
+- [x] **C8 · Sự kiện ngẫu nhiên** *(Opus — xong ở giai đoạn 8)* — khách VIP, thanh tra vệ sinh, ngày lễ đông khách. Dạng `EventDef` trong data + system `events`.
 - [ ] **C9 · Tiến trình khi offline** *(Opus)* — lưu mốc thời gian thực lúc thoát; lúc vào tua bù có giới hạn (vd tối đa 1 ngày game, chỉ nông trại). Cần quyết định thiết kế trước (xem câu hỏi mở).
 - [x] **C10 · Âm thanh** *(18/11/2026: tổng hợp bằng Web Audio trong `src/ui/audio.ts`, không cần file; bật/tắt trong Cài đặt)* — nhạc nền + hiệu ứng theo `game.bus`.
 

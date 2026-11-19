@@ -4,6 +4,15 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 19/11/2026 (laptop) — Giai đoạn 8: đơn đặt hàng, bán hàng dư, sự kiện ngẫu nhiên
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-8`. **Kết quả:** typecheck sạch, 88 test qua (thêm 6 test); đã xem trên localhost: bảng Đơn hàng, nút bán ở Kho, dải sự kiện (xe du lịch, nhà phê bình), nhà phê bình ngồi trong quán. **Chưa thử bằng tay:** bấm giao đơn, bán hàng, phục vụ nhà phê bình tới cuối.
+
+1. Sim: `SAVE_VERSION` 16 (`contracts`, `event`), `Party.vip`, systems `contracts.ts` và `events.ts`, `spawnParty` export (có `opts`), `balance.events` / `balance.contracts`; lệnh `contract/deliver`, `market/sell`.
+2. UI: bảng `contracts` (Đơn hàng), Kho có nút bán, `eventTag` (hud.ts), thông báo sự kiện / đơn hàng (app.ts), `decorateVip` (areas/restaurant.ts), `?event=` (dev).
+
+---
+
 ## 19/11/2026 (laptop) — Giai đoạn 7: mở rộng bếp, giao món, hướng dẫn, cảnh báo nguyên liệu
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-7`. **Kết quả:** typecheck sạch, 82 test qua (thêm 3 test bếp); đã xem trên localhost: bếp hạng 3 có 4 đầu bếp, bảng Quán có thẻ mở rộng bếp, bảng Nhân viên có nút giao món, cảnh báo "Hết: Phở bò", trang hướng dẫn ở màn mở đầu. **Chưa thử bằng tay:** bấm các nút (chỉ xem), hướng dẫn trong Cài đặt.

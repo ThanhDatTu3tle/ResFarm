@@ -10,6 +10,7 @@ import { calendarOf, festivalOf, seasonalPrice } from '../src/sim/calendar';
 import { autoServeCommands } from '../src/sim/systems/service';
 import { billDue } from '../src/sim/systems/crew';
 import { maxHelpers } from '../src/sim/systems/helpers';
+import { sellPrice } from '../src/sim/systems/contracts';
 import { buildingRect, nextWaypoint, slotCenter, slotScale, workSpot } from '../src/sim/systems/farmer';
 import { millCenter, millSpot } from '../src/sim/systems/mills';
 import { moodOf } from '../src/sim/systems/customers';
@@ -1389,5 +1390,86 @@ describe('bếp và quầy line', () => {
     const loaded = deserialize(JSON.stringify(old), content)!;
     expect(loaded.restaurant.kitchenTier).toBe(1);
     expect(loaded.restaurant.staff.map((s) => s.id)).toEqual(['head_chef', 'sous_chef']);
+  });
+});
+
+describe('đơn đặt hàng, bán hàng dư, sự kiện', () => {
+  it('bán hàng dư nửa giá; đồ có sẵn (gạo, nước) không bán được', () => {
+    const game = quietGame();
+    const id = Object.keys(game.state.inventory).find((k) => !content.items.get(k).infinite && game.state.inventory[k] > 0)!;
+    const have = game.state.inventory[id];
+    const money = game.state.money;
+    expect(game.dispatch({ type: 'market/sell', itemId: id, qty: 2 }).ok).toBe(true);
+    expect(game.state.inventory[id]).toBe(have - 2);
+    expect(game.state.money).toBe(money + sellPrice(game.ctx, id) * 2);
+    expect(sellPrice(game.ctx, id)).toBeLessThanOrEqual(Math.ceil(content.items.get(id).basePrice * 0.5 * 1.3));
+    expect(game.dispatch({ type: 'market/sell', itemId: 'rice', qty: 1 }).ok).toBe(false);
+  });
+
+  it('mỗi ngày có đơn hàng; đủ hàng thì giao nhận thưởng, quá hạn thì hết hạn', () => {
+    const game = quietGame();
+    expect(game.state.contracts.length).toBeGreaterThanOrEqual(2);
+    const c = game.state.contracts[0];
+    expect(game.dispatch({ type: 'contract/deliver', contractId: c.id }).ok).toBe(c.items.every((x) => (game.state.inventory[x.item] ?? 0) >= x.qty));
+    for (const x of c.items) game.state.inventory[x.item] = (game.state.inventory[x.item] ?? 0) + x.qty;
+    const money = game.state.money;
+    if (c.status === 'open') expect(game.dispatch({ type: 'contract/deliver', contractId: c.id }).ok).toBe(true);
+    expect(c.status).toBe('done');
+    if (game.state.money !== money) expect(game.state.money).toBe(money + c.reward);
+    game.state.clock.minute = content.balance.contracts.due + 1;
+    game.tick(1);
+    expect(game.state.contracts.filter((x) => x.status === 'open')).toHaveLength(0);
+  });
+
+  it('thanh tra: quán sạch được thưởng, có vết bẩn thì bị phạt', () => {
+    const clean = quietGame();
+    clean.state.event = { id: 'inspector', at: 8 * 60, status: 'scheduled', minutesLeft: 0, partyId: null, result: null };
+    clean.state.restaurant.stains = [];
+    const m = clean.state.money;
+    clean.tick(1);
+    expect(clean.state.event!.result).toBe('good');
+    expect(clean.state.money).toBeGreaterThan(m);
+
+    const dirty = quietGame();
+    dirty.state.event = { id: 'inspector', at: 8 * 60, status: 'scheduled', minutesLeft: 0, partyId: null, result: null };
+    dirty.state.restaurant.dirty = { medium: [0, 1] };
+    const m2 = dirty.state.money;
+    dirty.tick(1);
+    expect(dirty.state.event!.result).toBe('bad');
+    expect(dirty.state.money).toBeLessThan(m2);
+  });
+
+  it('nhà phê bình tới thành khách đặc biệt; bỏ về thì mất uy tín', () => {
+    const game = quietGame();
+    game.state.event = { id: 'critic', at: 8 * 60, status: 'scheduled', minutesLeft: 0, partyId: null, result: null };
+    game.tick(1);
+    const critic = game.state.restaurant.parties.find((p) => p.vip === 'critic');
+    expect(critic).toBeDefined();
+    const rep = game.state.reputation;
+    for (let i = 0; i < 400 && game.state.event!.status === 'active'; i++) game.tick(1); // không ai phục vụ
+    expect(game.state.event!.result).toBe('bad');
+    expect(game.state.reputation).toBeLessThan(rep);
+  });
+
+  it('xe du lịch: khách tới gấp đôi trong lúc diễn ra rồi hết', () => {
+    const game = quietGame();
+    const base = modifier(game.ctx, 'spawnRate');
+    game.state.event = { id: 'tour_bus', at: 8 * 60, status: 'scheduled', minutesLeft: 90, partyId: null, result: null };
+    game.tick(1);
+    expect(modifier(game.ctx, 'spawnRate')).toBeCloseTo(base * 2);
+    game.tick(95);
+    expect(game.state.event!.status).toBe('done');
+    expect(modifier(game.ctx, 'spawnRate')).toBeCloseTo(base);
+  });
+
+  it('save v15 nâng lên v16 có đơn hàng + sự kiện', () => {
+    const game = newGame();
+    const old = JSON.parse(serialize(game.state));
+    delete old.contracts;
+    delete old.event;
+    old.version = 15;
+    const loaded = deserialize(JSON.stringify(old), content)!;
+    expect(loaded.contracts).toEqual([]);
+    expect(loaded.event).toBeNull();
   });
 });

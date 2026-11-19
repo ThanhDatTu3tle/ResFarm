@@ -38,6 +38,10 @@ export interface GameState {
   weather: { id: string; minutesLeft: number };
   /** Cả đội (bếp, phục vụ, bác nông dân): giờ nghỉ ra chợ ăn, bữa đang ăn, hoá đơn chờ trả. */
   crew: CrewState;
+  /** Đơn đặt hàng hôm nay. */
+  contracts: Contract[];
+  /** Sự kiện ngẫu nhiên hôm nay (null = không có). */
+  event: EventState | null;
   /** season / year: cộng dồn từ đầu mùa / đầu năm (cộng lúc hết mỗi ngày) — để tổng kết mùa, năm. */
   stats: { today: DayStats; total: DayStats; season: DayStats; year: DayStats };
 }
@@ -80,6 +84,33 @@ export interface Party {
   wait: number;
   /** Khách quen dẫn đầu nhóm (ngồi ghế đầu tiên, looks[0] bỏ qua); null = khách vãng lai. */
   regular: string | null;
+  /** Khách đặc biệt của sự kiện (id EventDef, vd 'critic'). */
+  vip?: string;
+}
+
+/** Một đơn đặt hàng từ khách ngoài (systems/contracts.ts). */
+export interface Contract {
+  id: number;
+  client: string;
+  icon: string;
+  items: ItemStack[];
+  reward: number;
+  xp: number;
+  status: 'open' | 'done' | 'expired';
+}
+
+/** Sự kiện ngẫu nhiên hôm nay (systems/events.ts). */
+export interface EventState {
+  /** id EventDef. */
+  id: string;
+  /** Phút trong ngày sự kiện bắt đầu. */
+  at: number;
+  status: 'scheduled' | 'active' | 'done';
+  /** Sự kiện kiểu modifier: còn bao nhiêu phút. */
+  minutesLeft: number;
+  /** critic: nhóm khách đặc biệt. */
+  partyId: number | null;
+  result: 'good' | 'bad' | null;
 }
 
 export interface RegularState {
@@ -293,7 +324,7 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 15;
+export const SAVE_VERSION = 16;
 
 /** Tên quán mặc định khi tạo ván mới. */
 export const DEFAULT_SHOP_NAME = 'Quán Nhà Vườn';
@@ -369,6 +400,8 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
     profile: { name: DEFAULT_SHOP_NAME, pet: null, pets: [] },
     weather: { id: content.weathers.all()[0].id, minutesLeft: 0 },
     crew: { restaurantAway: null, farmerAway: null, pending: [], meals: [], bill: [] },
+    contracts: [],
+    event: null,
     stats: { today: emptyStats(), total: emptyStats(), season: emptyStats(), year: emptyStats() },
   };
 }

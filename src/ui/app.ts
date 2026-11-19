@@ -1,4 +1,6 @@
 import type * as THREE from 'three';
+import { defOf } from '../sim/systems/events';
+import { clockText } from './format';
 import { guideHtml } from './tutorial';
 import { inShift } from '../sim/systems/customers';
 import { festivals, seasons } from '../data/calendar';
@@ -57,6 +59,9 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     if (params.has('rich')) Object.assign(game.state, { money: 99999, level: 9 });
     // ?day=85 nhảy tới ngày đó trong lịch (xem mùa: 1 Xuân, 29 Hạ, 57 Thu, 85 Đông)
     if (Number(params.get('day')) > 0) game.state.clock.day = Math.floor(Number(params.get('day')));
+    // ?event=critic ép sự kiện xảy ra ngay khi quán mở (critic / inspector / tour_bus / outage / big_tippers)
+    const ev = params.get('event');
+    if (ev) game.state.event = { id: ev, at: 0, status: 'scheduled', minutesLeft: defOf(ev).duration ?? 0, partyId: null, result: null };
     for (const command of JSON.parse(params.get('do') ?? '[]') as Command[]) game.dispatch(command);
     const weather = params.get('weather');
     if (weather && content.weathers.has(weather)) game.state.weather = { id: weather, minutesLeft: 100000 };
@@ -284,6 +289,34 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
   };
   game.bus.on('order/ready', checkLowStock);
   game.bus.on('shift/started', checkLowStock);
+  // Đơn đặt hàng + sự kiện ngẫu nhiên
+  game.bus.on('contract/done', (e) => {
+    const c = game.state.contracts.find((x) => x.id === e.id);
+    toast(`📋 Đã giao đơn cho ${c?.client ?? 'khách'}: +${e.reward} xu`, 'good');
+    sound.play('coin');
+    bump(moneyEl(), 0.6);
+  });
+  game.bus.on('day/started', () => {
+    const n = game.state.contracts.length;
+    if (n) setTimeout(() => toast(`📋 Có ${n} đơn đặt hàng mới — xem bảng Đơn hàng.`, '', '', 3600), 1600);
+  });
+  game.bus.on('event/announced', (e) => {
+    const def = defOf(e.id);
+    if (def.announce) setTimeout(() => toast(`${def.icon} ${def.announce!.replace('{time}', clockText(e.at))}`, '', '', 5200), 3200);
+  });
+  game.bus.on('event/started', (e) => {
+    const def = defOf(e.id);
+    toast(`${def.icon} ${def.start}`, def.id === 'outage' ? 'bad' : 'good', '', 4800);
+    sound.play('bell');
+  });
+  game.bus.on('event/ended', (e) => {
+    const def = defOf(e.id);
+    let text = `${def.icon} ${def.name} đã kết thúc.`;
+    if (def.kind === 'critic') text = e.result === 'good' ? `🧐 Nhà phê bình khen nức nở! Uy tín +${def.reward?.rep}, thưởng ${e.money} xu.` : `🧐 Nhà phê bình không hài lòng — uy tín −${def.penalty?.rep}.`;
+    else if (def.kind === 'inspector') text = e.result === 'good' ? `🕵️ Thanh tra khen quán sạch sẽ! Thưởng ${e.money} xu.` : `🕵️ Thanh tra phạt ${-e.money} xu vì ${e.mess} chỗ bẩn (vết bẩn, bàn chưa dọn).`;
+    toast(text, e.result === 'bad' ? 'bad' : 'good', '', 5200);
+    sound.play(e.result === 'bad' ? 'sad' : e.result === 'good' ? 'levelup' : 'pop');
+  });
   game.bus.on('shift/lastCall', () => toast('🔕 Ngưng nhận khách mới — phục vụ nốt khách đang ở quán rồi đóng cửa.', '', '', 3600));
   game.bus.on('shift/started', (e) => {
     toast(`🔔 Mở cửa ${e.index === 0 ? 'ca sáng' : 'ca chiều tối'}! Khách sắp tới.`, 'good');

@@ -830,6 +830,17 @@ export class RestaurantArea implements Area {
   // ---------- Khách quen ----------
 
   /** Vòng sáng hồng dưới chân + bảng tên (tên + tim) + ngôi sao nhỏ thay bảng tên sau vài giây. */
+  /** Khách đặc biệt của sự kiện (nhà phê bình): mũ nồi đen, kính, biểu tượng nổi trên đầu. */
+  private decorateVip(g: THREE.Group): void {
+    const rig = g.userData.rig;
+    mesh(rig.head, G.cyl(0.24, 0.26, 0.08, 16), 0x2a2a2a, { p: [0.03, 0.42, -0.02], r: [0, 0, 0.25] });
+    mesh(rig.head, G.sphere(0.03, 6, 5), 0x2a2a2a, { p: [0.05, 0.47, -0.02] });
+    for (const side of [-1, 1]) mesh(rig.head, G.torus(0.055, 0.012, 5, 12), 0x2a2a2a, { p: [side * 0.085, 0.18, 0.225], cast: false });
+    const tag = emojiSprite('🧐', 0.6);
+    tag.position.set(0, 2.95, 0);
+    g.add(tag);
+  }
+
   private decorateRegular(g: THREE.Group, name: string, hearts: number, t: number): NonNullable<Actor['regular']> {
     const k = 1 / g.scale.x; // trẻ em thu nhỏ: giữ vòng sáng và chữ đúng cỡ
     const ring = mesh(g, G.torus(0.4, 0.035, 6, 24), new THREE.MeshBasicMaterial({ color: 0xff8fc0, transparent: true, opacity: 0.85 }), { p: [0, 0.03, 0], r: [Math.PI / 2, 0, 0], s: k, cast: false, receive: false });
@@ -1102,6 +1113,7 @@ export class RestaurantArea implements Area {
           this.root.add(g);
           this.actors.set(key, (actor = { g, tx, tz, face: 0, restY: 0, leaving: false, seated: false, eating: false }));
           if (regular) actor.regular = this.decorateRegular(g, regular.name, heartsOf(ctx, regular.id), env.t);
+          if (party.vip && i === 0) this.decorateVip(g);
         }
         if (actor.regular) this.updateRegularTag(actor, env);
         actor.seated = !!spot;

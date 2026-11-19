@@ -382,6 +382,13 @@ export interface Balance {
    * số chỗ nhân viên phục vụ cộng thêm. Hạng 1 có sẵn (cost 0). `chefHireCost`: phí thuê một đầu bếp.
    */
   kitchen: { tiers: { name: string; icon: string; cost: number; level: number; chefs: number; passSlots: number; helpers: number; desc: string }[]; chefHireCost: number };
+  /** Sự kiện ngẫu nhiên: xác suất mỗi ngày, bắt đầu từ ngày thứ mấy. */
+  events: { chance: number; fromDay: number };
+  /**
+   * Đơn đặt hàng: số đơn mỗi ngày (+1 từ cấp `extraAtLevel`), hạn giao (phút trong ngày), thưởng = giá gốc × [min, max],
+   * XP = thưởng × `xpRatio`, uy tín mỗi đơn; `sellRatio` = giá bán lại hàng dư so với giá gốc.
+   */
+  contracts: { perDay: number; extraAtLevel: number; due: number; rewardMul: [number, number]; xpRatio: number; rep: number; sellRatio: number };
   /** Món còn nấu được ít hơn số phần này thì báo "sắp hết nguyên liệu". */
   lowStockPortions: number;
   /** Biên độ giá chợ theo ngày [min, max]. */
