@@ -1,6 +1,7 @@
 import { EventBus } from '../../core/events';
 import type { FarmerTask, FarmerTaskKind, FarmSlot } from '../state';
 import { fail, ok, type Command, type CommandResult, type SimContext, type SimEvents, type System } from '../types';
+import { awayReason, tire } from './crew';
 import { farmSystem, needsWatering, slotsOfType, yieldsOf } from './farm';
 import { millSpot, pickMill } from './mills';
 
@@ -139,8 +140,21 @@ function preview(ctx: SimContext, task: FarmerTask): CommandResult {
   return perform(sandbox, task);
 }
 
+/** Bác chưa nhận việc được: đang ăn ở chợ, hoặc kiệt sức. */
+export function farmerBlocked(ctx: SimContext): string | null {
+  const away = awayReason(ctx, 'farm');
+  if (away) return away;
+  if (ctx.state.farm.farmer.fainted) return '😵 Bác nông dân kiệt sức rồi — bồi dưỡng ở bảng Nhân viên.';
+  return null;
+}
+
+/** Việc đồng áng tốn sức (cuốc, tưới, gieo / thả, thu hoạch); ghé xem, dọn, chở hàng thì không. */
+const TIRING: FarmerTaskKind[] = ['till', 'water', 'plant', 'harvest'];
+
 function enqueue(ctx: SimContext, task: FarmerTask): CommandResult {
   const f = ctx.state.farm.farmer;
+  const blocked = farmerBlocked(ctx);
+  if (blocked) return fail(blocked);
   if (task.kind === 'haul') return fail('Bác tự chở hàng sau khi thu hoạch, không cần giao.');
   // Đang chờ ghé xem ô này (chưa tới nơi) mà người chơi giao việc thật cho ô đó thì bỏ lượt ghé xem
   if (task.kind !== 'visit') {
@@ -190,6 +204,8 @@ export const farmerSystem: System = {
   update(ctx, dt) {
     const { state, content } = ctx;
     const f = state.farm.farmer;
+    // Đang ở chợ hoặc kiệt sức: đứng im, hàng việc giữ nguyên để làm tiếp sau
+    if (state.crew.farmerAway || f.fainted) return;
     const { speed, workTime } = content.balance.farmer;
     let time = dt;
     // Một bước có thể qua vài khúc đường, tới nơi, làm xong rồi chuyển luôn sang việc kế nếu còn thời gian
@@ -233,6 +249,7 @@ export const farmerSystem: System = {
       const result = perform(ctx, task);
       if (result.ok && auto && slot) autoChain(ctx, slot, harvested);
       ctx.bus.emit('farmer/done', { kind: task.kind, slotId: task.slotId, ok: result.ok, reason: result.ok ? undefined : result.reason });
+      if (result.ok && TIRING.includes(task.kind) && tire(ctx, 'farmer', f, content.balance.crew.farmerPerTask)) return;
     }
   },
   commands: {
@@ -241,6 +258,8 @@ export const farmerSystem: System = {
     },
     'farmer/doAll'(ctx, cmd) {
       const f = ctx.state.farm.farmer;
+      const blocked = farmerBlocked(ctx);
+      if (blocked) return fail(blocked);
       const wanted = ctx.state.farm.slots.filter((s) => {
         if (!s.producerId || f.tasks.some((t) => t.slotId === s.id && t.kind === cmd.kind)) return false;
         return cmd.kind === 'harvest' ? s.stage === 'ready' : s.stage === 'growing' && needsWatering(ctx, s);

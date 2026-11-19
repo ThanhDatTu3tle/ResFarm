@@ -27,9 +27,9 @@ export const balance: Balance = {
 
   tipRate: 0.2,
   xpPerCoin: 0.5,
-  reputation: { paid: 0.02, paidBonus: 0.06, timeout: -0.1, noFood: -0.1 },
+  reputation: { paid: 0.01, paidBonus: 0.03, timeout: -0.1, noFood: -0.1 }, // G10: uy tín lên chậm hơn (~0.4 sao/ngày khi phục vụ tốt) để khách quen mở dần
   service: {
-    waiterSpeed: 430, // băng qua quán mất ~4 giây thực (chậm lại cho dễ theo dõi)
+    waiterSpeed: 300, // băng qua quán mất ~6 giây thực (đi thong thả cho dễ theo dõi)
     browseTime: [4.5, 10.5], // 3–7 giây thực
     menuPatience: 96, // ~64 giây thực
     orderPatience: 96,
@@ -41,11 +41,28 @@ export const balance: Balance = {
   marketSwing: [0.8, 1.25],
   regulars: { chance: 0.22, heartVisits: [1, 3, 6, 10, 15], tipPerHeart: 0.12, favoriteTip: 0.5, favoriteRep: 0.04, giftHearts: 3, maxPartySize: 2 },
   resellRate: 0.5,
-  helpers: { hireCost: 300, maxEnergy: 100, energyPerTask: 3, reviveCost: 100, reviveEnergy: 60, overnightEnergy: 40, names: ['Bé Mận', 'Anh Bin', 'Chị Hoa', 'Cu Tèo'] },
+  helpers: { hireCost: 300, names: ['Bé Mận', 'Anh Bin', 'Chị Hoa', 'Cu Tèo'] },
+  // Mỗi người 30 năng lượng; ngủ qua đêm đầy lại. Nghỉ trưa: quán đóng 12:00, cả đội ra chợ (đội quán 14:00 về,
+  // bác nông dân 13:00 về). Tối: quán đóng 21:00, cả đội ra chợ ăn tối. Người chơi chọn món cho từng người; quá hạn thì tự chọn.
+  crew: {
+    maxEnergy: 30,
+    chefPerDish: 2,
+    waiterPerTask: 1,
+    farmerPerTask: 1,
+    reviveCost: 100,
+    reviveEnergy: 15,
+    restEnergy: 10,
+    lunchBack: 14 * 60,
+    farmerLunch: { from: 12 * 60, to: 13 * 60 },
+    dinnerMinutes: 60,
+    eatMinutes: 30,
+    endDayAfter: 21 * 60, // quán đóng cửa tối là kết thúc ngày được
+  },
   // Ca sáng 07:00–12:00, nghỉ trưa (đi chợ, ra nông trại), ca chiều tối 15:00–20:00
+  // Ca sáng 07:00–12:00 (11:30 ngưng nhận khách), ca chiều tối 15:00–21:00 (20:30 ngưng nhận khách)
   shifts: [
-    { from: 7 * 60, to: 12 * 60 },
-    { from: 15 * 60, to: 20 * 60 },
+    { from: 7 * 60, lastCall: 11 * 60 + 30, to: 12 * 60 },
+    { from: 15 * 60, lastCall: 20 * 60 + 30, to: 21 * 60 },
   ],
   stains: { perShift: 3, max: 10, maxLevel: 3, patiencePerLevel: 0.015, minPatience: 0.8 },
 };

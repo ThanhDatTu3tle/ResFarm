@@ -8,6 +8,7 @@ import { activeTables, findSeats } from '../src/sim/systems/customers';
 import { priceOf } from '../src/sim/systems/market';
 import { calendarOf } from '../src/sim/calendar';
 import { autoServeCommands } from '../src/sim/systems/service';
+import { billDue } from '../src/sim/systems/crew';
 import { buildingRect, nextWaypoint, slotCenter, slotScale, workSpot } from '../src/sim/systems/farmer';
 import { millCenter, millSpot } from '../src/sim/systems/mills';
 import { moodOf } from '../src/sim/systems/customers';
@@ -42,6 +43,7 @@ function quietGame(): Game {
   const game = newGame();
   game.state.restaurant.spawnTimer = 1e9;
   game.state.weather = { id: 'cloudy', minutesLeft: 1e9 };
+  game.state.clock.minute = 8 * 60; // trong ca sáng (ngoài ca khách chưa gọi món sẽ về)
   return game;
 }
 
@@ -1018,7 +1020,7 @@ describe('nhân viên phục vụ thuê thêm', () => {
     game.dispatch({ type: 'helper/setJob', helperId: h.id, job: 'menu', on: true });
     for (let i = 0; i < 40 && party.phase === 'seated'; i++) game.tick(0.5);
     expect(party.phase).toBe('browsing');
-    expect(h.energy).toBe(content.balance.helpers.maxEnergy - content.balance.helpers.energyPerTask);
+    expect(h.energy).toBe(content.balance.crew.maxEnergy - content.balance.crew.waiterPerTask);
   });
 
   it('cạn năng lượng thì xỉu (bỏ việc), bồi dưỡng 100 xu thì tỉnh lại', () => {
@@ -1037,31 +1039,10 @@ describe('nhân viên phục vụ thuê thêm', () => {
     expect(other.called).toBe(false);
     void party;
     const money = game.state.money;
-    expect(game.dispatch({ type: 'helper/revive', helperId: h.id }).ok).toBe(true);
-    expect(game.state.money).toBe(money - content.balance.helpers.reviveCost);
+    expect(game.dispatch({ type: 'crew/revive', who: h.id }).ok).toBe(true);
+    expect(game.state.money).toBe(money - content.balance.crew.reviveCost);
     expect(h.fainted).toBe(false);
-    expect(h.energy).toBe(content.balance.helpers.reviveEnergy);
-  });
-
-  it('chỉ đi ăn hàng rong trong giờ nghỉ: vắng mặt một lúc rồi về, năng lượng tăng theo món', () => {
-    const game = quietGame();
-    Object.assign(game.state, { money: 1e6, level: 20 });
-    game.dispatch({ type: 'restaurant/upgrade' });
-    game.dispatch({ type: 'helper/hire' });
-    const h = game.state.restaurant.helpers[0];
-    h.energy = 10;
-    game.state.clock.minute = 9 * 60; // đang trong ca sáng
-    expect(game.dispatch({ type: 'helper/eat', helperId: h.id, stallId: 'hutieu' }).ok).toBe(false);
-    game.state.clock.minute = 12 * 60 + 30; // nghỉ trưa
-    expect(game.dispatch({ type: 'helper/eat', helperId: h.id, stallId: 'meat' }).ok).toBe(false); // sạp thịt không bán đồ ăn
-    expect(game.dispatch({ type: 'helper/eat', helperId: h.id, stallId: 'hutieu' }).ok).toBe(true);
-    expect(h.away?.stallId).toBe('hutieu');
-    game.tick(content.stalls.get('hutieu').staffMeal!.minutes + 1);
-    expect(h.away).toBeNull();
-    expect(h.energy).toBe(10 + content.stalls.get('hutieu').staffMeal!.energy);
-    // Thứ tự năng lượng: cà phê < bánh tráng < hủ tiếu < tiệm ăn vặt
-    const gain = ['cafe', 'banhtrang', 'hutieu', 'snack'].map((id) => content.stalls.get(id).staffMeal!.energy);
-    expect([...gain].sort((a, b) => a - b)).toEqual(gain);
+    expect(h.energy).toBe(content.balance.crew.reviveEnergy);
   });
 
   it('save v11 được nâng cấp lên v12', () => {
@@ -1070,5 +1051,145 @@ describe('nhân viên phục vụ thuê thêm', () => {
     delete old.restaurant.helpers;
     const state = deserialize(JSON.stringify(old), content)!;
     expect(state.restaurant.helpers).toEqual([]);
+  });
+});
+
+describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () => {
+  it('đầu bếp nấu 1 món tốn 2, bác nông dân làm 1 việc tốn 1', () => {
+    const game = quietGame();
+    const party = seatParty(game, 'pair', 1, [0]);
+    party.phase = 'readyToOrder';
+    game.dispatch({ type: 'service/takeOrder', partyId: party.id });
+    for (let i = 0; i < 200 && !game.state.restaurant.orders.some((o) => o.status === 'ready'); i++) game.tick(0.5);
+    const max = content.balance.crew.maxEnergy;
+    expect(game.state.restaurant.staff.map((s) => max - s.energy).sort()).toEqual([0, content.balance.crew.chefPerDish]);
+    expect(game.state.restaurant.waiter.energy).toBe(max - content.balance.crew.waiterPerTask);
+    const slot = game.state.farm.slots.find((s) => s.type === 'field')!;
+    expect(game.dispatch({ type: 'farmer/do', kind: 'till', slotId: slot.id }).ok).toBe(true);
+    for (let i = 0; i < 100 && !slot.tilled; i++) game.tick(0.5);
+    expect(game.state.farm.farmer.energy).toBe(max - content.balance.crew.farmerPerTask);
+  });
+
+  it('bồi bàn kiệt sức thì không nhận việc, bồi dưỡng thì làm tiếp', () => {
+    const game = quietGame();
+    game.state.money = 500;
+    const w = game.state.restaurant.waiter;
+    w.energy = 1;
+    const p1 = seatParty(game, 'pair', 2);
+    game.dispatch({ type: 'service/menu', partyId: p1.id });
+    for (let i = 0; i < 100 && !w.fainted; i++) game.tick(0.5);
+    expect(w.fainted).toBe(true);
+    const p2 = seatParty(game, 'pair2', 2);
+    expect(game.dispatch({ type: 'service/menu', partyId: p2.id }).ok).toBe(false);
+    expect(game.dispatch({ type: 'crew/revive', who: 'waiter' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'service/menu', partyId: p2.id }).ok).toBe(true);
+  });
+
+  it('ca làm: 11:30 / 20:30 ngưng nhận khách; 12:00 đóng cửa thì khách chưa gọi món về (không trừ uy tín)', () => {
+    const game = newGame();
+    game.state.weather = { id: 'cloudy', minutesLeft: 1e9 };
+    game.state.clock.minute = 11 * 60 + 30;
+    game.state.restaurant.spawnTimer = 0;
+    game.tick(1);
+    expect(game.state.restaurant.parties).toHaveLength(0);
+    const rep = game.state.reputation;
+    const p = seatParty(game, 'pair', 2);
+    p.patience = p.patienceMax = 999;
+    game.state.clock.minute = 12 * 60 - 0.5;
+    game.tick(1);
+    expect(game.state.restaurant.parties).toHaveLength(0);
+    expect(game.state.reputation).toBe(rep);
+    expect(game.state.stats.today.guestsLost).toBe(0);
+  });
+
+  it('nghỉ trưa: người chơi gọi món cho từng người, quá hạn thì tự chọn; tiền ăn của bác gộp chung một hoá đơn', () => {
+    const game = quietGame();
+    game.state.money = 1000;
+    const b = content.balance.crew;
+    game.state.clock.minute = 11 * 60 + 50;
+    game.state.restaurant.waiter.energy = 5;
+    game.tick(15);
+    expect(game.state.crew.farmerAway).toBe('lunch');
+    expect(game.state.crew.restaurantAway).toBe('lunch');
+    // Đang ở chợ: không giao việc được
+    const slot = game.state.farm.slots.find((s) => s.type === 'field')!;
+    const r = game.dispatch({ type: 'farmer/do', kind: 'till', slotId: slot.id });
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.reason).toMatch(/ăn trưa/);
+    const people = 4; // 2 đầu bếp + bồi bàn + bác nông dân
+    expect(game.state.crew.pending).toHaveLength(people);
+    // Người chơi chọn Matcha ở Tiệm 25caaaaa cho bồi bàn
+    expect(game.dispatch({ type: 'crew/order', who: 'waiter', stallId: 'snack', dish: 0 }).ok).toBe(true);
+    expect(game.dispatch({ type: 'crew/order', who: 'waiter', stallId: 'snack', dish: 0 }).ok).toBe(false);
+    expect(game.state.crew.meals.find((l) => l.who === 'waiter')?.dish).toMatch(/Matcha/);
+    // Bác về 13:00 (đã tự chọn món khi quá hạn), nhưng hoá đơn chưa hiện: đợi đội quán ăn xong
+    game.tick(b.farmerLunch.to - game.state.clock.minute + 1);
+    expect(game.state.crew.farmerAway).toBeNull();
+    expect(game.state.crew.pending.map((p) => p.who)).toEqual(['head_chef', 'sous_chef']); // đội quán còn hạn tới 13:30
+    expect(billDue(game.ctx)).toBe(false);
+    expect(game.dispatch({ type: 'crew/pay' }).ok).toBe(false);
+    game.tick(b.lunchBack - game.state.clock.minute + 1);
+    expect(game.state.crew.restaurantAway).toBeNull();
+    expect(game.state.crew.bill).toHaveLength(people);
+    expect(billDue(game.ctx)).toBe(true);
+    expect(game.state.restaurant.waiter.energy).toBeGreaterThan(5);
+    const total = game.state.crew.bill.reduce((s, l) => s + l.price, 0);
+    expect(game.dispatch({ type: 'crew/pay' }).ok).toBe(true);
+    expect(game.state.money).toBe(1000 - total);
+    expect(game.state.crew.bill).toEqual([]);
+  });
+
+  it('ít tiền thì món rẻ hoặc nhịn: tổng không vượt số tiền đang có; gọi món quá túi thì báo lỗi', () => {
+    const game = quietGame();
+    game.state.money = 20;
+    game.state.clock.minute = 12 * 60 + 1;
+    game.tick(1);
+    expect(game.dispatch({ type: 'crew/order', who: 'waiter', stallId: 'snack', dish: 2 }).ok).toBe(false);
+    expect(game.dispatch({ type: 'crew/autoOrder' }).ok).toBe(true);
+    const total = game.state.crew.meals.reduce((s, l) => s + l.price, 0);
+    expect(total).toBeLessThanOrEqual(20);
+  });
+
+  it('tối 21:00 đóng cửa cả đội ra chợ ăn tối; kết thúc ngày sớm được; ngày mới đầy năng lượng', () => {
+    const game = quietGame();
+    game.state.money = 1000;
+    game.state.restaurant.waiter.energy = 3;
+    game.state.clock.minute = 20 * 60 + 50;
+    game.tick(1);
+    expect(game.state.crew.restaurantAway).toBeNull();
+    expect(game.dispatch({ type: 'day/end' }).ok).toBe(false); // chưa tới 21:00
+    game.tick(content.balance.crew.endDayAfter - game.state.clock.minute + 1);
+    expect(game.state.crew.restaurantAway).toBe('dinner');
+    expect(game.state.crew.farmerAway).toBe('dinner');
+    expect(game.dispatch({ type: 'day/end' }).ok).toBe(true);
+    game.tick(1);
+    expect(game.state.clock.phase).toBe('summary');
+    expect(game.state.crew.bill.length).toBeGreaterThan(0); // ai chưa chọn món thì tự chọn
+    game.dispatch({ type: 'day/next' });
+    expect(game.state.crew.bill).toEqual([]); // tự trả nếu quên
+    expect(game.state.restaurant.waiter.energy).toBe(content.balance.crew.maxEnergy);
+    expect(game.state.crew.restaurantAway).toBeNull();
+  });
+
+  it('hàng rong chỉ bán đồ ăn (không mua nguyên liệu); năng lượng cà phê < bánh tráng < hủ tiếu < Tiệm 25caaaaa', () => {
+    const game = quietGame();
+    game.state.money = 1000;
+    expect(game.dispatch({ type: 'market/buy', stallId: 'snack', itemId: 'milk', qty: 1 }).ok).toBe(false);
+    const avg = (id: string) => {
+      const m = content.stalls.get(id).menu!;
+      return m.reduce((s, d) => s + d.energy, 0) / m.length;
+    };
+    const gain = ['cafe', 'banhtrang', 'hutieu', 'snack'].map(avg);
+    expect([...gain].sort((a, b) => a - b)).toEqual(gain);
+  });
+
+  it('save v12 được nâng cấp lên v13', () => {
+    const old = JSON.parse(serialize(newGame().state));
+    old.version = 12;
+    delete old.crew;
+    for (const s of old.restaurant.staff) delete s.energy;
+    const state = deserialize(JSON.stringify(old), content)!;
+    expect(state.crew.bill).toEqual([]);
+    expect(state.restaurant.staff[0].energy).toBe(content.balance.crew.maxEnergy);
   });
 });

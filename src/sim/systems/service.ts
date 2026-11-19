@@ -2,6 +2,7 @@ import { randInt } from '../../core/rng';
 import { roomOf, serviceSpot, tableById, tablePos, type Point } from '../layout';
 import type { HelperState, Order, Party, WaiterState, WaiterTask } from '../state';
 import { fail, ok, type Command, type SimContext, type System } from '../types';
+import { awayReason, dropWork, tire } from './crew';
 import { placeOrders, startBrowsing } from './customers';
 
 /**
@@ -15,7 +16,7 @@ import { placeOrders, startBrowsing } from './customers';
 /** Mọi người phục vụ: bồi bàn (người chơi) + nhân viên thuê đang ở quán. */
 export function workers(ctx: SimContext): WaiterState[] {
   const r = ctx.state.restaurant;
-  return [r.waiter, ...r.helpers.filter((h) => !h.away)];
+  return [r.waiter, ...r.helpers];
 }
 
 /** Đã có ai nhận việc giống vậy chưa (để hai người không cùng chạy tới một việc). */
@@ -171,10 +172,13 @@ export function addStains(ctx: SimContext): void {
 export const serviceSystem: System = {
   id: 'service',
   update(ctx, dt) {
-    for (const w of workers(ctx)) if (!(w as HelperState).fainted) stepWorker(ctx, w, dt);
+    if (ctx.state.crew.restaurantAway) return; // cả đội đang ở chợ
+    for (const w of workers(ctx)) if (!w.fainted) stepWorker(ctx, w, dt);
   },
   commands: {
     'service/menu'(ctx, cmd) {
+      const blocked = waiterBlocked(ctx);
+      if (blocked) return fail(blocked);
       const party = ctx.state.restaurant.parties.find((p) => p.id === cmd.partyId);
       if (!party || party.phase !== 'seated') return fail('Bàn này chưa cần menu.');
       if (party.called) return fail('Đang mang menu tới bàn này rồi.');
@@ -183,6 +187,8 @@ export const serviceSystem: System = {
       return ok();
     },
     'service/takeOrder'(ctx, cmd) {
+      const blocked = waiterBlocked(ctx);
+      if (blocked) return fail(blocked);
       const party = ctx.state.restaurant.parties.find((p) => p.id === cmd.partyId);
       if (!party || party.phase !== 'readyToOrder') return fail('Khách chưa chọn xong món.');
       if (party.called) return fail('Đang tới ghi món cho bàn này rồi.');
@@ -191,6 +197,8 @@ export const serviceSystem: System = {
       return ok();
     },
     'service/deliver'(ctx, cmd) {
+      const blocked = waiterBlocked(ctx);
+      if (blocked) return fail(blocked);
       const r = ctx.state.restaurant;
       if (!cmd.orderIds.length) return fail('Chưa chọn món nào.');
       const party = r.parties.find((p) => p.id === cmd.partyId);
@@ -218,6 +226,8 @@ export const serviceSystem: System = {
       return ok();
     },
     'service/clean'(ctx, cmd) {
+      const blocked = waiterBlocked(ctx);
+      if (blocked) return fail(blocked);
       const r = ctx.state.restaurant;
       if (!r.dirty[cmd.tableId]?.length) return fail('Bàn này sạch rồi.');
       if (taskTaken(ctx, (t) => t.kind === 'clean' && t.tableId === cmd.tableId)) return fail('Đang có người tới dọn bàn này rồi.');
@@ -225,6 +235,8 @@ export const serviceSystem: System = {
       return ok();
     },
     'service/mop'(ctx, cmd) {
+      const blocked = waiterBlocked(ctx);
+      if (blocked) return fail(blocked);
       const r = ctx.state.restaurant;
       if (!r.stains.some((s) => s.id === cmd.stainId)) return fail('Chỗ này sạch rồi.');
       if (taskTaken(ctx, (t) => t.kind === 'mop' && t.stainId === cmd.stainId)) return fail('Đang có người tới lau chỗ này rồi.');
@@ -262,32 +274,25 @@ function stepWorker(ctx: SimContext, w: WaiterState, dt: number): void {
     if (act(ctx, task, w)) {
       const i = w.tasks.indexOf(task);
       if (i >= 0) w.tasks.splice(i, 1);
-      if ('energy' in w && spendEnergy(ctx, w as HelperState)) return;
+      if (spendEnergy(ctx, w)) return;
     }
   }
 }
 
-/** Nhân viên thuê làm xong một việc thì mất năng lượng; cạn thì xỉu. Trả true nếu vừa xỉu. */
-function spendEnergy(ctx: SimContext, h: HelperState): boolean {
-  h.energy = Math.max(0, h.energy - ctx.content.balance.helpers.energyPerTask);
-  if (h.energy > 0) return false;
-  faint(ctx, h);
+/** Người phục vụ làm xong một việc thì mất năng lượng; cạn thì xỉu (bỏ hết việc). Trả true nếu vừa xỉu. */
+function spendEnergy(ctx: SimContext, w: WaiterState): boolean {
+  const who = w === ctx.state.restaurant.waiter ? 'waiter' : (w as HelperState).id;
+  if (!tire(ctx, who, w, ctx.content.balance.crew.waiterPerTask)) return false;
+  dropWork(ctx, w);
   return true;
 }
 
-/** Xỉu: bỏ hết việc (khách được gọi lại), món đang bưng trả về quầy. */
-export function faint(ctx: SimContext, h: HelperState): void {
-  const r = ctx.state.restaurant;
-  h.fainted = true;
-  for (const t of h.tasks) {
-    if (t.kind !== 'menu' && t.kind !== 'takeOrder') continue;
-    const p = r.parties.find((x) => x.id === t.partyId);
-    if (p) p.called = false;
-  }
-  for (const o of r.orders) if (h.carrying.includes(o.id)) o.status = 'ready';
-  h.tasks = [];
-  h.carrying = [];
-  ctx.bus.emit('helper/fainted', { helperId: h.id });
+/** Bồi bàn (người chơi) chưa nhận việc được: cả đội đang ở chợ, hoặc đang xỉu. */
+export function waiterBlocked(ctx: SimContext): string | null {
+  const away = awayReason(ctx, 'restaurant');
+  if (away) return away;
+  if (ctx.state.restaurant.waiter.fainted) return '😵 Bồi bàn kiệt sức rồi — bồi dưỡng ở bảng Nhân viên.';
+  return null;
 }
 
 /**

@@ -16,6 +16,16 @@ export const marketPanel: Panel = {
     const shown = all.filter((s) => !uiState.selectedStall || s.id === uiState.selectedStall);
     const stalls = (shown.length ? shown : all)
       .map((stall) => {
+        if (stall.menu) {
+          // Hàng rong / tiệm ăn vặt: chỉ bán đồ ăn cho cả đội giờ nghỉ (không mua nguyên liệu về kho)
+          const eating = state.crew.meals.filter((l) => l.stallId === stall.id);
+          const dishes = stall.menu
+            .map((d, i) => `<div class="row" data-key="${stall.id}-${i}"><span class="big">${d.icon}</span><div class="grow"><b>${esc(d.name)}</b><div class="muted">+${d.energy} ⚡ năng lượng</div></div><b>${coins(d.price)}</b></div>`)
+            .join('');
+          const now = eating.length ? `<div class="muted">Đang ngồi ăn: ${eating.map((l) => `${l.icon} ${esc(l.name)}`).join(', ')}</div>` : '';
+          return `<h3 data-key="h-${stall.id}">${stall.icon} ${esc(stall.name)}</h3>
+            <p class="muted">Quán ăn cho cả đội giờ nghỉ trưa và buổi tối: mỗi người tự chọn món, ăn xong bạn trả hoá đơn. Không bán nguyên liệu.</p>${now}${dishes}`;
+        }
         const rows = stall.items
           .map((id) => {
             const item = content.items.get(id);

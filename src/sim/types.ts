@@ -58,8 +58,11 @@ export type Command =
   | { type: 'helper/hire' }
   | { type: 'helper/fire'; helperId: string }
   | { type: 'helper/setJob'; helperId: string; job: HelperJob; on: boolean }
-  | { type: 'helper/revive'; helperId: string }
-  | { type: 'helper/eat'; helperId: string; stallId: string }
+  | { type: 'crew/revive'; who: string }
+  | { type: 'crew/pay' }
+  | { type: 'crew/order'; who: string; stallId: string; dish: number }
+  | { type: 'crew/autoOrder' }
+  | { type: 'day/end' }
   | { type: 'day/next' };
 
 export type CommandType = Command['type'];
@@ -72,8 +75,8 @@ export type CommandHandlers = {
 export const ok = (): CommandResult => ({ ok: true });
 export const fail = (reason: string): CommandResult => ({ ok: false, reason });
 
-/** serviceTimeout: chờ mang menu / chờ ghi món quá lâu. */
-export type LeaveReason = 'paid' | 'queueTimeout' | 'serviceTimeout' | 'foodTimeout' | 'noFood';
+/** serviceTimeout: chờ mang menu / chờ ghi món quá lâu. closed: còn xếp hàng lúc hết ca (quán nghỉ) — về vui vẻ, không trừ uy tín. */
+export type LeaveReason = 'paid' | 'queueTimeout' | 'serviceTimeout' | 'foodTimeout' | 'noFood' | 'closed';
 
 /** SỰ KIỆN sim phát ra cho UI (hiệu ứng, âm thanh, thông báo). UI không được sửa state khi nghe sự kiện. */
 export interface SimEvents {
@@ -92,10 +95,16 @@ export interface SimEvents {
   /** Bắt đầu / hết một ca mở cửa (chỉ số trong balance.shifts). Hết ca thì sàn có thêm vết bẩn. */
   'shift/started': { index: number };
   'shift/ended': { index: number };
-  /** Nhân viên thuê kiệt sức (cần bồi dưỡng). */
-  'helper/fainted': { helperId: string };
-  /** Nhân viên ăn xong ở chợ, quay về quán. */
-  'helper/returned': { helperId: string; energy: number };
+  /** Tới giờ ngưng nhận khách mới của ca (balance.shifts[i].lastCall). */
+  'shift/lastCall': { index: number };
+  /** Một người trong đội kiệt sức (who: id đầu bếp / 'waiter' / id nhân viên / 'farmer'). */
+  'crew/fainted': { who: string };
+  /** Đội quán / bác nông dân ra chợ (nghỉ trưa / ăn tối). */
+  'crew/left': { group: 'restaurant' | 'farm'; kind: 'lunch' | 'dinner' };
+  /** Hết giờ nghỉ trưa, về chỗ làm. */
+  'crew/back': { group: 'restaurant' | 'farm' };
+  /** Mọi người ăn xong — hoá đơn chờ thanh toán. */
+  'crew/bill': { total: number };
   'farm/ready': { slotId: string };
   'farmer/done': { kind: FarmerTaskKind; slotId: string; ok: boolean; reason?: string };
   /** Cối vừa làm xong một mẻ thành phẩm (vào kho). */

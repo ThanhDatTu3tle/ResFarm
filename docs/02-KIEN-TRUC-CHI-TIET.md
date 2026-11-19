@@ -68,7 +68,7 @@ src/ui/three/areas/*.ts   restaurant, farm, market
 test/sim.test.ts          toàn bộ test (chỉ test sim + data)
 ```
 
-## 3. GameState (phiên bản 12)
+## 3. GameState (phiên bản 13)
 
 ```ts
 GameState {
@@ -86,7 +86,7 @@ GameState {
     parties: Party[]            // phase 'queue'|'seated'|'browsing'|'readyToOrder'|'waitingFood'|'eating'
                                 //   called: bồi bàn đã nhận việc cho nhóm · wait: phút món nằm ở quầy (tâm trạng)
     orders: Order[]             // status 'queued'|'cooking'|'ready'(ở quầy ra món)|'carrying'|'served'
-    staff: { id, orderId }[]
+    staff: { id, orderId, energy, fainted }[]   // đầu bếp (energy / fainted: Vitals, dùng chung cả đội)
     spawnTimer
     layout: Record<tableId, {x, y, rot?}>  // bàn gốc đã dời / xoay (rot = xoay 90°); bàn mua thêm luôn có
     extraTables: { id, kind }[]            // bàn lẻ mua thêm (kind = TableKindDef)
@@ -94,14 +94,14 @@ GameState {
     tier                                   // hạng quán 1..3 (content.room.tiers) — phòng sâu thêm theo hạng
     dirty: Record<tableId, ghế[]>          // chén dĩa dơ khách để lại; ghế dơ không xếp khách
     stains: { id, x, y, level }[]          // vết bẩn sàn (thêm lúc hết ca), làm khách kém kiên nhẫn
-    helpers: HelperState[]                 // nhân viên thuê: như waiter + id, name, look, jobs, energy, fainted, away { stallId, minutesLeft }
+    helpers: HelperState[]                 // nhân viên thuê: như waiter + id, name, look, jobs
     // waiter.carrying: id đơn[] (khay); WaiterTask thêm 'clean' { tableId }, 'mop' { stainId }; 'deliver' có orderIds[]
-    waiter: { x, y, tasks: WaiterTask[], carrying }   // bồi bàn (người chơi); toạ độ mặt bằng
+    waiter: { x, y, tasks: WaiterTask[], carrying, energy, fainted }   // bồi bàn (người chơi); toạ độ mặt bằng
   }
   farm: {
     slots: FarmSlot[]           // FarmSlot: id, type, producerId, stage, progress, cyclesDone,
                                 //           lastProducerId, tilled, wet, tier
-    farmer: { x, z, tasks: FarmerTask[], work, carry }   // bác nông dân; toạ độ mét; work = phút còn lại của việc đang làm (null = đang đi/rảnh); carry = lúa đang chở trên máy cày
+    farmer: { x, z, tasks: FarmerTask[], work, carry, energy, fainted }   // bác nông dân; toạ độ mét; work = phút còn lại của việc đang làm (null = đang đi/rảnh); carry = lúa đang chở trên máy cày
     mills: { id, type: 'windmill'|'ricemill', product, input, progress }[]   // cối chế biến: input = số lúa chờ xay
   }
   quests: { index, progress, done }   // nhiệm vụ hệ thống: đang làm content.quests[index]; done = đạt mục tiêu, chờ nhận thưởng
@@ -110,6 +110,7 @@ GameState {
   // Party có thêm regular: id khách quen dẫn đầu nhóm (ghế đầu) hoặc null; Order có thêm fav (món ruột)
   market: { priceFactor: Record<itemId, hệ số> }
   weather: { id, minutesLeft }
+  crew: { restaurantAway, farmerAway, pending: PendingMeal[], meals: MealLine[], bill: MealLine[] }   // giờ nghỉ ra chợ ('lunch' | 'dinner' | null), bữa đang ăn, hoá đơn chờ trả
   stats: { today, total }       // DayStats: revenue, tips, spent, dishes, guestsServed, guestsLost
 }
 ```
@@ -157,7 +158,9 @@ restaurant/upgrade                         nâng hạng quán (phòng sâu thêm
 service/deliver     { orderIds, partyId }  bưng cả khay (một hoặc nhiều món) tới bàn
 service/clean       { tableId }            dọn chén dĩa dơ
 service/mop         { stainId }            lau vết bẩn trên sàn
-helper/hire | helper/fire { helperId } | helper/setJob { helperId, job, on } | helper/revive { helperId } | helper/eat { helperId, stallId }
+helper/hire | helper/fire { helperId } | helper/setJob { helperId, job, on }
+crew/order { who, stallId, dish } | crew/autoOrder   gọi món cho một người đang ở chợ / để mọi người tự chọn
+crew/revive { who } | crew/pay | day/end      bồi dưỡng người xỉu (who: id đầu bếp / 'waiter' / id nhân viên / 'farmer') · trả hoá đơn ăn ở chợ · kết thúc ngày sớm (sau 21:00)
 ```
 
 UI dùng `farmer/*` cho mọi thao tác trên ô; `farm/till|water|plant|harvest|clear|harvestAll|waterAll` là lệnh "làm ngay", hiện chỉ test, `?do=` và bác nông dân (khi tới nơi) gọi.
@@ -186,7 +189,8 @@ regular/arrived { regularId, partyId }    khách quen tới quán
 regular/visited { regularId, hearts, heartUp, fav, gift }   khách quen trả tiền xong (lên tim / món ruột / quà tặng)
 restaurant/upgraded { tier }              quán lên hạng (app.ts dựng lại khu quán)
 shift/started { index } · shift/ended { index }   bắt đầu / hết ca mở cửa (hết ca: sàn thêm vết bẩn)
-helper/fainted { helperId } · helper/returned { helperId, energy }   nhân viên xỉu / ăn xong về quán
+shift/lastCall { index }   tới giờ ngưng nhận khách
+crew/fainted { who } · crew/left { group, kind } · crew/back { group } · crew/bill { total }   xỉu / ra chợ / về chỗ làm / ăn xong có hoá đơn
 farm/ready     level/up      weather/changed
 day/ended      day/started
 ```
@@ -230,7 +234,7 @@ Người chơi đang có save thật trong trình duyệt. Mỗi lần đổi h�
 4. Nếu cần "sửa cho hợp lệ" (id bị xoá, số ô khởi đầu tăng...), thêm vào `reconcile()` — hàm này chạy sau migration ở mọi lần tải.
 5. Thêm test: lấy state mới, xoá trường mới, hạ `version`, `deserialize` lại, kiểm tra kết quả và chạy thử `tick`.
 
-v7 (phong cách quán) được chủ dự án chốt là **chơi lại từ đầu**: migration v1→v6 đã xoá, save cũ bị bỏ qua. Muốn xem mẫu migration cũ: lịch sử git trước nhánh `giai-doan-2`. Từ v7 trở đi viết migration bình thường: v7→v8 thêm cối + `farmer.carry` (`reconcile()` tạo đủ cối khởi đầu), v8→v9 thêm `quests`, v9→v10 thêm `regulars`, `profile`, `restaurant.extraTables/props/tier`, `party.regular`; v10→v11 đổi `waiter.carrying` thành mảng, `deliver.orderIds`, thêm `restaurant.dirty/stains` (reconcile dời bàn / đồ nằm ngoài phòng khi quán nhỏ lại); v11→v12 thêm `restaurant.helpers`.
+v7 (phong cách quán) được chủ dự án chốt là **chơi lại từ đầu**: migration v1→v6 đã xoá, save cũ bị bỏ qua. Muốn xem mẫu migration cũ: lịch sử git trước nhánh `giai-doan-2`. Từ v7 trở đi viết migration bình thường: v7→v8 thêm cối + `farmer.carry` (`reconcile()` tạo đủ cối khởi đầu), v8→v9 thêm `quests`, v9→v10 thêm `regulars`, `profile`, `restaurant.extraTables/props/tier`, `party.regular`; v10→v11 đổi `waiter.carrying` thành mảng, `deliver.orderIds`, thêm `restaurant.dirty/stains` (reconcile dời bàn / đồ nằm ngoài phòng khi quán nhỏ lại); v11→v12 thêm `restaurant.helpers`; v12→v13 thêm `crew`, năng lượng cho đầu bếp / bồi bàn / bác nông dân (đầy 30), bỏ `helper.away`.
 
 `deserialize` trả `null` (tạo game mới) nếu save hỏng hoặc thiếu migration. Khoá lưu: `quan-nha-vuon/save`.
 

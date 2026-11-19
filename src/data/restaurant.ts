@@ -34,8 +34,8 @@ export const tables: TableDef[] = [
 ];
 
 export const staff: StaffDef[] = [
-  { id: 'head_chef', name: 'Bếp trưởng', icon: '👨‍🍳', role: 'chef', speed: 1.3 },
-  { id: 'sous_chef', name: 'Bếp phó', icon: '👩‍🍳', role: 'chef', speed: 1 },
+  { id: 'head_chef', name: 'Bếp trưởng', icon: '👨‍🍳', role: 'chef', speed: 1.6 },
+  { id: 'sous_chef', name: 'Bếp phó', icon: '👩‍🍳', role: 'chef', speed: 1.6 }, // nấu nhanh bằng bếp trưởng
 ];
 
 /** Trang thiết bị — mua một lần, có hiệu lực mãi. (Sàn, tường, bàn ghế nằm ở decor.ts.) */

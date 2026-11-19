@@ -20,8 +20,12 @@ export type Pick =
   | { type: 'building'; id: string }
   /** Đồ trang trí trong quán (id = PropState.uid): kéo ở chế độ sắp xếp. */
   | { type: 'prop'; id: string }
-  /** Vết bẩn trên sàn quán (id = String(stain.id)): bấm GIỮ để lau. */
-  | { type: 'stain'; id: string };
+  /** Vết bẩn trên sàn quán (id = String(stain.id)): bấm để lau. */
+  | { type: 'stain'; id: string }
+  /** Khay hàng trong quầy chợ (id = id nguyên liệu): mở bảng mua. */
+  | { type: 'goods'; id: string }
+  /** Bảng menu trong Tiệm 25caaaaa (id = id sạp): mở bảng gọi món cho cả đội. */
+  | { type: 'menuboard'; id: string };
 
 /** Môi trường chung cho mọi khu, tính lại mỗi khung hình từ state (giờ + thời tiết). Mọi giá trị 0..1 trừ `t`. */
 export interface Env {
@@ -175,8 +179,6 @@ export class Stage {
     canvas.addEventListener('pointerdown', (e) => {
       const pick = this.pickAt(e.clientX, e.clientY);
       down = { x: e.clientX, y: e.clientY, at: performance.now(), pick };
-      // Vết bẩn: bấm giữ — khoá xoay camera trong lúc giữ
-      if (pick?.type === 'stain') this.controls.enabled = false;
       if (pick && this.dragFilter(pick)) {
         this.dragging = pick;
         this.controls.enabled = false;
@@ -201,26 +203,10 @@ export class Stage {
         const pick = this.pickAt(e.clientX, e.clientY);
         if (pick) this.onPick(pick, performance.now() - down.at);
       }
-      if (down?.pick?.type === 'stain') this.controls.enabled = true;
       down = null;
       this.holding = null;
     };
     canvas.addEventListener('pointerup', release);
-    // Giữ đủ lâu trên vết bẩn thì lau luôn, không cần thả tay
-    const holdTick = () => {
-      if (down?.pick?.type === 'stain') {
-        const ms = performance.now() - down.at;
-        this.holding = { pick: down.pick, ms };
-        if (ms >= HOLD_MS) {
-          this.onPick(down.pick, ms);
-          this.controls.enabled = true;
-          down = null;
-          this.holding = null;
-        }
-      }
-      requestAnimationFrame(holdTick);
-    };
-    requestAnimationFrame(holdTick);
     canvas.addEventListener('pointercancel', release);
     canvas.addEventListener('dblclick', () => this.resetView());
 

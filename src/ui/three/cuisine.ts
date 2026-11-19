@@ -144,7 +144,7 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
   if (cuisine === 'jp') {
     // Rèm noren trước gian bếp, đèn lồng đỏ treo trần, mèo thần tài, thẻ gỗ ghi món trên tường, bonsai ở góc
     noren(r, (d.kitchenX1 + d.halfW) / 2, 3.55, d.kitchenZ + 0.1, d.halfW - d.kitchenX1 - 0.3, 4);
-    for (const x of [-d.halfW * 0.55, 0, d.halfW * 0.55]) swingers.push(chochin(r, x, 3.05, 1, 1.15));
+    for (const x of [-d.halfW * 0.55, 0, d.halfW * 0.55]) swingers.push(chochin(r, x, 3.7, 1, 1.0)); // treo cao, không che khách
     for (const x of [-d.halfW + 0.6, d.halfW - 0.6]) swingers.push(chochin(r, x, 3.3, d.kitchenZ + 0.4, 0.9, 0xf3efe0));
     wavers.push(manekiNeko(r, kc - 1.55, 1.02, d.backZ + 0.55, 1.3)); // đầu dãy bếp, cạnh chảo
     for (let i = 0; i < 7; i++) {
@@ -182,9 +182,9 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
   } else {
     // Đèn lồng Hội An nhiều màu, quạt trần, chữ Phúc, mành tre (không đặt bàn thờ ở quán nào)
     const colors = [0xd9433a, 0xf2b23e, 0x9a4fc4, 0xe2703a, 0x3f9f6a];
-    for (const [i, x] of [-d.halfW * 0.55, 0, d.halfW * 0.55].entries()) swingers.push(hoiAnLantern(r, x, 3.1, 1, colors[i], 1.4));
+    for (const [i, x] of [-d.halfW * 0.55, 0, d.halfW * 0.55].entries()) swingers.push(hoiAnLantern(r, x, 3.75, 1, colors[i], 1.15)); // treo cao, không che khách
     for (let i = 0; i < 9; i++) swingers.push(hoiAnLantern(r, -d.halfW + 0.9 + i * ((d.halfW * 2 - 1.8) / 8), 3.7, d.kitchenZ + 0.3, colors[i % colors.length], 0.7));
-    for (const x of [-d.halfW * 0.3, d.halfW * 0.3]) spinners.push(ceilingFan(r, x, 3.7, -0.4));
+    for (const x of [-d.halfW * 0.3, d.halfW * 0.3]) spinners.push(ceilingFan(r, x, 4.05, -0.4));
     // Chữ Phúc trên giấy đỏ hình thoi
     const fu = group(r, { p: [(-d.halfW + d.kitchenX1) / 2, 3.3, back + 0.05], r: [0, 0, Math.PI / 4] }); // giữa hai cửa WC / kho
     mesh(fu, G.box(0.75, 0.75, 0.02), 0xd9433a, { cast: false });
@@ -226,8 +226,9 @@ export function tableExtras(cuisine: CuisineId, g: THREE.Object3D, top: number, 
     mesh(g, G.cyl(0.26, 0.26, 0.06, 18), 0x2a2d35, { p: [0, top + 0.03, 0] });
     mesh(g, G.torus(0.22, 0.012, 4, 20), 0x8a8f99, { p: [0, top + 0.07, 0], r: [Math.PI / 2, 0, 0], cast: false });
     // Ống hút khói bạc treo từ trần xuống
-    mesh(g, G.cyl(0.07, 0.07, 1.6, 10), 0xc9ced6, { p: [0, top + 2.15, 0], cast: false });
-    mesh(g, G.cone(0.3, 0.3, 14), 0xc9ced6, { p: [0, top + 1.25, 0], cast: false });
+    // treo cao (miệng ống ~2.9 m) để không che mặt khách
+    mesh(g, G.cyl(0.07, 0.07, 1.0, 10), 0xc9ced6, { p: [0, top + 2.75, 0], cast: false });
+    mesh(g, G.cone(0.3, 0.3, 14), 0xc9ced6, { p: [0, top + 2.15, 0], cast: false });
     mesh(g, G.cyl(0.035, 0.045, 0.24, 8), 0x5fd08a, { p: [w / 2 - 0.2, top + 0.12, d / 2 - 0.18] });
   } else if (cuisine === 'jp') {
     mesh(g, G.cyl(0.035, 0.04, 0.12, 8), 0x2a1f1a, { p: [0.12, top + 0.06, 0] });

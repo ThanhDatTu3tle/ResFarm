@@ -9,8 +9,9 @@ import type { Command } from '../sim/types';
 import { cmd, esc, morph, ui as uiAttr } from './dom';
 import { coins } from './format';
 import { Sound } from './audio';
-import { hudHtml, questHtml, serviceAlerts, serviceHtml, settingsHtml, SPEEDS, trayFor, trayParty } from './hud';
-import { HOLD_MS } from './three/stage';
+import { billHtml, buyHtml, mealHtml, hudHtml, questHtml, serviceAlerts, serviceHtml, settingsHtml, SPEEDS, trayFor } from './hud';
+import { memberOf } from '../sim/systems/crew';
+import { farmerBlocked } from '../sim/systems/farmer';
 import { isReserved, needOf } from '../sim/systems/service';
 import { resale } from '../sim/systems/home';
 import { bump, Counter, floatText, flyIcon, fxLayer } from './juice';
@@ -19,6 +20,7 @@ import { FarmArea } from './three/areas/farm';
 import { GreenhouseArea } from './three/areas/greenhouse';
 import { MarketArea } from './three/areas/market';
 import { RestaurantArea } from './three/areas/restaurant';
+import { StallArea } from './three/areas/stall';
 import { Stage, type Area, type Pick } from './three/stage';
 import { portraitHtml } from './three/portraits';
 import { tableById } from '../sim/layout';
@@ -66,8 +68,11 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     <aside id="drawer"></aside>
     <div id="modal"></div>
     <div id="questdlg"></div>
+    <div id="bill"></div>
+    <div id="meal"></div>
     <div id="settings"></div>
     <div id="service"></div>
+    <div id="buy"></div>
     <div id="toasts"></div>
     <div id="photobar"><button class="primary" data-ui="snap">📸 Chụp ảnh quán</button><button data-ui="photo:close">✕ Thoát</button></div>
     <div id="rotate">
@@ -84,7 +89,9 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
   const greenhouse = new GreenhouseArea(game);
   // Nhà kính nằm bên trái nông trại trên thanh chuyển khu (vào được cả bằng cách bấm nhà kính ở nông trại)
   const market = new MarketArea(game);
-  const areas: Area[] = [greenhouse, farm, restaurant, market];
+  // Bên trong quầy chợ: chỉ vào được bằng cách bấm sạp ở chợ (không có trên thanh chuyển khu, trừ nút quay về Chợ)
+  const stall = new StallArea(game);
+  const areas: Area[] = [greenhouse, farm, restaurant, market, stall];
   const stage = new Stage($('scene') as HTMLCanvasElement, game, areas);
   const ui: UiState = {
     area: areas.find((a) => a.id === params.get('area'))?.id ?? 'restaurant',
@@ -102,7 +109,13 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     photo: false,
     tray2: [],
     tray4: [],
+    trayPick: null,
     questOpen: false,
+    mealOpen: false,
+    mealWho: null,
+    mealStall: null,
+    stallView: null,
+    buyItem: null,
   };
   stage.setArea(ui.area);
 
@@ -196,7 +209,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
   game.bus.on('order/ready', () => ui.area === 'restaurant' && sound.play('ripe'));
   game.bus.on('waiter/done', (e) => e.kind === 'pickup' && ui.area === 'restaurant' && sound.play('pop'));
   game.bus.on('order/served', () => ui.area === 'restaurant' && sound.play('serve'));
-  game.bus.on('party/left', (e) => e.reason !== 'paid' && ui.area === 'restaurant' && sound.play('sad'));
+  game.bus.on('party/left', (e) => e.reason !== 'paid' && e.reason !== 'closed' && ui.area === 'restaurant' && sound.play('sad'));
   game.bus.on('level/up', () => sound.play('levelup'));
   // Nhiệm vụ hệ thống: báo khi đạt mục tiêu, nhận thưởng thì xu nảy
   game.bus.on('quest/completed', (e) => {
@@ -209,22 +222,29 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     bump(moneyEl(), 0.6);
   });
   game.bus.on('day/ended', () => sound.play('dayEnd'));
-  game.bus.on('helper/fainted', (e) => {
-    const h = game.state.restaurant.helpers.find((x) => x.id === e.helperId);
-    toast(`😵 ${h?.name ?? 'Nhân viên'} kiệt sức xỉu rồi! Bồi dưỡng ${content.balance.helpers.reviveCost} xu ở bảng Quán, hoặc giờ nghỉ cho đi ăn.`, 'bad', '', 4200);
+  game.bus.on('crew/fainted', (e) => {
+    const m = memberOf(game.ctx, e.who);
+    toast(`😵 ${m?.name ?? 'Nhân viên'} kiệt sức xỉu rồi! Bồi dưỡng ${content.balance.crew.reviveCost} xu ở bảng Nhân viên, hoặc đợi giờ nghỉ ra chợ ăn.`, 'bad', '', 4200);
     sound.play('sad');
   });
-  game.bus.on('helper/returned', (e) => {
-    const h = game.state.restaurant.helpers.find((x) => x.id === e.helperId);
-    toast(`😋 ${h?.name ?? 'Nhân viên'} ăn no về quán — ⚡ ${Math.round(e.energy)}`, 'good');
+  game.bus.on('crew/left', (e) => {
+    if (e.group === 'farm') toast(e.kind === 'lunch' ? '🍜 Bác nông dân ra chợ ăn trưa, 13:00 về.' : '🌙 Bác nông dân nghỉ, ra chợ ăn tối.', '', '', 3200);
+    else toast(e.kind === 'lunch' ? '🍜 Quán vắng khách — cả đội ra chợ ăn trưa, 14:00 về chuẩn bị ca chiều.' : '🌙 Quán đóng cửa — cả đội ra chợ ăn tối, chơi bời.', '', '', 3600);
   });
+  game.bus.on('crew/back', (e) => toast(e.group === 'farm' ? '👨‍🌾 Bác nông dân về nông trại rồi.' : '🙌 Cả đội về quán, sẵn sàng ca chiều!', 'good'));
+  game.bus.on('crew/bill', () => sound.play('bell'));
+  // Cả đội vừa ra chợ: mở bảng gọi món cho người chơi chọn (đóng lại thì quá hạn mọi người tự chọn)
+  game.bus.on('crew/left', () => {
+    if (game.state.crew.pending.length && !ui.settings) [ui.mealOpen, ui.mealStall] = [true, null];
+  });
+  game.bus.on('shift/lastCall', () => toast('🔕 Ngưng nhận khách mới — phục vụ nốt khách đang ở quán rồi đóng cửa.', '', '', 3600));
   game.bus.on('shift/started', (e) => {
     toast(`🔔 Mở cửa ${e.index === 0 ? 'ca sáng' : 'ca chiều tối'}! Khách sắp tới.`, 'good');
     sound.play('bell');
   });
   game.bus.on('shift/ended', (e) => {
     const next = content.balance.shifts[e.index + 1];
-    toast(next ? `😴 Hết ca sáng — nghỉ tới ${String(next.from / 60).padStart(2, '0')}:00: đi chợ, ra nông trại. Sàn có vết bẩn, bấm giữ để lau.` : '🌙 Hết ca chiều tối, quán đóng cửa. Lau dọn rồi nghỉ ngơi thôi!', '', '', 4200);
+    toast(next ? `😴 Đóng cửa nghỉ trưa — mở lại lúc ${String(next.from / 60).padStart(2, '0')}:00. Khách về hết thì cả đội ra chợ ăn trưa. Sàn có vết bẩn, bấm vào để lau.` : '🌙 Quán đóng cửa. Khách về hết thì cả đội ra chợ ăn tối.', '', '', 4200);
   });
   // Khách quen: thông báo có chân dung lúc ghé quán; lên tim / được ăn món ruột / tặng quà
   game.bus.on('regular/arrived', (e) => {
@@ -303,14 +323,18 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     const stillReady = (id: number) => state.restaurant.orders.some((o) => o.id === id && o.status === 'ready' && !isReserved(game.ctx, o.id));
     ui.tray2 = ui.tray2.filter(stillReady);
     ui.tray4 = ui.tray4.filter(stillReady);
-    checkTrays();
+    if (ui.trayPick && !(ui.trayPick === 2 ? ui.tray2 : ui.tray4).length) ui.trayPick = null;
     morph($('questdlg'), questHtml(game, ui));
-    morph($('service'), ui.area === 'restaurant' && !ui.editLayout ? serviceHtml(game, ui) : '');
+    // Quầy ra món mở thì hiện dọc bên phải như ngăn kéo (cảnh 3D thu hẹp lại, vẫn thấy hết bàn để bấm);
+    // đóng quầy mà đang cầm món thì hiện thanh nhắc nhỏ phía dưới
+    const passHere = ui.passOpen && ui.area === 'restaurant' && !ui.editLayout;
+    morph($('service'), ui.area === 'restaurant' && !ui.editLayout && !passHere ? serviceHtml(game, ui) : '');
 
     // Thanh chế độ sắp xếp bàn + nút chuyển khu hai bên
-    const index = areas.findIndex((a) => a.id === ui.area);
-    const prev = areas[index - 1];
-    const next = areas[index + 1];
+    const navAreas = areas.filter((a) => a.id !== 'stall' || ui.area === 'stall');
+    const index = navAreas.findIndex((a) => a.id === ui.area);
+    const prev = navAreas[index - 1];
+    const next = navAreas[index + 1];
     morph(
       $('areabar'),
       ui.editLayout ? editBar() : '', // ngoài chế độ sắp xếp bàn thì không hiện gì (hướng dẫn nằm trong bảng Cài đặt)
@@ -338,17 +362,24 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
         .join(''),
     );
 
-    const panel = panels.find((p) => p.id === ui.drawer);
-    $('drawer').classList.toggle('open', !!panel);
+    // Nút chuyển khu nằm ngay trên thanh công cụ: theo chiều cao thật của thanh (màn hẹp thanh xuống 2 hàng)
+    root.style.setProperty('--tools-h', `${$('tools').offsetHeight || 40}px`);
+    const panel = passHere ? undefined : panels.find((p) => p.id === ui.drawer);
+    $('drawer').classList.toggle('open', !!panel || passHere);
     morph(
       $('drawer'),
-      panel
+      passHere
+        ? `<div id="panel" class="pass-panel" data-key="pass">${serviceHtml(game, ui)}</div>`
+        : panel
         ? `<div class="drawer-head" data-key="h-${panel.id}"><b>${panel.icon} ${esc(panel.label)}</b><button class="mini"${uiAttr('drawer:')}>✕</button></div>
            <div id="panel" data-key="${panel.id}">${panel.render(game, ui)}</div>`
         : '',
     );
 
     const today = state.stats.today;
+    morph($('bill'), billHtml(game));
+    morph($('meal'), mealHtml(game, ui));
+    morph($('buy'), ui.area === 'stall' ? buyHtml(game, ui) : '');
     morph(
       $('modal'),
       state.clock.phase !== 'summary'
@@ -394,30 +425,13 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
       <div class="btns"><button class="mini"${cmd({ type: 'layout/reset' })}>↺ Bàn về mặc định</button>${done}</div>`;
   };
 
-  /** Thêm món vào khay (khay đầy thì sang khay kia), rồi xem khay đã đủ bộ chưa. */
+  /** Thêm món vào khay (khay đầy thì sang khay kia). Người chơi bấm khay rồi bấm bàn để bưng. */
   const addToTray = (orderId: number, kind: 2 | 4) => {
     if (ui.tray2.includes(orderId) || ui.tray4.includes(orderId)) return;
     const pick = kind === 2 ? (ui.tray2.length < 2 ? 2 : ui.tray4.length < 4 ? 4 : 0) : ui.tray4.length < 4 ? 4 : ui.tray2.length < 2 ? 2 : 0;
     if (!pick) return void toast('Hai khay đều đầy rồi — bỏ bớt món ra nhé.', 'bad');
     (pick === 2 ? ui.tray2 : ui.tray4).push(orderId);
     sound.play('pop');
-    checkTrays();
-  };
-
-  /** Khay nào đủ món của một bàn thì bồi bàn bưng cả khay tới bàn đó. */
-  const checkTrays = () => {
-    for (const kind of [2, 4] as const) {
-      const ids = kind === 2 ? ui.tray2 : ui.tray4;
-      if (!ids.length) continue;
-      const party = trayParty(game, ids, kind);
-      if (!party) continue;
-      if (run({ type: 'service/deliver', orderIds: [...ids], partyId: party.id })) {
-        const name = party.tableId ? (tableById(game.ctx, party.tableId)?.name ?? '') : '';
-        toast(`🛎️ Đủ món — bưng cả khay tới ${name}!`, 'good');
-        if (kind === 2) ui.tray2 = [];
-        else ui.tray4 = [];
-      }
-    }
   };
 
   // Kéo món từ quầy thả vào khay (chuột lẫn cảm ứng): kéo một bản sao đi theo ngón tay, thả trên khay nào thì vào khay đó
@@ -476,13 +490,18 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     ui.selectedSlot = null;
     ui.farmFocus = null;
     ui.editLayout = false;
+    ui.buyItem = null;
+    if (id !== 'stall') ui.stallView = null;
     stage.setArea(id);
     $('scene').animate([{ opacity: 0.15 }, { opacity: 1 }], { duration: 380, easing: 'ease-out' });
   };
 
   // Bấm vào vật thể trong cảnh 3D
-  stage.onPick = (pick: Pick, held: number) => {
+  stage.onPick = (pick: Pick) => {
     if (pick.type === 'slot') {
+      // Bác đang ở chợ / kiệt sức: nhắc (vẫn mở bảng để xem)
+      const blocked = farmerBlocked(game.ctx);
+      if (blocked) toast(blocked);
       const slot = game.state.farm.slots.find((s) => s.id === pick.id);
       const type = slot && content.slotTypes.get(slot.type);
       // Camera lướt lại gần ô vừa bấm (vừa phải) và bảng Nông trại chỉ hiện loại ô này
@@ -538,21 +557,33 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     } else if (pick.type === 'building') {
       // Bấm nhà kính ở nông trại: vào khu bên trong
       setArea(pick.id);
-    } else if (pick.type === 'stall') {
-      // Lướt camera vào sát sạp (như bấm nhà kính ở nông trại) rồi mở bảng mua
+    } else if (pick.type === 'stall' && content.stalls.has(pick.id) && (content.stalls.get(pick.id).kind ?? 'stall') !== 'kiosk' && !content.stalls.get(pick.id).items.length) {
+      // Hàng rong (xe hủ tiếu, gánh bánh tráng, xe cà phê): lướt camera tới, mở bảng xem thực đơn
       if (ui.area === 'market') {
         const c = market.stallCenter(pick.id);
         if (c) stage.focusOn(c.x, c.z, 0.26, 1.3);
       }
       ui.selectedStall = pick.id;
       ui.drawer = 'market';
+    } else if (pick.type === 'stall') {
+      // Sạp nguyên liệu + Tiệm 25caaaaa: vào hẳn bên trong quầy (khu riêng, như nhà kính)
+      ui.stallView = pick.id;
+      ui.buyItem = null;
+      ui.drawer = null;
+      stall.show(pick.id);
+      setArea('stall');
+    } else if (pick.type === 'goods') {
+      ui.buyItem = ui.buyItem === pick.id ? null : pick.id;
+      sound.play('pop');
+    } else if (pick.type === 'menuboard') {
+      ui.mealOpen = true;
+      ui.mealStall = pick.id;
     } else if (pick.type === 'stain') {
-      if (held >= HOLD_MS) {
-        if (run({ type: 'service/mop', stainId: Number(pick.id) })) sound.play('pop');
-      } else toast('🧹 Bấm GIỮ vào vết bẩn để lau.');
+      if (run({ type: 'service/mop', stainId: Number(pick.id) })) sound.play('pop');
     } else if (pick.type === 'pass') {
       ui.passOpen = !ui.passOpen;
       ui.serving = null;
+      ui.trayPick = null;
       if (ui.passOpen) ui.drawer = null;
     } else if (pick.type === 'party') {
       servePartyAt(Number(pick.id));
@@ -561,7 +592,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     } else if (pick.type === 'table' && !ui.editLayout) {
       // Bấm vào bàn = bấm vào nhóm khách ở bàn đó (quầy ghế đơn có nhiều nhóm: ưu tiên nhóm hợp việc đang làm)
       const here = game.state.restaurant.parties.filter((p) => p.tableId === pick.id);
-      const want = ui.serving != null ? here.find((p) => p.phase === 'waitingFood') : here.find((p) => needOf(p));
+      const want = ui.serving != null || ui.trayPick ? here.find((p) => p.phase === 'waitingFood') : here.find((p) => needOf(p));
       // Bàn có chén dĩa dơ (và không ai cần phục vụ ngay): dọn bàn
       if (!want && game.state.restaurant.dirty[pick.id]?.length) run({ type: 'service/clean', tableId: pick.id });
       else {
@@ -580,10 +611,21 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
       if (run({ type: 'service/deliver', orderIds: [ui.serving], partyId })) ui.serving = null;
       return;
     }
+    if (ui.trayPick) {
+      const kind = ui.trayPick;
+      const ids = kind === 2 ? ui.tray2 : ui.tray4;
+      if (run({ type: 'service/deliver', orderIds: [...ids], partyId })) {
+        sound.play('pop');
+        if (kind === 2) ui.tray2 = [];
+        else ui.tray4 = [];
+        ui.trayPick = null;
+      }
+      return;
+    }
     const need = needOf(party);
     if (need === 'menu') run({ type: 'service/menu', partyId });
     else if (need === 'order') run({ type: 'service/takeOrder', partyId });
-    else if (party.phase === 'waitingFood' && !ui.passOpen) toast('Món nấu xong sẽ ra quầy 🔔 — bấm quầy, xếp món vào khay.');
+    else if (party.phase === 'waitingFood' && !ui.passOpen) toast('Món nấu xong sẽ ra quầy 🔔 — bấm quầy, xếp món vào khay rồi bấm khay, bấm bàn để bưng.');
   };
 
   // Kéo bàn khi đang ở chế độ sắp xếp
@@ -629,15 +671,25 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     if (action === 'area') setArea(arg);
     else if (action === 'drawer') {
       ui.drawer = ui.drawer === arg || !arg ? null : arg;
+      if (ui.drawer) ui.passOpen = false;
       if (ui.drawer === 'farm') ui.farmFocus = null; // mở từ nút: xem cả nông trại
     } else if (action === 'farmFocus') ui.farmFocus = arg || null;
     else if (action === 'speed') ui.speed = Number(arg);
     else if (action === 'settings') ui.settings = arg === 'close' ? false : !ui.settings;
     else if (action === 'pass') ui.passOpen = arg === 'close' ? false : !ui.passOpen;
     else if (action === 'serve') {
-      ui.serving = arg ? Number(arg) : null;
-      ui.passOpen = false;
+      ui.serving = arg && ui.serving !== Number(arg) ? Number(arg) : null;
+      ui.trayPick = null;
       if (arg) sound.play('pop');
+    } else if (action === 'trayPick') {
+      const kind = Number(arg) as 2 | 4;
+      const ids = kind === 2 ? ui.tray2 : ui.tray4;
+      if (!ids.length) toast('Khay trống — kéo món ở quầy vào khay trước.');
+      else {
+        ui.trayPick = ui.trayPick === kind ? null : kind;
+        ui.serving = null;
+        if (ui.trayPick) sound.play('pop');
+      }
     }
     else if (action === 'rename') {
       const name = window.prompt('Đặt tên cho quán (tối đa 24 ký tự):', game.state.profile.name);
@@ -652,8 +704,18 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     } else if (action === 'editSel') ui.editSelected = arg || null;
     else if (action === 'tray') addToTray(Number(arg), trayFor(game, Number(arg)));
     else if (action === 'trayOut') [ui.tray2, ui.tray4] = [ui.tray2.filter((id) => id !== Number(arg)), ui.tray4.filter((id) => id !== Number(arg))];
-    else if (action === 'trayClear') arg === '2' ? (ui.tray2 = []) : (ui.tray4 = []);
+    else if (action === 'trayClear') {
+      if (arg === '2') ui.tray2 = [];
+      else ui.tray4 = [];
+      if (ui.trayPick === Number(arg)) ui.trayPick = null;
+    }
     else if (action === 'quest') ui.questOpen = arg !== 'close';
+    else if (action === 'meal') {
+      ui.mealOpen = arg !== 'close';
+      if (arg !== 'close') ui.mealStall = null;
+    } else if (action === 'mealWho') ui.mealWho = arg || null;
+    else if (action === 'mealStall') ui.mealStall = arg || null;
+    else if (action === 'buy') ui.buyItem = arg === 'close' ? null : arg;
     else if (action === 'noop') return;
     else if (action === 'music') sound.setMusic(!sound.prefs.music);
     else if (action === 'sfx') sound.setSfx(!sound.prefs.sfx);
@@ -683,12 +745,15 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
   // Phím tắt: Esc đóng Cài đặt, Space tạm dừng / chạy tiếp
   let resumeSpeed = 1;
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && ui.questOpen) ui.questOpen = false;
+    if (e.key === 'Escape' && ui.mealOpen) ui.mealOpen = false;
+    else if (e.key === 'Escape' && ui.buyItem) ui.buyItem = null;
+    else if (e.key === 'Escape' && ui.questOpen) ui.questOpen = false;
     else if (e.key === 'Escape' && ui.photo) {
       ui.photo = false;
       root.classList.remove('photo-mode');
     } else if (e.key === 'Escape' && ui.settings) ui.settings = false;
-    else if (e.key === 'Escape' && (ui.serving != null || ui.passOpen)) [ui.serving, ui.passOpen] = [null, false];
+    else if (e.key === 'Escape' && (ui.serving != null || ui.trayPick)) [ui.serving, ui.trayPick] = [null, null];
+    else if (e.key === 'Escape' && ui.passOpen) ui.passOpen = false;
     else if (e.code === 'Space' && !(e.target instanceof HTMLInputElement)) {
       e.preventDefault();
       if (ui.speed > 0) [resumeSpeed, ui.speed] = [ui.speed, 0];
@@ -712,8 +777,6 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     stage.env.editLayout = ui.editLayout;
     stage.env.serving = ui.serving;
     stage.env.editSelected = ui.editSelected;
-    restaurant.holdFor = stage.holding?.pick.type === 'stain' ? stage.holding.pick.id : null;
-    restaurant.holdMs = stage.holding?.ms ?? 0;
     stage.render(dt, speed);
     sound.setRain(ui.area === 'restaurant' ? stage.env.rain * 0.4 : stage.env.rain);
 

@@ -24,7 +24,7 @@ Viết 17/11/2026, cập nhật 18/11/2026 sau phiên làm Giai đoạn 1 (xem `
 
 - **Repo:** https://github.com/ThanhDatTu3tle/ResFarm (công khai). Nhánh `main` = bản đang chạy online (Netlify tự deploy khi `main` đổi). Giai đoạn 1 nằm ở nhánh `giai-doan-1`, gộp vào `main` qua Pull Request.
 - **Kiểm tra tự động:** `npm run typecheck` sạch, `npm test` 25 test qua, `npm run build` qua.
-- **Phiên bản save:** `SAVE_VERSION = 12` (v7 phong cách quán — chơi lại từ đầu, save v1–v6 bị bỏ qua; v8 thêm cối chế biến, v9 thêm nhiệm vụ hệ thống, v10 thêm khách quen + quán của riêng mình, v11 thêm khay bưng nhiều món + chén dĩa dơ + vết bẩn, v12 thêm nhân viên thuê, có migration v7→…→v12). Xem `src/sim/save.ts`.
+- **Phiên bản save:** `SAVE_VERSION = 13` (v7 phong cách quán — chơi lại từ đầu, save v1–v6 bị bỏ qua; v8 thêm cối chế biến, v9 thêm nhiệm vụ hệ thống, v10 thêm khách quen + quán của riêng mình, v11 thêm khay bưng nhiều món + chén dĩa dơ + vết bẩn, v12 thêm nhân viên thuê, v13 thêm năng lượng cả đội + giờ nghỉ ra chợ + hoá đơn, có migration v7→…→v13). Xem `src/sim/save.ts`.
 - **Chưa kiểm chứng trên thiết bị thật:** âm thanh (chỉ kiểm được code chạy không lỗi), thao tác chạm trên điện thoại, tốc độ khung hình trên máy yếu.
 
 ## Game hiện có gì

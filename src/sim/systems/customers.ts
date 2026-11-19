@@ -30,7 +30,7 @@ export const customerSystem: System = {
     const b = content.balance;
     const r = state.restaurant;
 
-    if (state.clock.phase === 'open' && inShift(ctx)) {
+    if (state.clock.phase === 'open' && acceptingGuests(ctx)) {
       r.spawnTimer -= dt;
       if (r.spawnTimer <= 0) {
         r.spawnTimer = nextSpawnDelay(ctx);
@@ -51,6 +51,9 @@ export const customerSystem: System = {
             p.patience = p.patienceMax = b.service.menuPatience * modifier(ctx, 'patience');
             ctx.bus.emit('party/seated', { partyId: p.id, tableId: spot.tableId });
             ctx.bus.emit('party/needs', { partyId: p.id, need: 'menu' });
+          } else if (!inShift(ctx)) {
+            // Hết ca mà vẫn chưa có bàn: quán treo biển nghỉ, khách hẹn lần sau (để cả đội còn ra chợ nghỉ trưa)
+            leave(ctx, p, 'closed');
           } else {
             p.patience -= dt;
             if (p.patience <= 0) leave(ctx, p, 'queueTimeout');
@@ -59,6 +62,11 @@ export const customerSystem: System = {
         }
         case 'seated':
         case 'readyToOrder':
+          // Đóng cửa mà khách chưa gọi món: mời khách về (không trừ uy tín) để cả đội nghỉ
+          if (!inShift(ctx)) {
+            leave(ctx, p, 'closed');
+            break;
+          }
           // Bồi bàn đang tới thì khách chờ được, không mất kiên nhẫn
           if (!p.called) {
             p.patience -= dt;
@@ -102,6 +110,11 @@ export const customerSystem: System = {
     }
   },
 };
+
+/** Còn nhận khách mới không (trong ca và chưa tới giờ ngưng nhận khách lastCall). */
+export function acceptingGuests(ctx: SimContext, minute = ctx.state.clock.minute): boolean {
+  return ctx.content.balance.shifts.some((s) => minute >= s.from && minute < s.lastCall);
+}
 
 /** Đang trong một ca mở cửa (balance.shifts) không. */
 export function inShift(ctx: SimContext, minute = ctx.state.clock.minute): boolean {
@@ -236,6 +249,10 @@ function leave(ctx: SimContext, party: Party, reason: LeaveReason, total = 0, ti
   }
   r.parties = r.parties.filter((p) => p.id !== party.id);
 
+  if (reason === 'closed') {
+    ctx.bus.emit('party/left', { partyId: party.id, tableId: party.tableId, size: party.size, reason, total, tip });
+    return;
+  }
   const key = reason === 'paid' ? 'guestsServed' : 'guestsLost';
   state.stats.today[key] += party.size;
   state.stats.total[key] += party.size;

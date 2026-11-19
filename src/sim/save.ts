@@ -42,6 +42,22 @@ const migrations: Record<number, (old: any) => any> = {
   }),
   // v11 -> v12: nhân viên phục vụ thuê thêm.
   11: (s) => ({ ...s, restaurant: { ...s.restaurant, helpers: [] }, version: 12 }),
+  // v12 -> v13: năng lượng cho cả đội (bếp, bồi bàn, bác nông dân; tối đa 30), giờ nghỉ ra chợ ăn + hoá đơn; nhân viên thuê bỏ `away`.
+  12: (s) => {
+    const full = { energy: 30, fainted: false };
+    return {
+      ...s,
+      crew: { restaurantAway: null, farmerAway: null, pending: [], meals: [], bill: [] },
+      restaurant: {
+        ...s.restaurant,
+        staff: s.restaurant.staff.map((x: object) => ({ ...x, ...full })),
+        waiter: { ...s.restaurant.waiter, ...full },
+        helpers: s.restaurant.helpers.map(({ away: _away, ...h }: { away: unknown }) => ({ ...h, ...full })),
+      },
+      farm: { ...s.farm, farmer: { ...s.farm.farmer, ...full } },
+      version: 13,
+    };
+  },
 };
 
 export function serialize(state: GameState): string {
@@ -91,7 +107,6 @@ function reconcile(state: GameState, content: Content): GameState {
   // Bồi bàn: bỏ việc trỏ tới khách / món không còn; món đang bưng mà không còn trên tay thì trả về quầy
   if (r.waiter.x < 0) Object.assign(r.waiter, content.room.waiterHome);
   r.helpers = r.helpers.slice(0, Math.max(0, r.tier - 1));
-  for (const h of r.helpers) if (h.away && !content.stalls.has(h.away.stallId)) h.away = null;
   for (const w of [r.waiter, ...r.helpers]) {
   w.tasks = w.tasks.filter((t) => {
     if (t.kind === 'clean') return tableIds.has(t.tableId);
@@ -108,7 +123,8 @@ function reconcile(state: GameState, content: Content): GameState {
   for (const id of Object.keys(r.dirty)) if (!tableIds.has(id)) delete r.dirty[id];
   r.staff = content.staff.all().map((def) => {
     const old = r.staff.find((s) => s.id === def.id);
-    return { id: def.id, orderId: old && r.orders.some((o) => o.id === old.orderId) ? old.orderId : null };
+    const max = content.balance.crew.maxEnergy;
+    return { id: def.id, orderId: old && r.orders.some((o) => o.id === old.orderId) ? old.orderId : null, energy: Math.min(max, old?.energy ?? max), fainted: old?.fainted ?? false };
   });
 
   // Nội thất: luôn sở hữu món mặc định của quán; slot nào đang dùng món không hợp lệ thì quay về mặc định.
@@ -151,6 +167,11 @@ function reconcile(state: GameState, content: Content): GameState {
     farmer.carry = null;
   }
   if (!farmer.tasks.length) farmer.work = null;
+  // Đội: bữa ăn / hoá đơn ở hàng rong đã bị xoá thì bỏ
+  const vendor = (l: { stallId: string }) => content.stalls.has(l.stallId);
+  state.crew.meals = state.crew.meals.filter(vendor);
+  state.crew.pending ??= [];
+  state.crew.bill = state.crew.bill.filter(vendor);
   for (const slot of state.farm.slots) {
     if (slot.producerId && !content.producers.has(slot.producerId)) Object.assign(slot, { producerId: null, stage: 'growing', progress: 0, cyclesDone: 0 });
     if (slot.lastProducerId && !content.producers.has(slot.lastProducerId)) slot.lastProducerId = null;

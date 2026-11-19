@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { G, group, mesh, toon } from './toon';
+import { G, group, mesh, toon, type V3 } from './toon';
 
 /**
  * Model riêng của nông trại: cối xay gió, nhà xay lúa (bánh xe nước), máy cày, kiện rơm,
@@ -300,31 +300,96 @@ export function makeScooter(color: number, rider: THREE.Group): THREE.Group {
  * Gốc ở y = 0 (đặt trên ụ đất của ô vườn).
  */
 export function makeFruitTree(producerId: string, stage: 0 | 1 | 2): THREE.Group {
+  if (producerId === 'banana_tree') return makeBananaPlant(stage);
   const g = group(null);
   const k = [0.45, 0.75, 1][stage];
-  const fruit = ({ orange_tree: 0xf28c28, apple_tree: 0xd9433a, mango_tree: 0xf2c43e, banana_tree: 0xf6dd5a } as Record<string, number>)[producerId] ?? 0xf28c28;
-  if (producerId === 'banana_tree') {
-    // Chuối: thân giả xanh, tàu lá to xoè, buồng chuối
-    mesh(g, G.cyl(0.14 * k, 0.2 * k, 1.8 * k, 8), 0x7fa35a, { p: [0, 0.9 * k, 0] });
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2;
-      const leaf = group(g, { p: [0, 1.75 * k, 0], r: [0, a, 0] });
-      mesh(leaf, G.box(0.38 * k, 0.03, 1.4 * k), 0x5fae57, { p: [0, 0.15 * k, 0.65 * k], r: [-0.55, 0, 0] });
-    }
-    if (stage === 2) for (let i = 0; i < 6; i++) mesh(g, G.capsule(0.05, 0.16), fruit, { p: [0.22 + (i % 3) * 0.05, 1.2 - Math.floor(i / 3) * 0.16, 0.1 + (i % 3) * 0.04], r: [0, 0, 0.5], cast: false });
-    return g;
-  }
   const leaf = producerId === 'mango_tree' ? 0x3f7f3a : producerId === 'apple_tree' ? 0x5fae57 : 0x4f9e4a;
-  mesh(g, G.cyl(0.1 * k, 0.16 * k, 1.3 * k, 8), 0x7a5a3a, { p: [0, 0.65 * k, 0] });
+  // Thân gỗ nâu, hai cành chạc
+  mesh(g, G.cyl(0.1 * k, 0.17 * k, 1.3 * k, 8), 0x7a5a3a, { p: [0, 0.65 * k, 0] });
+  for (const side of [-1, 1]) mesh(g, G.cyl(0.04 * k, 0.07 * k, 0.6 * k, 6), 0x7a5a3a, { p: [side * 0.18 * k, 1.3 * k, 0], r: [0, 0, -side * 0.6] });
   const crown: [number, number, number, number][] = [[0, 1.75, 0, 0.75], [0.45, 1.5, 0.15, 0.5], [-0.42, 1.55, -0.1, 0.52], [0.05, 1.45, -0.42, 0.5], [-0.1, 1.5, 0.42, 0.5]];
   for (const [x, y, z, r] of crown) mesh(g, G.ico(r * k, 1), leaf, { p: [x * k, y * k, z * k] });
+  if (stage === 0) return g;
+  // Trái nằm NGOÀI tán lá (trên mặt các khối tán) cho thấy rõ: cây non chỉ có vài trái xanh nhỏ, cây lớn trĩu trái chín
+  const ripe = stage === 2;
+  const count = ripe ? 14 : 5;
+  for (let i = 0; i < count; i++) {
+    const [cx, cy, cz, cr] = crown[i % crown.length];
+    const a = i * 2.39996; // góc vàng: rải đều quanh tán
+    const up = 0.1 + 0.75 * ((i * 0.618) % 1); // nửa trên tán: nhìn từ camera trên cao thấy rõ
+    const nx = Math.cos(a) * Math.cos(up);
+    const nz = Math.sin(a) * Math.cos(up);
+    const ny = Math.sin(up);
+    const p: V3 = [(cx + nx * cr) * k, (cy + ny * cr) * k, (cz + nz * cr) * k];
+    if (p[1] < 1.1 * k) p[1] = 1.1 * k + (i % 3) * 0.08;
+    fruitOn(g, producerId, p, ripe);
+  }
+  return g;
+}
+
+/** Một trái theo giống: cam tròn cam có núm; táo đỏ hơi dẹt, cuống + lá; xoài thuôn dài vàng ửng đỏ. Chưa chín thì nhỏ và xanh. */
+function fruitOn(g: THREE.Group, producerId: string, p: V3, ripe: boolean): void {
+  const f = group(g, { p, s: ripe ? 1.5 : 0.8 });
+  if (producerId === 'apple_tree') {
+    mesh(f, G.sphere(0.12, 10, 8), ripe ? 0xd9433a : 0x9fcf6a, { s: [1, 0.88, 1], cast: false });
+    mesh(f, G.cyl(0.012, 0.012, 0.08, 4), 0x6b4a2f, { p: [0, 0.12, 0], cast: false });
+    mesh(f, G.box(0.08, 0.01, 0.04), 0x4f9e4a, { p: [0.04, 0.14, 0], r: [0, 0, 0.5], cast: false });
+  } else if (producerId === 'mango_tree') {
+    mesh(f, G.cyl(0.008, 0.008, 0.16, 4), 0x6b4a2f, { p: [0, 0.12, 0], cast: false }); // cuống dài treo trái
+    mesh(f, G.sphere(0.1, 10, 8), ripe ? 0xf2c43e : 0x7fb35a, { p: [0, -0.04, 0], s: [0.85, 1.45, 0.75], cast: false });
+    if (ripe) mesh(f, G.sphere(0.06, 8, 6), 0xe2703a, { p: [0.04, 0.02, 0.04], cast: false }); // má ửng đỏ
+  } else {
+    mesh(f, G.sphere(0.13, 10, 8), ripe ? 0xf28c28 : 0x7fb35a, { cast: false });
+    mesh(f, G.sphere(0.03, 6, 5), 0x4f7f3a, { p: [0, 0.12, 0], cast: false }); // núm cam
+  }
+}
+
+/**
+ * Cây chuối — KHÔNG phải thân gỗ: thân giả là các bẹ lá xanh cuộn chồng lên nhau (có sọc nâu), tàu lá to dài
+ * vươn lên rồi rủ xuống, gân giữa sáng màu, mép lá rách; cây lớn có buồng chuối treo trên cuống cong
+ * (các nải quả hướng lên) và bắp chuối tím ở đầu cuống; gốc có cây con mọc bên cạnh.
+ */
+function makeBananaPlant(stage: 0 | 1 | 2): THREE.Group {
+  const g = group(null);
+  const k = [0.5, 0.78, 1][stage];
+  const h = 1.9 * k;
+  // Thân giả: 3 lớp bẹ lá chồng nhau, thon dần lên trên
+  mesh(g, G.cyl(0.15 * k, 0.22 * k, h, 10), 0x8db35a, { p: [0, h / 2, 0] });
+  mesh(g, G.cyl(0.165 * k, 0.2 * k, h * 0.55, 10), 0x7a9e4a, { p: [0, h * 0.28, 0] });
+  for (let i = 0; i < 3; i++) mesh(g, G.box(0.04 * k, h * 0.35, 0.02), 0x8a6a45, { p: [Math.cos(i * 2.1) * 0.19 * k, h * (0.25 + i * 0.15), Math.sin(i * 2.1) * 0.19 * k], r: [0, -i * 2.1, 0], cast: false });
+  // Tàu lá: đoạn trong vươn lên, đoạn ngoài rủ xuống
+  const leaves = stage === 0 ? 4 : 7;
+  for (let i = 0; i < leaves; i++) {
+    const a = (i / leaves) * Math.PI * 2 + 0.3;
+    const len = (1.0 + (i % 3) * 0.15) * k;
+    const arm = group(g, { p: [0, h - 0.05, 0], r: [0, a, 0] });
+    const inner = group(arm, { r: [-0.95 + (i % 2) * 0.15, 0, 0] });
+    mesh(inner, G.box(0.03 * k, 0.03 * k, 0.3 * k), 0x9fcf6a, { p: [0, 0, 0.15 * k] }); // cuống lá
+    mesh(inner, G.box(0.42 * k, 0.02, len), 0x5fae57, { p: [0, 0, 0.3 * k + len / 2] });
+    mesh(inner, G.box(0.035 * k, 0.03, len), 0xb5d98a, { p: [0, 0.012, 0.3 * k + len / 2], cast: false }); // gân giữa
+    const outer = group(inner, { p: [0, 0, 0.3 * k + len], r: [0.9, 0, 0] });
+    mesh(outer, G.box(0.36 * k, 0.02, 0.55 * k), 0x4f9e4a, { p: [0, 0, 0.27 * k] });
+    mesh(outer, G.box(0.08 * k, 0.021, 0.12 * k), 0x8db35a, { p: [0.16 * k, 0, 0.2 * k], cast: false }); // vết rách mép lá
+  }
   if (stage === 2) {
-    const shape = producerId === 'mango_tree' ? [1, 1.4, 1] : [1, 1, 1];
-    for (let i = 0; i < 9; i++) {
-      const a = i * 2.4;
-      const y = 1.25 + (i % 3) * 0.25;
-      mesh(g, G.sphere(0.09, 8, 6), fruit, { p: [Math.cos(a) * 0.62, y, Math.sin(a) * 0.62], s: shape as [number, number, number], cast: false });
+    // Buồng chuối: cuống cong chìa ra rồi trĩu xuống, 3 nải quả cong hướng lên, bắp chuối tím ở cuối
+    const stalk = group(g, { p: [0, h - 0.15, 0.12], r: [0.5, 0, 0] });
+    mesh(stalk, G.cyl(0.035, 0.035, 0.5, 6), 0x7a9e4a, { p: [0, 0.05, 0.25], r: [Math.PI / 2 - 0.2, 0, 0] });
+    const bunch = group(g, { p: [0, h - 0.55, 0.42] });
+    mesh(bunch, G.cyl(0.03, 0.03, 0.75, 6), 0x7a9e4a, { p: [0, -0.1, 0] });
+    for (let tier = 0; tier < 3; tier++) {
+      for (let j = 0; j < 7; j++) {
+        const a = (j / 7) * Math.PI * 2 + tier * 0.4;
+        const fruit = group(bunch, { p: [Math.cos(a) * 0.1, 0.18 - tier * 0.2, Math.sin(a) * 0.1], r: [0, -a, 0] });
+        mesh(fruit, G.capsule(0.035, 0.15), 0xf6dd5a, { p: [0.06, 0.06, 0], r: [0, 0, -0.55], cast: false });
+        mesh(fruit, G.sphere(0.018, 5, 4), 0x5a4a2a, { p: [0.12, 0.17, 0], cast: false }); // đầu núm
+      }
     }
+    mesh(bunch, G.cone(0.08, 0.24, 8), 0x7a2f5a, { p: [0, -0.58, 0], r: [Math.PI, 0, 0] }); // bắp chuối
+    // Cây chuối con mọc bên gốc
+    const pup = group(g, { p: [0.45, 0, -0.25], s: 0.35 });
+    mesh(pup, G.cyl(0.15, 0.2, 1.2, 8), 0x8db35a, { p: [0, 0.6, 0] });
+    for (let i = 0; i < 3; i++) mesh(pup, G.box(0.35, 0.02, 0.8), 0x5fae57, { p: [Math.cos(i * 2.1) * 0.3, 1.3, Math.sin(i * 2.1) * 0.3], r: [-0.7, -i * 2.1 + Math.PI / 2, 0] });
   }
   return g;
 }

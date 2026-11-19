@@ -43,7 +43,25 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [x] **Quán:** bỏ bàn thờ; quán khởi đầu nhỏ lại (3 ghế quầy, 1 bàn bốn, 2 bàn đôi); khách thưa hơn; bồi bàn đứng yên sau khi làm xong; ngày 12 phút (06:00–24:00), 2 ca 07–12 / 15–20; khay bưng cả bàn; chén dĩa dơ phải dọn; vết bẩn sau mỗi ca (bấm giữ để lau); tường hai bên đầy đủ; tổng kết ngày có kho.
 - [x] **Chợ:** sạp thịt "Thịt bò/lợn cô Bủm"; tiệm ăn vặt & trà sữa cạnh quầy đồ khô; xe hủ tiếu gõ, gánh bánh tráng trộn, xe đạp cà phê trên vỉa hè; bấm sạp thì camera lướt sát vào.
 - [x] **Giao diện:** chừa tai thỏ / góc bo (env(safe-area-inset-*)), chừa góc logo Netlify; bảng nhiệm vụ bấm xem chi tiết.
-- [ ] **G10 · Việc mở ra từ đợt 14** — cân bằng lại kinh tế theo ngày 12 phút + 2 ca (B1: doanh thu / ngày giảm vì ít khách hơn); trái cây mới có 4 món dùng — thêm món, bán ở chợ; hàng rong chợ mới bán nguyên liệu có sẵn (chưa có món riêng như ly cà phê, bánh tráng); kéo thả khay chưa thử bằng tay trên điện thoại.
+- [x] **G10 · Việc mở ra từ đợt 14** (xong ở đợt 16) — cân bằng lại kinh tế theo ngày 12 phút + 2 ca (B1: doanh thu / ngày giảm vì ít khách hơn); trái cây mới có 4 món dùng — thêm món, bán ở chợ; hàng rong chợ mới bán nguyên liệu có sẵn (chưa có món riêng như ly cà phê, bánh tráng); kéo thả khay chưa thử bằng tay trên điện thoại.
+
+## Đợt 17 — Gọi món cho cả đội, vào bên trong quầy chợ (19/11/2026)
+
+- [x] Ca sáng 07–12 (11:30 ngưng nhận khách), ca tối 15–21 (20:30 ngưng nhận khách); đóng cửa thì khách chưa gọi món về, cả đội ra chợ.
+- [x] Người chơi gọi món cho từng người (bảng tự mở khi đội ra chợ); quá hạn thì tự chọn; một hoá đơn chung (gộp tiền ăn của bác nông dân).
+- [x] Tiệm 25caaaaa: Matcha thay trà sữa, thêm Mì Ý; biển logo trên nóc tiệm và trong tiệm.
+- [x] Bấm 4 sạp nguyên liệu / Tiệm 25caaaaa thì vào hẳn bên trong (khu `stall`): khay hàng + biển giá, bấm mua; tiệm có bảng menu + người trong đội ngồi ăn.
+- [ ] **G13 · Việc mở ra** — hàng rong (cà phê, bánh tráng, hủ tiếu) chưa có cảnh bên trong; bảng gọi món chưa thử bằng tay trên điện thoại.
+
+## Đợt 16 — Cả đội có giờ nghỉ, cân bằng kinh tế (19/11/2026)
+
+- [x] **Nông trại:** cây ăn quả đứng yên (trước đây dùng chung chuyển động của cá nên chạy vòng); trái đúng loại, to và nằm trên tán (cam, táo có cuống lá, xoài thuôn); cây chuối dựng riêng: thân giả bẹ lá, tàu lá rủ, buồng chuối + bắp chuối tím, cây con bên gốc.
+- [x] **Quán:** bảng quầy ra món nằm dọc bên phải (ngăn kéo); không tự bưng — bấm "Cầm khay" rồi bấm bàn; lau vết bẩn bấm 1 cái; đèn lồng, quạt trần, ống hút khói treo cao hơn; bồi bàn chậm hơn (300); bếp phó nấu nhanh bằng bếp trưởng (1.6).
+- [x] **Chợ:** xe cùng tốc độ, cách đều; hàng rong + Tiệm 25caaaaa chỉ bán đồ ăn cho cả đội (không vào kho).
+- [x] **Cả đội:** bảng Nhân viên (đầu bếp, phục vụ, bác nông dân), năng lượng 30 (nấu −2, việc khác −1), xỉu + bồi dưỡng; nghỉ trưa ra chợ (đội quán 12:00 khi vắng khách → 14:00, bác 12:00–13:00), tối sau 20:00 ra chợ ăn tối; lúc vắng mặt quán / nông trại tạm ngưng kèm lời nhắc; mỗi người tự chọn món, hoá đơn cho người chơi trả (không vượt số tiền).
+- [x] Nút "Kết thúc ngày" sau 21:00; nút chuyển khu nằm sát trên thanh công cụ.
+- [x] **G10:** mô phỏng 6 ngày cả 3 quán (người chơi mẫu chăm chỉ): thu 500–1200/ngày, lãi ~100–300/ngày, tiền ăn của đội ~70–130/ngày; uy tín lên chậm lại (+0.01/+0.03 mỗi bàn → ~0.4⭐/ngày); nghỉ ngơi hồi thêm 10.
+- [ ] **G12 · Việc mở ra** — khay kéo thả vẫn chưa thử bằng tay trên điện thoại; bồi bàn làm một mình thì khoảng 2 ngày xỉu 1 lần (cố ý: khuyến khích thuê nhân viên); khách còn xếp hàng lúc hết ca thì về (không trừ uy tín).
 
 ## Đợt 15 — Nhân viên phục vụ (19/11/2026)
 

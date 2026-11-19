@@ -11,6 +11,7 @@ export const clockSystem: System = {
     // Đầu / cuối mỗi ca: báo cho UI; hết ca thì sàn bẩn thêm (khách ra vào cả ca)
     ctx.content.balance.shifts.forEach((s, index) => {
       if (before < s.from && clock.minute >= s.from) ctx.bus.emit('shift/started', { index });
+      if (before < s.lastCall && clock.minute >= s.lastCall) ctx.bus.emit('shift/lastCall', { index });
       if (before < s.to && clock.minute >= s.to) {
         addStains(ctx);
         ctx.bus.emit('shift/ended', { index });

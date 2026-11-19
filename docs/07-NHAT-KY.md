@@ -4,6 +4,27 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 19/11/2026 (laptop) — Đợt 17: gọi món cho cả đội, vào bên trong quầy chợ
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-4`. **Kết quả:** typecheck sạch, 70 test qua; đã xem trên localhost: bên trong sạp Tạp hoá (khay + biển giá + bảng mua), bên trong Tiệm 25caaaaa (logo, menu, cả đội ngồi ăn), bảng gọi món (kiểm tra DOM). **Chưa thử bằng tay:** bấm chọn người / món trong bảng gọi món, nút mua trong quầy, nút "‹ Chợ".
+
+1. `balance.shifts[].lastCall`, `acceptingGuests`; đóng cửa thì khách seated / readyToOrder về (`closed`). Sự kiện `shift/lastCall`.
+2. crew.ts: `crew.pending` (PendingMeal), `crew/order`, `crew/autoOrder`, `mealBudget`, `billDue` (một hoá đơn cho cả đợt). Không tăng SAVE_VERSION (v13 chưa phát hành; reconcile thêm `pending` nếu thiếu).
+3. UI: `mealHtml`, `buyHtml` (hud.ts); khu mới `areas/stall.ts` (StallArea, `logoBoard`, `crewLook` dùng chung với chợ); Pick `goods`, `menuboard`; ảnh `public/shop/tiem-25caaaaa.jpg`.
+
+---
+
+## 19/11/2026 (laptop) — Đợt 16: cả đội có năng lượng + giờ nghỉ ra chợ, G10 cân bằng kinh tế
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-4`. **Kết quả:** typecheck sạch, 69 test qua (7 test mới cho cả đội); đã xem trên localhost: quầy ra món bên phải, bảng Nhân viên (bồi bàn xỉu nằm ra sàn), cả đội ngồi ăn ở hàng rong, hoá đơn bữa trưa, cây cam / táo / xoài / chuối. **Chưa thử bằng tay:** kéo món vào khay rồi "Cầm khay" + bấm bàn, nút Kết thúc ngày, bồi dưỡng, trả hoá đơn.
+
+1. Save v13: `Vitals` (energy, fainted) cho đầu bếp, bồi bàn, nhân viên thuê, bác nông dân; `GameState.crew`. System mới `systems/crew.ts` (giờ nghỉ, gọi món ngẫu nhiên có giới hạn tiền, hoá đơn, `crew/revive`, `crew/pay`, `day/end`). kitchen / service / helpers / farmer dừng khi vắng mặt hoặc xỉu và trừ sức mỗi việc. `StallDef.staffMeal` → `menu`; bỏ `helper/eat`, `helper/revive`.
+2. customers.ts: khách còn xếp hàng lúc hết ca thì về (`LeaveReason 'closed'`, không tính khách mất, không trừ uy tín) để đội ra chợ đúng giờ.
+3. UI: `panels/crew.ts`; `billHtml` + nút Kết thúc ngày (hud.ts); quầy ra món render vào ngăn kéo; `ui.trayPick`; vết bẩn bấm 1 cái (bỏ `holdTick` ở stage.ts); `--tools-h` cho nút chuyển khu; `MarketArea.updateEaters` theo `crew.meals`; xe cùng tốc độ; farmkit: trái cây + cây chuối mới; farm.ts: vườn cây không chạy vòng.
+4. G10: script mô phỏng tạm (đã xoá) — xem số liệu ở roadmap Đợt 16.
+
+---
+
 ## 19/11/2026 (laptop) — Đợt 15: nhân viên phục vụ thuê thêm
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-3`. **Kết quả:** typecheck sạch, 63 test qua (5 test mới); đã xem trên localhost bảng Quán có 2 nhân viên (đang làm, xỉu, đang ăn), nhân viên trong quán, nhân viên ngồi ăn ở xe hủ tiếu. **Chưa thử bằng tay:** các nút trong bảng nhân viên, chọn món rồi bấm bàn.
