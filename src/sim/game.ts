@@ -9,6 +9,8 @@ import { serviceSystem } from './systems/service';
 import { farmerSystem } from './systems/farmer';
 import { millSystem } from './systems/mills';
 import { questSystem } from './systems/quests';
+import { homeSystem } from './systems/home';
+import { helperSystem } from './systems/helpers';
 import { kitchenSystem } from './systems/kitchen';
 import { marketSystem } from './systems/market';
 import { progressionSystem } from './systems/progression';
@@ -16,7 +18,7 @@ import { weatherSystem } from './systems/weather';
 import { fail, ok, type Command, type CommandHandlers, type CommandResult, type SimContext, type SimEvents, type System } from './types';
 
 /** Thứ tự ở đây là thứ tự update mỗi bước. System mới thêm vào mảng này. */
-export const defaultSystems: System[] = [clockSystem, weatherSystem, customerSystem, kitchenSystem, serviceSystem, farmSystem, farmerSystem, millSystem, marketSystem, progressionSystem, decorSystem, questSystem];
+export const defaultSystems: System[] = [clockSystem, weatherSystem, customerSystem, kitchenSystem, serviceSystem, farmSystem, farmerSystem, millSystem, marketSystem, progressionSystem, decorSystem, questSystem, homeSystem, helperSystem];
 
 /** Bước mô phỏng tối đa (phút game) — giữ kết quả ổn định khi tua nhanh. */
 const MAX_STEP = 1;

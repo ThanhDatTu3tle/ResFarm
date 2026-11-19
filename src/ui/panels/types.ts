@@ -24,6 +24,15 @@ export interface UiState {
    * trong cảnh 3D. null = hiện tất cả (mở từ nút Nông trại).
    */
   farmFocus: string | null;
+  /** Bàn (id) hoặc đồ trang trí (uid) đang chọn ở chế độ sắp xếp — thanh trên cùng hiện nút xoay / cất / bán. */
+  editSelected: string | null;
+  /** Chế độ chụp ảnh: ẩn hết bảng biểu, chỉ còn cảnh 3D + nút chụp. */
+  photo: boolean;
+  /** Khay ở quầy ra món: món (id đơn) đã xếp vào khay bàn đôi (2 ô) và khay bàn bốn (4 ô). Đủ món của một bàn thì bưng đi. */
+  tray2: number[];
+  tray4: number[];
+  /** Đang mở bảng chi tiết nhiệm vụ. */
+  questOpen: boolean;
 }
 
 /**

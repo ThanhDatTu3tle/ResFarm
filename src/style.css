@@ -1557,3 +1557,424 @@ button.quest-claim {
     display: none;
   }
 }
+
+/* ---------- Khách quen (F2) ---------- */
+.toast.with-pic {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 6px;
+}
+
+.toast.regular {
+  background: #b8457a;
+}
+
+.toast.regular.good {
+  background: #c2457f;
+}
+
+.toast-pic {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffe3ef;
+  border: 2px solid #fff;
+  object-fit: cover;
+  flex: none;
+}
+
+.portrait {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  background: linear-gradient(#ffe9f2, #fff6e6);
+  border: 2px solid #f5bcd5;
+  object-fit: cover;
+  flex: none;
+}
+
+.portrait.emoji {
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+}
+
+.card.regular.here {
+  border-color: #ff8fc0;
+  box-shadow: 0 0 0 2px rgba(255, 143, 192, 0.35);
+}
+
+.card.regular.locked {
+  opacity: 0.7;
+}
+
+.hearts {
+  color: #e2468a;
+  font-size: 16px;
+  letter-spacing: 1px;
+  line-height: 1.1;
+}
+
+.hearts i {
+  font-style: normal;
+  color: #f2b6cf;
+}
+
+.muted em.ok {
+  font-style: normal;
+  color: var(--green);
+}
+
+.muted em.warn {
+  font-style: normal;
+  color: var(--accent-dark);
+}
+
+.pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #ffe3ef;
+  color: #b8457a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.row.tight {
+  gap: 6px;
+}
+
+/* ---------- Quán của riêng mình (Giai đoạn 3) ---------- */
+.shop-card {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fff4dc, #ffe9d0);
+  border: 2px solid var(--wood);
+}
+
+.shop-name {
+  font-size: 17px;
+  color: #8a3a2a;
+}
+
+#photobar {
+  display: none;
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  gap: 8px;
+  z-index: 25;
+}
+
+.photo-mode #photobar {
+  display: flex;
+}
+
+.photo-mode #hud,
+.photo-mode #tools,
+.photo-mode #nav,
+.photo-mode #areabar,
+.photo-mode #service,
+.photo-mode #drawer {
+  display: none !important;
+}
+
+.shop-actions {
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* ---------- Chừa tai thỏ / Dynamic Island, góc bo màn hình và logo Netlify góc dưới phải ---------- */
+:root {
+  /* Khoảng chừa mỗi cạnh: vùng an toàn của máy + thêm một chút cho dễ bấm */
+  --pad-t: calc(env(safe-area-inset-top, 0px) + 10px);
+  --pad-r: calc(env(safe-area-inset-right, 0px) + 16px);
+  --pad-b: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  --pad-l: calc(env(safe-area-inset-left, 0px) + 16px);
+  /* Góc dưới phải có logo "Powered by Netlify" (host miễn phí): không đặt nút / thông tin ở đó */
+  --badge-w: 200px;
+  --badge-h: 56px;
+}
+
+#hud {
+  padding: var(--pad-t) var(--pad-r) 10px var(--pad-l);
+}
+
+button.side.left {
+  left: var(--pad-l);
+}
+
+button.side.right {
+  right: var(--pad-r);
+}
+
+/* Thanh công cụ dưới cùng: chừa góc phải cho logo Netlify */
+#tools {
+  left: var(--pad-l);
+  right: var(--badge-w);
+  bottom: var(--pad-b);
+  transform: none;
+  width: auto;
+  max-width: none;
+}
+
+#areabar,
+#service {
+  bottom: calc(var(--pad-b) + 52px);
+}
+
+#toasts {
+  bottom: calc(var(--pad-b) + 60px);
+}
+
+#drawer {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.drawer-head {
+  padding-right: 18px;
+}
+
+/* Cuối bảng chừa chỗ cho logo Netlify đè lên */
+#panel {
+  padding-bottom: calc(var(--badge-h) + 16px) !important;
+}
+
+@media (max-height: 540px) {
+  :root {
+    --pad-t: calc(env(safe-area-inset-top, 0px) + 8px);
+    --pad-b: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  }
+  #hud {
+    padding: var(--pad-t) var(--pad-r) 6px var(--pad-l);
+  }
+  #areabar,
+  #service {
+    bottom: calc(var(--pad-b) + 40px);
+  }
+}
+
+/* ---------- Khay ở quầy ra món ---------- */
+.trays {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tray {
+  padding: 6px 8px 8px;
+  border-radius: 12px;
+  border: 2px dashed var(--wood);
+  background: #fbf1df;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.tray.over {
+  background: #e9f7df;
+  border-color: var(--green);
+}
+
+.tray-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.tray-slots {
+  display: grid;
+  gap: 6px;
+}
+
+.tray-slots.s2 {
+  grid-template-columns: repeat(2, 48px);
+}
+
+.tray-slots.s4 {
+  grid-template-columns: repeat(4, 48px);
+}
+
+.tray-slot {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  border: 2px solid var(--line);
+  background: #fff;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+button.tray-slot.full {
+  border-color: var(--accent);
+  animation: pop-in 0.2s ease-out;
+}
+
+.tray-hint {
+  font-size: 11px;
+}
+
+button.pass-dish {
+  touch-action: none;
+  cursor: grab;
+}
+
+.drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 50;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  font-size: 32px;
+  border-radius: 50%;
+  background: rgba(255, 250, 241, 0.92);
+  box-shadow: 0 4px 10px rgba(59, 42, 30, 0.3);
+  pointer-events: none;
+}
+
+/* ---------- Bảng chi tiết nhiệm vụ ---------- */
+.quest {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.quest-dialog {
+  width: min(480px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+  text-align: left;
+}
+
+.quest-detail {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 2px solid var(--line);
+  background: #fffdf8;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quest-detail.done {
+  border-color: #f2b23e;
+}
+
+.quest-bar.big {
+  height: 18px;
+}
+
+.quest-bar.big span {
+  line-height: 18px;
+  font-size: 12px;
+}
+
+.quest-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quest-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: #fbf3e4;
+}
+
+.quest-list li.now {
+  background: #fff3c9;
+  border: 2px solid #f2b23e;
+}
+
+.quest-list li.done {
+  opacity: 0.6;
+}
+
+.quest-list small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.quest-list em {
+  font-style: normal;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--accent-dark);
+}
+
+/* ---------- Tổng kết ngày: kho ---------- */
+.stock-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  max-height: 130px;
+  overflow: auto;
+  margin-bottom: 8px;
+}
+
+.tag.open {
+  background: #e3f4d9;
+  color: #3f7f3a;
+}
+
+/* Mở ngăn kéo: logo Netlify nằm đè lên ngăn kéo (đã chừa đáy bảng), thanh công cụ dùng hết bề ngang cảnh */
+:has(#drawer.open) #tools {
+  right: 12px;
+  left: 12px;
+}
+
+/* ---------- Nhân viên phục vụ thuê thêm ---------- */
+.card.helper.fainted {
+  border-color: var(--red);
+  background: #fff1ee;
+}
+
+.energy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.energy .bar {
+  flex: 1;
+}
+
+.energy em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.chips.jobs button.on {
+  background: #e3f4d9;
+  border-color: var(--green);
+  color: #2f6f2a;
+}
+
+.row.end {
+  justify-content: flex-end;
+}
+
+button.ghost {
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+}

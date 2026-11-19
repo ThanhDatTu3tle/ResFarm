@@ -17,7 +17,8 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [x] **G2 · Màn hình mở đầu + chọn phong cách quán** *(xong 18/11/2026: `state.cuisine`, save v7 chơi lại từ đầu theo chủ dự án — không migration)*; menu Play/New game; màn chọn 3 quán ngoại thất xoay chậm; `CuisineDef` trong data (tên, màu, mặt tiền, danh sách món).
 - [x] **G3 · Nội thất theo nước** *(xong 18/11/2026, `src/ui/three/cuisine.ts`)* — Nhật: sàn gỗ + chiếu tatami, rèm noren, đèn lồng giấy, quầy sushi; Hàn: bàn nướng có ống hút, ghế đẩu inox, đèn neon, poster; Việt: bàn nhựa / gỗ, ghế đẩu đỏ, quạt trần, đèn lồng Hội An, tranh tre. Dùng hệ `DecorDef` sẵn có.
 - [x] **G4 · Thực đơn 3 nước** *(xong 18/11/2026: 16 món Việt, 13 Nhật, 13 Hàn, đủ model 3D; chủ dự án vẫn có thể sửa danh sách)* — món + model 3D món mới; nguyên liệu dùng chung một nông trại/chợ.
-- [ ] **F2 · Khách quen** *(Opus)* — làm sau G2 để món ruột khớp thực đơn từng nước (món ruột theo **nhóm**: đồ ngọt, mì nước, đồ chiên... nên dùng được cho cả 3 quán).
+- [x] **F2 · Khách quen (đợt 13)** *(xong 19/11/2026)* — 8 khách quen (`src/data/regulars.ts`), món ruột theo từng quán, tim theo số lần ghé, quà tặng là đồ trang trí riêng; nhận ra bằng phụ kiện riêng, vòng sáng hồng, bảng tên → ⭐, thông báo có chân dung, bong bóng 💖, bảng Khách quen. Thiết kế gốc bên dưới.
+- [~] *(thiết kế gốc)* **F2 · Khách quen** *(Opus)* — làm sau G2 để món ruột khớp thực đơn từng nước (món ruột theo **nhóm**: đồ ngọt, mì nước, đồ chiên... nên dùng được cho cả 3 quán).
   - **Ngoại hình:** `Look` mở rộng thành dáng người (trẻ em / thiếu niên / người lớn / người già hơi khom), kiểu tóc (ngắn, dài, đuôi ngựa, hai bím, búi, hói), áo + quần/váy, màu da, phụ kiện (mũ, kính, khăn, ba lô, gậy, nơ, túi).
   - **Cách nhận ra:** (1) phụ kiện nổi bật **dành riêng cho khách quen** — khách vãng lai chỉ random từ bộ cơ bản nên thấy phụ kiện là biết; (2) lúc bước vào hiện bảng tên + bậc tim vài giây rồi thu thành ⭐ nhỏ trên đầu; (3) vòng sáng vàng dưới chân; (4) thông báo có chân dung "Bà Tư ghé quán"; (5) bong bóng gọi món có tim nếu đúng món ruột; (6) chân dung trong bảng Khách quen render từ chính model 3D.
   - **Dàn khách đề xuất (8):** bé gái 2 bím + nơ + ba lô; cậu bé mũ lưỡi trai ngược; chị văn phòng đuôi ngựa + kính + túi; anh shipper áo khoác + mũ bảo hiểm; cô giáo tóc búi + khăn choàng; chú thợ khăn vắt vai + râu; bà cụ tóc bạc búi + kính lão + gậy; ông cụ mũ phớt + râu bạc + gậy.
@@ -28,6 +29,27 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [x] **F3a · Nhiệm vụ hệ thống (đợt 12)** *(xong 18/11/2026)* — 7 nhiệm vụ dễ → khó, thẻ trên HUD, nhận thưởng. Mở rộng sau: nhiệm vụ hằng ngày ngẫu nhiên, thưởng đồ trang trí (gộp F3 sổ sưu tầm).
 - [ ] **G7 · Việc mở ra từ đợt 8** — mặt tiền 3 quán làm đẹp lại (chủ dự án chưa ưng); vệt gió khó thấy ở góc nhìn xa (thử dạng sợi cong / lá bay); máy cày có thể bị chậm khi nhiều ruộng (hàng việc chung với việc ruộng rau) — cân nhắc người làm thuê thứ hai (N4); cân bằng giá lúa / cối / thời gian (B1).
 - Sau đó: C7 đơn hàng → F3 sổ sưu tầm → B5 dắt tay người mới → C9 offline → B1 cân bằng.
+
+## Giai đoạn 3 — "Quán của riêng mình" (đợt 13, 19/11/2026)
+
+- [x] **F4 · Đồ trang trí đặt tự do** — 14 món bán ở Siêu thị (có món riêng từng quán) + 8 quà của khách quen; mua tự bày chỗ thoáng, kéo / xoay / cất kho / bán lại ở chế độ sắp xếp; hiệu ứng mỗi loại tính 1 lần.
+- [x] **F5 · Tên quán, biển hiệu, thú cưng, chụp ảnh** — biển tên trên tường sau, mèo / chó đi lang thang và được khách vuốt ve, chế độ chụp ảnh tải PNG.
+- [x] **C3, B2, B7** — xem mục B / C.
+- [ ] **G9 · Việc mở ra từ đợt 13** — bếp to hơn theo hạng quán; mặt tiền + biển tên ngoài cửa (gộp G7); đồ treo tường (tranh, đồng hồ); khách quen có hội thoại / yêu cầu riêng; đặt tên thú cưng; chụp ảnh có khung + chữ tên quán; kéo thả chưa thử bằng tay trên điện thoại (A3).
+
+## Đợt 14 — Chỉnh theo phản hồi sau Giai đoạn 3 (19/11/2026)
+
+- [x] **Nông trại:** suối chỉ dẫn nước từ sông vào ao; vườn cây ăn quả 8 gốc (cam, táo, xoài, chuối — 4 cạnh chuồng, 4 cạnh ao, có sẵn cam + táo); đường đất có vệt cát, đá cuội, cỏ dại.
+- [x] **Quán:** bỏ bàn thờ; quán khởi đầu nhỏ lại (3 ghế quầy, 1 bàn bốn, 2 bàn đôi); khách thưa hơn; bồi bàn đứng yên sau khi làm xong; ngày 12 phút (06:00–24:00), 2 ca 07–12 / 15–20; khay bưng cả bàn; chén dĩa dơ phải dọn; vết bẩn sau mỗi ca (bấm giữ để lau); tường hai bên đầy đủ; tổng kết ngày có kho.
+- [x] **Chợ:** sạp thịt "Thịt bò/lợn cô Bủm"; tiệm ăn vặt & trà sữa cạnh quầy đồ khô; xe hủ tiếu gõ, gánh bánh tráng trộn, xe đạp cà phê trên vỉa hè; bấm sạp thì camera lướt sát vào.
+- [x] **Giao diện:** chừa tai thỏ / góc bo (env(safe-area-inset-*)), chừa góc logo Netlify; bảng nhiệm vụ bấm xem chi tiết.
+- [ ] **G10 · Việc mở ra từ đợt 14** — cân bằng lại kinh tế theo ngày 12 phút + 2 ca (B1: doanh thu / ngày giảm vì ít khách hơn); trái cây mới có 4 món dùng — thêm món, bán ở chợ; hàng rong chợ mới bán nguyên liệu có sẵn (chưa có món riêng như ly cà phê, bánh tráng); kéo thả khay chưa thử bằng tay trên điện thoại.
+
+## Đợt 15 — Nhân viên phục vụ (19/11/2026)
+
+- [x] Bồi bàn đi chậm lại (waiterSpeed 430); bấm món ở quầy = cầm món rồi chọn bàn, hoặc kéo vào khay (không tự thêm vào khay).
+- [x] Nhân viên thuê: mỗi bậc hạng quán +1 người (hạng quán lên 5 bậc, tối đa 4 nhân viên), giao việc bưng món / menu / dọn bàn / lau sàn, năng lượng, xỉu (bồi dưỡng 100 xu), giờ nghỉ đi ăn hàng rong (cà phê < bánh tráng < hủ tiếu < Tiệm 25caaaaa).
+- [ ] **G11 · Việc mở ra** — lương nhân viên theo ngày (hiện chỉ phí thuê); bồi bàn của người chơi chưa có năng lượng (cố ý, tránh người chơi bị kẹt); nhân viên chưa có kỹ năng / tốc độ riêng; cân bằng năng lượng mỗi việc (3) theo số việc thật trong một ca.
 
 ## Bác nông dân (18/11/2026)
 
@@ -55,18 +77,18 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 ## B. Hoàn thiện những gì đã có
 
 - [ ] **B1 · Cân bằng kinh tế** *(Opus)* — viết một script mô phỏng (chạy trong Node, dùng `Game` trực tiếp) cho "người chơi mẫu" chơi 10 ngày theo vài chiến lược (chỉ mua chợ / chỉ tự trồng / kết hợp), in ra tiền, cấp, uy tín mỗi ngày. Dùng nó để chỉnh giá và thời gian sao cho: ngày 1 không lỗ nếu chơi hợp lý, tự trồng lợi hơn mua nhưng không bỏ được chợ, mở món mới mỗi 1–2 ngày. Xong khi: có script `npm run balance` và một bảng kết quả trong `docs/`.
-- [ ] **B2 · Xoay bàn 90°** *(Opus)* — thêm góc xoay vào `state.restaurant.layout` (cần migration), `seatSpots`/`footprint` tính theo góc, nút xoay khi đang kéo. Xong khi: test đặt bàn xoay không chồng nhau.
+- [x] **B2 · Xoay bàn 90°** *(xong 19/11/2026, đợt 13 — nút ⟳ khi chọn bàn ở chế độ sắp xếp)* *(Opus)* — thêm góc xoay vào `state.restaurant.layout` (cần migration), `seatSpots`/`footprint` tính theo góc, nút xoay khi đang kéo. Xong khi: test đặt bàn xoay không chồng nhau.
 - [ ] **B3 · Hoa văn sàn theo loại** *(Sonnet)* — `DecorDef` thêm trường `pattern: 'planks' | 'checker' | 'plain'`; `buildRoom` dựng theo pattern. Sàn gạch hiện vẫn là sọc.
 - [x] **B4 · Tưới và cuốc có hiệu ứng** *(18/11/2026: hạt 💧 💨 🌱 ✨ trong `FarmArea.react()`, khói bếp, tim khi khách trả tiền)* *(Sonnet)* — nghe lệnh thành công ở `app.ts`, phát hiệu ứng ngắn tại ô (giọt nước rơi, bụi đất). Cần `FarmArea` có hàm `playEffect(slotId, kind)`.
 - [ ] **B5 · Gợi ý cho người mới** *(Sonnet)* — vài bước hướng dẫn đầu game (cuốc → gieo → tưới → ra chợ → bật món). Lưu bước đã qua trong state (cần migration nhỏ) hoặc `localStorage` riêng.
 - [ ] **B6 · Thông báo khi sắp hết nguyên liệu** *(Sonnet)* — cảnh báo trên HUD khi một món đang bán chỉ còn nấu được < 3 phần.
-- [ ] **B7 · Mua thêm bàn ở Siêu thị** *(Opus)* — hiện bàn thứ 5 gắn với một nâng cấp. Tổng quát hoá: danh mục bàn mua được, bàn mua về xuất hiện ở chỗ trống hợp lệ đầu tiên.
+- [x] **B7 · Mua thêm bàn ở Siêu thị** *(xong 19/11/2026, đợt 13 — `tableKinds` trong `data/props.ts`, bán lại 50%)* *(Opus)* — hiện bàn thứ 5 gắn với một nâng cấp. Tổng quát hoá: danh mục bàn mua được, bàn mua về xuất hiện ở chỗ trống hợp lệ đầu tiên.
 
 ## C. Tính năng mới (theo thứ tự đề xuất)
 
 - [x] **C1 · Bồi bàn / khâu phục vụ** *(18/11/2026: người chơi đóng vai bồi bàn — mang menu, ghi món, lấy món ở quầy ra món giao đúng bàn; tâm trạng 4 bậc quyết định tip; save v5)* *(Opus)* — `Order` thêm trạng thái `ready` giữa `cooking` và `served`; system `service` cho bồi bàn mang món (tốn thời gian theo khoảng cách hoặc cố định). Tuỳ câu trả lời của chủ dự án: tự động hay người chơi bấm. Hình: nhân vật bồi bàn đi giữa bếp và bàn.
 - [ ] **C2 · Thuê và nâng cấp nhân viên** *(Opus)* — `state.restaurant.staff` thành danh sách động; lệnh thuê/sa thải/đào tạo; lương trừ cuối ngày; nhân viên là một nguồn `modifier`. Bếp to hơn theo số đầu bếp.
-- [ ] **C3 · Nâng hạng quán** *(Opus)* — đưa kích thước phòng vào state; các mốc quán → tiệm → nhà hàng mở rộng phòng, bếp, số bàn tối đa. `RestaurantArea` dựng lại tường khi phòng đổi cỡ.
+- [x] **C3 · Nâng hạng quán** *(xong 19/11/2026, đợt 13 — 3 hạng `room.tiers`, phòng ăn sâu thêm; bếp chưa to theo)* *(Opus)* — đưa kích thước phòng vào state; các mốc quán → tiệm → nhà hàng mở rộng phòng, bếp, số bàn tối đa. `RestaurantArea` dựng lại tường khi phòng đổi cỡ.
 - [ ] **C4 · Thức ăn chăn nuôi và chế biến** *(Opus)* — `ProducerDef.inputs` (vật nuôi cần cám/cỏ mỗi chu kỳ); loại ô mới "xưởng" biến nguyên liệu thành nguyên liệu (lúa → bột, sữa → phô mai). Mô hình giống producer nên tái dùng `farm.ts`.
 - [ ] **C5 · Mở rộng ao cá** *(Sonnet)* — thêm loài (cá chép, cá hồi, mực nuôi...), thêm bậc ao, cho ăn. Hiện ao có 3 bậc và 2 loài.
 - [ ] **C6 · Thời tiết sâu hơn** *(Opus)* — bão làm hỏng cây chưa thu, nắng gắt làm đất khô nhanh, mùa trong năm, món theo mùa. Thêm trường vào `WeatherDef` thay vì viết `if` theo id.

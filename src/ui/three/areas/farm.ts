@@ -9,6 +9,7 @@ import { dashedOutline, dashedRect, fillSacks, makeGreenhouse, grainField, hayBa
 import { cycleTime, needsWatering, nextTier, yieldsOf } from '../../../sim/systems/farm';
 import { easeOutBack, wobble } from '../../ease';
 import { Particles } from '../fx';
+import { makeFruitTree } from '../farmkit';
 import { animateCreature, animatePerson, cropStageOf, LOOKS, makeAnimals, makeBush, makeCrop, makeFence, makeLampPost, makePerson, makeTree, type CropStage } from '../models';
 import { collectSway, sway, type Area, type Env, type Pick } from '../stage';
 import { Bar3D, emojiSprite, G, group, mesh, seeded, toon, type V3 } from '../toon';
@@ -146,6 +147,23 @@ export class FarmArea implements Area {
     // Đường đất: dọc (x = 1.25) từ chuồng tới cối xay; ngang (z = 7.4) chạy dọc mép trước dãy chuồng
     mesh(r, G.box(1.5, 0.03, 32), 0xdcbf8e, { p: [1.25, 0.015, 9.6], cast: false });
     mesh(r, G.box(26, 0.03, 1.5), 0xdcbf8e, { p: [14, 0.015, 7.4], cast: false });
+    // Đường đất bớt trống trải: vệt cát loang, đá cuội, sỏi nhỏ hai bên mép đường, vài khóm cỏ dại
+    const roadPts: [number, number, number][] = []; // x, z, hướng (0 = dọc, 1 = ngang)
+    for (let z = -5.5; z <= 25; z += 1.7) roadPts.push([1.25, z, 0]);
+    for (let x = 2.5; x <= 26.5; x += 1.9) roadPts.push([x, 7.4, 1]);
+    for (const [x, z, horiz] of roadPts) {
+      const along = (rnd() - 0.5) * 1.2;
+      const across = (rnd() - 0.5) * 1.3;
+      const [px, pz] = horiz ? [x + along, z + across] : [x + across, z + along];
+      if (rnd() < 0.45) mesh(r, G.cyl(1, 1, 0.012, 9), rnd() > 0.5 ? 0xe9d3a3 : 0xc9a874, { p: [px, 0.034, pz], s: [0.35 + rnd() * 0.5, 1, 0.25 + rnd() * 0.35], r: [0, rnd() * 3, 0], cast: false });
+      if (rnd() < 0.5) mesh(r, G.ico(0.09 + rnd() * 0.12, 0), rnd() > 0.5 ? 0xa9aaa0 : 0x8f9088, { p: [px + 0.2, 0.05, pz - 0.15], s: [1, 0.55, 0.85], r: [0, rnd() * 3, 0] });
+      for (let k = 0; k < 3; k++) mesh(r, G.ico(0.035, 0), 0xb7b2a2, { p: [px + (rnd() - 0.5) * 0.8, 0.035, pz + (rnd() - 0.5) * 0.8], cast: false });
+      // Mép đường: đá to hơn + cỏ dại
+      const edge = (rnd() > 0.5 ? 1 : -1) * 0.95;
+      const [ex, ez] = horiz ? [x + along, z + edge] : [x + edge, z + along];
+      if (rnd() < 0.35) mesh(r, G.ico(0.18 + rnd() * 0.12, 0), 0x9a9b92, { p: [ex, 0.08, ez], s: [1, 0.6, 0.9] });
+      else if (rnd() < 0.4) for (let k = 0; k < 3; k++) mesh(r, G.cone(0.04, 0.3 + rnd() * 0.2, 4), 0x7fbf5a, { p: [ex + k * 0.08, 0.15, ez + k * 0.05], cast: false });
+    }
     // Lối mòn trước ruộng lúa / sau ruộng lúa nước (bác chạy ngang ở đây)
     // Lối mòn phía bắc sau hàng rào (tới cối xay gió) và lối trước ruộng lúa (tới nhà xay lúa bên sông)
     mesh(r, G.box(10.5, 0.02, 0.8), 0xd8c39a, { p: [-4, 0.012, -5.65], cast: false });
@@ -177,7 +195,7 @@ export class FarmArea implements Area {
     makeFence(r, 2.1, -4.4, 17.5, -4.4);
 
     // Cột đèn dọc đường đất: tối thì sáng (thêm 3 nguồn sáng thật cho đường chính, ao và ruộng lúa)
-    for (const [x, z] of [[2.3, -3.2], [2.3, 4.6], [0.2, 10.4], [2.3, 15.5], [2.3, 22.2], [9.6, 8.5], [19.6, 8.5], [-7.2, 22.7], [-9.0, 10.6], [-5.5, -5.0], [16.5, 12]]) {
+    for (const [x, z] of [[2.3, -3.2], [2.3, 4.6], [0.2, 10.4], [2.3, 15.5], [2.3, 22.2], [9.6, 8.5], [17.3, 8.4], [-7.2, 22.7], [-9.0, 10.6], [-5.5, -5.0], [16.5, 12]]) {
       this.bulbs.push(makeLampPost(r, { p: [x, 0, z], s: 1.05 }));
     }
     for (const [x, z] of [[1.25, 6], [9, 10], [-4, 19]]) {
@@ -210,9 +228,9 @@ export class FarmArea implements Area {
     const rnd = seeded(21);
     const curve = (pts: number[][]) => new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
     const river = curve([[-11.5, -26], [-13, -14], [-12, -6], [-14, 2], [-12.4, 9], [-13.6, 16], [-12, 30]]);
-    // Suối: từ sông chảy ngang trước ruộng rau, chui dưới cầu đường đất (x = 1.25), đổ vào ao ở phía hạ lưu
-    // rồi chảy tiếp ra khỏi nông trại. Mương nhỏ dẫn nước sông vào ruộng lúa nước.
-    const stream = curve([[-12.8, 11.9], [-10, 12], [-6, 11.75], [-2, 12.05], [1.25, 11.9], [4, 12.6], [9.5, 15], [15, 15.6], [20, 16], [27, 17], [34, 18]]);
+    // Suối: từ sông chảy ngang trước ruộng rau, chui dưới cầu đường đất (x = 1.25) rồi kết thúc ở tâm ao
+    // (phía đông ao là vườn cây ăn quả, không có suối chảy tiếp). Mương nhỏ dẫn nước sông vào ruộng lúa nước.
+    const stream = curve([[-12.8, 11.9], [-10, 12], [-6, 11.75], [-2, 12.05], [1.25, 11.9], [4, 12.6], [7.5, 14.2], [9.5, 15]]);
     const ditch = curve([[-11.7, 15.6], [-10, 15.3], [-8.2, 15.4]]);
 
     for (const [c, w, samples] of [[river, 3.2, 90], [stream, 0.9, 70], [ditch, 0.4, 12]] as const) {
@@ -288,6 +306,11 @@ export class FarmArea implements Area {
       hayBale(g, h - 0.5, h - 0.55, 0.3);
       hayBale(g, h - 1.05, h - 0.5, -0.2);
       mesh(g, G.cone(0.45, 0.5, 8), 0xe8c55a, { p: [-h + 0.55, 0.28, h - 0.6], cast: false }); // đống rơm
+    } else if (slot.type === 'orchard') {
+      // Gốc cây ăn quả: ụ đất tròn, viền đá nhỏ, cỏ quanh gốc; cây dựng trong fill() theo loại
+      mesh(g, G.cyl(s / 2, s / 2 + 0.05, 0.08, 18), 0x9ed47a, { p: [0, 0.03, 0], cast: false });
+      mesh(g, G.cyl(0.75, 0.85, 0.16, 14), 0x8a5a3a, { p: [0, 0.07, 0] });
+      for (let i = 0; i < 9; i++) mesh(g, G.ico(0.1, 0), 0xa9aaa0, { p: [Math.cos((i / 9) * Math.PI * 2) * 0.88, 0.08, Math.sin((i / 9) * Math.PI * 2) * 0.88], s: [1, 0.6, 1] });
     } else if (slot.type === 'pond') {
       // Ao: bờ đá, mặt nước, lá súng, cầu gỗ nhỏ, bụi lau (bán kính theo cỡ ao trong layout)
       // Hình méo tự nhiên (không tròn): bề ngang = size, bề dọc ~ 0.78 size; bờ đá to hơn mặt nước một chút
@@ -323,7 +346,7 @@ export class FarmArea implements Area {
 
     const ring = mesh(g, G.box(1, 0.04, 1), this.ringMat, { p: [0, 0.01, 0], s: [s + 0.35, 1, s + 0.35], cast: false, receive: false });
     const bar = new Bar3D(1.1);
-    const top = slot.type === 'pen' ? 2.2 : slot.type === 'wheat' || slot.type === 'paddy' ? 1.4 : 1.3;
+    const top = slot.type === 'orchard' ? 3.3 : slot.type === 'pen' ? 2.2 : slot.type === 'wheat' || slot.type === 'paddy' ? 1.4 : 1.3;
     bar.group.position.set(0, top, 0);
     const drop = emojiSprite('💧', 0.6);
     const hoe = emojiSprite('⛏️', 0.6);
@@ -346,6 +369,10 @@ export class FarmArea implements Area {
     const { layout } = this.game.content.slotTypes.get(view.type);
     if (view.type === 'wheat' || view.type === 'paddy') {
       view.grain = grainField(view.content, layout.size - 0.4, view.type === 'wheat' ? 'wheat' : 'rice', cropStage);
+    } else if (view.type === 'orchard') {
+      const tree = makeFruitTree(producerId, cropStage);
+      view.content.add(tree);
+      view.movers.push({ g: tree, x: 0, z: 0, phase: producerId.length });
     } else if (view.type === 'field') {
       for (const [x, z] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) {
         const crop = makeCrop(producerId, cropStage);

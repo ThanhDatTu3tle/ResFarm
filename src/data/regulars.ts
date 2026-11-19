@@ -1,0 +1,98 @@
+import type { RegularDef } from './types';
+
+/**
+ * KHÁCH QUEN — 8 người, mỗi người một dáng (trẻ em → người già), kiểu tóc và phụ kiện riêng.
+ * Khách vãng lai không có phụ kiện nên nhìn phụ kiện là nhận ra khách quen.
+ * Món ruột theo từng phong cách quán; được ăn đúng món ruột thì tip thêm + uy tín.
+ * Thêm khách quen: thêm 1 mục (giữ id cũ), quà tặng là một PropDef `giftOnly` trong props.ts.
+ */
+export const regulars: RegularDef[] = [
+  {
+    id: 'be_na',
+    name: 'Bé Na',
+    icon: '👧',
+    bio: 'Học lớp hai, tan học là ghé quán, mê đồ ngọt và trứng.',
+    greet: 'Con chào cô chú ạ!',
+    style: { build: 'kid', hair: 'twin', hairColor: 0x3a2a1e, skin: 0xffe1c7, shirt: 0xf6a6c8, bottom: 'skirt', bottomColor: 0xe2574c, acc: ['bow', 'backpack'], accent: 0xe2574c },
+    favorites: { vn: 'flan', jp: 'tamagoyaki', kr: 'gyeran_jjim' },
+    unlock: { reputation: 0, level: 1 },
+    gift: 'gift_teddy',
+  },
+  {
+    id: 'cu_ti',
+    name: 'Cu Tí',
+    icon: '👦',
+    bio: 'Cậu nhóc đội mũ ngược, lúc nào cũng chạy như bay.',
+    greet: 'Cho con như mọi khi nha!',
+    style: { build: 'kid', hair: 'spiky', hairColor: 0x1f1a17, skin: 0xf2c49b, shirt: 0x4a9bd8, bottom: 'shorts', bottomColor: 0x3a4a6a, acc: ['capBack'], accent: 0xf2b23e },
+    favorites: { vn: 'banh_mi', jp: 'takoyaki', kr: 'tteokbokki' },
+    unlock: { reputation: 0, level: 1 },
+    gift: 'gift_claw',
+  },
+  {
+    id: 'chi_thao',
+    name: 'Chị Thảo',
+    icon: '👩‍💼',
+    bio: 'Dân văn phòng, ăn trưa vội nhưng rất kén chỗ ngồi.',
+    greet: 'Nghỉ trưa rồi, ghé quán thôi!',
+    style: { build: 'adult', hair: 'pony', hairColor: 0x54381f, skin: 0xffd9b8, shirt: 0xffffff, bottom: 'skirt', bottomColor: 0x3a3f5a, acc: ['glasses', 'bag'], accent: 0xb5553c },
+    favorites: { vn: 'com_tam', jp: 'maki', kr: 'kimbap' },
+    unlock: { reputation: 2.6, level: 2 },
+    gift: 'gift_books',
+  },
+  {
+    id: 'anh_tam',
+    name: 'Anh Tâm',
+    icon: '🛵',
+    bio: 'Anh shipper chạy cả ngày, ghé quán nạp năng lượng.',
+    greet: 'Cho anh tô nóng nóng nha!',
+    style: { build: 'adult', hair: 'short', hairColor: 0x1f1a17, skin: 0xe8b88a, shirt: 0x5fae57, bottom: 'pants', bottomColor: 0x3a3a3a, acc: ['jacket', 'helmet'], accent: 0x2f9e57 },
+    favorites: { vn: 'hu_tieu', jp: 'ramen', kr: 'ramyeon' },
+    unlock: { reputation: 2.8, level: 2 },
+    gift: 'gift_fridge',
+  },
+  {
+    id: 'co_lan',
+    name: 'Cô Lan',
+    icon: '👩‍🏫',
+    bio: 'Cô giáo dạy văn, thích món canh nhà làm.',
+    greet: 'Quán hôm nay thơm quá!',
+    style: { build: 'adult', hair: 'bun', hairColor: 0x2a1f1a, skin: 0xffd9b8, shirt: 0x9a6bd1, bottom: 'skirt', bottomColor: 0x5a4a7a, acc: ['scarf'], accent: 0xf2b23e },
+    favorites: { vn: 'tomato_soup', jp: 'miso_soup', kr: 'kimchi_stew' },
+    unlock: { reputation: 3.0, level: 3 },
+    gift: 'gift_chalk',
+  },
+  {
+    id: 'chu_hung',
+    name: 'Chú Hùng',
+    icon: '👷',
+    bio: 'Thợ mộc đầu ngõ, khăn vắt vai, ăn khoẻ nói to.',
+    greet: 'Đói rã ruột rồi đây!',
+    style: { build: 'adult', hair: 'short', hairColor: 0x3a2a1e, skin: 0xd9a070, shirt: 0xf47b3c, bottom: 'pants', bottomColor: 0x4a5a7a, acc: ['towel', 'beard'], accent: 0xffffff },
+    favorites: { vn: 'braised_pork', jp: 'katsudon', kr: 'samgyeopsal' },
+    unlock: { reputation: 3.3, level: 3 },
+    gift: 'gift_owl',
+  },
+  {
+    id: 'ba_tu',
+    name: 'Bà Tư',
+    icon: '👵',
+    bio: 'Bà cụ hàng xóm, ăn chậm, kể chuyện hay.',
+    greet: 'Bà ghé ăn tô nóng đây con.',
+    style: { build: 'elder', hair: 'bun', hairColor: 0xd9d9d9, skin: 0xf2c9a8, shirt: 0x6fa8c9, bottom: 'skirt', bottomColor: 0x3a3a4a, acc: ['readingGlasses', 'cane'], accent: 0x8a5a35 },
+    favorites: { vn: 'pho', jp: 'udon', kr: 'sundubu' },
+    unlock: { reputation: 3.6, level: 4 },
+    gift: 'gift_orchid',
+  },
+  {
+    id: 'ong_sau',
+    name: 'Ông Sáu',
+    icon: '👴',
+    bio: 'Ông giáo về hưu, mũ phớt, sáng nào cũng dắt lồng chim đi dạo.',
+    greet: 'Quán của tụi nhỏ ngày càng khá!',
+    style: { build: 'elder', hair: 'bald', hairColor: 0xeeeeee, skin: 0xe8b88a, shirt: 0xc9b48a, bottom: 'pants', bottomColor: 0x5a4a3a, acc: ['fedora', 'mustache', 'cane'], accent: 0x6b4a2f },
+    favorites: { vn: 'bun_bo', jp: 'sashimi', kr: 'bulgogi' },
+    unlock: { reputation: 4.0, level: 5 },
+    gift: 'gift_birdcage',
+  },
+];

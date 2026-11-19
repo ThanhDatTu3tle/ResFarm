@@ -1,6 +1,6 @@
 import type { EventBus } from '../core/events';
 import type { Content, SlotType, MillType } from '../data';
-import type { DayStats, GameState, FarmerTaskKind } from './state';
+import type { DayStats, GameState, FarmerTaskKind, HelperJob } from './state';
 
 /** Ngữ cảnh truyền cho mọi system / handler. */
 export interface SimContext {
@@ -25,6 +25,19 @@ export type Command =
   | { type: 'mill/buy'; millType: MillType }
   | { type: 'mill/setProduct'; millId: string; item: string }
   | { type: 'quest/claim' }
+  | { type: 'profile/rename'; name: string }
+  | { type: 'pet/adopt'; petId: string }
+  | { type: 'pet/set'; petId: string | null }
+  | { type: 'prop/buy'; propId: string }
+  | { type: 'prop/move'; uid: string; x: number; y: number }
+  | { type: 'prop/rotate'; uid: string }
+  | { type: 'prop/store'; uid: string }
+  | { type: 'prop/place'; uid: string }
+  | { type: 'prop/sell'; uid: string }
+  | { type: 'table/buy'; kind: string }
+  | { type: 'table/sell'; tableId: string }
+  | { type: 'layout/rotateTable'; tableId: string }
+  | { type: 'restaurant/upgrade' }
   | { type: 'farm/plant'; slotId: string; producerId: string }
   | { type: 'farm/harvest'; slotId: string }
   | { type: 'farm/harvestAll' }
@@ -39,7 +52,14 @@ export type Command =
   | { type: 'layout/reset' }
   | { type: 'service/menu'; partyId: number }
   | { type: 'service/takeOrder'; partyId: number }
-  | { type: 'service/deliver'; orderId: number; partyId: number }
+  | { type: 'service/deliver'; orderIds: number[]; partyId: number }
+  | { type: 'service/clean'; tableId: string }
+  | { type: 'service/mop'; stainId: number }
+  | { type: 'helper/hire' }
+  | { type: 'helper/fire'; helperId: string }
+  | { type: 'helper/setJob'; helperId: string; job: HelperJob; on: boolean }
+  | { type: 'helper/revive'; helperId: string }
+  | { type: 'helper/eat'; helperId: string; stallId: string }
   | { type: 'day/next' };
 
 export type CommandType = Command['type'];
@@ -68,7 +88,14 @@ export interface SimEvents {
   /** Nhóm khách cần bồi bàn: mang menu (menu) hoặc tới ghi món (order). */
   'party/needs': { partyId: number; need: 'menu' | 'order' };
   /** Bồi bàn vừa làm xong một việc. */
-  'waiter/done': { kind: 'menu' | 'takeOrder' | 'pickup' | 'deliver'; partyId: number | null };
+  'waiter/done': { kind: 'menu' | 'takeOrder' | 'pickup' | 'deliver' | 'clean' | 'mop'; partyId: number | null };
+  /** Bắt đầu / hết một ca mở cửa (chỉ số trong balance.shifts). Hết ca thì sàn có thêm vết bẩn. */
+  'shift/started': { index: number };
+  'shift/ended': { index: number };
+  /** Nhân viên thuê kiệt sức (cần bồi dưỡng). */
+  'helper/fainted': { helperId: string };
+  /** Nhân viên ăn xong ở chợ, quay về quán. */
+  'helper/returned': { helperId: string; energy: number };
   'farm/ready': { slotId: string };
   'farmer/done': { kind: FarmerTaskKind; slotId: string; ok: boolean; reason?: string };
   /** Cối vừa làm xong một mẻ thành phẩm (vào kho). */
@@ -76,6 +103,12 @@ export interface SimEvents {
   /** Nhiệm vụ hệ thống vừa đạt mục tiêu (chờ người chơi nhận thưởng). */
   'quest/completed': { questId: string };
   'quest/claimed': { questId: string; money: number };
+  /** Khách quen vừa tới quán (xếp hàng). */
+  'regular/arrived': { regularId: string; partyId: number };
+  /** Khách quen trả tiền xong: số tim mới, có lên tim không, được ăn món ruột không, quà tặng (id PropDef). */
+  'regular/visited': { regularId: string; hearts: number; heartUp: boolean; fav: boolean; gift: string | null };
+  /** Quán vừa lên hạng (phòng to hơn — cảnh quán cần dựng lại). */
+  'restaurant/upgraded': { tier: number };
   'level/up': { level: number };
   'weather/changed': { id: string };
   'day/ended': { day: number; stats: DayStats };

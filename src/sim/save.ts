@@ -1,5 +1,9 @@
 import { decorFor, defaultDecor, type Content } from '../data';
-import { createMill, createSlot, SAVE_VERSION, type GameState } from './state';
+import { EventBus } from '../core/events';
+import { canPlaceTable } from './layout';
+import { resolveOverlaps } from './systems/home';
+import type { SimContext } from './types';
+import { createMill, createSlot, plantInitial, DEFAULT_SHOP_NAME, SAVE_VERSION, type GameState } from './state';
 
 /**
  * Lưu/tải. State là JSON thuần nên lưu = JSON.stringify.
@@ -13,6 +17,31 @@ const migrations: Record<number, (old: any) => any> = {
   7: (s) => ({ ...s, farm: { ...s.farm, mills: [], farmer: { ...s.farm.farmer, carry: null } }, version: 8 }),
   // v8 -> v9: nhiệm vụ hệ thống (bắt đầu từ nhiệm vụ đầu tiên).
   8: (s) => ({ ...s, quests: { index: 0, progress: 0, done: false }, version: 9 }),
+  // v9 -> v10: khách quen (F2) + quán của riêng mình (tên, thú cưng, đồ trang trí, bàn mua thêm, hạng quán).
+  9: (s) => ({
+    ...s,
+    regulars: {},
+    profile: { name: DEFAULT_SHOP_NAME, pet: null, pets: [] },
+    restaurant: { ...s.restaurant, extraTables: [], props: [], tier: 1, parties: s.restaurant.parties.map((p: object) => ({ ...p, regular: null })) },
+    version: 10,
+  }),
+  // v10 -> v11: khay bưng nhiều món, chén dĩa dơ, vết bẩn sàn; quán khởi đầu nhỏ lại (reconcile dời đồ nằm ngoài phòng).
+  10: (s) => ({
+    ...s,
+    restaurant: {
+      ...s.restaurant,
+      dirty: {},
+      stains: [],
+      waiter: {
+        ...s.restaurant.waiter,
+        carrying: s.restaurant.waiter.carrying == null ? [] : [s.restaurant.waiter.carrying],
+        tasks: s.restaurant.waiter.tasks.map((t: { kind: string; orderId?: number }) => (t.kind === 'deliver' ? { kind: 'deliver', orderIds: [t.orderId], partyId: (t as unknown as { partyId: number }).partyId } : t)),
+      },
+    },
+    version: 11,
+  }),
+  // v11 -> v12: nhân viên phục vụ thuê thêm.
+  11: (s) => ({ ...s, restaurant: { ...s.restaurant, helpers: [] }, version: 12 }),
 };
 
 export function serialize(state: GameState): string {
@@ -47,14 +76,36 @@ function reconcile(state: GameState, content: Content): GameState {
   const r = state.restaurant;
   r.orders = r.orders.filter((o) => content.recipes.has(o.recipeId));
   for (const p of r.parties) p.orderIds = p.orderIds.filter((id) => r.orders.some((o) => o.id === id));
-  r.parties = r.parties.filter((p) => p.tableId == null || content.tables.has(p.tableId));
+  // Quán của riêng mình: hạng, bàn mua thêm, đồ trang trí, thú cưng
+  r.tier = Math.max(1, Math.min(content.room.tiers.length, Math.floor(r.tier) || 1));
+  r.extraTables = r.extraTables.filter((t) => content.tableKinds.has(t.kind) && r.layout[t.id]);
+  r.props = r.props.filter((p) => content.props.has(p.def) && (!content.props.get(p.def).cuisine || content.props.get(p.def).cuisine === state.cuisine));
+  const profile = state.profile;
+  profile.name = String(profile.name ?? '').slice(0, 24) || DEFAULT_SHOP_NAME;
+  profile.pets = profile.pets.filter((id) => content.pets.has(id));
+  if (profile.pet && !profile.pets.includes(profile.pet)) profile.pet = null;
+  for (const id of Object.keys(state.regulars)) if (!content.regulars.has(id)) delete state.regulars[id];
+  const tableIds = new Set([...content.tables.all().map((t) => t.id), ...r.extraTables.map((t) => t.id)]);
+  r.parties = r.parties.filter((p) => p.tableId == null || tableIds.has(p.tableId));
+  for (const p of r.parties) if (p.regular && !content.regulars.has(p.regular)) p.regular = null;
   // Bồi bàn: bỏ việc trỏ tới khách / món không còn; món đang bưng mà không còn trên tay thì trả về quầy
-  const w = r.waiter;
-  if (w.x < 0) Object.assign(w, content.room.waiterHome);
-  w.tasks = w.tasks.filter((t) => r.parties.some((p) => p.id === t.partyId) && (t.kind !== 'deliver' || r.orders.some((o) => o.id === t.orderId)));
-  if (w.carrying != null && !r.orders.some((o) => o.id === w.carrying)) w.carrying = null;
-  for (const o of r.orders) if (o.status === 'carrying' && w.carrying !== o.id) o.status = 'ready';
-  for (const p of r.parties) if (p.called && !w.tasks.some((t) => t.partyId === p.id && t.kind !== 'deliver')) p.called = false;
+  if (r.waiter.x < 0) Object.assign(r.waiter, content.room.waiterHome);
+  r.helpers = r.helpers.slice(0, Math.max(0, r.tier - 1));
+  for (const h of r.helpers) if (h.away && !content.stalls.has(h.away.stallId)) h.away = null;
+  for (const w of [r.waiter, ...r.helpers]) {
+  w.tasks = w.tasks.filter((t) => {
+    if (t.kind === 'clean') return tableIds.has(t.tableId);
+    if (t.kind === 'mop') return r.stains.some((s) => s.id === t.stainId);
+    if (!r.parties.some((p) => p.id === t.partyId)) return false;
+    if (t.kind === 'deliver') t.orderIds = t.orderIds.filter((id) => r.orders.some((o) => o.id === id));
+    return t.kind !== 'deliver' || t.orderIds.length > 0;
+  });
+  w.carrying = w.carrying.filter((id) => r.orders.some((o) => o.id === id));
+  }
+  const workers = [r.waiter, ...r.helpers];
+  for (const o of r.orders) if (o.status === 'carrying' && !workers.some((w) => w.carrying.includes(o.id))) o.status = 'ready';
+  for (const p of r.parties) if (p.called && !workers.some((w) => w.tasks.some((t) => (t.kind === 'menu' || t.kind === 'takeOrder') && t.partyId === p.id))) p.called = false;
+  for (const id of Object.keys(r.dirty)) if (!tableIds.has(id)) delete r.dirty[id];
   r.staff = content.staff.all().map((def) => {
     const old = r.staff.find((s) => s.id === def.id);
     return { id: def.id, orderId: old && r.orders.some((o) => o.id === old.orderId) ? old.orderId : null };
@@ -68,7 +119,10 @@ function reconcile(state: GameState, content: Content): GameState {
     const used = state.decor.equipped[def.slot];
     if (!used || !state.decor.owned.includes(used) || content.decor.get(used).slot !== def.slot) state.decor.equipped[def.slot] = def.id;
   }
-  for (const id of Object.keys(r.layout)) if (!content.tables.has(id)) delete r.layout[id];
+  for (const id of Object.keys(r.layout)) if (!tableIds.has(id)) delete r.layout[id];
+
+  // Quán nhỏ lại / bàn gốc đổi chỗ: bàn gốc nằm sai chỗ thì về mặc định; bàn thêm, đồ trang trí bị đè thì dời / cất kho
+  fixLayout({ state, content, bus: new EventBus() });
 
   // Nhiệm vụ: danh sách ngắn đi thì coi như đã xong hết
   state.quests.index = Math.max(0, Math.min(state.quests.index, content.quests.length));
@@ -78,7 +132,7 @@ function reconcile(state: GameState, content: Content): GameState {
   state.farm.slots = state.farm.slots.filter((s) => content.slotTypes.has(s.type));
   // Số ô khởi đầu tăng ở bản mới thì save cũ cũng được bù cho đủ.
   for (const type of content.slotTypes.all()) {
-    for (let n = state.farm.slots.filter((s) => s.type === type.id).length; n < type.initial; n++) state.farm.slots.push(createSlot(type.id, n));
+    for (let n = state.farm.slots.filter((s) => s.type === type.id).length; n < type.initial; n++) state.farm.slots.push(plantInitial(content, createSlot(type.id, n), n));
   }
   // Cối: bỏ loại không còn, đủ số cối khởi đầu, thành phẩm phải hợp lệ
   state.farm.mills = state.farm.mills.filter((m) => content.mills.has(m.type));
@@ -102,4 +156,14 @@ function reconcile(state: GameState, content: Content): GameState {
     if (slot.lastProducerId && !content.producers.has(slot.lastProducerId)) slot.lastProducerId = null;
   }
   return state;
+}
+
+/** Bàn gốc đặt ở chỗ không còn hợp lệ (phòng nhỏ lại) thì về chỗ mặc định; rồi dời bàn thêm / đồ trang trí bị đè. */
+function fixLayout(ctx: SimContext): void {
+  const r = ctx.state.restaurant;
+  for (const t of ctx.content.tables.all()) {
+    const at = r.layout[t.id];
+    if (at && canPlaceTable(ctx, t.id, at.x, at.y) && !r.parties.some((p) => p.tableId === t.id)) delete r.layout[t.id];
+  }
+  resolveOverlaps(ctx);
 }

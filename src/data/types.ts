@@ -8,7 +8,7 @@ export interface ItemStack {
   qty: number;
 }
 
-export type ItemCategory = 'staple' | 'vegetable' | 'meat' | 'seafood' | 'dairy' | 'dry';
+export type ItemCategory = 'staple' | 'vegetable' | 'fruit' | 'meat' | 'seafood' | 'dairy' | 'dry';
 
 /** Nguyên liệu / vật phẩm trong kho. */
 export interface ItemDef {
@@ -72,7 +72,7 @@ export interface RecipeDef {
   cuisine: CuisineId;
 }
 
-export type SlotType = 'field' | 'pen' | 'pond' | 'wheat' | 'paddy' | 'gplot';
+export type SlotType = 'field' | 'pen' | 'pond' | 'wheat' | 'paddy' | 'gplot' | 'orchard';
 
 /** Loại cối chế biến ở nông trại: cối xay gió (lúa mì) và nhà xay lúa (lúa nước). */
 export type MillType = 'windmill' | 'ricemill';
@@ -123,7 +123,20 @@ export interface SlotTypeDef {
    * work = bác nông dân đứng ở mép nào của ô khi làm việc (mặc định 'front' — mép phía camera).
    * Cả sim (chỗ bác nông dân đứng) lẫn cảnh 3D đều đọc từ đây.
    */
-  layout: { x: number; z: number; cols: number; dx: number; dz: number; size: number; tierGrowth: number; work?: 'front' | 'left' | 'back' };
+  layout: {
+    x: number;
+    z: number;
+    cols: number;
+    dx: number;
+    dz: number;
+    size: number;
+    tierGrowth: number;
+    work?: 'front' | 'left' | 'back';
+    /** Vị trí từng ô đặt tay (thay cho lưới x/z/cols/dx/dz) — dùng khi ô nằm thành nhiều cụm (vườn cây ăn quả). work riêng từng ô nếu có. */
+    spots?: { x: number; z: number; work?: 'front' | 'left' | 'back' }[];
+  };
+  /** Ô khởi đầu đã trồng sẵn (producer theo thứ tự ô). */
+  initialPlants?: string[];
   /**
    * Ruộng "tự động" (lúa mì, lúa nước): người chơi chỉ bấm thu hoạch, bác nông dân lái máy cày thu,
    * tự gieo lại giống cũ rồi chở hết sản lượng tới cối loại này để chế biến.
@@ -172,6 +185,15 @@ export interface StallDef {
   items: string[];
   /** Bảng chân đứng nhỏ cạnh sạp (dòng chữ giới thiệu thêm), không có thì thôi. */
   standee?: string;
+  /**
+   * Kiểu hàng quán (hình 3D): 'stall' sạp mái bạt trong dãy chợ (mặc định), 'kiosk' tiệm nhỏ trong dãy chợ,
+   * 'cart' xe đẩy, 'pole' gánh hàng rong, 'bike' xe đạp bán dạo — ba kiểu sau đứng trên vỉa hè ở `spot`.
+   */
+  kind?: 'stall' | 'kiosk' | 'cart' | 'pole' | 'bike';
+  /** Chỗ đứng trên vỉa hè (x, z ở khu chợ) cho hàng rong. */
+  spot?: { x: number; z: number };
+  /** Nhân viên phục vụ ra đây ăn trong giờ nghỉ: giá một suất, năng lượng hồi lại, thời gian ăn (phút game). */
+  staffMeal?: { price: number; energy: number; minutes: number };
 }
 
 /** Bàn trong quán. Toạ độ (tâm bàn) theo hệ quy chiếu của scene, sim không dùng tới. */
@@ -187,6 +209,10 @@ export interface TableDef {
   requiresUpgrade?: string;
   /** Người chơi không dời được bàn này. */
   fixed?: boolean;
+  /** Bàn đang xoay 90° (w/h đã đổi chỗ; ghế xếp theo hai cạnh còn lại). Chỉ có ở bàn trả về từ activeTables(). */
+  rotated?: boolean;
+  /** Bàn mua thêm: loại bàn (TableKindDef) — bán lại được. */
+  kind?: string;
   x: number;
   y: number;
   w: number;
@@ -230,6 +256,8 @@ export interface RoomDef {
   pass: { x: number; y: number };
   /** Chỗ bồi bàn đứng chờ khi rảnh. */
   waiterHome: { x: number; y: number };
+  /** Các hạng quán; hạng 1 = kích thước gốc (height). */
+  tiers: TierDef[];
 }
 
 export type DecorSlot = 'floor' | 'wall' | 'furniture';
@@ -324,4 +352,142 @@ export interface Balance {
   };
   /** Biên độ giá chợ theo ngày [min, max]. */
   marketSwing: [number, number];
+  /** Khách quen (F2). */
+  regulars: {
+    /** Xác suất một nhóm khách mới là khách quen (khi còn khách quen chưa ghé hôm nay). */
+    chance: number;
+    /** Số lần ghé (đã trả tiền) để đạt mỗi bậc tim: phần tử thứ i = mốc của tim thứ i + 1. */
+    heartVisits: number[];
+    /** Tip cộng thêm theo mỗi tim (0.12 = +12%). */
+    tipPerHeart: number;
+    /** Tip cộng thêm khi được ăn đúng món ruột. */
+    favoriteTip: number;
+    /** Uy tín cộng thêm khi khách quen được ăn món ruột. */
+    favoriteRep: number;
+    /** Đạt số tim này thì khách quen tặng quà (đồ trang trí riêng). */
+    giftHearts: number;
+    /** Khách quen đi cùng tối đa bao nhiêu người (tính cả họ). */
+    maxPartySize: number;
+  };
+  /** Bán lại đồ trang trí / bàn mua thêm được bao nhiêu phần giá mua. */
+  resellRate: number;
+  /** Nhân viên phục vụ thuê thêm: phí thuê, năng lượng tối đa, năng lượng tốn mỗi việc, giá bồi dưỡng khi xỉu (hồi về bao nhiêu), qua đêm hồi bao nhiêu. */
+  helpers: { hireCost: number; maxEnergy: number; energyPerTask: number; reviveCost: number; reviveEnergy: number; overnightEnergy: number; names: string[] };
+  /** Các ca mở cửa đón khách trong ngày (phút từ 00:00). Ngoài ca: không có khách mới (nghỉ trưa / đêm). */
+  shifts: { from: number; to: number }[];
+  /** Vết bẩn trên sàn: mỗi ca xong thêm perShift vết (vết cũ bẩn thêm 1 bậc), tối đa max; mỗi bậc bẩn bớt patiencePerLevel kiên nhẫn. */
+  stains: { perShift: number; max: number; maxLevel: number; patiencePerLevel: number; minPatience: number };
+}
+
+// ---------- Khách quen (F2) ----------
+
+/** Dáng người: trẻ em (nhỏ, đầu to), thiếu niên, người lớn, người già (hơi khom). */
+export type PersonBuild = 'kid' | 'teen' | 'adult' | 'elder';
+export type HairStyle = 'short' | 'spiky' | 'long' | 'pony' | 'twin' | 'bun' | 'bald';
+/** Phụ kiện. Khách vãng lai không bao giờ có phụ kiện — thấy phụ kiện là biết khách quen. */
+export type Accessory =
+  | 'bow'
+  | 'backpack'
+  | 'capBack'
+  | 'glasses'
+  | 'readingGlasses'
+  | 'bag'
+  | 'helmet'
+  | 'jacket'
+  | 'scarf'
+  | 'towel'
+  | 'beard'
+  | 'mustache'
+  | 'cane'
+  | 'fedora';
+
+/** Ngoại hình chi tiết (chỉ tầng hiển thị dùng; để ở data để thêm khách quen chỉ cần sửa data). */
+export interface PersonStyle {
+  build: PersonBuild;
+  hair: HairStyle;
+  hairColor: number;
+  skin: number;
+  shirt: number;
+  bottom: 'pants' | 'skirt' | 'shorts';
+  bottomColor: number;
+  acc: Accessory[];
+  /** Màu phụ kiện chính (nơ, khăn, túi...). */
+  accent: number;
+}
+
+export interface RegularDef {
+  id: string;
+  name: string;
+  /** Emoji đại diện (dùng khi chưa có chân dung). */
+  icon: string;
+  /** Một câu giới thiệu trong bảng Khách quen. */
+  bio: string;
+  /** Câu chào khi ghé quán (hiện trong thông báo). */
+  greet: string;
+  style: PersonStyle;
+  /** Món ruột theo từng phong cách quán. */
+  favorites: Record<CuisineId, string>;
+  /** Khách quen bắt đầu ghé khi quán đạt uy tín và cấp này. */
+  unlock: { reputation: number; level: number };
+  /** Đồ trang trí khách tặng khi đủ balance.regulars.giftHearts tim (id PropDef). */
+  gift: string;
+}
+
+// ---------- Quán của riêng mình (Giai đoạn 3) ----------
+
+/** Đồ trang trí đặt tự do trong khu ăn uống (F4). */
+export interface PropDef {
+  id: string;
+  name: string;
+  icon: string;
+  /** Kiểu model 3D (xem ui/three/props.ts); kiểu lạ thì hiện emoji. */
+  model: string;
+  cost: number;
+  level: number;
+  /** Chỉ hợp quán phong cách này; bỏ trống = quán nào cũng dùng được. */
+  cuisine?: CuisineId;
+  /** Kích thước chiếm chỗ trên mặt bằng (toạ độ 2D của quán, chưa xoay). */
+  w: number;
+  h: number;
+  /** Hiệu ứng khi có ít nhất 1 món loại này đang bày (nhiều món cùng loại không cộng dồn). */
+  modifiers?: Partial<Record<ModifierKey, number>>;
+  /** true = không bán ở Siêu thị, chỉ có khi khách quen tặng. */
+  giftOnly?: boolean;
+}
+
+/** Thú cưng của quán (F5). */
+export interface PetDef {
+  id: string;
+  name: string;
+  icon: string;
+  cost: number;
+  level: number;
+  desc: string;
+  modifiers?: Partial<Record<ModifierKey, number>>;
+}
+
+/** Hạng quán (C3): phòng ăn sâu hơn theo hạng. */
+export interface TierDef {
+  /** 1, 2, 3... */
+  id: number;
+  name: string;
+  icon: string;
+  /** Chiều sâu phòng (toạ độ 2D, thay RoomDef.height); khu ăn uống giãn theo. */
+  height: number;
+  cost: number;
+  level: number;
+  desc: string;
+  modifiers?: Partial<Record<ModifierKey, number>>;
+}
+
+/** Bàn lẻ mua thêm ở Siêu thị (B7). Mỗi lần mua tạo một bàn mới trong state.restaurant.extraTables. */
+export interface TableKindDef {
+  id: string;
+  name: string;
+  icon: string;
+  seats: number;
+  w: number;
+  h: number;
+  cost: number;
+  level: number;
 }

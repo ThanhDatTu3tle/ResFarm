@@ -186,7 +186,7 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   rig.armR.rotation.x = right;
   rig.armR.rotation.z = rightZ;
   // Nghiêng người tới trước: đi, nấu, bổ cuốc theo nhịp, cúi xuống đất
-  rig.body.rotation.x = walk * 0.08 + cook * 0.12 + dig * (0.18 + Math.max(0, -chop) * 0.22) + pour * 0.1 + reach * 0.55;
+  rig.body.rotation.x = walk * 0.08 + cook * 0.12 + dig * (0.18 + Math.max(0, -chop) * 0.22) + pour * 0.1 + reach * 0.55 + ((g.userData.hunch as number | undefined) ?? 0); // người già hơi khom
 }
 
 /** Chớp mắt / vẫy đuôi cho con vật: model nào gắn `userData.eyes` / `userData.tail` thì được cử động. */

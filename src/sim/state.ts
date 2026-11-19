@@ -29,6 +29,10 @@ export interface GameState {
   farm: { slots: FarmSlot[]; farmer: FarmerState; mills: MillState[] };
   /** Nhiệm vụ hệ thống: đang làm nhiệm vụ thứ `index` (content.quests), tiến độ, đã đạt mục tiêu chưa (chờ nhận thưởng). */
   quests: { index: number; progress: number; done: boolean };
+  /** Khách quen đã từng ghé (id RegularDef -> số lần, ngày ghé gần nhất, đã tặng quà chưa). Chưa ghé lần nào thì không có mục. */
+  regulars: Record<string, RegularState>;
+  /** Quán của riêng mình: tên quán, thú cưng đang nuôi và các con đã nhận nuôi. */
+  profile: { name: string; pet: string | null; pets: string[] };
   /** Hệ số giá chợ hôm nay theo từng nguyên liệu. */
   market: { priceFactor: Record<string, number> };
   weather: { id: string; minutesLeft: number };
@@ -71,6 +75,30 @@ export interface Party {
   called: boolean;
   /** Phút món của nhóm đã nằm ở quầy ra món mà chưa được mang tới — quyết định tâm trạng. */
   wait: number;
+  /** Khách quen dẫn đầu nhóm (ngồi ghế đầu tiên, looks[0] bỏ qua); null = khách vãng lai. */
+  regular: string | null;
+}
+
+export interface RegularState {
+  /** Số lần ghé đã trả tiền. */
+  visits: number;
+  /** Ngày ghé gần nhất (mỗi khách quen ghé tối đa 1 lần / ngày). */
+  lastDay: number;
+  /** Đã tặng quà (đồ trang trí) chưa. */
+  gifted: boolean;
+}
+
+/** Một món đồ trang trí đã mua. */
+export interface PropState {
+  uid: string;
+  /** id PropDef. */
+  def: string;
+  x: number;
+  y: number;
+  /** 0 hoặc 1 (xoay 90°). */
+  rot: number;
+  /** Đang cất trong kho (không bày, không có hiệu ứng). */
+  stored: boolean;
 }
 
 /** queued: chờ bếp · cooking: đang nấu · ready: nằm ở quầy ra món · carrying: bồi bàn đang bưng · served: đã lên bàn. */
@@ -83,6 +111,8 @@ export interface Order {
   status: OrderStatus;
   /** Phút-công đã nấu, so với recipe.cookTime. */
   progress: number;
+  /** Món ruột của khách quen trong nhóm. */
+  fav?: boolean;
 }
 
 export interface StaffState {
@@ -92,15 +122,40 @@ export interface StaffState {
 }
 
 /** Việc của bồi bàn, làm lần lượt theo thứ tự người chơi giao. */
-export type WaiterTask = { kind: 'menu'; partyId: number } | { kind: 'takeOrder'; partyId: number } | { kind: 'deliver'; orderId: number; partyId: number };
+export type WaiterTask =
+  | { kind: 'menu'; partyId: number }
+  | { kind: 'takeOrder'; partyId: number }
+  /** Bưng cả khay: lấy các món ở quầy rồi giao một lượt cho bàn. */
+  | { kind: 'deliver'; orderIds: number[]; partyId: number }
+  /** Dọn chén dĩa dơ ở bàn. */
+  | { kind: 'clean'; tableId: string }
+  /** Lau một vết bẩn trên sàn. */
+  | { kind: 'mop'; stainId: number };
 
 export interface WaiterState {
   /** Vị trí theo toạ độ mặt bằng. */
   x: number;
   y: number;
   tasks: WaiterTask[];
-  /** Món đang bưng trên tay (id đơn), null = tay không. */
-  carrying: number | null;
+  /** Các món đang bưng trên khay (id đơn), rỗng = tay không. */
+  carrying: number[];
+}
+
+/** Việc giao được cho nhân viên thuê: bưng món, mang menu + ghi món, dọn bàn, lau sàn. */
+export type HelperJob = 'serve' | 'menu' | 'clean' | 'mop';
+
+/** Nhân viên phục vụ thuê thêm: đi lại / làm việc như bồi bàn nhưng tự nhận việc theo `jobs`; có năng lượng. */
+export interface HelperState extends WaiterState {
+  id: string;
+  name: string;
+  /** Kiểu áo (chỉ để vẽ). */
+  look: number;
+  jobs: Record<HelperJob, boolean>;
+  energy: number;
+  /** Kiệt sức: đứng im tới khi được bồi dưỡng (hoặc qua đêm). */
+  fainted: boolean;
+  /** Đang ra chợ ăn hàng rong (id sạp, phút còn lại); null = đang ở quán. */
+  away: { stallId: string; minutesLeft: number } | null;
 }
 
 export interface RestaurantState {
@@ -109,10 +164,22 @@ export interface RestaurantState {
   staff: StaffState[];
   /** Phút còn lại tới lượt khách kế tiếp. */
   spawnTimer: number;
-  /** Vị trí bàn người chơi đã dời (tableId -> tâm bàn). Bàn không có ở đây thì ở vị trí mặc định. */
-  layout: Record<string, { x: number; y: number }>;
+  /** Vị trí bàn người chơi đã dời (tableId -> tâm bàn, rot = đang xoay 90°). Bàn gốc không có ở đây thì ở vị trí mặc định; bàn mua thêm luôn có. */
+  layout: Record<string, { x: number; y: number; rot?: boolean }>;
+  /** Bàn lẻ mua thêm (id bàn, loại TableKindDef). */
+  extraTables: { id: string; kind: string }[];
+  /** Đồ trang trí đã mua (đang bày hoặc cất kho). */
+  props: PropState[];
+  /** Hạng quán (1 = Quán nhỏ), chỉ số trong content.room.tiers + 1. */
+  tier: number;
+  /** Chén dĩa dơ khách để lại: tableId -> các ghế còn dơ. Ghế dơ không xếp khách được tới khi dọn. */
+  dirty: Record<string, number[]>;
+  /** Vết bẩn trên sàn (toạ độ mặt bằng), level 1..maxLevel. */
+  stains: { id: number; x: number; y: number; level: number }[];
   /** Bồi bàn — do người chơi điều khiển bằng cách bấm vào khách / quầy ra món. */
   waiter: WaiterState;
+  /** Nhân viên phục vụ thuê thêm (mỗi bậc hạng quán thêm 1 chỗ). */
+  helpers: HelperState[];
 }
 
 export interface FarmSlot {
@@ -177,7 +244,10 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 12;
+
+/** Tên quán mặc định khi tạo ván mới. */
+export const DEFAULT_SHOP_NAME = 'Quán Nhà Vườn';
 
 export function emptyStats(): DayStats {
   return { revenue: 0, tips: 0, spent: 0, dishes: 0, guestsServed: 0, guestsLost: 0 };
@@ -185,6 +255,13 @@ export function emptyStats(): DayStats {
 
 export function createMill(type: MillType, index: number, product: string): MillState {
   return { id: `${type}-${index}`, type, product, input: 0, progress: 0 };
+}
+
+/** Ô khởi đầu có trồng sẵn (SlotTypeDef.initialPlants, vd vườn cây có sẵn cam + táo): đặt producer vào ô. */
+export function plantInitial(content: Content, slot: FarmSlot, index: number): FarmSlot {
+  const producerId = content.slotTypes.get(slot.type).initialPlants?.[index];
+  if (producerId) Object.assign(slot, { producerId, lastProducerId: producerId, stage: 'growing', progress: 0 });
+  return slot;
 }
 
 export function createSlot(type: SlotType, index: number): FarmSlot {
@@ -223,15 +300,23 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
       staff: content.staff.all().map((s) => ({ id: s.id, orderId: null })),
       spawnTimer: 10,
       layout: {},
-      waiter: { ...content.room.waiterHome, tasks: [], carrying: null },
+      extraTables: [],
+      props: [],
+      tier: 1,
+      waiter: { ...content.room.waiterHome, tasks: [], carrying: [] },
+      helpers: [],
+      dirty: {},
+      stains: [],
     },
     farm: {
-      slots: content.slotTypes.all().flatMap((t) => Array.from({ length: t.initial }, (_, i) => createSlot(t.id, i))),
+      slots: content.slotTypes.all().flatMap((t) => Array.from({ length: t.initial }, (_, i) => plantInitial(content, createSlot(t.id, i), i))),
       farmer: { ...b.farmer.home, tasks: [], work: null, carry: null },
       mills: content.mills.all().flatMap((m) => Array.from({ length: m.initial }, (_, i) => createMill(m.id, i, m.products[0]))),
     },
     market: { priceFactor: {} },
     quests: { index: 0, progress: 0, done: false },
+    regulars: {},
+    profile: { name: DEFAULT_SHOP_NAME, pet: null, pets: [] },
     weather: { id: content.weathers.all()[0].id, minutesLeft: 0 },
     stats: { today: emptyStats(), total: emptyStats() },
   };

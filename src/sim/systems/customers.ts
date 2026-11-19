@@ -1,8 +1,11 @@
 import { bumpQuest } from './quests';
 import { randInt, randRange, weightedIndex } from '../../core/rng';
-import type { TableDef } from '../../data';
 import { addReputation, addXp, earn, hasAll, modifier, removeAll } from '../helpers';
+import { activeTables, occupiedSeats } from '../layout';
 import type { Party } from '../state';
+import { favoriteOf, pickRegular, regularPaid, regularTipBonus } from './regulars';
+
+export { activeTables, occupiedSeats };
 import type { LeaveReason, SimContext, System } from '../types';
 
 /** Số kiểu ngoại hình khách mà scene biết vẽ. */
@@ -27,7 +30,7 @@ export const customerSystem: System = {
     const b = content.balance;
     const r = state.restaurant;
 
-    if (state.clock.phase === 'open') {
+    if (state.clock.phase === 'open' && inShift(ctx)) {
       r.spawnTimer -= dt;
       if (r.spawnTimer <= 0) {
         r.spawnTimer = nextSpawnDelay(ctx);
@@ -100,21 +103,17 @@ export const customerSystem: System = {
   },
 };
 
-/** Các bàn đang có (bàn cần nâng cấp chỉ xuất hiện khi đã mua). */
-export function activeTables(ctx: SimContext): TableDef[] {
-  return ctx.content.tables.all().filter((t) => !t.requiresUpgrade || ctx.state.upgrades.includes(t.requiresUpgrade));
+/** Đang trong một ca mở cửa (balance.shifts) không. */
+export function inShift(ctx: SimContext, minute = ctx.state.clock.minute): boolean {
+  return ctx.content.balance.shifts.some((s) => minute >= s.from && minute < s.to);
 }
 
-export function occupiedSeats(ctx: SimContext, tableId: string): number[] {
-  return ctx.state.restaurant.parties.filter((p) => p.tableId === tableId).flatMap((p) => p.seats);
-}
-
-/** Tìm chỗ cho nhóm `size` người: ưu tiên bàn ít ghế thừa nhất. */
+/** Tìm chỗ cho nhóm `size` người: ưu tiên bàn ít ghế thừa nhất (bỏ qua ghế còn chén dĩa dơ). */
 export function findSeats(ctx: SimContext, size: number): { tableId: string; seats: number[] } | null {
   let best: { tableId: string; seats: number[]; waste: number } | null = null;
   for (const t of activeTables(ctx)) {
     if (size > (t.maxParty ?? (t.shared ? 1 : t.seats))) continue;
-    const taken = occupiedSeats(ctx, t.id);
+    const taken = [...occupiedSeats(ctx, t.id), ...(ctx.state.restaurant.dirty[t.id] ?? [])];
     if (!t.shared && taken.length > 0) continue;
     const free = Array.from({ length: t.seats }, (_, i) => i).filter((i) => !taken.includes(i));
     if (free.length < size) continue;
@@ -134,7 +133,11 @@ function nextSpawnDelay(ctx: SimContext): number {
 
 function spawnParty(ctx: SimContext): void {
   const { state, content } = ctx;
-  const size = Math.max(1, weightedIndex(state.rng, content.balance.partySizeWeights));
+  const regular = pickRegular(ctx);
+  let size = Math.max(1, weightedIndex(state.rng, content.balance.partySizeWeights));
+  if (regular) size = Math.min(size, content.balance.regulars.maxPartySize);
+  // Không có bàn đủ chỗ thì nhóm nhỏ lại cho vừa bàn lớn nhất đang có (quán nhỏ chỉ có bàn bốn)
+  size = Math.min(size, Math.max(1, ...activeTables(ctx).map((t) => t.maxParty ?? (t.shared ? 1 : t.seats))));
   const patience = content.balance.queuePatience * modifier(ctx, 'patience');
   const party: Party = {
     id: state.nextId++,
@@ -149,9 +152,11 @@ function spawnParty(ctx: SimContext): void {
     looks: Array.from({ length: size }, () => randInt(state.rng, 0, LOOK_COUNT - 1)),
     called: false,
     wait: 0,
+    regular: regular?.id ?? null,
   };
   state.restaurant.parties.push(party);
   ctx.bus.emit('party/arrived', { partyId: party.id });
+  if (regular) ctx.bus.emit('regular/arrived', { regularId: regular.id, partyId: party.id });
 }
 
 /** Khách nhận menu: xem trong 3–7 giây thực rồi mới chọn xong. */
@@ -171,9 +176,11 @@ export function placeOrders(ctx: SimContext, party: Party): void {
   for (let i = 0; i < party.size; i++) {
     const options = state.menu.active.map((id) => content.recipes.get(id)).filter((r) => hasAll(ctx, r.ingredients));
     if (!options.length) break;
-    const recipe = options[weightedIndex(state.rng, options.map((r) => r.popularity ?? 1))];
+    // Khách quen (ghế đầu) gọi món ruột nếu quán đang bán và còn nguyên liệu
+    const fav = i === 0 && party.regular ? options.find((r) => r.id === favoriteOf(ctx, party.regular!)) : undefined;
+    const recipe = fav ?? options[weightedIndex(state.rng, options.map((r) => r.popularity ?? 1))];
     removeAll(ctx, recipe.ingredients);
-    const order = { id: state.nextId++, partyId: party.id, recipeId: recipe.id, status: 'queued' as const, progress: 0 };
+    const order = { id: state.nextId++, partyId: party.id, recipeId: recipe.id, status: 'queued' as const, progress: 0, ...(fav ? { fav: true } : {}) };
     state.restaurant.orders.push(order);
     party.orderIds.push(order.id);
     ctx.bus.emit('order/placed', { orderId: order.id, recipeId: recipe.id });
@@ -200,7 +207,7 @@ function pay(ctx: SimContext, party: Party): void {
   }
   // Hài lòng theo tâm trạng lúc được phục vụ xong (vui vẻ = tip đủ, tức giận = không tip)
   const satisfaction = b.service.moodTip[moodOf(ctx, party)];
-  const tip = Math.round(total * b.tipRate * satisfaction * modifier(ctx, 'tip'));
+  const tip = Math.round(total * b.tipRate * satisfaction * modifier(ctx, 'tip') * regularTipBonus(ctx, party));
   earn(ctx, total + tip);
   state.stats.today.tips += tip;
   state.stats.total.tips += tip;
@@ -208,7 +215,12 @@ function pay(ctx: SimContext, party: Party): void {
   addReputation(ctx, b.reputation.paid + b.reputation.paidBonus * satisfaction);
   bumpQuest(ctx, 'serve');
   if (tip > 0) bumpQuest(ctx, 'happy');
+  // Khách về để lại chén dĩa dơ ở chỗ ngồi: bồi bàn phải dọn mới xếp khách mới vào được
+  if (party.tableId) state.restaurant.dirty[party.tableId] = [...(state.restaurant.dirty[party.tableId] ?? []), ...party.seats];
+  const visit = regularPaid(ctx, party);
+  if (visit?.fav) addReputation(ctx, b.regulars.favoriteRep);
   leave(ctx, party, 'paid', total, tip);
+  if (visit) ctx.bus.emit('regular/visited', { regularId: party.regular!, ...visit });
 }
 
 /** Xoá nhóm khách khỏi quán (kèm đơn của họ) và ghi nhận kết quả. */
@@ -218,9 +230,10 @@ function leave(ctx: SimContext, party: Party, reason: LeaveReason, total = 0, ti
   r.orders = r.orders.filter((o) => o.partyId !== party.id);
   for (const s of r.staff) if (s.orderId != null && party.orderIds.includes(s.orderId)) s.orderId = null;
   // Bồi bàn bỏ các việc của nhóm này; món đang bưng của họ thì coi như đổ đi
-  const w = r.waiter;
-  w.tasks = w.tasks.filter((t) => t.partyId !== party.id);
-  if (w.carrying != null && party.orderIds.includes(w.carrying)) w.carrying = null;
+  for (const w of [r.waiter, ...r.helpers]) {
+    w.tasks = w.tasks.filter((t) => !('partyId' in t) || t.partyId !== party.id);
+    w.carrying = w.carrying.filter((id) => !party.orderIds.includes(id));
+  }
   r.parties = r.parties.filter((p) => p.id !== party.id);
 
   const key = reason === 'paid' ? 'guestsServed' : 'guestsLost';

@@ -1,18 +1,31 @@
-import { serviceSpot, tablePos, type Point } from '../layout';
-import type { Order, Party, WaiterTask } from '../state';
+import { randInt } from '../../core/rng';
+import { roomOf, serviceSpot, tableById, tablePos, type Point } from '../layout';
+import type { HelperState, Order, Party, WaiterState, WaiterTask } from '../state';
 import { fail, ok, type Command, type SimContext, type System } from '../types';
 import { placeOrders, startBrowsing } from './customers';
 
 /**
- * PHỤC VỤ — người chơi đóng vai bồi bàn. Bấm vào khách / quầy ra món là giao việc; bồi bàn làm lần lượt:
- * đi tới nơi (tốc độ balance.service.waiterSpeed, theo toạ độ mặt bằng) rồi mới mang menu / ghi món / bưng món.
+ * PHỤC VỤ — người chơi đóng vai bồi bàn. Bấm vào khách / quầy ra món / bàn dơ / vết bẩn là giao việc; bồi bàn làm lần lượt:
+ * đi tới nơi (tốc độ balance.service.waiterSpeed, theo toạ độ mặt bằng) rồi mới mang menu / ghi món / bưng món / dọn / lau.
+ *  - Bưng món: cả khay một lượt (service/deliver với nhiều orderIds) — lấy hết ở quầy rồi giao cho bàn.
+ *  - Rảnh việc thì bồi bàn đứng yên tại chỗ (không chạy về quầy).
  * Vị trí bồi bàn nằm trong state nên cảnh 3D chỉ việc vẽ theo, và mọi thứ vẫn tất định.
  */
 
-/** Đơn đã có người nhận bưng (đang trong hàng việc hoặc trên tay). */
+/** Mọi người phục vụ: bồi bàn (người chơi) + nhân viên thuê đang ở quán. */
+export function workers(ctx: SimContext): WaiterState[] {
+  const r = ctx.state.restaurant;
+  return [r.waiter, ...r.helpers.filter((h) => !h.away)];
+}
+
+/** Đã có ai nhận việc giống vậy chưa (để hai người không cùng chạy tới một việc). */
+export function taskTaken(ctx: SimContext, match: (t: WaiterTask) => boolean): boolean {
+  return workers(ctx).some((w) => w.tasks.some(match));
+}
+
+/** Đơn đã có người nhận bưng (đang trong hàng việc hoặc trên khay của ai đó). */
 export function isReserved(ctx: SimContext, orderId: number): boolean {
-  const w = ctx.state.restaurant.waiter;
-  return w.carrying === orderId || w.tasks.some((t) => t.kind === 'deliver' && t.orderId === orderId);
+  return workers(ctx).some((w) => w.carrying.includes(orderId) || w.tasks.some((t) => t.kind === 'deliver' && t.orderIds.includes(orderId)));
 }
 
 /** Món đang nằm ở quầy ra món và chưa ai nhận bưng — thứ người chơi chọn được. */
@@ -20,9 +33,30 @@ export function readyOrders(ctx: SimContext): Order[] {
   return ctx.state.restaurant.orders.filter((o) => o.status === 'ready' && !isReserved(ctx, o.id));
 }
 
-/** Đơn món `recipeId` của nhóm còn chưa lên bàn và chưa ai bưng (nhóm này nhận được món đó). */
-export function wantedOrder(ctx: SimContext, party: Party, recipeId: string): Order | undefined {
-  return ctx.state.restaurant.orders.find((o) => o.partyId === party.id && o.recipeId === recipeId && o.status !== 'served' && o.status !== 'carrying' && !isReserved(ctx, o.id));
+/** Đơn món `recipeId` của nhóm còn chưa lên bàn và chưa ai bưng (nhóm này nhận được món đó). `skip` = đơn đã chọn cho khay này. */
+export function wantedOrder(ctx: SimContext, party: Party, recipeId: string, skip: number[] = []): Order | undefined {
+  return ctx.state.restaurant.orders.find((o) => o.partyId === party.id && o.recipeId === recipeId && o.status !== 'served' && o.status !== 'carrying' && !isReserved(ctx, o.id) && !skip.includes(o.id));
+}
+
+/** Các món nhóm còn chờ (chưa lên bàn, chưa ai bưng) — một khay "đủ bộ" phải khớp đúng số món này. */
+export function pendingOrders(ctx: SimContext, party: Party): Order[] {
+  return ctx.state.restaurant.orders.filter((o) => o.partyId === party.id && o.status !== 'served' && o.status !== 'carrying' && !isReserved(ctx, o.id));
+}
+
+/**
+ * Khay món có giao đủ bộ cho một nhóm không: mỗi món trong khay ứng với một món nhóm còn chờ (cùng món thì đổi chủ được)
+ * và số món bằng đúng số món nhóm còn chờ. Trả nhóm khớp đầu tiên, hoặc null.
+ */
+export function partyForTray(ctx: SimContext, orderIds: number[]): Party | null {
+  const orders = orderIds.map((id) => ctx.state.restaurant.orders.find((o) => o.id === id));
+  if (!orders.length || orders.some((o) => !o || o.status !== 'ready' || isReserved(ctx, o.id))) return null;
+  for (const party of ctx.state.restaurant.parties) {
+    if (party.phase !== 'waitingFood') continue;
+    const need = pendingOrders(ctx, party).map((o) => o.recipeId).sort();
+    const have = orders.map((o) => o!.recipeId).sort();
+    if (need.length === have.length && need.every((r, i) => r === have[i])) return party;
+  }
+  return null;
 }
 
 /** Nhóm đang chờ người chơi làm gì (để hiện bong bóng / gợi ý). */
@@ -35,7 +69,8 @@ export function needOf(party: Party): 'menu' | 'order' | null {
 
 function partySpot(ctx: SimContext, party: Party): Point | null {
   if (!party.tableId) return null;
-  const t = ctx.content.tables.get(party.tableId);
+  const t = tableById(ctx, party.tableId);
+  if (!t) return null;
   return serviceSpot(t, tablePos(ctx, t), party.seats);
 }
 
@@ -45,18 +80,36 @@ export function passSpot(ctx: SimContext): Point {
   return { x: pass.x, y: pass.y + 30 };
 }
 
-function targetOf(ctx: SimContext, task: WaiterTask): Point | null {
-  const party = ctx.state.restaurant.parties.find((p) => p.id === task.partyId);
+function targetOf(ctx: SimContext, task: WaiterTask, w: WaiterState): Point | null {
+  const r = ctx.state.restaurant;
+  if (task.kind === 'clean') {
+    const t = tableById(ctx, task.tableId);
+    return t && r.dirty[t.id]?.length ? serviceSpot(t, tablePos(ctx, t), r.dirty[t.id]) : null;
+  }
+  if (task.kind === 'mop') {
+    const s = r.stains.find((x) => x.id === task.stainId);
+    return s ? { x: s.x + 22, y: s.y } : null;
+  }
+  const party = r.parties.find((p) => p.id === task.partyId);
   if (!party) return null;
-  if (task.kind === 'deliver' && ctx.state.restaurant.waiter.carrying !== task.orderId) return passSpot(ctx);
+  if (task.kind === 'deliver' && !task.orderIds.every((id) => w.carrying.includes(id))) return passSpot(ctx);
   return partySpot(ctx, party);
 }
 
-/** Bồi bàn tới nơi: làm việc đầu hàng. Trả true nếu xong việc đó (bỏ khỏi hàng). */
-function act(ctx: SimContext, task: WaiterTask): boolean {
+/** Người phục vụ `w` tới nơi: làm việc đầu hàng. Trả true nếu xong việc đó (bỏ khỏi hàng). */
+function act(ctx: SimContext, task: WaiterTask, w: WaiterState): boolean {
   const { state, bus } = ctx;
   const r = state.restaurant;
-  const w = r.waiter;
+  if (task.kind === 'clean') {
+    delete r.dirty[task.tableId];
+    bus.emit('waiter/done', { kind: 'clean', partyId: null });
+    return true;
+  }
+  if (task.kind === 'mop') {
+    r.stains = r.stains.filter((s) => s.id !== task.stainId);
+    bus.emit('waiter/done', { kind: 'mop', partyId: null });
+    return true;
+  }
   const party = r.parties.find((p) => p.id === task.partyId);
   if (!party) return true;
   if (task.kind === 'menu') {
@@ -69,19 +122,24 @@ function act(ctx: SimContext, task: WaiterTask): boolean {
     bus.emit('waiter/done', { kind: 'takeOrder', partyId: party.id });
     return true;
   }
-  const order = r.orders.find((o) => o.id === task.orderId);
-  if (!order) return true;
-  if (w.carrying !== order.id) {
-    // Tới quầy: nhấc món lên tay rồi đi tiếp tới bàn
-    if (order.status !== 'ready') return true;
-    order.status = 'carrying';
-    w.carrying = order.id;
+  const orders = task.orderIds.map((id) => r.orders.find((o) => o.id === id)).filter((o): o is Order => !!o);
+  if (!orders.length) return true;
+  if (!orders.every((o) => w.carrying.includes(o.id))) {
+    // Tới quầy: xếp cả khay lên tay rồi đi tiếp tới bàn
+    for (const o of orders) {
+      if (o.status !== 'ready' || w.carrying.includes(o.id)) continue;
+      o.status = 'carrying';
+      w.carrying.push(o.id);
+    }
+    task.orderIds = orders.filter((o) => w.carrying.includes(o.id)).map((o) => o.id);
     bus.emit('waiter/done', { kind: 'pickup', partyId: party.id });
-    return false;
+    return !task.orderIds.length;
   }
-  order.status = 'served';
-  w.carrying = null;
-  bus.emit('order/served', { orderId: order.id, recipeId: order.recipeId });
+  for (const o of orders) {
+    o.status = 'served';
+    bus.emit('order/served', { orderId: o.id, recipeId: o.recipeId });
+  }
+  w.carrying = w.carrying.filter((id) => !task.orderIds.includes(id));
   bus.emit('waiter/done', { kind: 'deliver', partyId: party.id });
   return true;
 }
@@ -94,41 +152,26 @@ function swapOwners(ctx: SimContext, a: Order, b: Order): void {
   [a.partyId, b.partyId] = [b.partyId, a.partyId];
   if (pa) pa.orderIds = pa.orderIds.map((id) => (id === a.id ? b.id : id));
   if (pb) pb.orderIds = pb.orderIds.map((id) => (id === b.id ? a.id : id));
+  // Món ruột đi theo người gọi
+  [a.fav, b.fav] = [b.fav, a.fav];
+}
+
+/** Hết ca: sàn có thêm vết bẩn ở khu ăn uống, vết cũ chưa lau thì bẩn thêm một bậc. */
+export function addStains(ctx: SimContext): void {
+  const { state, content } = ctx;
+  const s = content.balance.stains;
+  const r = state.restaurant;
+  for (const old of r.stains) old.level = Math.min(s.maxLevel, old.level + 1);
+  const d = roomOf(ctx).dining;
+  for (let i = 0; i < s.perShift && r.stains.length < s.max; i++) {
+    r.stains.push({ id: state.nextId++, x: randInt(state.rng, d.x1 + 30, d.x2 - 30), y: randInt(state.rng, d.y1 + 20, d.y2 - 20), level: 1 });
+  }
 }
 
 export const serviceSystem: System = {
   id: 'service',
   update(ctx, dt) {
-    const { state, content } = ctx;
-    const w = state.restaurant.waiter;
-    let budget = content.balance.service.waiterSpeed * dt;
-    // Một bước có thể đi tới nơi rồi làm luôn việc kế tiếp nếu còn quãng đường
-    for (let guard = 0; guard < 8 && budget > 0; guard++) {
-      const task = w.tasks[0];
-      const target = task ? targetOf(ctx, task) : content.room.waiterHome;
-      if (!target) {
-        w.tasks.shift();
-        continue;
-      }
-      const dx = target.x - w.x;
-      const dy = target.y - w.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist > budget) {
-        w.x += (dx / dist) * budget;
-        w.y += (dy / dist) * budget;
-        return;
-      }
-      w.x = target.x;
-      w.y = target.y;
-      budget -= dist;
-      if (!task) return;
-      // Xoá đúng việc vừa làm (không dùng shift): làm việc có thể khiến khách bỏ về và leave() đã lọc lại hàng việc,
-      // shift() lúc đó sẽ xoá nhầm việc kế tiếp của bàn khác
-      if (act(ctx, task)) {
-        const i = w.tasks.indexOf(task);
-        if (i >= 0) w.tasks.splice(i, 1);
-      }
-    }
+    for (const w of workers(ctx)) if (!(w as HelperState).fainted) stepWorker(ctx, w, dt);
   },
   commands: {
     'service/menu'(ctx, cmd) {
@@ -149,31 +192,120 @@ export const serviceSystem: System = {
     },
     'service/deliver'(ctx, cmd) {
       const r = ctx.state.restaurant;
-      const order = r.orders.find((o) => o.id === cmd.orderId);
-      if (!order || order.status !== 'ready') return fail('Món này chưa có ở quầy.');
-      if (isReserved(ctx, order.id)) return fail('Món này đang được bưng đi rồi.');
+      if (!cmd.orderIds.length) return fail('Chưa chọn món nào.');
       const party = r.parties.find((p) => p.id === cmd.partyId);
       if (!party || party.phase !== 'waitingFood') return fail('Bàn này không chờ món.');
-      const target = wantedOrder(ctx, party, order.recipeId);
-      if (!target) return fail(`Bàn này không gọi ${ctx.content.recipes.get(order.recipeId).name}.`);
-      if (target.id !== order.id) swapOwners(ctx, order, target);
-      r.waiter.tasks.push({ kind: 'deliver', orderId: order.id, partyId: party.id });
+      const orders: Order[] = [];
+      for (const id of cmd.orderIds) {
+        const order = r.orders.find((o) => o.id === id);
+        if (!order || order.status !== 'ready') return fail('Món này chưa có ở quầy.');
+        if (isReserved(ctx, order.id) || orders.includes(order)) return fail('Món này đang được bưng đi rồi.');
+        orders.push(order);
+      }
+      // Mỗi món phải ứng với một món bàn này còn chờ (cùng món của bàn khác thì đổi chủ cho nhau)
+      // Món vốn của bàn này giữ nguyên; món của bàn khác thì ghép với một món cùng loại bàn này còn chờ
+      const picked = orders.filter((o) => o.partyId === party.id).map((o) => o.id);
+      const swaps: [Order, Order][] = [];
+      for (const order of orders) {
+        if (order.partyId === party.id) continue;
+        const target = wantedOrder(ctx, party, order.recipeId, picked);
+        if (!target) return fail(`Bàn này không gọi ${ctx.content.recipes.get(order.recipeId).name}.`);
+        picked.push(target.id);
+        swaps.push([order, target]);
+      }
+      for (const [order, target] of swaps) swapOwners(ctx, order, target);
+      r.waiter.tasks.push({ kind: 'deliver', orderIds: orders.map((o) => o.id), partyId: party.id });
+      return ok();
+    },
+    'service/clean'(ctx, cmd) {
+      const r = ctx.state.restaurant;
+      if (!r.dirty[cmd.tableId]?.length) return fail('Bàn này sạch rồi.');
+      if (taskTaken(ctx, (t) => t.kind === 'clean' && t.tableId === cmd.tableId)) return fail('Đang có người tới dọn bàn này rồi.');
+      r.waiter.tasks.push({ kind: 'clean', tableId: cmd.tableId });
+      return ok();
+    },
+    'service/mop'(ctx, cmd) {
+      const r = ctx.state.restaurant;
+      if (!r.stains.some((s) => s.id === cmd.stainId)) return fail('Chỗ này sạch rồi.');
+      if (taskTaken(ctx, (t) => t.kind === 'mop' && t.stainId === cmd.stainId)) return fail('Đang có người tới lau chỗ này rồi.');
+      r.waiter.tasks.push({ kind: 'mop', stainId: cmd.stainId });
       return ok();
     },
   },
 };
 
+/** Một người phục vụ đi tới việc đầu hàng rồi làm; còn quãng đường thì làm luôn việc kế. */
+function stepWorker(ctx: SimContext, w: WaiterState, dt: number): void {
+  let budget = ctx.content.balance.service.waiterSpeed * dt;
+  // Một bước có thể đi tới nơi rồi làm luôn việc kế tiếp nếu còn quãng đường
+  for (let guard = 0; guard < 8 && budget > 0; guard++) {
+    const task = w.tasks[0];
+    if (!task) return; // rảnh: đứng yên tại chỗ vừa làm xong
+    const target = targetOf(ctx, task, w);
+    if (!target) {
+      w.tasks.shift();
+      continue;
+    }
+    const dx = target.x - w.x;
+    const dy = target.y - w.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > budget) {
+      w.x += (dx / dist) * budget;
+      w.y += (dy / dist) * budget;
+      return;
+    }
+    w.x = target.x;
+    w.y = target.y;
+    budget -= dist;
+    // Xoá đúng việc vừa làm (không dùng shift): làm việc có thể khiến khách bỏ về và leave() đã lọc lại hàng việc,
+    // shift() lúc đó sẽ xoá nhầm việc kế tiếp của bàn khác
+    if (act(ctx, task, w)) {
+      const i = w.tasks.indexOf(task);
+      if (i >= 0) w.tasks.splice(i, 1);
+      if ('energy' in w && spendEnergy(ctx, w as HelperState)) return;
+    }
+  }
+}
+
+/** Nhân viên thuê làm xong một việc thì mất năng lượng; cạn thì xỉu. Trả true nếu vừa xỉu. */
+function spendEnergy(ctx: SimContext, h: HelperState): boolean {
+  h.energy = Math.max(0, h.energy - ctx.content.balance.helpers.energyPerTask);
+  if (h.energy > 0) return false;
+  faint(ctx, h);
+  return true;
+}
+
+/** Xỉu: bỏ hết việc (khách được gọi lại), món đang bưng trả về quầy. */
+export function faint(ctx: SimContext, h: HelperState): void {
+  const r = ctx.state.restaurant;
+  h.fainted = true;
+  for (const t of h.tasks) {
+    if (t.kind !== 'menu' && t.kind !== 'takeOrder') continue;
+    const p = r.parties.find((x) => x.id === t.partyId);
+    if (p) p.called = false;
+  }
+  for (const o of r.orders) if (h.carrying.includes(o.id)) o.status = 'ready';
+  h.tasks = [];
+  h.carrying = [];
+  ctx.bus.emit('helper/fainted', { helperId: h.id });
+}
+
 /**
- * "Bồi bàn tự động": các lệnh một người chơi chăm chỉ sẽ bấm lúc này (mang menu, ghi món, bưng món đúng bàn).
+ * "Bồi bàn tự động": các lệnh một người chơi chăm chỉ sẽ bấm lúc này (mang menu, ghi món, bưng đủ món cho bàn, dọn bàn dơ).
  * Dùng cho test và script cân bằng; về sau có thể dùng cho nhân viên phục vụ thuê thêm.
  */
 export function autoServeCommands(ctx: SimContext): Command[] {
   const commands: Command[] = [];
-  for (const p of ctx.state.restaurant.parties) {
+  const r = ctx.state.restaurant;
+  for (const p of r.parties) {
     const need = needOf(p);
     if (need === 'menu') commands.push({ type: 'service/menu', partyId: p.id });
     else if (need === 'order') commands.push({ type: 'service/takeOrder', partyId: p.id });
   }
-  for (const o of readyOrders(ctx)) commands.push({ type: 'service/deliver', orderId: o.id, partyId: o.partyId });
+  // Bưng theo bàn: món nào đã ra quầy của bàn nào thì giao luôn (khay có thể chưa đủ bộ)
+  const byParty = new Map<number, number[]>();
+  for (const o of readyOrders(ctx)) byParty.set(o.partyId, [...(byParty.get(o.partyId) ?? []), o.id]);
+  for (const [partyId, orderIds] of byParty) commands.push({ type: 'service/deliver', orderIds, partyId });
+  for (const id of Object.keys(r.dirty)) if (!taskTaken(ctx, (t) => t.kind === 'clean' && t.tableId === id)) commands.push({ type: 'service/clean', tableId: id });
   return commands;
 }
