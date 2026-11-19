@@ -45,6 +45,12 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [x] **Giao diện:** chừa tai thỏ / góc bo (env(safe-area-inset-*)), chừa góc logo Netlify; bảng nhiệm vụ bấm xem chi tiết.
 - [x] **G10 · Việc mở ra từ đợt 14** (xong ở đợt 16) — cân bằng lại kinh tế theo ngày 12 phút + 2 ca (B1: doanh thu / ngày giảm vì ít khách hơn); trái cây mới có 4 món dùng — thêm món, bán ở chợ; hàng rong chợ mới bán nguyên liệu có sẵn (chưa có món riêng như ly cà phê, bánh tráng); kéo thả khay chưa thử bằng tay trên điện thoại.
 
+## Giai đoạn 10 — Sửa bên trong Tiệm 25caaaaa (20/11/2026)
+
+- [x] Đèn thả trần trong tiệm (và 2 bóng dưới mái sạp nguyên liệu) sáng lên khi trời tối.
+- [x] Người trong đội ăn ở tiệm: đĩa món đặt trên mặt bàn (không lơ lửng trên đầu), ngồi hai bên bàn cho khỏi che nhau, bàn dễ thấy được ngồi trước.
+- [x] Tường hai bên tiệm chạy tới mép ngoài của sàn.
+
 ## Giai đoạn 9 — Bưng món theo màu bàn (20/11/2026)
 
 - [x] Bỏ khay kéo thả và ngăn quầy bên phải. Bấm quầy line: bồi bàn lấy món nấu xong sớm nhất, tối đa 2 món. Bấm bàn: giao đúng món của bàn đó.

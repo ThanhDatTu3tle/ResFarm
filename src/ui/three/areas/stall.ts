@@ -54,7 +54,10 @@ export class StallArea implements Area {
   private vendor: THREE.Group | null = null;
   private eaters = new Map<string, THREE.Group>();
   private bobbers: { obj: THREE.Object3D; y: number; phase: number }[] = [];
-  private seats: V3[] = [];
+  /** Ghế đẩu trong tiệm: vị trí ghế + tâm bàn (để đặt đĩa món lên mặt bàn trước mặt người ngồi). */
+  private seats: { p: V3; table: [number, number] }[] = [];
+  /** Đèn trong quầy / tiệm: sáng dần khi trời tối. */
+  private lamps: { light: THREE.PointLight; bulb: THREE.MeshBasicMaterial }[] = [];
 
   constructor(private game: Game) {
     mesh(this.root, G.box(40, 0.4, 40), 0x8fd16a, { p: [0, -0.25, 0], cast: false });
@@ -75,6 +78,7 @@ export class StallArea implements Area {
     this.eaters.clear();
     this.bobbers = [];
     this.seats = [];
+    this.lamps = [];
     this.vendor = null;
     this.day = this.game.state.clock.day;
     const { content } = this.game;
@@ -98,6 +102,7 @@ export class StallArea implements Area {
     for (const sx of [-1, 1]) mesh(g, G.box(0.15, 4.9, 4.4), 0xf6efe0, { p: [sx * 5, 2.45, -2.1] });
     for (let i = 0; i < 10; i++) mesh(g, G.box(1, 0.08, 4.8), i % 2 ? color : 0xffffff, { p: [-4.5 + i, 5.0, -2], r: [0.12, 0, 0], cast: false });
     for (const sx of [-4.85, 4.85]) mesh(g, G.cyl(0.08, 0.08, 5.0, 8), 0x8a5a35, { p: [sx, 2.5, 0.3] });
+    this.addLamps([[-2.6, 4.2, -1.8], [2.6, 4.2, -1.8]], 4.9);
     // Kệ thùng gỗ sau lưng người bán
     for (let row = 0; row < 2; row++) {
       mesh(g, G.box(8, 0.08, 0.7), 0x8a5a35, { p: [0, 0.9 + row * 0.9, -3.7] });
@@ -162,7 +167,9 @@ export class StallArea implements Area {
     // Sàn trắng ngà trơn cho đỡ rối mắt
     mesh(g, G.box(11, 0.1, 9), 0xf7f0e1, { p: [0, 0, -1], receive: true });
     mesh(g, G.box(11, 3.8, 0.15), 0xf4a7bd, { p: [0, 1.9, -5.4] });
-    for (const sx of [-1, 1]) mesh(g, G.box(0.15, 3.8, 5), 0xf4a7bd, { p: [sx * 5.5, 1.9, -2.9] });
+    // Hai tường bên chạy suốt tới mép trước của sàn
+    for (const sx of [-1, 1]) mesh(g, G.box(0.15, 3.8, 9.05), 0xf4a7bd, { p: [sx * 5.5, 1.9, -0.98] });
+    this.addLamps([[-2.6, 3.3, -1.4], [1.2, 3.3, -3.0], [2.4, 3.3, 0.9], [-0.8, 3.3, 1.6]], 3.8);
     // Sọc tường như logo
     for (let i = 0; i < 11; i++) mesh(g, G.box(0.45, 3.8, 0.02), 0xf8c6d4, { p: [-5 + i, 1.9, -5.32], cast: false });
     // Quầy pha chế + máy, ly matcha, logo phía trên
@@ -208,14 +215,16 @@ export class StallArea implements Area {
     board.add(hint);
     this.bobbers.push({ obj: hint, y: -1.0, phase: 0 });
     // Bàn tròn + ghế đẩu: chỗ ngồi cho người trong đội
-    for (const [tx, tz] of [[-3.4, -2.7], [0.4, -0.6], [3.2, -1.4], [-1.2, 1.4], [2.0, 1.6]] as const) {
+    // Bàn dễ thấy xếp trước (người trong đội ngồi theo thứ tự này); bàn góc trong sau bảng menu để cuối
+    for (const [tx, tz] of [[0.4, -0.6], [-1.2, 1.4], [2.0, 1.6], [3.2, -1.4], [-3.4, -2.7]] as const) {
       mesh(g, G.cyl(0.55, 0.55, 0.06, 18), 0xffffff, { p: [tx, 0.8, tz] });
       mesh(g, G.cyl(0.06, 0.1, 0.78, 8), 0xf28fb0, { p: [tx, 0.4, tz] });
-      for (const a of [0, Math.PI]) {
+      // Ghế hai bên trái / phải bàn: nhìn từ cửa không ai che đĩa món của ai
+      for (const a of [Math.PI / 2, -Math.PI / 2]) {
         const sx = tx + Math.sin(a) * 0.85;
         const sz = tz + Math.cos(a) * 0.85;
         mesh(g, G.cyl(0.22, 0.2, 0.45, 12), 0xf6c94c, { p: [sx, 0.22, sz] });
-        this.seats.push([sx, 0.45, sz]);
+        this.seats.push({ p: [sx, 0.45, sz], table: [tx, tz] });
       }
     }
   }
@@ -233,15 +242,19 @@ export class StallArea implements Area {
       let g = this.eaters.get(l.who);
       if (!g) {
         const seat = this.seats[i % this.seats.length];
-        g = group(this.content, { p: seat });
+        g = group(this.content, { p: seat.p });
         const p = crewLook(this.game, l.who);
-        // Ghế hai phía bàn: quay mặt vào giữa bàn
-        p.rotation.y = i % 2 ? 0 : Math.PI;
+        // Quay mặt vào giữa bàn
+        p.rotation.y = Math.atan2(seat.table[0] - seat.p[0], seat.table[1] - seat.p[2]);
         g.add(p);
         g.userData.person = p;
-        const dish = emojiSprite(l.icon, 0.45);
-        dish.position.set(0, 2.0, 0);
-        g.add(dish);
+        // Đĩa trên mặt bàn (mặt bàn cao 0.83, ghế 0.45): dịch về phía tâm bàn
+        const [tx, tz] = seat.table;
+        const plate = group(g, { p: [(tx - seat.p[0]) * 0.5, 0.4, (tz - seat.p[2]) * 0.5] });
+        mesh(plate, G.cyl(0.17, 0.12, 0.03, 14), 0xffffff, { cast: false });
+        const dish = emojiSprite(l.icon, 0.34);
+        dish.position.set(0, 0.17, 0);
+        plate.add(dish);
         this.eaters.set(l.who, g);
       }
       animatePerson(g.userData.person, env.t, { sit: true, eat: true });
@@ -250,7 +263,27 @@ export class StallArea implements Area {
 
   private paintedSeason = -1;
 
+  /** Đèn thả trần: dây + chao đèn + bóng sáng, kèm nguồn sáng (tối thì sáng lên). `ceil` = độ cao trần / mái. */
+  private addLamps(points: V3[], ceil: number): void {
+    for (const [x, y, z] of points) {
+      const g = group(this.content, { p: [x, y, z] });
+      mesh(g, G.cyl(0.012, 0.012, ceil - y, 4), 0x3b2a1e, { p: [0, (ceil - y) / 2, 0], cast: false });
+      mesh(g, G.cone(0.28, 0.24, 14, ), 0xf2c14e, { p: [0, 0.02, 0], r: [Math.PI, 0, 0], cast: false });
+      const bulb = new THREE.MeshBasicMaterial({ color: 0xbfb8a8 });
+      mesh(g, G.sphere(0.09, 10, 8), bulb, { p: [0, -0.1, 0], cast: false });
+      const light = new THREE.PointLight(0xffd9a0, 0, 0, 0);
+      light.position.set(x, y - 0.2, z);
+      this.content.add(light);
+      this.lamps.push({ light, bulb });
+    }
+  }
+
   update(env: Env): void {
+    // Đèn trong tiệm: luôn hơi sáng, trời tối thì sáng hẳn
+    for (const l of this.lamps) {
+      l.light.intensity = (0.12 + env.night * 1.1) / Math.max(1, this.lamps.length / 2);
+      l.bulb.color.setHex(env.night > 0.3 ? 0xfff1c4 : 0xbfb8a8);
+    }
     // Nền cỏ ngoài nhà đổi theo mùa (cây trồng bên trong giữ nguyên)
     if (this.paintedSeason !== env.season) {
       this.paintedSeason = env.season;
