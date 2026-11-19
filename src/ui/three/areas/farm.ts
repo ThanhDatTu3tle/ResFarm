@@ -594,7 +594,17 @@ export class FarmArea implements Area {
     const { state, ctx } = this.game;
     const f = state.farm.farmer;
     const g = this.farmer;
-    const moved = Math.hypot(f.x - this.farmerPrev.x, f.z - this.farmerPrev.y);
+    // Bác ra chợ ăn: vắng mặt; kiệt sức: nằm nghiêng giữa đồng
+    g.visible = !state.crew.farmerAway;
+    if (!g.visible) this.tractor.g.visible = false;
+    if (f.fainted || !g.visible) {
+      g.position.set(f.x, f.fainted ? 0.2 : 0, f.z);
+      g.rotation.z += ((f.fainted ? Math.PI / 2 : 0) - g.rotation.z) * Math.min(1, dt * 6);
+      this.farmerPrev.set(f.x, f.z);
+      return;
+    }
+    g.rotation.z += (0 - g.rotation.z) * Math.min(1, dt * 6);
+    const moved =Math.hypot(f.x - this.farmerPrev.x, f.z - this.farmerPrev.y);
     // Làm mượt trạng thái "đang đi" để tay chân không giật khi tốc độ khung hình dao động
     this.farmerWalk += ((moved > 1e-4 ? 1 : 0) - this.farmerWalk) * Math.min(1, dt * 12);
     if (moved > 1e-4) g.rotation.y = Math.atan2(f.x - this.farmerPrev.x, f.z - this.farmerPrev.y);
@@ -707,10 +717,13 @@ export class FarmArea implements Area {
       const ripe = slot.stage === 'ready' ? 1 + 0.35 * wobble(env.t - view.ripeAt, 0.8, 14) + 0.03 * Math.sin(env.t * 4 + index) : 1;
 
       for (const m of view.movers) {
-        if (view.type !== 'field') animateCreature(m.g, env.t, m.phase);
+        if (view.type !== 'field' && view.type !== 'orchard') animateCreature(m.g, env.t, m.phase);
         m.g.scale.set(scale * fit * pop, scale * fit * pop * ripe, scale * fit * pop);
         if (view.type === 'field') {
           m.g.rotation.z = Math.sin(env.t * (1.4 + env.wind * 2) + m.phase) * (0.03 + env.wind * 0.12);
+        } else if (view.type === 'orchard') {
+          // Cây đứng yên một chỗ, chỉ nghiêng nhẹ theo gió
+          m.g.rotation.z = Math.sin(env.t * (1.1 + env.wind * 1.5) + m.phase) * (0.012 + env.wind * 0.05);
         } else if (view.type === 'pen') {
           const a = env.t * 0.35 + m.phase;
           m.g.position.set(m.x + Math.sin(a) * 0.35, Math.abs(Math.sin(env.t * 3 + m.phase)) * 0.04, m.z + Math.cos(a * 0.8) * 0.3);

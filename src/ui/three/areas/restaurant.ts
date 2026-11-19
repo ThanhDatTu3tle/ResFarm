@@ -206,13 +206,14 @@ export class RestaurantArea implements Area {
         if (!key.startsWith(`${e.partyId}:`)) continue;
         actor.leaving = true;
         anchor ??= actor.g.position.clone();
+        if (e.reason === 'closed') continue; // hết ca, khách về không giận
         if (e.reason !== 'paid') {
           const angry = emojiSprite('💢', 0.45);
           angry.position.set(0, 1.55, 0);
           actor.g.add(angry);
         }
       }
-      if (!anchor) return;
+      if (!anchor || e.reason === 'closed') return;
       // Khách vui: tim bay lên (có tip thì nhiều tim hơn)
       if (e.reason === 'paid') this.fx.burst(e.tip > 0 ? '💖' : '😊', anchor.clone().setY(1.7), { count: e.tip > 0 ? 4 : 1, up: 1.6, spread: 0.7, gravity: 0.6, life: 1.3, size: 0.4, stagger: 0.08 });
       if (e.reason === 'paid') this.onPaid(this.root.localToWorld(anchor.clone().setY(1.2)), e.total + e.tip);
@@ -585,7 +586,11 @@ export class RestaurantArea implements Area {
 
   /** Bồi bàn đi theo vị trí trong sim (làm mượt), quay mặt theo hướng đi, cầm thứ đang mang. */
   private updateWaiter(env: Env, dt: number): void {
-    this.moveWorker(this.game.state.restaurant.waiter, this.waiter, env, dt);
+    const w = this.game.state.restaurant.waiter;
+    // Giờ nghỉ cả đội ra chợ: bồi bàn vắng mặt (về lại thì hiện ở cửa)
+    this.waiter.g.visible = !this.game.state.crew.restaurantAway;
+    this.moveWorker(w, this.waiter, env, dt, w.fainted);
+    faintPose(this.waiter.g, w.fainted, dt);
     (this.waiter.ring.material as THREE.MeshBasicMaterial).opacity = 1;
     this.waiter.ring.scale.setScalar(1 + Math.sin(env.t * 4) * 0.06);
     this.updateHelpers(env, dt);
@@ -624,13 +629,13 @@ export class RestaurantArea implements Area {
   /** Nhân viên thuê: áo theo người, mũ vàng, thanh năng lượng trên đầu; xỉu thì nằm lăn ra sàn 😵; đi ăn ở chợ thì vắng mặt. */
   private updateHelpers(env: Env, dt: number): void {
     const helpers = this.game.state.restaurant.helpers;
+    const away = !!this.game.state.crew.restaurantAway;
     for (const [id, v] of this.helperViews) {
-      if (helpers.some((h) => h.id === id && !h.away)) continue;
+      if (helpers.some((h) => h.id === id)) continue;
       this.root.remove(v.g);
       this.helperViews.delete(id);
     }
     for (const h of helpers) {
-      if (h.away) continue;
       let v = this.helperViews.get(h.id);
       if (!v) {
         const shirts = [0x5fae57, 0xe2703a, 0x9a6bd1, 0x3fb6a8];
@@ -651,8 +656,9 @@ export class RestaurantArea implements Area {
         this.root.add(g);
         this.helperViews.set(h.id, (v = { g, hand, handKey: '', lastX: g.position.x, lastZ: g.position.z, bar, status, statusKey: '' }));
       }
+      v.g.visible = !away;
       this.moveWorker(h, v, env, dt, h.fainted);
-      const max = this.game.content.balance.helpers.maxEnergy;
+      const max = this.game.content.balance.crew.maxEnergy;
       v.bar.set(h.energy / max, true);
       v.bar.group.visible = !h.fainted;
       // Xỉu: nằm nghiêng ra sàn, ngôi sao quay trên đầu
@@ -992,10 +998,17 @@ export class RestaurantArea implements Area {
     this.bulbMat.emissiveIntensity = 0.3 + env.night * 1.4;
     this.windowMat.opacity = 0.18 + env.day * 0.15;
 
-    // Đầu bếp
+    // Đầu bếp (giờ nghỉ ra chợ thì vắng mặt; kiệt sức thì nằm ra sàn)
+    const chefsAway = !!state.crew.restaurantAway;
     staff.forEach((s, i) => {
       const chef = this.chefs[i];
       if (!chef) return;
+      chef.g.visible = !chefsAway;
+      faintPose(chef.g, s.fainted, dt);
+      if (s.fainted) {
+        chef.icon.visible = chef.bar.group.visible = false;
+        return;
+      }
       const order = orders.find((o) => o.id === s.orderId);
       chef.icon.visible = chef.bar.group.visible = !!order;
       chef.g.position.y = order ? Math.abs(Math.sin(env.t * 9 + i)) * 0.03 : 0;
@@ -1176,4 +1189,10 @@ export class RestaurantArea implements Area {
     }
     this.floats = this.floats.filter((f) => f.life > 0);
   }
+}
+
+/** Kiệt sức: nằm nghiêng ra sàn (mượt dần); tỉnh lại thì đứng dậy. */
+function faintPose(g: THREE.Object3D, fainted: boolean, dt: number): void {
+  g.rotation.z += ((fainted ? Math.PI / 2 : 0) - g.rotation.z) * Math.min(1, dt * 6);
+  if (fainted) g.position.y = 0.2;
 }

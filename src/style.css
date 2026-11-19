@@ -1978,3 +1978,285 @@ button.ghost {
   box-shadow: none;
   color: var(--muted);
 }
+
+/* ---------- Đợt 16: quầy ra món dạng ngăn kéo bên phải, nút chuyển khu sát trên thanh công cụ ---------- */
+/* Nút chuyển khu: nằm ngang, gọn, ngay trên thanh công cụ dưới cùng (không chiếm giữa màn hình) */
+button.side {
+  top: auto;
+  bottom: calc(var(--pad-b) + 54px);
+  transform: none;
+  flex-direction: row;
+  padding: 7px 12px;
+  gap: 6px;
+  border-radius: 14px;
+}
+button.side .big {
+  font-size: 20px;
+}
+button.side.right {
+  /* chừa logo Netlify ở góc dưới phải */
+  bottom: calc(var(--pad-b) + max(54px, var(--badge-h) + 6px));
+}
+@media (max-height: 540px) {
+  button.side {
+    bottom: calc(var(--pad-b) + 40px);
+    padding: 5px 9px;
+  }
+  button.side.right {
+    bottom: calc(var(--pad-b) + max(40px, var(--badge-h) + 4px));
+  }
+  button.side span:not(.big):not(.badge) {
+    display: none;
+  }
+}
+
+/* Quầy ra món trong ngăn kéo bên phải */
+#drawer .pass-panel {
+  padding: 0 !important;
+}
+#drawer .service-card.pass {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+  background: transparent;
+  padding: 10px 12px calc(var(--badge-h) + 16px);
+}
+#drawer .service-head {
+  font-size: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--line);
+}
+#drawer .pass-list {
+  max-width: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+#drawer .trays {
+  flex-direction: column;
+}
+.tray.picked {
+  border-style: solid;
+  border-color: var(--accent);
+  background: #fff3e0;
+  box-shadow: 0 0 0 3px rgba(242, 140, 40, 0.25);
+}
+.tray.match:not(.picked) {
+  border-color: var(--green);
+}
+button.tray-take {
+  width: 100%;
+  margin-top: 8px;
+  font-size: 13px;
+}
+button.tray-take.on {
+  background: var(--accent);
+  color: #fff;
+}
+.tray-hint-line {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.tray.match .tray-hint-line {
+  color: var(--green);
+  font-weight: 700;
+}
+button.pass-dish.on {
+  border-color: var(--accent);
+  background: #fff3e0;
+}
+.held-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: #fff3e0;
+  border: 2px solid var(--accent);
+  font-size: 12px;
+}
+.held-bar span:not(.dish-icon) {
+  flex: 1;
+}
+
+/* Nút kết thúc ngày (sau 21:00) dưới đồng hồ */
+button.end-day {
+  margin-top: 6px;
+  width: 100%;
+  font-size: 13px;
+  background: #3b3f6b;
+  color: #fff;
+  box-shadow: 0 3px 0 #24274a;
+}
+
+/* Hoá đơn ăn uống của cả đội */
+.bill-dialog {
+  max-width: 420px;
+}
+.bill-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 46vh;
+  overflow: auto;
+}
+.bill-list li {
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: #fbf1df;
+}
+.bill-list small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.bill-list em {
+  font-style: normal;
+  font-weight: 700;
+}
+.bill-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 4px 12px;
+  font-size: 16px;
+  border-top: 2px dashed var(--line);
+}
+.card.helper.low {
+  border-color: var(--accent);
+}
+
+/* Nút chuyển khu bám theo chiều cao thật của thanh công cụ (--tools-h do app.ts đặt) */
+button.side {
+  bottom: calc(var(--pad-b) + var(--tools-h, 40px) + 10px);
+}
+button.side.right {
+  bottom: calc(var(--pad-b) + max(var(--tools-h, 40px) + 10px, var(--badge-h) + 6px));
+}
+@media (max-height: 540px) {
+  button.side {
+    bottom: calc(var(--pad-b) + var(--tools-h, 34px) + 6px);
+  }
+  button.side.right {
+    bottom: calc(var(--pad-b) + max(var(--tools-h, 34px) + 6px, var(--badge-h) + 4px));
+  }
+}
+#drawer button.pass-dish {
+  width: 100%;
+  min-width: 0;
+}
+#drawer button.pass-dish b,
+#drawer button.pass-dish small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+#drawer .pass-panel {
+  overflow-x: hidden;
+}
+
+/* ---------- Đợt 17: gọi món cho cả đội, bảng mua trong quầy chợ ---------- */
+#buy {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--pad-b) + var(--tools-h, 40px) + 12px);
+  transform: translateX(-50%);
+  z-index: 5;
+  width: max-content;
+  max-width: calc(100% - 220px);
+}
+#buy:empty {
+  display: none;
+}
+.buy-card .btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+button.meal-call {
+  margin-top: 6px;
+  width: 100%;
+  font-size: 13px;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--accent-dark);
+  animation: pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.meal-dialog {
+  max-width: 560px;
+  text-align: left;
+}
+.meal-whos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+.meal-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+button.meal-who.on {
+  background: var(--accent);
+  color: #fff;
+}
+span.meal-who.done {
+  background: #e9f7df;
+  border: 2px solid var(--green);
+}
+.meal-for {
+  margin: 6px 0 0;
+}
+.meal-menu {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+button.meal-dish {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  text-align: left;
+  align-items: center;
+  padding: 6px 10px 6px 8px;
+}
+button.meal-dish .big {
+  grid-row: span 2;
+}
+button.meal-dish small {
+  color: var(--muted);
+  font-size: 11px;
+}
+/* Bảng dài (gọi món, hoá đơn) không vượt màn hình: cuộn bên trong */
+.meal-dialog,
+.bill-dialog {
+  width: min(560px, 94vw);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  gap: 8px;
+  padding: 16px 18px;
+}
+.meal-dialog h3 {
+  margin: 6px 0 2px;
+  font-size: 14px;
+}
+.meal-dialog .dialog-foot {
+  position: sticky;
+  bottom: -16px;
+  background: var(--card);
+  padding: 8px 0;
+}

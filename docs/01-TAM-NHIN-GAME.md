@@ -153,6 +153,27 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** món dùng trái cây (Đĩa trái cây, Chè chuối, Sandwich trái cây, Trà trái cây hwachae); hàng rong mới bán nguyên liệu có sẵn với giá cao hơn 10%; nhóm 5–6 người chỉ tới khi có bàn đủ chỗ; khay 2 ô dành cho bàn đôi / quầy, 4 ô cho bàn từ 3 ghế; mỗi ca để lại 3 vết bẩn, vết cũ bẩn thêm, mỗi bậc bẩn làm khách kém kiên nhẫn 1.5% (tối đa −20%).
 
+### Đợt 17 — Gọi món cho cả đội, vào bên trong quầy chợ (19/11/2026)
+
+- Trưa: quán đóng 12:00, 11:30 ngưng nhận khách. Tối: quán đóng 21:00, 20:30 ngưng nhận khách. Đóng cửa xong cả đội (nhân viên, đầu bếp, bác nông dân) ra chợ ăn.
+- Người chơi được chọn món cho từng người; sắp tới giờ vào ca mà chưa chọn thì hệ thống tự chọn và gửi hoá đơn.
+- Bác nông dân về nông trại sớm hơn nhưng tiền ăn của bác gộp chung một hoá đơn (không hiện 2 lần).
+- Tiệm 25caaaaa: Matcha thay trà sữa trân châu, thêm Mì Ý. Gắn biển logo cho tiệm.
+- Bấm 4 sạp chợ và Tiệm 25caaaaa thì zoom hẳn vào bên trong (như nhà kính): sạp có khay hàng + giá, bấm mua; tiệm có người ngồi ăn và bảng menu để chọn món.
+
+**AI tự chọn (đổi được):** gọi món xong ăn 30 phút; hạn chọn = giờ về trừ 30 phút (bác 12:30, đội quán 13:30, tối 21:30); bảng gọi món tự mở khi đội ra chợ; khay hàng phía sau đặt trên bậc cao; logo đã cắt bỏ dòng số điện thoại (repo công khai); hàng rong ngoài vỉa hè vẫn chỉ lướt camera tới (chưa có cảnh bên trong).
+
+### Đợt 16 — Cả đội có giờ nghỉ (19/11/2026)
+
+- Cây ăn quả đứng yên; cây nào ra trái nấy; cây chuối không phải thân gỗ.
+- Quầy ra món hiện dọc bên phải như các bảng khác; xếp món vào khay rồi người chơi bấm khay, bấm bàn để bưng (không tự bưng). Lau sàn bấm 1 cái. Đèn lồng, quạt, máy hút khói treo cao hơn. Phục vụ chậm hơn nữa; bếp nấu nhanh hơn, bếp phó nhanh bằng bếp trưởng.
+- Xe trên đường cùng tốc độ. Hàng rong và Tiệm 25caaaaa không phải chỗ mua nguyên liệu, chỉ bán đồ ăn cho nhân viên.
+- Bảng quản lý nhân viên: đầu bếp, phục vụ, bác nông dân; mỗi người 30 năng lượng (đầu bếp nấu 1 món −2, phục vụ / bác nông dân mỗi việc −1).
+- Hết ca sáng đội quán ra chợ ăn, 14:00 về chuẩn bị ca chiều; bác nông dân 13:00 về. Sau 20:00 cả đội ra chợ ăn tối. Lúc đó quán / nông trại tạm ngưng, bấm thì có lời nhắc. Mỗi người tự chọn món, xong hiện hoá đơn cho người chơi trả, tổng không vượt số tiền đang có.
+- Nút "Kết thúc ngày" sau 21:00; nút chuyển khu nằm sát trên thanh công cụ.
+
+**AI tự chọn (đổi được):** đội quán chỉ ra chợ khi quán đã vắng khách (khách còn xếp hàng lúc hết ca thì về, không trừ uy tín); xỉu vẫn giữ bồi dưỡng 100 xu (hồi 15); nghỉ trưa hồi thêm 10 ngoài món ăn; ngủ qua đêm đầy 30; hoá đơn quên trả thì sang ngày tự trả; giá món hàng rong: cà phê 8–10 (+5–7), bánh tráng 14–18 (+9–11), hủ tiếu 22–27 (+13–15), Tiệm 25caaaaa 30–42 (+16–22); trái cây giờ chỉ có từ vườn; uy tín lên chậm lại (~0.4⭐/ngày); lau nhà, dọn bàn của nhân viên thuê cũng −1.
+
 ### Đợt 15 — Nhân viên phục vụ (19/11/2026)
 
 - Bồi bàn đi chậm lại. Bấm món ở quầy thì phải chọn bàn để giao, hoặc kéo vào khay 2 / 4 ô — không tự thêm vào khay.

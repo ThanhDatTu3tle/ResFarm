@@ -36,6 +36,8 @@ export interface GameState {
   /** Hệ số giá chợ hôm nay theo từng nguyên liệu. */
   market: { priceFactor: Record<string, number> };
   weather: { id: string; minutesLeft: number };
+  /** Cả đội (bếp, phục vụ, bác nông dân): giờ nghỉ ra chợ ăn, bữa đang ăn, hoá đơn chờ trả. */
+  crew: CrewState;
   stats: { today: DayStats; total: DayStats };
 }
 
@@ -115,10 +117,57 @@ export interface Order {
   fav?: boolean;
 }
 
-export interface StaffState {
+/** Sức của một người trong đội: mỗi việc tốn năng lượng, cạn thì xỉu (đứng im tới khi được bồi dưỡng / ăn / ngủ). */
+export interface Vitals {
+  energy: number;
+  fainted: boolean;
+}
+
+export interface StaffState extends Vitals {
   /** id của StaffDef. */
   id: string;
   orderId: number | null;
+}
+
+/** lunch: nghỉ trưa (sau ca sáng) · dinner: tối sau khi đóng cửa. */
+export type BreakKind = 'lunch' | 'dinner';
+
+/** Một người trong đội ăn một món ở hàng rong (dòng trong hoá đơn). `who`: id đầu bếp / 'waiter' / id nhân viên / 'farmer'. */
+export interface MealLine {
+  who: string;
+  name: string;
+  stallId: string;
+  dish: string;
+  icon: string;
+  price: number;
+  energy: number;
+  /** Phút trong ngày ăn xong (lúc đó mới cộng năng lượng). */
+  until: number;
+  kind: BreakKind;
+}
+
+/** Một người ra chợ đang chờ gọi món. */
+export interface PendingMeal {
+  who: string;
+  name: string;
+  kind: BreakKind;
+  /** Quá phút này chưa chọn thì tự chọn ngẫu nhiên. */
+  deadline: number;
+  /** Giờ phải về chỗ làm (ăn xong trước giờ này). */
+  back: number;
+}
+
+export interface CrewState {
+  /** Đội quán (bếp + phục vụ) đang ở chợ; null = đang ở quán. */
+  restaurantAway: BreakKind | null;
+  /** Bác nông dân đang ở chợ; null = ở nông trại. */
+  farmerAway: BreakKind | null;
+  /** Người đã ra chợ nhưng chưa gọi món (người chơi chọn; quá hạn thì tự chọn ngẫu nhiên). */
+  pending: PendingMeal[];
+  /** Bữa đang ăn (vẽ người ngồi ở hàng rong; ăn xong chuyển sang hoá đơn). */
+  meals: MealLine[];
+  /** Hoá đơn chờ người chơi thanh toán (hiện khi mọi người ăn xong). */
+  bill: MealLine[];
 }
 
 /** Việc của bồi bàn, làm lần lượt theo thứ tự người chơi giao. */
@@ -132,7 +181,7 @@ export type WaiterTask =
   /** Lau một vết bẩn trên sàn. */
   | { kind: 'mop'; stainId: number };
 
-export interface WaiterState {
+export interface WaiterState extends Vitals {
   /** Vị trí theo toạ độ mặt bằng. */
   x: number;
   y: number;
@@ -151,11 +200,6 @@ export interface HelperState extends WaiterState {
   /** Kiểu áo (chỉ để vẽ). */
   look: number;
   jobs: Record<HelperJob, boolean>;
-  energy: number;
-  /** Kiệt sức: đứng im tới khi được bồi dưỡng (hoặc qua đêm). */
-  fainted: boolean;
-  /** Đang ra chợ ăn hàng rong (id sạp, phút còn lại); null = đang ở quán. */
-  away: { stallId: string; minutesLeft: number } | null;
 }
 
 export interface RestaurantState {
@@ -213,7 +257,7 @@ export interface FarmerTask {
 }
 
 /** Bác nông dân — vị trí trên bản đồ nông trại (mét) và hàng việc người chơi giao. */
-export interface FarmerState {
+export interface FarmerState extends Vitals {
   x: number;
   z: number;
   tasks: FarmerTask[];
@@ -244,7 +288,7 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 12;
+export const SAVE_VERSION = 13;
 
 /** Tên quán mặc định khi tạo ván mới. */
 export const DEFAULT_SHOP_NAME = 'Quán Nhà Vườn';
@@ -297,20 +341,20 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
     restaurant: {
       parties: [],
       orders: [],
-      staff: content.staff.all().map((s) => ({ id: s.id, orderId: null })),
+      staff: content.staff.all().map((s) => ({ id: s.id, orderId: null, energy: b.crew.maxEnergy, fainted: false })),
       spawnTimer: 10,
       layout: {},
       extraTables: [],
       props: [],
       tier: 1,
-      waiter: { ...content.room.waiterHome, tasks: [], carrying: [] },
+      waiter: { ...content.room.waiterHome, tasks: [], carrying: [], energy: b.crew.maxEnergy, fainted: false },
       helpers: [],
       dirty: {},
       stains: [],
     },
     farm: {
       slots: content.slotTypes.all().flatMap((t) => Array.from({ length: t.initial }, (_, i) => plantInitial(content, createSlot(t.id, i), i))),
-      farmer: { ...b.farmer.home, tasks: [], work: null, carry: null },
+      farmer: { ...b.farmer.home, tasks: [], work: null, carry: null, energy: b.crew.maxEnergy, fainted: false },
       mills: content.mills.all().flatMap((m) => Array.from({ length: m.initial }, (_, i) => createMill(m.id, i, m.products[0]))),
     },
     market: { priceFactor: {} },
@@ -318,6 +362,7 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
     regulars: {},
     profile: { name: DEFAULT_SHOP_NAME, pet: null, pets: [] },
     weather: { id: content.weathers.all()[0].id, minutesLeft: 0 },
+    crew: { restaurantAway: null, farmerAway: null, pending: [], meals: [], bill: [] },
     stats: { today: emptyStats(), total: emptyStats() },
   };
 }

@@ -192,8 +192,19 @@ export interface StallDef {
   kind?: 'stall' | 'kiosk' | 'cart' | 'pole' | 'bike';
   /** Chỗ đứng trên vỉa hè (x, z ở khu chợ) cho hàng rong. */
   spot?: { x: number; z: number };
-  /** Nhân viên phục vụ ra đây ăn trong giờ nghỉ: giá một suất, năng lượng hồi lại, thời gian ăn (phút game). */
-  staffMeal?: { price: number; energy: number; minutes: number };
+  /**
+   * Hàng rong / tiệm ăn vặt: thực đơn cho cả đội ra ăn giờ nghỉ (KHÔNG phải nguyên liệu — mua không vào kho).
+   * Có `menu` thì `items` để trống.
+   */
+  menu?: StaffDishDef[];
+}
+
+/** Một món ở hàng rong: giá, năng lượng hồi lại cho người ăn. */
+export interface StaffDishDef {
+  name: string;
+  icon: string;
+  price: number;
+  energy: number;
 }
 
 /** Bàn trong quán. Toạ độ (tâm bàn) theo hệ quy chiếu của scene, sim không dùng tới. */
@@ -371,10 +382,33 @@ export interface Balance {
   };
   /** Bán lại đồ trang trí / bàn mua thêm được bao nhiêu phần giá mua. */
   resellRate: number;
-  /** Nhân viên phục vụ thuê thêm: phí thuê, năng lượng tối đa, năng lượng tốn mỗi việc, giá bồi dưỡng khi xỉu (hồi về bao nhiêu), qua đêm hồi bao nhiêu. */
-  helpers: { hireCost: number; maxEnergy: number; energyPerTask: number; reviveCost: number; reviveEnergy: number; overnightEnergy: number; names: string[] };
+  /** Nhân viên phục vụ thuê thêm: phí thuê, tên lần lượt. */
+  helpers: { hireCost: number; names: string[] };
+  /**
+   * Cả đội (đầu bếp, bồi bàn, nhân viên thuê, bác nông dân): năng lượng tối đa, mỗi việc tốn bao nhiêu, bồi dưỡng khi xỉu;
+   * giờ nghỉ: đội quán về lúc lunchBack, bác nông dân ra chợ farmerLunch.from và về farmerLunch.to; tối (sau ca cuối) ra chợ ăn dinnerMinutes phút.
+   * Ăn xong mà còn tiền ít thì chọn món rẻ, không đủ thì nhịn (tổng hoá đơn không vượt số tiền đang có).
+   */
+  crew: {
+    maxEnergy: number;
+    chefPerDish: number;
+    waiterPerTask: number;
+    farmerPerTask: number;
+    reviveCost: number;
+    reviveEnergy: number;
+    /** Nghỉ ngơi trong giờ nghỉ cũng hồi chút sức (cộng thêm ngoài món ăn). */
+    restEnergy: number;
+    lunchBack: number;
+    farmerLunch: { from: number; to: number };
+    dinnerMinutes: number;
+    /** Gọi món xong thì ăn bao lâu (phút game); hết hạn gọi món = giờ về trừ đi chừng này, chưa chọn thì tự chọn ngẫu nhiên. */
+    eatMinutes: number;
+    /** Sau giờ này hiện nút "Kết thúc ngày". */
+    endDayAfter: number;
+  };
   /** Các ca mở cửa đón khách trong ngày (phút từ 00:00). Ngoài ca: không có khách mới (nghỉ trưa / đêm). */
-  shifts: { from: number; to: number }[];
+  /** from: mở cửa · lastCall: ngưng nhận khách mới · to: đóng cửa (khách chưa gọi món thì về, cả đội ra chợ khi quán vắng). */
+  shifts: { from: number; lastCall: number; to: number }[];
   /** Vết bẩn trên sàn: mỗi ca xong thêm perShift vết (vết cũ bẩn thêm 1 bậc), tối đa max; mỗi bậc bẩn bớt patiencePerLevel kiên nhẫn. */
   stains: { perShift: number; max: number; maxLevel: number; patiencePerLevel: number; minPatience: number };
 }
