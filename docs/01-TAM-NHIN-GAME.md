@@ -153,6 +153,14 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** món dùng trái cây (Đĩa trái cây, Chè chuối, Sandwich trái cây, Trà trái cây hwachae); hàng rong mới bán nguyên liệu có sẵn với giá cao hơn 10%; nhóm 5–6 người chỉ tới khi có bàn đủ chỗ; khay 2 ô dành cho bàn đôi / quầy, 4 ô cho bàn từ 3 ghế; mỗi ca để lại 3 vết bẩn, vết cũ bẩn thêm, mỗi bậc bẩn làm khách kém kiên nhẫn 1.5% (tối đa −20%).
 
+### Giai đoạn 7 — Mở rộng bếp, hướng dẫn, cảnh báo nguyên liệu (19/11/2026)
+
+- Nhân viên + lương để dành sau. Làm mở rộng nhà bếp và quầy line → thuê thêm đầu bếp và nhân viên; có từ 2 người thì giao việc cụ thể để họ tự làm.
+- Hướng dẫn chơi ở ngoài menu: người chơi tuỳ ý học cách chơi hoặc vào game luôn.
+- Cảnh báo món sắp hết nguyên liệu.
+
+**AI tự chọn (đổi được):** 3 hạng bếp (giá 0 / 1200 / 2800 xu, cấp 1 / 3 / 5); phí thuê đầu bếp 400 xu, đầu bếp thuê nấu chậm hơn bếp trưởng (1.35 so với 1.6); "giao việc" cho đầu bếp = chọn món người đó nấu, nhân viên phục vụ giữ cách giao việc cũ; quầy line đầy (tính cả món đang nấu) thì bếp chờ; ngưỡng cảnh báo 3 phần; hướng dẫn dạng các trang chữ (không chơi thử có dẫn từng bước).
+
 ### Giai đoạn 6 — Mùa vụ và lễ hội (19/11/2026)
 
 - Chủ dự án chọn hướng "mùa vụ + lễ hội" cho giai đoạn 6. Bỏ Tết Đoan Ngọ, giữ 5 lễ.

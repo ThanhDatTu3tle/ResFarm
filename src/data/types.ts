@@ -244,6 +244,8 @@ export interface StaffDef {
   role: 'chef';
   /** Hệ số tốc độ nấu. */
   speed: number;
+  /** Đầu bếp thuê thêm (không có sẵn lúc mở quán): cần bếp đủ hạng (`balance.kitchen.tiers[].chefs`). */
+  hire?: boolean;
 }
 
 /** Các chỉ số có thể bị nâng cấp nhân lên. Thêm key mới ở đây rồi dùng modifier(ctx, key) trong system. */
@@ -375,6 +377,13 @@ export interface Balance {
     /** Hệ số tốc độ lớn khi đất khô. */
     dryGrowth: number;
   };
+  /**
+   * Hạng bếp (bếp + quầy line): mỗi hạng một số đầu bếp tối đa, số đĩa quầy line giữ được (đầy thì bếp chờ),
+   * số chỗ nhân viên phục vụ cộng thêm. Hạng 1 có sẵn (cost 0). `chefHireCost`: phí thuê một đầu bếp.
+   */
+  kitchen: { tiers: { name: string; icon: string; cost: number; level: number; chefs: number; passSlots: number; helpers: number; desc: string }[]; chefHireCost: number };
+  /** Món còn nấu được ít hơn số phần này thì báo "sắp hết nguyên liệu". */
+  lowStockPortions: number;
   /** Biên độ giá chợ theo ngày [min, max]. */
   marketSwing: [number, number];
   /** Mùa vụ: giá chợ của nông sản đúng mùa / trái mùa (nhân thêm), giá món hợp mùa. */

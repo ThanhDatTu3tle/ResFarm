@@ -4,6 +4,15 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 19/11/2026 (laptop) — Giai đoạn 7: mở rộng bếp, giao món, hướng dẫn, cảnh báo nguyên liệu
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-7`. **Kết quả:** typecheck sạch, 82 test qua (thêm 3 test bếp); đã xem trên localhost: bếp hạng 3 có 4 đầu bếp, bảng Quán có thẻ mở rộng bếp, bảng Nhân viên có nút giao món, cảnh báo "Hết: Phở bò", trang hướng dẫn ở màn mở đầu. **Chưa thử bằng tay:** bấm các nút (chỉ xem), hướng dẫn trong Cài đặt.
+
+1. Sim: `SAVE_VERSION` 15 (`restaurant.kitchenTier`), `StaffState.dishes`, `StaffDef.hire`, `balance.kitchen`, `balance.lowStockPortions`; lệnh `kitchen/upgrade`, `chef/hire`, `chef/fire`, `chef/setDish`; sự kiện `kitchen/changed`; `maxHelpers` cộng theo hạng bếp.
+2. UI: `ui/tutorial.ts`, `lowStock` / `lowStockChip` (hud.ts), `kitchenCard` (bảng Quán), `chefControls` / `chefHire` (bảng Nhân viên), quầy line + bếp theo hạng trong `areas/restaurant.ts` (`passSlotsXY`).
+
+---
+
 ## 19/11/2026 (laptop) — Giai đoạn 6: mùa vụ và lễ hội
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-6`. **Kết quả:** typecheck sạch, 79 test qua (thêm 5 test mùa vụ / lễ hội); đã xem trên localhost: trang trí Tết trong quán, Trung thu và Giáng sinh ngoài chợ, dải lễ trên HUD, nhãn món hợp mùa, màn hết ngày báo lễ ngày mai. **Chưa thử bằng tay:** bảng chọn giống theo mùa (cần bấm ô), lì xì trong ván thật.

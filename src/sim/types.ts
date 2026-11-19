@@ -55,6 +55,11 @@ export type Command =
   | { type: 'service/deliver'; orderIds: number[]; partyId: number }
   | { type: 'service/clean'; tableId: string }
   | { type: 'service/mop'; stainId: number }
+  | { type: 'kitchen/upgrade' }
+  | { type: 'chef/hire' }
+  | { type: 'chef/fire'; chefId: string }
+  /** Giao / bỏ giao một món cho đầu bếp; recipeId null = cho nấu mọi món. */
+  | { type: 'chef/setDish'; chefId: string; recipeId: string | null; on: boolean }
   | { type: 'helper/hire' }
   | { type: 'helper/fire'; helperId: string }
   | { type: 'helper/setJob'; helperId: string; job: HelperJob; on: boolean }
@@ -118,6 +123,8 @@ export interface SimEvents {
   'regular/visited': { regularId: string; hearts: number; heartUp: boolean; fav: boolean; gift: string | null };
   /** Quán vừa lên hạng (phòng to hơn — cảnh quán cần dựng lại). */
   'restaurant/upgraded': { tier: number };
+  /** Bếp lên hạng / thuê / cho nghỉ đầu bếp: cảnh quán cần dựng lại gian bếp. */
+  'kitchen/changed': { tier: number; chefs: number };
   'level/up': { level: number };
   'weather/changed': { id: string };
   /** Sáng ngày lễ (id FestivalDef, tiền mừng đã cộng). */

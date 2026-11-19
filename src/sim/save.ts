@@ -60,6 +60,8 @@ const migrations: Record<number, (old: any) => any> = {
   },
   // v13 -> v14: thống kê theo mùa / năm (bắt đầu đếm từ lúc nâng cấp).
   13: (s) => ({ ...s, stats: { ...s.stats, season: { ...s.stats.today }, year: { ...s.stats.today } }, version: 14 }),
+  // v14 -> v15: hạng bếp (bếp + quầy line), đầu bếp thuê thêm.
+  14: (s) => ({ ...s, restaurant: { ...s.restaurant, kitchenTier: 1 }, version: 15 }),
 };
 
 export function serialize(state: GameState): string {
@@ -123,11 +125,17 @@ function reconcile(state: GameState, content: Content): GameState {
   for (const o of r.orders) if (o.status === 'carrying' && !workers.some((w) => w.carrying.includes(o.id))) o.status = 'ready';
   for (const p of r.parties) if (p.called && !workers.some((w) => w.tasks.some((t) => (t.kind === 'menu' || t.kind === 'takeOrder') && t.partyId === p.id))) p.called = false;
   for (const id of Object.keys(r.dirty)) if (!tableIds.has(id)) delete r.dirty[id];
-  r.staff = content.staff.all().map((def) => {
-    const old = r.staff.find((s) => s.id === def.id);
-    const max = content.balance.crew.maxEnergy;
-    return { id: def.id, orderId: old && r.orders.some((o) => o.id === old.orderId) ? old.orderId : null, energy: Math.min(max, old?.energy ?? max), fainted: old?.fainted ?? false };
-  });
+  // Đầu bếp: luôn có các đầu bếp sẵn (không `hire`), giữ đầu bếp thuê thêm còn trong data; món được giao chỉ giữ món còn tồn tại
+  r.kitchenTier = Math.max(1, Math.min(content.balance.kitchen.tiers.length, Math.floor(r.kitchenTier) || 1));
+  r.staff = content.staff
+    .all()
+    .filter((def) => !def.hire || r.staff.some((s) => s.id === def.id))
+    .map((def) => {
+      const old = r.staff.find((s) => s.id === def.id);
+      const max = content.balance.crew.maxEnergy;
+      const dishes = old?.dishes ? old.dishes.filter((id) => content.recipes.has(id)) : null;
+      return { id: def.id, orderId: old && r.orders.some((o) => o.id === old.orderId) ? old.orderId : null, energy: Math.min(max, old?.energy ?? max), fainted: old?.fainted ?? false, ...(dishes ? { dishes } : {}) };
+    });
 
   // Nội thất: luôn sở hữu món mặc định của quán; slot nào đang dùng món không hợp lệ thì quay về mặc định.
   const allowed = new Set(decorFor(content, state.cuisine).map((d) => d.id));

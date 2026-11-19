@@ -1,4 +1,5 @@
 import { awayReason, crewMembers, type CrewMember } from '../../sim/systems/crew';
+import { kitchenTierOf, nextChefDef, uncookedDishes } from '../../sim/systems/kitchen';
 import { maxHelpers } from '../../sim/systems/helpers';
 import type { Game } from '../../sim/game';
 import type { HelperJob, HelperState } from '../../sim/state';
@@ -56,7 +57,7 @@ export const crewPanel: Panel = {
             <div class="grow"><b>${esc(m.name)}</b> <span class="pill">${ROLE[m.role]}</span><div class="muted">${status}</div>
               <div class="energy">⚡ ${bar(m.vitals.energy / b.maxEnergy)}<em>${Math.round(m.vitals.energy)}/${b.maxEnergy}</em></div></div>
           </div>
-          ${revive}${helper ? helperControls(helper) : ''}
+          ${revive}${helper ? helperControls(helper) : ''}${m.role === 'chef' ? chefControls(game, m.who) : ''}
         </div>`;
       })
       .join('');
@@ -69,7 +70,7 @@ export const crewPanel: Panel = {
         : `<div class="muted">${max >= content.room.tiers.length - 1 ? 'Đã đủ 4 nhân viên phục vụ.' : `Nâng hạng quán để thuê thêm nhân viên phục vụ (mỗi bậc thêm 1 người, hiện ${r.helpers.length}/${max}).`}</div>`;
     return `<p class="muted">Mỗi người tối đa ${b.maxEnergy} ⚡. Đầu bếp nấu 1 món tốn ${b.chefPerDish}; phục vụ (menu, ghi món, bưng, dọn, lau) và bác nông dân (cuốc, gieo, tưới, thu hoạch) mỗi việc tốn ${b.waiterPerTask}. Cạn là xỉu.
       Nghỉ trưa: bác ra chợ ${clockText(b.farmerLunch.from)}–${clockText(b.farmerLunch.to)}, đội quán ra chợ khi hết ca sáng và quán vắng khách, ${clockText(b.lunchBack)} về. Tối sau ca cuối cả đội ra chợ ăn tối. Ngủ qua đêm là đầy sức.</p>
-      ${rows}${hire}`;
+      ${uncookedNote(game)}${rows}${chefHire(game)}${hire}`;
   },
 };
 
@@ -86,4 +87,46 @@ function helperControls(h: HelperState): string {
   const jobs = JOBS.map(([job, label]) => `<button class="mini${h.jobs[job] ? ' on' : ''}"${cmd({ type: 'helper/setJob', helperId: h.id, job, on: !h.jobs[job] })}>${label}</button>`).join('');
   return `<div class="chips jobs">${jobs}</div>
     <div class="row end"><button class="mini ghost"${cmd({ type: 'helper/fire', helperId: h.id })}>Cho nghỉ việc</button></div>`;
+}
+
+/**
+ * Giao món cho đầu bếp (chỉ hiện khi bếp có từ 2 đầu bếp): "Mọi món" hoặc chọn từng món đang bán.
+ * Đầu bếp được giao món nào thì chỉ nhận đơn món đó — bếp tự chạy, không cần người chơi điều.
+ */
+function chefControls(game: Game, chefId: string): string {
+  const { state, content } = game;
+  const s = state.restaurant.staff.find((x) => x.id === chefId);
+  if (!s) return '';
+  const def = content.staff.get(s.id);
+  const fire = def.hire ? `<div class="row end"><button class="mini ghost"${cmd({ type: 'chef/fire', chefId })}>Cho nghỉ việc</button></div>` : '';
+  if (state.restaurant.staff.length < 2) return fire;
+  const all = !s.dishes;
+  const dishes = state.menu.active
+    .map((id) => content.recipes.get(id))
+    .map((r) => {
+      const on = !all && s.dishes!.includes(r.id);
+      return `<button class="mini${on ? ' on' : ''}"${cmd({ type: 'chef/setDish', chefId, recipeId: r.id, on: !on })} title="${esc(r.name)}">${r.icon} ${esc(r.name)}</button>`;
+    })
+    .join('');
+  return `<div class="chef-dishes"><span class="muted">Nấu món:</span>
+      <button class="mini${all ? ' on' : ''}"${cmd({ type: 'chef/setDish', chefId, recipeId: null, on: true })}>🍽️ Mọi món</button>${dishes}</div>${fire}`;
+}
+
+/** Thuê thêm đầu bếp (theo hạng bếp). */
+function chefHire(game: Game): string {
+  const { state, content, ctx } = game;
+  const def = nextChefDef(ctx);
+  if (!def) return '';
+  const tier = kitchenTierOf(ctx);
+  const cost = content.balance.kitchen.chefHireCost;
+  return state.restaurant.staff.length < tier.chefs
+    ? `<button class="wide"${cmd({ type: 'chef/hire' })}${state.money >= cost ? '' : ' disabled'}>🧑‍🍳 Thuê đầu bếp (${esc(def.name)}) · ${coins(cost)}</button>`
+    : `<div class="muted">Bếp đủ ${tier.chefs} đầu bếp — mở rộng bếp (bảng Quán) để thuê thêm.</div>`;
+}
+
+/** Cảnh báo: món đang bán mà không đầu bếp nào được giao nấu. */
+function uncookedNote(game: Game): string {
+  const ids = uncookedDishes(game.ctx);
+  if (!ids.length) return '';
+  return `<div class="low-note">⚠️ Chưa đầu bếp nào nấu: ${ids.map((id) => `${game.content.recipes.get(id).icon} ${esc(game.content.recipes.get(id).name)}`).join(', ')} — khách gọi món này sẽ phải chờ mãi.</div>`;
 }

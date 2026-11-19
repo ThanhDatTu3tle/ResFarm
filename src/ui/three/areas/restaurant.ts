@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { passSlots } from '../../../sim/systems/kitchen';
 import type { RoomDef, TableDef } from '../../../data';
 import type { Game } from '../../../sim/game';
 import { canPlaceProp, canPlaceTable, LAYOUT_GRID, placedProps, roomOf, seatSpots, tableById, tablePos, withRotation } from '../../../sim/layout';
@@ -28,15 +29,11 @@ import { FestiveSet } from '../festive';
 
 /** Mặt theo tâm trạng khi chờ món: vui vẻ, bình thường, chán nản, tức giận. */
 const MOOD_FACES = ['😄', '🙂', '😒', '😠'];
-/** Chỗ đặt đĩa trên quầy ra món (mét, so với tâm quầy). */
-const PASS_SLOTS: [number, number][] = [
-  [-0.5, -0.12],
-  [0, -0.12],
-  [0.5, -0.12],
-  [-0.5, 0.2],
-  [0, 0.2],
-  [0.5, 0.2],
-];
+/** Chỗ đặt đĩa trên quầy line (mét, so với tâm quầy): 2 hàng, mỗi hàng n/2 đĩa cách nhau 0.5 m. */
+function passSlotsXY(n: number): [number, number][] {
+  const cols = Math.ceil(n / 2);
+  return Array.from({ length: cols * 2 }, (_, i) => [((i % cols) - (cols - 1) / 2) * 0.5, i < cols ? -0.12 : 0.2] as [number, number]);
+}
 const PASS_TOP = 1.02;
 
 interface PartyFx {
@@ -156,6 +153,8 @@ export class RestaurantArea implements Area {
   private partyFx = new Map<number, PartyFx>();
   /** Đĩa trên quầy ra món theo id đơn. */
   private passPlates = new Map<number, THREE.Group>();
+  /** Chỗ đặt đĩa trên quầy line theo hạng bếp. */
+  private passXY: [number, number][] = passSlotsXY(6);
   private passBell!: THREE.Sprite;
   private waiter!: { g: THREE.Group; ring: THREE.Mesh; hand: THREE.Group; handKey: string; lastX: number; lastZ: number };
   /** smoke: giây còn lại tới lần phả khói bếp kế tiếp. */
@@ -372,8 +371,24 @@ export class RestaurantArea implements Area {
   private buildKitchen(): void {
     const r = this.root;
     const z = this.backZ + 0.55;
-    // Gian bếp gọn: tủ lạnh sát vách ngăn, dãy bếp 3.4 m
+    // Gian bếp gọn: tủ lạnh sát vách ngăn, dãy bếp 3.4 m; bếp lên hạng thì thêm bàn sơ chế, nồi hầm, lò nướng bên phải
     const cx = this.kitchenCenter();
+    const ktier = this.game.state.restaurant.kitchenTier;
+    if (ktier >= 2) {
+      const px = cx + 2.45;
+      mesh(r, G.box(1.2, 0.95, 0.9), 0xb9c2ca, { p: [px, 0.475, z] });
+      mesh(r, G.box(1.3, 0.08, 1), 0x5f6b77, { p: [px, 0.98, z] });
+      mesh(r, G.box(0.6, 0.04, 0.4), 0xd9b38c, { p: [px - 0.2, 1.04, z + 0.05] }); // thớt
+      for (const [dx, c] of [[-0.35, 0xe5463c], [-0.15, 0x7cc35c], [0.0, 0xf28c28]] as const) mesh(r, G.sphere(0.06, 8, 6), c, { p: [px + dx, 1.1, z + 0.12] });
+      mesh(r, G.cyl(0.2, 0.18, 0.32, 12), 0xcfd6dc, { p: [px + 0.35, 1.18, z - 0.1] }); // nồi hầm
+    }
+    if (ktier >= 3) {
+      const ox = cx + 2.45;
+      mesh(r, G.box(1.2, 1.1, 0.7), 0x3b3f46, { p: [ox, 1.62, z - 0.05] }); // lò nướng trên bàn
+      mesh(r, G.box(0.9, 0.55, 0.04), 0x8a5a35, { p: [ox, 1.62, z + 0.31] });
+      mesh(r, G.box(0.9, 0.5, 0.02), new THREE.MeshBasicMaterial({ color: 0xff9a4a }), { p: [ox, 1.62, z + 0.34], cast: false });
+      mesh(r, G.cyl(0.36, 0.3, 0.12), 0x3b3f46, { p: [cx - 0.4, 1.08, z] }); // chảo thứ hai
+    }
     mesh(r, G.box(3.4, 0.95, 0.9), 0x9aa6b2, { p: [cx, 0.475, z] });
     mesh(r, G.box(3.6, 0.08, 1), 0x5f6b77, { p: [cx, 0.98, z] });
     mesh(r, G.cyl(0.32, 0.28, 0.35), 0xd9534a, { p: [cx - 1.0, 1.2, z] });
@@ -388,11 +403,13 @@ export class RestaurantArea implements Area {
     this.buildPass();
     this.buildWaiter();
 
-    // Đầu bếp đứng sau quầy, quay mặt ra phòng ăn
-    const staff = this.game.content.staff.all();
+    // Đầu bếp đứng sau quầy, quay mặt ra phòng ăn — dàn đều theo số đầu bếp thật (bếp lên hạng thì dãy dài thêm)
+    const staff = this.game.state.restaurant.staff.map((s) => this.game.content.staff.get(s.id));
+    const lo = this.kitchenCenter() - 1.6;
+    const hi = this.kitchenCenter() + 1.6 + (ktier >= 2 ? 1.1 : 0);
     staff.forEach((def, i) => {
-      const g = makePerson({ shirt: 0xffffff, hair: 0x3a2a1e, skin: i % 2 ? 0xffd9b8 : 0xf2c49b }, 'chef');
-      g.position.set(this.kitchenCenter() + (i - (staff.length - 1) / 2) * 2, 0, this.kitchenZ - 1.05);
+      const g = makePerson({ shirt: def.hire ? 0xf6f0e4 : 0xffffff, hair: i % 3 === 2 ? 0x6b4a2f : 0x3a2a1e, skin: i % 2 ? 0xffd9b8 : 0xf2c49b }, 'chef');
+      g.position.set(staff.length === 1 ? this.kitchenCenter() : lo + ((i + 0.5) * (hi - lo)) / staff.length, 0, this.kitchenZ - 1.05);
       g.scale.setScalar(def.speed > 1 ? 1.15 : 1.05);
       this.root.add(g);
       const bar = new Bar3D(0.8);
@@ -408,15 +425,18 @@ export class RestaurantArea implements Area {
   /** Quầy ra món: bếp nấu xong đặt đĩa ở đây, đèn giữ nóng phía trên, chuông báo khi có món chờ. */
   private buildPass(): void {
     const pass = this.room.pass;
-    const g = group(this.root, { p: [this.wx(pass.x), 0, this.wz(pass.y)] });
+    // Quầy line dài theo sức chứa của hạng bếp (6 đĩa = 1.7 m); dài thêm về phía trái, mép phải giữ nguyên
+    this.passXY = passSlotsXY(passSlots(this.game.ctx));
+    const w = 0.5 * (this.passXY.length / 2) + 0.2;
+    const g = group(this.root, { p: [this.wx(pass.x) - (w - 1.7) / 2, 0, this.wz(pass.y)] });
     g.userData.pick = { type: 'pass', id: 'pass' } satisfies Pick;
-    mesh(g, G.box(1.7, PASS_TOP - 0.06, 0.8), 0x9aa6b2, { p: [0, (PASS_TOP - 0.06) / 2, 0] });
-    mesh(g, G.box(1.85, 0.06, 0.95), 0xdfe5ea, { p: [0, PASS_TOP - 0.03, 0] });
-    mesh(g, G.box(1.7, 0.08, 0.04), 0xe2703a, { p: [0, PASS_TOP - 0.25, 0.41] }); // viền cam phía trước
+    mesh(g, G.box(w, PASS_TOP - 0.06, 0.8), 0x9aa6b2, { p: [0, (PASS_TOP - 0.06) / 2, 0] });
+    mesh(g, G.box(w + 0.15, 0.06, 0.95), 0xdfe5ea, { p: [0, PASS_TOP - 0.03, 0] });
+    mesh(g, G.box(w, 0.08, 0.04), 0xe2703a, { p: [0, PASS_TOP - 0.25, 0.41] }); // viền cam phía trước
     // Đèn giữ nóng
-    for (const side of [-1, 1]) mesh(g, G.cyl(0.03, 0.03, 0.9, 6), 0x5f6b77, { p: [side * 0.82, PASS_TOP + 0.45, -0.3] });
-    mesh(g, G.box(1.75, 0.08, 0.22), 0x5f6b77, { p: [0, PASS_TOP + 0.9, -0.2] });
-    mesh(g, G.box(1.6, 0.03, 0.16), this.bulbMat, { p: [0, PASS_TOP + 0.85, -0.2], cast: false });
+    for (const side of [-1, 1]) mesh(g, G.cyl(0.03, 0.03, 0.9, 6), 0x5f6b77, { p: [side * (w / 2 - 0.03), PASS_TOP + 0.45, -0.3] });
+    mesh(g, G.box(w + 0.05, 0.08, 0.22), 0x5f6b77, { p: [0, PASS_TOP + 0.9, -0.2] });
+    mesh(g, G.box(w - 0.1, 0.03, 0.16), this.bulbMat, { p: [0, PASS_TOP + 0.85, -0.2], cast: false });
     this.passBell = emojiSprite('🔔', 0.5);
     this.passBell.position.set(0, PASS_TOP + 1.35, 0);
     g.add(this.passBell);
@@ -568,7 +588,7 @@ export class RestaurantArea implements Area {
       plates.remove(g);
       this.passPlates.delete(id);
     }
-    ready.slice(0, PASS_SLOTS.length).forEach((o, i) => {
+    ready.slice(0, this.passXY.length).forEach((o, i) => {
       let g = this.passPlates.get(o.id);
       if (!g) {
         g = group(plates);
@@ -585,7 +605,7 @@ export class RestaurantArea implements Area {
         g.userData.born = env.t;
         this.passPlates.set(o.id, g);
       }
-      const [x, z] = PASS_SLOTS[i];
+      const [x, z] = this.passXY[i];
       const picked = env.serving === o.id;
       const reserved = isReserved(ctx, o.id);
       const pop = easeOutBack(Math.min(1, (env.t - g.userData.born) / 0.35), 3);

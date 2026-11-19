@@ -42,6 +42,8 @@ export interface UiState {
   /** Đang xem bên trong quầy nào ở chợ (khu 'stall'), và món đang chọn mua trong quầy. */
   stallView: string | null;
   buyItem: string | null;
+  /** Đang mở hướng dẫn chơi (số trang), null = đóng. */
+  guide: number | null;
 }
 
 /**

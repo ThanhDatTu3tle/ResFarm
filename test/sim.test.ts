@@ -9,6 +9,7 @@ import { priceOf } from '../src/sim/systems/market';
 import { calendarOf, festivalOf, seasonalPrice } from '../src/sim/calendar';
 import { autoServeCommands } from '../src/sim/systems/service';
 import { billDue } from '../src/sim/systems/crew';
+import { maxHelpers } from '../src/sim/systems/helpers';
 import { buildingRect, nextWaypoint, slotCenter, slotScale, workSpot } from '../src/sim/systems/farmer';
 import { millCenter, millSpot } from '../src/sim/systems/mills';
 import { moodOf } from '../src/sim/systems/customers';
@@ -1335,5 +1336,58 @@ describe('mùa vụ và lễ hội', () => {
     expect(festivalOf(game.state.clock.day)?.id).toBe('tet');
     expect(game.state.money).toBe(before + 200);
     expect(modifier(game.ctx, 'spawnRate')).toBeGreaterThan(1);
+  });
+});
+
+describe('bếp và quầy line', () => {
+  it('nâng hạng bếp mới thuê thêm đầu bếp được; thêm chỗ nhân viên phục vụ', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 99999, level: 9 });
+    expect(game.state.restaurant.staff).toHaveLength(2);
+    expect(game.dispatch({ type: 'chef/hire' }).ok).toBe(false); // bếp nhỏ: 2 đầu bếp
+    const helpersBefore = maxHelpers(game.ctx);
+    expect(game.dispatch({ type: 'kitchen/upgrade' }).ok).toBe(true);
+    expect(maxHelpers(game.ctx)).toBe(helpersBefore + 1);
+    expect(game.dispatch({ type: 'chef/hire' }).ok).toBe(true);
+    expect(game.state.restaurant.staff).toHaveLength(3);
+    expect(game.dispatch({ type: 'chef/hire' }).ok).toBe(false); // bếp đôi: 3 đầu bếp
+    expect(game.dispatch({ type: 'chef/fire', chefId: 'head_chef' }).ok).toBe(false); // đầu bếp sẵn không cho nghỉ
+    expect(game.dispatch({ type: 'chef/fire', chefId: 'line_cook_a' }).ok).toBe(true);
+  });
+
+  it('đầu bếp chỉ nấu món được giao; quầy line đầy thì bếp chờ', () => {
+    const game = quietGame();
+    const [a, b] = game.state.restaurant.staff;
+    const [r1, r2] = game.state.menu.active;
+    game.dispatch({ type: 'chef/setDish', chefId: a.id, recipeId: r1, on: true });
+    game.dispatch({ type: 'chef/setDish', chefId: b.id, recipeId: r1, on: true });
+    const order = (recipeId: string) => {
+      const o = { id: game.state.nextId++, partyId: 0, seat: 0, recipeId, status: 'queued' as const, progress: 0 };
+      game.state.restaurant.orders.push(o as never);
+      return o;
+    };
+    const o2 = order(r2);
+    game.tick(1);
+    expect(game.state.restaurant.orders.find((o) => o.id === o2.id)!.status).toBe('queued'); // không ai nấu món r2
+    game.dispatch({ type: 'chef/setDish', chefId: b.id, recipeId: null, on: true }); // b nấu mọi món
+    game.tick(1);
+    expect(game.state.restaurant.orders.find((o) => o.id === o2.id)!.status).toBe('cooking');
+    // Quầy line đầy (6 đĩa tính cả món đang nấu): không nhận đơn mới
+    game.state.restaurant.orders = [];
+    for (const s of game.state.restaurant.staff) s.orderId = null;
+    for (let i = 0; i < 6; i++) Object.assign(order(r1), { status: 'ready' });
+    const waiting = order(r1);
+    game.tick(1);
+    expect(game.state.restaurant.orders.find((o) => o.id === waiting.id)!.status).toBe('queued');
+  });
+
+  it('save v14 nâng lên v15 có hạng bếp', () => {
+    const game = newGame();
+    const old = JSON.parse(serialize(game.state));
+    delete old.restaurant.kitchenTier;
+    old.version = 14;
+    const loaded = deserialize(JSON.stringify(old), content)!;
+    expect(loaded.restaurant.kitchenTier).toBe(1);
+    expect(loaded.restaurant.staff.map((s) => s.id)).toEqual(['head_chef', 'sous_chef']);
   });
 });

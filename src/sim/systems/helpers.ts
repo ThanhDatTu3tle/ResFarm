@@ -1,4 +1,5 @@
 import { spend } from '../helpers';
+import { kitchenTierOf } from './kitchen';
 import type { HelperJob, HelperState } from '../state';
 import { fail, ok, type SimContext, type System } from '../types';
 import { dropWork } from './crew';
@@ -22,7 +23,7 @@ export const helperSystem: System = {
       const { state, content } = ctx;
       const r = state.restaurant;
       const b = content.balance.helpers;
-      if (r.helpers.length >= maxHelpers(ctx)) return fail(r.tier >= content.room.tiers.length ? 'Đã đủ nhân viên.' : 'Nâng hạng quán để thuê thêm nhân viên.');
+      if (r.helpers.length >= maxHelpers(ctx)) return fail(r.tier >= content.room.tiers.length ? 'Đã đủ nhân viên.' : 'Nâng hạng quán hoặc hạng bếp để thuê thêm nhân viên.');
       if (!spend(ctx, b.hireCost)) return fail('Không đủ tiền.');
       const used = new Set(r.helpers.map((h) => h.name));
       const name = b.names.find((n) => !used.has(n)) ?? `Nhân viên ${r.helpers.length + 1}`;
@@ -48,7 +49,7 @@ export const helperSystem: System = {
 
 /** Số nhân viên thuê được ở hạng quán hiện tại (hạng 1: 0, mỗi bậc +1). */
 export function maxHelpers(ctx: SimContext): number {
-  return Math.max(0, ctx.state.restaurant.tier - 1);
+  return Math.min(4, Math.max(0, ctx.state.restaurant.tier - 1) + kitchenTierOf(ctx).helpers);
 }
 
 function find(ctx: SimContext, id: string): HelperState | undefined {

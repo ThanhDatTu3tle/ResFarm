@@ -45,6 +45,14 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [x] **Giao diện:** chừa tai thỏ / góc bo (env(safe-area-inset-*)), chừa góc logo Netlify; bảng nhiệm vụ bấm xem chi tiết.
 - [x] **G10 · Việc mở ra từ đợt 14** (xong ở đợt 16) — cân bằng lại kinh tế theo ngày 12 phút + 2 ca (B1: doanh thu / ngày giảm vì ít khách hơn); trái cây mới có 4 món dùng — thêm món, bán ở chợ; hàng rong chợ mới bán nguyên liệu có sẵn (chưa có món riêng như ly cà phê, bánh tráng); kéo thả khay chưa thử bằng tay trên điện thoại.
 
+## Giai đoạn 7 — Mở rộng bếp, giao món cho đầu bếp, hướng dẫn, cảnh báo nguyên liệu (19/11/2026)
+
+- [x] Hạng bếp (Bếp nhỏ → Bếp đôi → Bếp chuyên nghiệp): thêm đầu bếp tối đa (2/3/4), quầy line dài ra (6/8/10 đĩa — đầy thì bếp chờ), thêm chỗ nhân viên phục vụ (+0/+1/+2); cảnh bếp có bàn sơ chế, lò nướng.
+- [x] Thuê thêm đầu bếp (Bếp phụ An, Bếp phụ Bình) ở bảng Nhân viên; từ 2 đầu bếp trở lên thì giao cho mỗi người nấu món nào (bếp tự chạy), cảnh báo món không ai nấu.
+- [x] Hướng dẫn chơi 8 trang: nút ở màn mở đầu (người chơi tuỳ chọn học hay vào game luôn) và trong Cài đặt.
+- [x] Cảnh báo món đang bán sắp hết nguyên liệu (< 3 phần): thẻ dưới số tiền, số trên nút Thực đơn, thẻ món ghi thiếu gì, thông báo một lần khi món tụt ngưỡng.
+- [ ] **G16 · Việc mở ra** — lương nhân viên (để dành); chưa thử bằng tay nút giao món và hướng dẫn trên điện thoại.
+
 ## Giai đoạn 6 — Mùa vụ và lễ hội (19/11/2026)
 
 - [x] Rau củ, lúa chỉ gieo ngoài trời đúng mùa (mỗi giống 2–3 mùa); sang mùa cây trái mùa đang lớn thì héo, cây chín vẫn thu; nhà kính quanh năm; ruộng tự động không gieo lại giống trái mùa.

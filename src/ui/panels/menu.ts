@@ -21,6 +21,11 @@ export const menuPanel: Panel = {
   id: 'menu',
   label: 'Thực đơn',
   icon: '📖',
+  // Số món đang bán sắp hết nguyên liệu
+  badge(game) {
+    const { state, content, ctx } = game;
+    return state.menu.active.filter((id) => craftableCount(ctx, content.recipes.get(id).ingredients) < content.balance.lowStockPortions).length;
+  },
   render(game) {
     const { state, content, ctx } = game;
     const recipes = recipesFor(content, state.cuisine);
@@ -30,7 +35,8 @@ export const menuPanel: Panel = {
       .map((r) => {
         const active = state.menu.active.includes(r.id);
         const can = craftableCount(ctx, r.ingredients);
-        return `<div class="card ${active ? '' : 'off'}" data-key="${r.id}">
+        const low = active && can < content.balance.lowStockPortions;
+        return `<div class="card ${active ? '' : 'off'}${low ? ' low-stock' : ''}" data-key="${r.id}">${low ? `<div class="low-note">⚠️ ${can ? 'Sắp hết nguyên liệu' : 'Hết nguyên liệu'} — thiếu: ${missingText(game, r)}</div>` : ''}
           <div class="row"><span class="big">${r.icon}</span>
             <div class="grow"><b>${esc(r.name)}</b>
               ${seasonBadge(game, r)}<div class="muted">${priceText(game, r)} · nấu ${duration(r.cookTime)} · còn nấu được <b class="${can ? '' : 'bad-text'}">${qty(can)}</b> phần</div></div>
@@ -71,4 +77,13 @@ function seasonBadge(game: Game, r: RecipeDef): string {
 function priceText(game: Game, r: RecipeDef): string {
   const now = seasonalPrice(game.ctx, r);
   return now !== r.price ? `<s>${r.price}</s> <b class="good-text">${coins(now)}</b>` : coins(r.price);
+}
+
+/** Nguyên liệu đang thiếu cho 3 phần nữa (để biết cần mua gì). */
+function missingText(game: Game, r: RecipeDef): string {
+  const want = game.content.balance.lowStockPortions;
+  const miss = r.ingredients
+    .map((ing) => ({ item: game.content.items.get(ing.item), need: ing.qty * want - stockOf(game.ctx, ing.item) }))
+    .filter((m) => !m.item.infinite && m.need > 0);
+  return miss.map((m) => `${m.item.icon} ${esc(m.item.name)} ×${m.need}`).join(', ') || 'đủ';
 }

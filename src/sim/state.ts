@@ -128,6 +128,8 @@ export interface StaffState extends Vitals {
   /** id của StaffDef. */
   id: string;
   orderId: number | null;
+  /** Món đầu bếp này được giao nấu (id món). Không có / null = nấu mọi món. */
+  dishes?: string[] | null;
 }
 
 /** lunch: nghỉ trưa (sau ca sáng) · dinner: tối sau khi đóng cửa. */
@@ -207,6 +209,8 @@ export interface RestaurantState {
   parties: Party[];
   orders: Order[];
   staff: StaffState[];
+  /** Hạng bếp (1..balance.kitchen.tiers.length): số đầu bếp tối đa, sức chứa quầy line. */
+  kitchenTier: number;
   /** Phút còn lại tới lượt khách kế tiếp. */
   spawnTimer: number;
   /** Vị trí bàn người chơi đã dời (tableId -> tâm bàn, rot = đang xoay 90°). Bàn gốc không có ở đây thì ở vị trí mặc định; bàn mua thêm luôn có. */
@@ -289,7 +293,7 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 14;
+export const SAVE_VERSION = 15;
 
 /** Tên quán mặc định khi tạo ván mới. */
 export const DEFAULT_SHOP_NAME = 'Quán Nhà Vườn';
@@ -342,7 +346,8 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
     restaurant: {
       parties: [],
       orders: [],
-      staff: content.staff.all().map((s) => ({ id: s.id, orderId: null, energy: b.crew.maxEnergy, fainted: false })),
+      staff: content.staff.all().filter((s) => !s.hire).map((s) => ({ id: s.id, orderId: null, energy: b.crew.maxEnergy, fainted: false })),
+      kitchenTier: 1,
       spawnTimer: 10,
       layout: {},
       extraTables: [],

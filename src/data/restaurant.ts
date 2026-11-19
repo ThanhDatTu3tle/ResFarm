@@ -36,6 +36,9 @@ export const tables: TableDef[] = [
 export const staff: StaffDef[] = [
   { id: 'head_chef', name: 'Bếp trưởng', icon: '👨‍🍳', role: 'chef', speed: 1.6 },
   { id: 'sous_chef', name: 'Bếp phó', icon: '👩‍🍳', role: 'chef', speed: 1.6 }, // nấu nhanh bằng bếp trưởng
+  // Đầu bếp thuê thêm khi nâng hạng bếp (chậm hơn một chút)
+  { id: 'line_cook_a', name: 'Bếp phụ An', icon: '🧑‍🍳', role: 'chef', speed: 1.35, hire: true },
+  { id: 'line_cook_b', name: 'Bếp phụ Bình', icon: '🧑‍🍳', role: 'chef', speed: 1.35, hire: true },
 ];
 
 /** Trang thiết bị — mua một lần, có hiệu lực mãi. (Sàn, tường, bàn ghế nằm ở decor.ts.) */

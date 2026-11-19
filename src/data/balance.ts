@@ -39,6 +39,15 @@ export const balance: Balance = {
   farmer: { home: { x: 1.25, z: 5.4 }, lanes: [1.25], speed: 3.7, workTime: 1.1 }, // chạy ~5.6 m/giây thực, làm mỗi việc ~0.7 giây
   farm: { waterDuration: 300, dryGrowth: 0.35 },
   marketSwing: [0.8, 1.25],
+  kitchen: {
+    tiers: [
+      { name: 'Bếp nhỏ', icon: '🍳', cost: 0, level: 1, chefs: 2, passSlots: 6, helpers: 0, desc: 'Một dãy bếp, quầy line 6 đĩa.' },
+      { name: 'Bếp đôi', icon: '🔥', cost: 1200, level: 3, chefs: 3, passSlots: 8, helpers: 1, desc: 'Thêm bếp phụ + bàn sơ chế: thuê được 3 đầu bếp, quầy line 8 đĩa, thêm 1 chỗ nhân viên phục vụ.' },
+      { name: 'Bếp chuyên nghiệp', icon: '🏅', cost: 2800, level: 5, chefs: 4, passSlots: 10, helpers: 2, desc: 'Bếp công nghiệp: 4 đầu bếp, quầy line 10 đĩa, thêm 2 chỗ nhân viên phục vụ.' },
+    ],
+    chefHireCost: 400,
+  },
+  lowStockPortions: 3,
   // Rau củ đúng mùa rẻ hơn, trái mùa đắt hơn; món hợp mùa bán đắt hơn 20%
   seasons: { inSeasonPrice: 0.85, offSeasonPrice: 1.3, dishBonus: 1.2 },
   regulars: { chance: 0.22, heartVisits: [1, 3, 6, 10, 15], tipPerHeart: 0.12, favoriteTip: 0.5, favoriteRep: 0.04, giftHearts: 3, maxPartySize: 2 },
