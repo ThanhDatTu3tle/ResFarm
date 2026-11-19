@@ -2417,3 +2417,55 @@ button.x-close {
   pointer-events: auto;
 }
 
+
+/* ---------- Giai đoạn 6: mùa vụ, lễ hội ---------- */
+.festival-tag {
+  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  background: #fff1d6;
+  color: #9a5b12;
+  white-space: nowrap;
+}
+.festival-tag.today {
+  background: #d9342b;
+  color: #fff6d8;
+  box-shadow: 0 2px 0 #9e241d;
+  animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.festival-next {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #fff1d6;
+  border: 2px solid #f2c14e;
+  text-align: left;
+}
+.festival-next span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.season-tag {
+  display: inline-block;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #eceae4;
+  color: var(--muted);
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+.season-tag.ok {
+  background: #e3f4d9;
+  color: #3f7f3a;
+}
+.row.off-season {
+  opacity: 0.6;
+}

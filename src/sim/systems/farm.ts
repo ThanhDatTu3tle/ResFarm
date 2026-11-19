@@ -1,5 +1,5 @@
 import { fitsSlot, type ItemStack, type ProducerDef, type SlotType } from '../../data';
-import { isFrozen } from '../calendar';
+import { calendarOf, canPlantNow, isFrozen, seasonNames } from '../calendar';
 import { addItem, modifier, spend } from '../helpers';
 import { bumpQuest } from './quests';
 import { createSlot, type FarmSlot } from '../state';
@@ -19,6 +19,7 @@ export const farmSystem: System = {
     grow(ctx, dt);
   },
   onDayStart(ctx) {
+    witherOffSeason(ctx);
     grow(ctx, ctx.content.balance.nightMinutes);
   },
   commands: {
@@ -55,6 +56,7 @@ export const farmSystem: System = {
       const def = ctx.content.producers.get(cmd.producerId);
       if (!fitsSlot(def, slot.type)) return fail(`${def.name} không hợp với loại ô này.`);
       if (isFrozen(ctx, slot.type)) return fail(FROZEN);
+      if (!canPlantNow(ctx, def, slot.type)) return fail(`${def.name} chỉ trồng ngoài trời vào mùa ${seasonNames(def.seasons ?? [])} — trồng trong nhà kính thì quanh năm.`);
       if (ctx.content.slotTypes.get(slot.type).needsTilling && !slot.tilled) return fail('Đất chưa tơi xốp, cuốc đất trước đã.');
       if (ctx.state.level < def.level) return fail(`Cần cấp ${def.level}.`);
       if (!spend(ctx, def.cost)) return fail('Không đủ tiền.');
@@ -148,7 +150,10 @@ function clearSlot(ctx: SimContext, slot: FarmSlot): void {
 function grow(ctx: SimContext, minutes: number): void {
   const { state, content } = ctx;
   const { waterDuration, dryGrowth } = content.balance.farm;
-  const raining = !!content.weathers.get(state.weather.id).wetsSoil;
+  const weather = content.weathers.get(state.weather.id);
+  const raining = !!weather.wetsSoil;
+  // Nắng nóng: đất khô nhanh gấp `dryRate` lần
+  const dry = weather.dryRate ?? 1;
   const speed = modifier(ctx, 'growSpeed');
 
   for (const slot of state.farm.slots) {
@@ -156,9 +161,9 @@ function grow(ctx: SimContext, minutes: number): void {
     if (content.slotTypes.get(slot.type).needsWater) {
       if (raining) slot.wet = waterDuration;
       // Phần thời gian đất còn ẩm lớn bình thường, phần đã khô lớn chậm.
-      const wetPart = Math.min(slot.wet, minutes);
+      const wetPart = Math.min(slot.wet / dry, minutes);
       moisture = (wetPart + (minutes - wetPart) * dryGrowth) / minutes;
-      slot.wet = Math.max(0, slot.wet - minutes);
+      slot.wet = Math.max(0, slot.wet - minutes * dry);
     }
     // Mùa đông: ngoài trời đóng băng, cây và con vật ngừng lớn (nhà kính vẫn lớn)
     if (!slot.producerId || slot.stage !== 'growing' || isFrozen(ctx, slot.type)) continue;
@@ -179,4 +184,23 @@ function harvest(ctx: SimContext, slot: FarmSlot): CommandResult {
   if (def.cycles !== 'infinite' && slot.cyclesDone >= def.cycles) clearSlot(ctx, slot);
   else Object.assign(slot, { stage: 'growing', progress: 0 });
   return ok();
+}
+
+/**
+ * Đầu mùa mới: cây theo mùa đang lớn ngoài trời mà trái mùa thì héo (ô trống lại, phải cuốc lại). Cây đã chín vẫn để thu.
+ * Mùa Đông mọi rau / lúa đều trái mùa nên héo hết; cây ăn quả, vật nuôi, cá (không có `seasons`) chỉ ngừng lớn.
+ */
+function witherOffSeason(ctx: SimContext): void {
+  const { state, content } = ctx;
+  const cal = calendarOf(state.clock.day);
+  if (cal.dayOfSeason !== 1 || state.clock.day <= 1) return;
+  let count = 0;
+  for (const slot of state.farm.slots) {
+    if (!slot.producerId || slot.stage !== 'growing' || content.slotTypes.get(slot.type).building) continue;
+    const def = content.producers.get(slot.producerId);
+    if (!def.seasons || def.seasons.includes(cal.season)) continue;
+    clearSlot(ctx, slot);
+    count++;
+  }
+  if (count) ctx.bus.emit('farm/withered', { count });
 }

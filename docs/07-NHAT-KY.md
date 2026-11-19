@@ -4,6 +4,16 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 19/11/2026 (laptop) — Giai đoạn 6: mùa vụ và lễ hội
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-6`. **Kết quả:** typecheck sạch, 79 test qua (thêm 5 test mùa vụ / lễ hội); đã xem trên localhost: trang trí Tết trong quán, Trung thu và Giáng sinh ngoài chợ, dải lễ trên HUD, nhãn món hợp mùa, màn hết ngày báo lễ ngày mai. **Chưa thử bằng tay:** bảng chọn giống theo mùa (cần bấm ô), lì xì trong ván thật.
+
+1. Data: `ProducerDef.seasons`, `RecipeDef.seasons` (bảng `SEASONAL`), `WeatherDef.damage` / `dryRate` (+ `storm`, `heat`), `balance.seasons`, `festivals` (calendar.ts). Không đổi save (chỉ thêm data).
+2. Sim: `canPlantNow`, `witherOffSeason`, `seasonPriceFactor`, `seasonalPrice`, `festivalOf` trong `modifier()`, system `festival.ts`, `stormDamage`.
+3. UI: `ui/three/festive.ts` (FestiveSet), `festivalTag` / `tomorrowFestivalHtml` (hud.ts), bảng Nông trại / Thực đơn có nhãn mùa, toast đầu mùa / héo / bão / lễ.
+
+---
+
 ## 19/11/2026 (laptop) — Đợt 18: HUD gọn lại, bốn mùa
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-5`. **Kết quả:** typecheck sạch, 74 test qua; đã xem trên localhost (1000×470): HUD mới, cột nút tròn, thanh dưới có nút chuyển khu, ngăn kéo với nút ✕ to, nông trại / chợ mùa Đông (tuyết, nước đóng băng), Hạ, Thu, màn tổng kết ngày 112 (mùa Đông + năm 1). **Chưa thử bằng tay:** bấm các nút mới (chỉ xem), khăn quàng nhìn gần.

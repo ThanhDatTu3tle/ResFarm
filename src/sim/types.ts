@@ -120,6 +120,12 @@ export interface SimEvents {
   'restaurant/upgraded': { tier: number };
   'level/up': { level: number };
   'weather/changed': { id: string };
+  /** Sáng ngày lễ (id FestivalDef, tiền mừng đã cộng). */
+  'festival/started': { id: string; gift: number };
+  /** Đầu mùa: số ô cây trái mùa ngoài trời vừa héo. */
+  'farm/withered': { count: number };
+  /** Bão vừa quét qua: số ô rau / lúa bị dập (mất nửa tiến độ). */
+  'farm/storm': { damaged: number };
   'day/ended': { day: number; stats: DayStats };
   'day/started': { day: number };
 }

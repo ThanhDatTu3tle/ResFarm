@@ -39,6 +39,8 @@ export const balance: Balance = {
   farmer: { home: { x: 1.25, z: 5.4 }, lanes: [1.25], speed: 3.7, workTime: 1.1 }, // chạy ~5.6 m/giây thực, làm mỗi việc ~0.7 giây
   farm: { waterDuration: 300, dryGrowth: 0.35 },
   marketSwing: [0.8, 1.25],
+  // Rau củ đúng mùa rẻ hơn, trái mùa đắt hơn; món hợp mùa bán đắt hơn 20%
+  seasons: { inSeasonPrice: 0.85, offSeasonPrice: 1.3, dishBonus: 1.2 },
   regulars: { chance: 0.22, heartVisits: [1, 3, 6, 10, 15], tipPerHeart: 0.12, favoriteTip: 0.5, favoriteRep: 0.04, giftHearts: 3, maxPartySize: 2 },
   resellRate: 0.5,
   helpers: { hireCost: 300, names: ['Bé Mận', 'Anh Bin', 'Chị Hoa', 'Cu Tèo'] },

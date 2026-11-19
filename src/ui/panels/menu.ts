@@ -4,6 +4,7 @@ import { craftableCount, stockOf } from '../../sim/helpers';
 import { cmd, esc } from '../dom';
 import { coins, duration, qty } from '../format';
 import type { Panel } from './types';
+import { isSeasonalDish, seasonalPrice, seasonNames } from '../../sim/calendar';
 
 function ingredients(game: Game, recipe: RecipeDef): string {
   return recipe.ingredients
@@ -32,7 +33,7 @@ export const menuPanel: Panel = {
         return `<div class="card ${active ? '' : 'off'}" data-key="${r.id}">
           <div class="row"><span class="big">${r.icon}</span>
             <div class="grow"><b>${esc(r.name)}</b>
-              <div class="muted">${coins(r.price)} · nấu ${duration(r.cookTime)} · còn nấu được <b class="${can ? '' : 'bad-text'}">${qty(can)}</b> phần</div></div>
+              ${seasonBadge(game, r)}<div class="muted">${priceText(game, r)} · nấu ${duration(r.cookTime)} · còn nấu được <b class="${can ? '' : 'bad-text'}">${qty(can)}</b> phần</div></div>
             <button class="${active ? 'on' : ''}"${cmd({ type: 'menu/setActive', recipeId: r.id, active: !active })}>${active ? 'Đang bán' : 'Tạm ngưng'}</button>
           </div>
           <div class="chips">${ingredients(game, r)}</div></div>`;
@@ -47,7 +48,7 @@ export const menuPanel: Panel = {
         return `<div class="card locked" data-key="${r.id}">
           <div class="row"><span class="big">${r.icon}</span>
             <div class="grow"><b>${esc(r.name)}</b>
-              <div class="muted">Bán ${coins(r.price)} · nấu ${duration(r.cookTime)}</div></div>
+              ${seasonBadge(game, r)}<div class="muted">Bán ${priceText(game, r)} · nấu ${duration(r.cookTime)}</div></div>
             <button${cmd({ type: 'menu/unlock', recipeId: r.id })}${canBuy ? '' : ' disabled'}>${levelOk ? `Học món · ${coins(r.unlock.cost)}` : `🔒 Cấp ${r.unlock.level}`}</button>
           </div>
           <div class="chips">${ingredients(game, r)}</div></div>`;
@@ -57,3 +58,17 @@ export const menuPanel: Panel = {
     return `<h3>Món đang có</h3>${unlocked}${locked ? `<h3>Món chưa học</h3>${locked}` : ''}`;
   },
 };
+
+/** Nhãn món hợp mùa: đúng mùa thì nổi bật (bán đắt hơn), khác mùa thì ghi mùa của món. */
+function seasonBadge(game: Game, r: RecipeDef): string {
+  if (!r.seasons) return '';
+  return isSeasonalDish(game.ctx, r)
+    ? `<span class="season-tag ok" title="Đang đúng mùa: giá bán cao hơn">Món hợp mùa +${Math.round((game.content.balance.seasons.dishBonus - 1) * 100)}%</span>`
+    : `<span class="season-tag" title="Bán đắt hơn vào mùa này">Hợp mùa ${seasonNames(r.seasons)}</span>`;
+}
+
+/** Giá bán hôm nay (đúng mùa thì gạch giá gốc). */
+function priceText(game: Game, r: RecipeDef): string {
+  const now = seasonalPrice(game.ctx, r);
+  return now !== r.price ? `<s>${r.price}</s> <b class="good-text">${coins(now)}</b>` : coins(r.price);
+}

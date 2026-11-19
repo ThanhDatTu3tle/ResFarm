@@ -1,4 +1,5 @@
 import { bumpQuest } from './quests';
+import { seasonalPrice } from '../calendar';
 import { randInt, randRange, weightedIndex } from '../../core/rng';
 import { addReputation, addXp, earn, hasAll, modifier, removeAll } from '../helpers';
 import { activeTables, occupiedSeats } from '../layout';
@@ -216,7 +217,7 @@ function pay(ctx: SimContext, party: Party): void {
   let total = 0;
   for (const id of party.orderIds) {
     const order = state.restaurant.orders.find((o) => o.id === id);
-    if (order) total += Math.round(content.recipes.get(order.recipeId).price * priceMul);
+    if (order) total += Math.round(seasonalPrice(ctx, content.recipes.get(order.recipeId)) * priceMul);
   }
   // Hài lòng theo tâm trạng lúc được phục vụ xong (vui vẻ = tip đủ, tức giận = không tip)
   const satisfaction = b.service.moodTip[moodOf(ctx, party)];

@@ -45,6 +45,15 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [x] **Giao diện:** chừa tai thỏ / góc bo (env(safe-area-inset-*)), chừa góc logo Netlify; bảng nhiệm vụ bấm xem chi tiết.
 - [x] **G10 · Việc mở ra từ đợt 14** (xong ở đợt 16) — cân bằng lại kinh tế theo ngày 12 phút + 2 ca (B1: doanh thu / ngày giảm vì ít khách hơn); trái cây mới có 4 món dùng — thêm món, bán ở chợ; hàng rong chợ mới bán nguyên liệu có sẵn (chưa có món riêng như ly cà phê, bánh tráng); kéo thả khay chưa thử bằng tay trên điện thoại.
 
+## Giai đoạn 6 — Mùa vụ và lễ hội (19/11/2026)
+
+- [x] Rau củ, lúa chỉ gieo ngoài trời đúng mùa (mỗi giống 2–3 mùa); sang mùa cây trái mùa đang lớn thì héo, cây chín vẫn thu; nhà kính quanh năm; ruộng tự động không gieo lại giống trái mùa.
+- [x] Chợ: rau đúng mùa rẻ hơn (×0.85), trái mùa đắt hơn (×1.3); món hợp mùa bán đắt hơn 20% (mỗi quán 3 món mỗi mùa).
+- [x] Thời tiết: Bão (Hạ, Thu — dập cây ngoài trời), Nắng nóng (Hạ — đất khô gấp đôi).
+- [x] 5 lễ hội: Tết, Lễ hội pháo hoa, Trung thu, Giáng sinh, Tất niên — khách đông / tip nhiều, Tết có lì xì; trang trí trong quán và ngoài chợ; HUD báo lễ hôm nay và sắp tới.
+- [x] Sổ tay vật phẩm (artifact riêng tư, bản local ở `notes/`) có mục Mùa & lễ hội.
+- [ ] **G15 · Việc mở ra** — chủ dự án đang xem Sổ tay để chỉnh số liệu cân bằng; món đặc biệt chỉ có ngày lễ; pháo hoa thật trên trời đêm Lễ hội pháo hoa; chưa thử bằng tay bảng chọn giống (mùa) trên điện thoại.
+
 ## Đợt 18 — HUD gọn lại, bốn mùa (19/11/2026)
 
 - [x] Thẻ nhiệm vụ lên cạnh tiền / sao; đồng xu vàng vẽ bằng CSS cho mọi chỗ (emoji 🪙 có máy ra màu bạc).

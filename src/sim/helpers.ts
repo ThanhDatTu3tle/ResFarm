@@ -1,4 +1,5 @@
 import type { ItemStack, ModifierKey } from '../data';
+import { festivalOf } from './calendar';
 import type { SimContext } from './types';
 
 /** Các hàm dùng chung giữa nhiều system: kho, tiền, kinh nghiệm, uy tín, modifier. */
@@ -71,6 +72,7 @@ export function addReputation(ctx: SimContext, delta: number): void {
 /** Tích các hệ số của `key` từ thời tiết hiện tại, mọi nâng cấp đã mua và nội thất đang dùng (1 nếu không có). */
 export function modifier(ctx: SimContext, key: ModifierKey): number {
   let value = ctx.content.weathers.get(ctx.state.weather.id).effects?.[key] ?? 1;
+  value *= festivalOf(ctx.state.clock.day)?.effects?.[key] ?? 1;
   for (const id of ctx.state.upgrades) value *= ctx.content.upgrades.get(id).modifiers?.[key] ?? 1;
   for (const id of Object.values(ctx.state.decor.equipped)) value *= ctx.content.decor.get(id).modifiers?.[key] ?? 1;
   // Quán của riêng mình: hạng quán, thú cưng, đồ trang trí đang bày (mỗi loại tính một lần)

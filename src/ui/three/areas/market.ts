@@ -6,6 +6,7 @@ import { addUmbrella, animatePerson, LOOKS, makeCrate, makeLampPost, makePerson,
 import { collectSway, sway, type Area, type Env, type Pick } from '../stage';
 import { emojiSprite, G, group, mesh, seeded, toon, type V3, paintSeason } from '../toon';
 import { signText } from '../cuisine';
+import { FestiveSet } from '../festive';
 import { makeCar, makeScooter, makeTruck, setVehicleLights } from '../farmkit';
 
 /**
@@ -61,6 +62,8 @@ export class MarketArea implements Area {
 
   constructor(private game: Game) {
     this.buildScenery();
+    // Trang trí lễ hội: dây treo ngang trước dãy sạp, đồ đứng trên vỉa hè (chỉ hiện vào ngày lễ)
+    this.festive = new FestiveSet(this.root, [[[-14.5, 4.1, 1.4], [14.5, 4.1, 1.4]]], [[-2.4, 0, 3.0], [3.4, 0, 3.2]], 1.9);
     // Dãy chợ: sạp mái bạt + tiệm nhỏ xếp hàng ngang; hàng rong đứng trên vỉa hè ở chỗ riêng (StallDef.spot)
     const all = game.content.stalls.all();
     const row = all.filter((d) => !d.kind || d.kind === 'stall' || d.kind === 'kiosk');
@@ -440,8 +443,10 @@ export class MarketArea implements Area {
 
 
   private paintedSeason = -1;
+  private festive: FestiveSet | null = null;
 
   update(env: Env, dt: number): void {
+    this.festive?.update(this.game, env.t, env.wind);
     if (this.paintedSeason !== env.season) {
       this.paintedSeason = env.season;
       paintSeason(this.root, env.season);

@@ -6,7 +6,7 @@ import { deserialize, serialize } from '../src/sim/save';
 import { canPlaceTable, tablePos } from '../src/sim/layout';
 import { activeTables, findSeats } from '../src/sim/systems/customers';
 import { priceOf } from '../src/sim/systems/market';
-import { calendarOf } from '../src/sim/calendar';
+import { calendarOf, festivalOf, seasonalPrice } from '../src/sim/calendar';
 import { autoServeCommands } from '../src/sim/systems/service';
 import { billDue } from '../src/sim/systems/crew';
 import { buildingRect, nextWaypoint, slotCenter, slotScale, workSpot } from '../src/sim/systems/farmer';
@@ -1260,5 +1260,80 @@ describe('mùa trong năm', () => {
     const loaded = deserialize(JSON.stringify(old), content)!;
     expect(loaded.stats.season).toBeDefined();
     expect(loaded.stats.year.revenue).toBe(0);
+  });
+});
+
+describe('mùa vụ và lễ hội', () => {
+  const day = (season: number, d: number) => season * 28 + d; // ngày của ván (năm 1)
+
+  it('rau chỉ gieo ngoài trời đúng mùa, nhà kính quanh năm', () => {
+    const game = quietGame();
+    game.state.clock.day = day(1, 3); // mùa Hạ: rau cải (Xuân, Thu) trái mùa
+    expect(game.dispatch({ type: 'farm/till', slotId: 'field-0' }).ok).toBe(true);
+    const r = game.dispatch({ type: 'farm/plant', slotId: 'field-0', producerId: 'cabbage' });
+    expect(r.ok).toBe(false);
+    expect(game.dispatch({ type: 'farm/plant', slotId: 'field-0', producerId: 'tomato' }).ok).toBe(true);
+    const plot = game.state.farm.slots.find((s) => s.type === 'gplot')!;
+    if (content.slotTypes.get('gplot').needsTilling) game.dispatch({ type: 'farm/till', slotId: plot.id });
+    expect(game.dispatch({ type: 'farm/plant', slotId: plot.id, producerId: 'cabbage' }).ok).toBe(true);
+  });
+
+  it('sang mùa mới cây trái mùa đang lớn ngoài trời thì héo, cây chín vẫn giữ', () => {
+    const game = newGame();
+    game.state.clock.day = day(0, 28);
+    game.dispatch({ type: 'farm/till', slotId: 'field-0' });
+    game.dispatch({ type: 'farm/plant', slotId: 'field-0', producerId: 'cabbage' }); // Xuân, Thu → héo khi sang Hạ
+    game.dispatch({ type: 'farm/till', slotId: 'field-1' });
+    game.dispatch({ type: 'farm/plant', slotId: 'field-1', producerId: 'tomato' }); // Xuân, Hạ → sống
+    game.dispatch({ type: 'farm/till', slotId: 'field-2' });
+    game.dispatch({ type: 'farm/plant', slotId: 'field-2', producerId: 'cabbage' }); // Xuân, Thu nhưng chín rồi
+    const slot = (id: string) => game.state.farm.slots.find((s) => s.id === id)!;
+    let withered = 0;
+    game.bus.on('farm/withered', (e) => (withered = e.count));
+    runDay(game, false);
+    // Cả ngày rau đã chín: đặt lại trạng thái ngay trước lúc sang mùa
+    for (const id of ['field-0', 'field-1']) Object.assign(slot(id), { stage: 'growing', progress: 0 });
+    slot('field-2').stage = 'ready';
+    game.dispatch({ type: 'day/next' });
+    expect(withered).toBe(1);
+    expect(slot('field-0').producerId).toBeNull();
+    expect(slot('field-1').producerId).toBe('tomato');
+    expect(slot('field-2').producerId).toBe('cabbage');
+  });
+
+  it('chợ: rau đúng mùa rẻ hơn, trái mùa đắt hơn', () => {
+    const game = quietGame();
+    game.state.market.priceFactor = {};
+    const stall = content.stalls.all().find((s) => s.items.includes('cabbage'));
+    if (!stall) return; // rau cải không bán ở chợ thì bỏ qua
+    game.state.clock.day = day(0, 3);
+    const spring = priceOf(game.ctx, stall.id, 'cabbage');
+    game.state.clock.day = day(1, 3);
+    const summer = priceOf(game.ctx, stall.id, 'cabbage');
+    expect(spring).toBeLessThan(summer);
+  });
+
+  it('món hợp mùa bán đắt hơn đúng mùa của nó', () => {
+    const game = quietGame();
+    const pho = content.recipes.get('pho');
+    game.state.clock.day = day(3, 3);
+    expect(seasonalPrice(game.ctx, pho)).toBeGreaterThan(pho.price);
+    game.state.clock.day = day(1, 3);
+    expect(seasonalPrice(game.ctx, pho)).toBe(pho.price);
+  });
+
+  it('lễ hội: ngày 1 của ván không tính, Tết năm 2 có lì xì và khách đông hơn', () => {
+    expect(festivalOf(1)).toBeNull();
+    expect(festivalOf(day(2, 15))?.id).toBe('trung_thu');
+    const game = newGame();
+    game.state.clock.day = 4 * 28; // ngày cuối năm 1 (Tất niên)
+    expect(modifier(game.ctx, 'tip')).toBeGreaterThan(1);
+    runDay(game, false);
+    game.state.crew.bill = []; // tiền ăn của đội tự trừ sáng hôm sau — bỏ ra để chỉ đo tiền mừng
+    const before = game.state.money;
+    game.dispatch({ type: 'day/next' }); // mùng 1 Tết năm 2
+    expect(festivalOf(game.state.clock.day)?.id).toBe('tet');
+    expect(game.state.money).toBe(before + 200);
+    expect(modifier(game.ctx, 'spawnRate')).toBeGreaterThan(1);
   });
 });
