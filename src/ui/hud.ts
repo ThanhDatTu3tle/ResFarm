@@ -1,4 +1,5 @@
 import { seasons, weekdays } from '../data/calendar';
+import { defOf } from '../sim/systems/events';
 import { craftableCount } from '../sim/helpers';
 import type { RecipeDef } from '../data';
 import { calendarOf } from '../sim/calendar';
@@ -126,7 +127,7 @@ export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
           <span class="time">${time}</span>
           ${tag}${speed}
         </div>
-        ${festivalTag(game)}
+        ${festivalTag(game)}${eventTag(game)}
         ${endDay}
         ${state.crew.pending.length ? `<button class="meal-call"${uiAttr('meal')}>🍜 Gọi món cho đội (${state.crew.pending.length})</button>` : ''}
       </div>
@@ -507,4 +508,14 @@ function lowStockChip(game: Game): string {
   const first = low[0];
   const title = low.map((l) => `${l.recipe.name}: ${l.count ? `còn ${l.count} phần` : 'hết'}`).join(' · ');
   return `<button class="stock-warn" data-key="stock-warn"${uiAttr('drawer:menu')} title="${esc(title)}">⚠️ ${first.count ? 'Sắp hết' : 'Hết'}: ${first.recipe.icon} ${esc(first.recipe.name)}${low.length > 1 ? ` <em>+${low.length - 1}</em>` : ''}</button>`;
+}
+
+/** Dải sự kiện ngẫu nhiên: báo trước giờ tới (nhà phê bình, thanh tra) hoặc đang diễn ra (còn bao lâu). */
+function eventTag(game: Game): string {
+  const e = game.state.event;
+  if (!e || e.status === 'done') return '';
+  const def = defOf(e.id);
+  if (e.status === 'scheduled') return def.announce ? `<div class="event-tag" title="${esc(def.name)}">${def.icon} ${esc(def.name)} ~${clockText(e.at)}</div>` : '';
+  const left = def.kind === 'modifier' ? ` · còn ${Math.ceil(e.minutesLeft)}'` : ' đang ở quán';
+  return `<div class="event-tag active" title="${esc(def.start)}">${def.icon} ${esc(def.name)}${left}</div>`;
 }

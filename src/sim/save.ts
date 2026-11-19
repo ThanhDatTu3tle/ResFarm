@@ -62,6 +62,8 @@ const migrations: Record<number, (old: any) => any> = {
   13: (s) => ({ ...s, stats: { ...s.stats, season: { ...s.stats.today }, year: { ...s.stats.today } }, version: 14 }),
   // v14 -> v15: hạng bếp (bếp + quầy line), đầu bếp thuê thêm.
   14: (s) => ({ ...s, restaurant: { ...s.restaurant, kitchenTier: 1 }, version: 15 }),
+  // v15 -> v16: đơn đặt hàng, sự kiện ngẫu nhiên (bắt đầu từ ngày hôm sau).
+  15: (s) => ({ ...s, contracts: [], event: null, version: 16 }),
 };
 
 export function serialize(state: GameState): string {

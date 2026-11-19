@@ -1,4 +1,5 @@
 import { bumpQuest } from './quests';
+import { criticDone } from './events';
 import { seasonalPrice } from '../calendar';
 import { randInt, randRange, weightedIndex } from '../../core/rng';
 import { addReputation, addXp, earn, hasAll, modifier, removeAll } from '../helpers';
@@ -145,10 +146,11 @@ function nextSpawnDelay(ctx: SimContext): number {
   return (b.spawnInterval * randRange(state.rng, 0.5, 1.5)) / (repFactor * rush * modifier(ctx, 'spawnRate'));
 }
 
-function spawnParty(ctx: SimContext): void {
+/** Thêm một nhóm khách vào hàng chờ. `opts`: nhóm đặc biệt của sự kiện (vd nhà phê bình đi một mình). */
+export function spawnParty(ctx: SimContext, opts: { size?: number; vip?: string } = {}): Party {
   const { state, content } = ctx;
-  const regular = pickRegular(ctx);
-  let size = Math.max(1, weightedIndex(state.rng, content.balance.partySizeWeights));
+  const regular = opts.vip ? null : pickRegular(ctx);
+  let size = opts.size ?? Math.max(1, weightedIndex(state.rng, content.balance.partySizeWeights));
   if (regular) size = Math.min(size, content.balance.regulars.maxPartySize);
   // Không có bàn đủ chỗ thì nhóm nhỏ lại cho vừa bàn lớn nhất đang có (quán nhỏ chỉ có bàn bốn)
   size = Math.min(size, Math.max(1, ...activeTables(ctx).map((t) => t.maxParty ?? (t.shared ? 1 : t.seats))));
@@ -167,10 +169,12 @@ function spawnParty(ctx: SimContext): void {
     called: false,
     wait: 0,
     regular: regular?.id ?? null,
+    ...(opts.vip ? { vip: opts.vip } : {}),
   };
   state.restaurant.parties.push(party);
   ctx.bus.emit('party/arrived', { partyId: party.id });
   if (regular) ctx.bus.emit('regular/arrived', { regularId: regular.id, partyId: party.id });
+  return party;
 }
 
 /** Khách nhận menu: xem trong 3–7 giây thực rồi mới chọn xong. */
@@ -220,7 +224,10 @@ function pay(ctx: SimContext, party: Party): void {
     if (order) total += Math.round(seasonalPrice(ctx, content.recipes.get(order.recipeId)) * priceMul);
   }
   // Hài lòng theo tâm trạng lúc được phục vụ xong (vui vẻ = tip đủ, tức giận = không tip)
-  const satisfaction = b.service.moodTip[moodOf(ctx, party)];
+  const mood = moodOf(ctx, party);
+  const satisfaction = b.service.moodTip[mood];
+  // Nhà phê bình: hài lòng (vui / bình thường) thì khen, bực bội thì chê
+  if (party.vip) criticDone(ctx, party, mood <= 1);
   const tip = Math.round(total * b.tipRate * satisfaction * modifier(ctx, 'tip') * regularTipBonus(ctx, party));
   earn(ctx, total + tip);
   state.stats.today.tips += tip;
@@ -249,6 +256,7 @@ function leave(ctx: SimContext, party: Party, reason: LeaveReason, total = 0, ti
     w.carrying = w.carrying.filter((id) => !party.orderIds.includes(id));
   }
   r.parties = r.parties.filter((p) => p.id !== party.id);
+  if (party.vip && reason !== 'paid') criticDone(ctx, party, false);
 
   if (reason === 'closed') {
     ctx.bus.emit('party/left', { partyId: party.id, tableId: party.tableId, size: party.size, reason, total, tip });

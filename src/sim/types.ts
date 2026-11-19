@@ -55,6 +55,8 @@ export type Command =
   | { type: 'service/deliver'; orderIds: number[]; partyId: number }
   | { type: 'service/clean'; tableId: string }
   | { type: 'service/mop'; stainId: number }
+  | { type: 'contract/deliver'; contractId: number }
+  | { type: 'market/sell'; itemId: string; qty: number }
   | { type: 'kitchen/upgrade' }
   | { type: 'chef/hire' }
   | { type: 'chef/fire'; chefId: string }
@@ -125,6 +127,13 @@ export interface SimEvents {
   'restaurant/upgraded': { tier: number };
   /** Bếp lên hạng / thuê / cho nghỉ đầu bếp: cảnh quán cần dựng lại gian bếp. */
   'kitchen/changed': { tier: number; chefs: number };
+  /** Đơn đặt hàng vừa giao xong / hết hạn. */
+  'contract/done': { id: number; reward: number };
+  'contract/expired': { id: number };
+  /** Sự kiện ngẫu nhiên: báo trước buổi sáng (critic, inspector), bắt đầu, kết thúc (kết quả + xu thưởng / phạt). */
+  'event/announced': { id: string; at: number };
+  'event/started': { id: string };
+  'event/ended': { id: string; result: 'good' | 'bad' | null; money: number; mess?: number };
   'level/up': { level: number };
   'weather/changed': { id: string };
   /** Sáng ngày lễ (id FestivalDef, tiền mừng đã cộng). */

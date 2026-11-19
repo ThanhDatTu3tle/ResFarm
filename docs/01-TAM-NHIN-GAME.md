@@ -153,6 +153,12 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** món dùng trái cây (Đĩa trái cây, Chè chuối, Sandwich trái cây, Trà trái cây hwachae); hàng rong mới bán nguyên liệu có sẵn với giá cao hơn 10%; nhóm 5–6 người chỉ tới khi có bàn đủ chỗ; khay 2 ô dành cho bàn đôi / quầy, 4 ô cho bàn từ 3 ghế; mỗi ca để lại 3 vết bẩn, vết cũ bẩn thêm, mỗi bậc bẩn làm khách kém kiên nhẫn 1.5% (tối đa −20%).
 
+### Giai đoạn 8 — Đơn đặt hàng, bán hàng dư, sự kiện ngẫu nhiên (19/11/2026)
+
+- Chủ dự án chọn: bán hàng dư + đơn đặt hàng, sự kiện ngẫu nhiên. Chưa làm: chế biến / chăn nuôi sâu, khách quen có hội thoại, làm đẹp quán, tiện ích (save, offline).
+
+**AI tự chọn (đổi được):** đơn hàng chỉ cần nguyên liệu (không phải món nấu sẵn), không cần bấm nhận đơn, quá hạn không phạt; giá bán lại = 50% giá gốc; 5 sự kiện và số liệu trong `src/data/events.ts` (nhà phê bình thưởng 150 xu + 0.3⭐ / phạt 0.3⭐; thanh tra thưởng 120 xu / phạt 40 xu mỗi chỗ bẩn, tối đa 200; xe du lịch khách ×2 trong 90 phút; mất điện nấu chậm ½ trong 60 phút; khách sộp tip ×2 trong 120 phút).
+
 ### Giai đoạn 7 — Mở rộng bếp, hướng dẫn, cảnh báo nguyên liệu (19/11/2026)
 
 - Nhân viên + lương để dành sau. Làm mở rộng nhà bếp và quầy line → thuê thêm đầu bếp và nhân viên; có từ 2 người thì giao việc cụ thể để họ tự làm.

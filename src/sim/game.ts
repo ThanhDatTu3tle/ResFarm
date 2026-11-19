@@ -3,6 +3,8 @@ import type { Content, CuisineId } from '../data';
 import { createInitialState, emptyStats, type GameState } from './state';
 import { clockSystem } from './systems/clock';
 import { festivalSystem } from './systems/festival';
+import { eventSystem } from './systems/events';
+import { contractSystem } from './systems/contracts';
 import { calendarOf } from './calendar';
 import { customerSystem } from './systems/customers';
 import { decorSystem } from './systems/decor';
@@ -21,7 +23,7 @@ import { weatherSystem } from './systems/weather';
 import { fail, ok, type Command, type CommandHandlers, type CommandResult, type SimContext, type SimEvents, type System } from './types';
 
 /** Thứ tự ở đây là thứ tự update mỗi bước. System mới thêm vào mảng này. */
-export const defaultSystems: System[] = [clockSystem, crewSystem, weatherSystem, festivalSystem, customerSystem, kitchenSystem, serviceSystem, farmSystem, farmerSystem, millSystem, marketSystem, progressionSystem, decorSystem, questSystem, homeSystem, helperSystem];
+export const defaultSystems: System[] = [clockSystem, crewSystem, weatherSystem, festivalSystem, eventSystem, contractSystem, customerSystem, kitchenSystem, serviceSystem, farmSystem, farmerSystem, millSystem, marketSystem, progressionSystem, decorSystem, questSystem, homeSystem, helperSystem];
 
 /** Bước mô phỏng tối đa (phút game) — giữ kết quả ổn định khi tua nhanh. */
 const MAX_STEP = 1;
