@@ -4,12 +4,14 @@ import { cuisines } from './cuisines';
 import { decor } from './decor';
 import { mills, producers, slotTypes } from './farm';
 import { quests } from './quests';
+import { regulars } from './regulars';
+import { pets, props, tableKinds } from './props';
 import { items } from './items';
 import { stalls } from './market';
 import { recipes } from './recipes';
 import { room, staff, tables, upgrades } from './restaurant';
 import { weathers } from './weather';
-import type { Balance, CuisineDef, CuisineId, MillTypeDef, ItemDef, ProducerDef, RecipeDef, SlotTypeDef, DecorDef, DecorSlot, RoomDef, StaffDef, StallDef, TableDef, UpgradeDef, WeatherDef, SlotType, QuestDef } from './types';
+import type { Balance, CuisineDef, CuisineId, MillTypeDef, ItemDef, ProducerDef, RecipeDef, SlotTypeDef, DecorDef, DecorSlot, RoomDef, StaffDef, StallDef, TableDef, UpgradeDef, WeatherDef, SlotType, QuestDef, RegularDef, PropDef, PetDef, TableKindDef } from './types';
 
 export * from './types';
 
@@ -29,6 +31,10 @@ export interface Content {
   mills: Registry<MillTypeDef>;
   /** Nhiệm vụ hệ thống theo thứ tự làm. */
   quests: QuestDef[];
+  regulars: Registry<RegularDef>;
+  props: Registry<PropDef>;
+  pets: Registry<PetDef>;
+  tableKinds: Registry<TableKindDef>;
   room: RoomDef;
   balance: Balance;
 }
@@ -47,11 +53,15 @@ export interface RawContent {
   cuisines: CuisineDef[];
   mills: MillTypeDef[];
   quests: QuestDef[];
+  regulars: RegularDef[];
+  props: PropDef[];
+  pets: PetDef[];
+  tableKinds: TableKindDef[];
   room: RoomDef;
   balance: Balance;
 }
 
-export const defaultRawContent: RawContent = { items, recipes, producers, slotTypes, stalls, tables, staff, upgrades, weathers, decor, cuisines, mills, quests, room, balance };
+export const defaultRawContent: RawContent = { items, recipes, producers, slotTypes, stalls, tables, staff, upgrades, weathers, decor, cuisines, mills, quests, regulars, props, pets, tableKinds, room, balance };
 
 /** Dựng Content và kiểm tra tham chiếu chéo; ném lỗi nếu dữ liệu sai. */
 export function createContent(raw: RawContent = defaultRawContent): Content {
@@ -69,6 +79,10 @@ export function createContent(raw: RawContent = defaultRawContent): Content {
     cuisines: new Registry('cuisine', raw.cuisines),
     mills: new Registry('mill', raw.mills),
     quests: raw.quests,
+    regulars: new Registry('regular', raw.regulars),
+    props: new Registry('prop', raw.props),
+    pets: new Registry('pet', raw.pets),
+    tableKinds: new Registry('tableKind', raw.tableKinds),
     room: raw.room,
     balance: raw.balance,
   };
@@ -108,6 +122,10 @@ export function validateContent(c: Content): string[] {
     }
     if (!m.products.length) errors.push(`cối ${m.id}: cần ít nhất 1 thành phẩm`);
   }
+  for (const t of c.slotTypes.all()) {
+    for (const id of t.initialPlants ?? []) if (!c.producers.has(id) || !fitsSlot(c.producers.get(id), t.id)) errors.push(`loại ô ${t.id}: cây trồng sẵn "${id}" không trồng được ở đây`);
+    if (t.layout.spots && t.layout.spots.length < t.max) errors.push(`loại ô ${t.id}: thiếu vị trí (spots) cho ${t.max} ô`);
+  }
   for (const t of c.slotTypes.all()) if (t.mill && !c.mills.has(t.mill)) errors.push(`loại ô ${t.id}: cối "${t.mill}" không tồn tại`);
   const questIds = new Set<string>();
   for (const q of c.quests) {
@@ -143,6 +161,20 @@ export function validateContent(c: Content): string[] {
     }
   }
   if (!c.weathers.all().length) errors.push('cần ít nhất 1 kiểu thời tiết');
+  for (const r of c.regulars.all()) {
+    for (const cu of c.cuisines.all()) {
+      const fav = r.favorites[cu.id];
+      if (!c.recipes.has(fav) || c.recipes.get(fav).cuisine !== cu.id) errors.push(`khách quen ${r.id}: món ruột "${fav}" không thuộc thực đơn quán ${cu.id}`);
+    }
+    if (!c.props.has(r.gift)) errors.push(`khách quen ${r.id}: quà "${r.gift}" không tồn tại`);
+  }
+  for (const p of c.props.all()) if (p.cuisine && !c.cuisines.has(p.cuisine)) errors.push(`đồ trang trí ${p.id}: quán "${p.cuisine}" không tồn tại`);
+  const tiers = c.room.tiers;
+  if (!tiers.length || tiers[0].height !== c.room.height) errors.push('hạng quán: hạng 1 phải có height bằng room.height');
+  tiers.forEach((t, i) => {
+    if (t.id !== i + 1) errors.push(`hạng quán thứ ${i + 1}: id phải là ${i + 1}`);
+    if (i && t.height <= tiers[i - 1].height) errors.push(`hạng quán ${t.id}: phòng phải sâu hơn hạng trước`);
+  });
   return errors;
 }
 

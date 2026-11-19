@@ -48,6 +48,11 @@ export const items: ItemDef[] = [
   { id: 'bread', name: 'Bánh mì', icon: '🥖', category: 'dry', basePrice: 4 },
 
   // Nông sản thô — chỉ để chở tới cối chế biến (không bán ngoài chợ)
+  // Trái cây (vườn cây ăn quả)
+  { id: 'orange', name: 'Cam', icon: '🍊', category: 'fruit', basePrice: 6 },
+  { id: 'apple', name: 'Táo', icon: '🍎', category: 'fruit', basePrice: 6 },
+  { id: 'mango', name: 'Xoài', icon: '🥭', category: 'fruit', basePrice: 8 },
+  { id: 'banana', name: 'Chuối', icon: '🍌', category: 'fruit', basePrice: 4 },
   { id: 'wheat', name: 'Lúa mì', icon: '🌾', category: 'vegetable', basePrice: 2 },
   { id: 'paddy_rice', name: 'Lúa (thóc)', icon: '🎑', category: 'vegetable', basePrice: 2 },
 ];
@@ -59,4 +64,5 @@ export const categoryNames: Record<ItemDef['category'], string> = {
   seafood: 'Hải sản',
   dairy: 'Trứng sữa',
   dry: 'Đồ khô',
+  fruit: 'Trái cây',
 };

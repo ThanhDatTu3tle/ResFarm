@@ -1,5 +1,6 @@
 import { spend } from '../helpers';
 import { canPlaceTable, LAYOUT_GRID } from '../layout';
+import { resolveOverlaps } from './home';
 import { fail, ok, type System } from '../types';
 
 /**
@@ -33,12 +34,16 @@ export const decorSystem: System = {
       const y = Math.round(cmd.y / LAYOUT_GRID) * LAYOUT_GRID;
       const problem = canPlaceTable(ctx, cmd.tableId, x, y);
       if (problem) return fail(problem);
-      ctx.state.restaurant.layout[cmd.tableId] = { x, y };
+      const rot = ctx.state.restaurant.layout[cmd.tableId]?.rot;
+      ctx.state.restaurant.layout[cmd.tableId] = rot ? { x, y, rot } : { x, y };
       return ok();
     },
     'layout/reset'(ctx) {
       if (ctx.state.restaurant.parties.some((p) => p.tableId)) return fail('Chờ khách về hết rồi mới xếp lại mặc định được.');
-      ctx.state.restaurant.layout = {};
+      // Bàn gốc về chỗ + bỏ xoay; bàn mua thêm giữ vị trí (bị bàn gốc đè thì dời sang chỗ trống)
+      const r = ctx.state.restaurant;
+      for (const t of ctx.content.tables.all()) delete r.layout[t.id];
+      resolveOverlaps(ctx);
       return ok();
     },
   },

@@ -294,3 +294,37 @@ export function makeScooter(color: number, rider: THREE.Group): THREE.Group {
   g.add(rider);
   return g;
 }
+
+/**
+ * Cây ăn quả theo giống (cam, táo, xoài, chuối) và giai đoạn lớn 0..2: cây con → cây non → cây trưởng thành có trái.
+ * Gốc ở y = 0 (đặt trên ụ đất của ô vườn).
+ */
+export function makeFruitTree(producerId: string, stage: 0 | 1 | 2): THREE.Group {
+  const g = group(null);
+  const k = [0.45, 0.75, 1][stage];
+  const fruit = ({ orange_tree: 0xf28c28, apple_tree: 0xd9433a, mango_tree: 0xf2c43e, banana_tree: 0xf6dd5a } as Record<string, number>)[producerId] ?? 0xf28c28;
+  if (producerId === 'banana_tree') {
+    // Chuối: thân giả xanh, tàu lá to xoè, buồng chuối
+    mesh(g, G.cyl(0.14 * k, 0.2 * k, 1.8 * k, 8), 0x7fa35a, { p: [0, 0.9 * k, 0] });
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const leaf = group(g, { p: [0, 1.75 * k, 0], r: [0, a, 0] });
+      mesh(leaf, G.box(0.38 * k, 0.03, 1.4 * k), 0x5fae57, { p: [0, 0.15 * k, 0.65 * k], r: [-0.55, 0, 0] });
+    }
+    if (stage === 2) for (let i = 0; i < 6; i++) mesh(g, G.capsule(0.05, 0.16), fruit, { p: [0.22 + (i % 3) * 0.05, 1.2 - Math.floor(i / 3) * 0.16, 0.1 + (i % 3) * 0.04], r: [0, 0, 0.5], cast: false });
+    return g;
+  }
+  const leaf = producerId === 'mango_tree' ? 0x3f7f3a : producerId === 'apple_tree' ? 0x5fae57 : 0x4f9e4a;
+  mesh(g, G.cyl(0.1 * k, 0.16 * k, 1.3 * k, 8), 0x7a5a3a, { p: [0, 0.65 * k, 0] });
+  const crown: [number, number, number, number][] = [[0, 1.75, 0, 0.75], [0.45, 1.5, 0.15, 0.5], [-0.42, 1.55, -0.1, 0.52], [0.05, 1.45, -0.42, 0.5], [-0.1, 1.5, 0.42, 0.5]];
+  for (const [x, y, z, r] of crown) mesh(g, G.ico(r * k, 1), leaf, { p: [x * k, y * k, z * k] });
+  if (stage === 2) {
+    const shape = producerId === 'mango_tree' ? [1, 1.4, 1] : [1, 1, 1];
+    for (let i = 0; i < 9; i++) {
+      const a = i * 2.4;
+      const y = 1.25 + (i % 3) * 0.25;
+      mesh(g, G.sphere(0.09, 8, 6), fruit, { p: [Math.cos(a) * 0.62, y, Math.sin(a) * 0.62], s: shape as [number, number, number], cast: false });
+    }
+  }
+  return g;
+}

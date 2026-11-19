@@ -32,7 +32,7 @@ function runDay(game: Game, waiter = true): void {
 
 /** Đặt sẵn 1 nhóm khách đã ngồi ở bàn `tableId` (bỏ qua xếp hàng). */
 function seatParty(game: Game, tableId: string, size: number, seats: number[] = Array.from({ length: size }, (_, i) => i)): Party {
-  const party: Party = { id: game.state.nextId++, size, phase: 'seated', tableId, seats, patience: 999, patienceMax: 999, timer: 0, orderIds: [], looks: seats.map(() => 0), called: false, wait: 0 };
+  const party: Party = { id: game.state.nextId++, size, phase: 'seated', tableId, seats, patience: 999, patienceMax: 999, timer: 0, orderIds: [], looks: seats.map(() => 0), called: false, wait: 0, regular: null };
   game.state.restaurant.parties.push(party);
   return party;
 }
@@ -46,20 +46,20 @@ function quietGame(): Game {
 }
 
 describe('nội dung', () => {
-  it('hợp lệ; quán khởi đầu có quầy 4 ghế đơn + bàn 6, bàn 4, bàn đôi', () => {
+  it('hợp lệ; quán khởi đầu có quầy 3 ghế đơn + 1 bàn bốn + 2 bàn đôi', () => {
     const start = content.tables.all().filter((t) => !t.requiresUpgrade);
-    expect(start.map((t) => t.seats).sort()).toEqual([2, 4, 4, 6]);
+    expect(start.map((t) => t.seats).sort()).toEqual([2, 2, 3, 4]);
     expect(start.filter((t) => t.shared)).toHaveLength(1);
   });
 });
 
 describe('xếp bàn', () => {
-  it('khách lẻ ngồi quầy, nhóm 6 ngồi bàn lớn, nhóm 2 ngồi bàn đôi', () => {
+  it('khách lẻ ngồi quầy, nhóm 4 ngồi bàn bốn, nhóm 2 ngồi bàn đôi', () => {
     const { ctx } = newGame();
     expect(findSeats(ctx, 1)?.tableId).toBe('counter');
-    expect(findSeats(ctx, 6)?.tableId).toBe('big');
+    expect(findSeats(ctx, 4)?.tableId).toBe('medium');
     expect(findSeats(ctx, 2)?.tableId).toBe('pair');
-    expect(findSeats(ctx, 7)).toBeNull();
+    expect(findSeats(ctx, 5)).toBeNull();
   });
 });
 
@@ -165,7 +165,7 @@ describe('một ngày kinh doanh', () => {
     runDay(game);
     const { today } = game.state.stats;
     console.log('Ngày 1:', today, 'uy tín', game.state.reputation.toFixed(2), 'cấp', game.state.level);
-    expect(today.guestsServed).toBeGreaterThan(10);
+    expect(today.guestsServed).toBeGreaterThan(5); // 2 ca, khách thưa hơn bản cũ
     expect(today.revenue).toBeGreaterThan(0);
     expect(game.state.restaurant.parties).toHaveLength(0);
     expect(game.state.restaurant.orders).toHaveLength(0);
@@ -222,7 +222,6 @@ describe('siêu thị nội thất', () => {
 describe('sắp xếp bàn', () => {
   it('bố cục mặc định hợp lệ (kể cả bàn mở rộng)', () => {
     const game = newGame();
-    game.state.upgrades.push('patio');
     for (const t of activeTables(game.ctx).filter((t) => !t.fixed)) {
       const at = tablePos(game.ctx, t);
       expect(canPlaceTable(game.ctx, t.id, at.x, at.y), t.id).toBeNull();
@@ -231,14 +230,14 @@ describe('sắp xếp bàn', () => {
 
   it('dời được bàn trống tới chỗ hợp lệ; chặn khi đè bàn khác, ra ngoài, bàn cố định, bàn có khách', () => {
     const game = newGame();
-    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 543, y: 301 }).ok).toBe(true);
-    expect(game.state.restaurant.layout.pair).toEqual({ x: 545, y: 300 });
-    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 350, y: 320 }).ok).toBe(false);
+    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 433, y: 371 }).ok).toBe(true);
+    expect(game.state.restaurant.layout.pair).toEqual({ x: 435, y: 370 });
+    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 125, y: 300 }).ok).toBe(false);
     expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 10, y: 300 }).ok).toBe(false);
     expect(game.dispatch({ type: 'layout/moveTable', tableId: 'counter', x: 360, y: 300 }).ok).toBe(false);
 
-    game.state.restaurant.parties.push({ id: 99, size: 2, phase: 'eating', tableId: 'pair', seats: [0, 1], patience: 1, patienceMax: 1, timer: 5, orderIds: [], looks: [0, 0], called: false, wait: 0 });
-    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 545, y: 300 }).ok).toBe(false);
+    game.state.restaurant.parties.push({ id: 99, size: 2, phase: 'eating', tableId: 'pair', seats: [0, 1], patience: 1, patienceMax: 1, timer: 5, orderIds: [], looks: [0, 0], called: false, wait: 0, regular: null });
+    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 430, y: 290 }).ok).toBe(false);
     expect(game.dispatch({ type: 'layout/reset' }).ok).toBe(false);
     game.state.restaurant.parties = [];
     expect(game.dispatch({ type: 'layout/reset' }).ok).toBe(true);
@@ -315,7 +314,7 @@ describe('phục vụ (người chơi là bồi bàn)', () => {
     expect(game.dispatch({ type: 'service/menu', partyId: party.id }).ok).toBe(true);
     expect(game.dispatch({ type: 'service/menu', partyId: party.id }).ok).toBe(false); // đã giao việc rồi
     const start = { x: r.waiter.x, y: r.waiter.y };
-    game.tick(0.3);
+    game.tick(0.1);
     expect(party.phase).toBe('seated'); // bồi bàn còn đang đi tới
     expect(Math.hypot(r.waiter.x - start.x, r.waiter.y - start.y)).toBeGreaterThan(0);
     game.tick(3);
@@ -337,7 +336,7 @@ describe('phục vụ (người chơi là bồi bàn)', () => {
     expect(r.orders.every((o) => o.status === 'ready')).toBe(true);
     expect(party.phase).toBe('waitingFood');
 
-    for (const o of [...r.orders]) expect(game.dispatch({ type: 'service/deliver', orderId: o.id, partyId: party.id }).ok).toBe(true);
+    for (const o of [...r.orders]) expect(game.dispatch({ type: 'service/deliver', orderIds: [o.id], partyId: party.id }).ok).toBe(true);
     game.tick(10);
     expect(r.orders.every((o) => o.status === 'served')).toBe(true);
     expect(party.phase).toBe('eating');
@@ -365,15 +364,15 @@ describe('phục vụ (người chơi là bồi bàn)', () => {
     Object.assign(orderB, { status: 'queued' });
     r.staff.forEach((s) => (s.orderId = null));
     game.state.menu.active = [];
-    const stranger = seatParty(game, 'big', 1, [0]);
+    const stranger = seatParty(game, 'pair2', 1, [0]);
     Object.assign(stranger, { phase: 'waitingFood' });
-    expect(game.dispatch({ type: 'service/deliver', orderId: orderA.id, partyId: stranger.id }).ok).toBe(false);
-    expect(game.dispatch({ type: 'service/deliver', orderId: orderA.id, partyId: b.id }).ok).toBe(true);
+    expect(game.dispatch({ type: 'service/deliver', orderIds: [orderA.id], partyId: stranger.id }).ok).toBe(false);
+    expect(game.dispatch({ type: 'service/deliver', orderIds: [orderA.id], partyId: b.id }).ok).toBe(true);
     expect(orderA.partyId).toBe(b.id);
     expect(orderB.partyId).toBe(a.id);
     expect(a.orderIds).toEqual([orderB.id]);
     expect(b.orderIds).toEqual([orderA.id]);
-    expect(game.dispatch({ type: 'service/deliver', orderId: orderA.id, partyId: b.id }).ok).toBe(false); // đã có người bưng
+    expect(game.dispatch({ type: 'service/deliver', orderIds: [orderA.id], partyId: b.id }).ok).toBe(false); // đã có người bưng
   });
 
   it('món nằm ở quầy lâu: cứ moodStep phút tụt một bậc tâm trạng, quá bậc tức giận thì bỏ về', () => {
@@ -675,7 +674,7 @@ describe('ruộng tự động + cối chế biến', () => {
             // Đoạn thẳng ngang/dọc cắt phần trong của ô?
             const x1 = Math.min(pos.x, next.x), x2 = Math.max(pos.x, next.x), z1 = Math.min(pos.z, next.z), z2 = Math.max(pos.z, next.z);
             const hit = x1 < r.x2 - 0.01 && x2 > r.x1 + 0.01 && z1 < r.z2 - 0.01 && z2 > r.z1 + 0.01;
-            expect(hit, `(${pos.x.toFixed(1)},${pos.z.toFixed(1)}) → (${next.x.toFixed(1)},${next.z.toFixed(1)}) xuyên ${r.id}`).toBe(false);
+            if (hit) expect.fail(`(${pos.x.toFixed(1)},${pos.z.toFixed(1)}) → (${next.x.toFixed(1)},${next.z.toFixed(1)}) xuyên ${r.id}`); // chỉ gọi expect khi trúng cho nhanh
           }
           pos = next;
         }
@@ -753,5 +752,323 @@ describe('nhiệm vụ hệ thống', () => {
     delete old.quests;
     const state = deserialize(JSON.stringify(old), content)!;
     expect(state.quests).toEqual({ index: 0, progress: 0, done: false });
+  });
+});
+
+describe('khách quen', () => {
+  it('khách quen tới (tối đa 2 người), trả tiền thì được ghi nhận; mỗi ngày mỗi người ghé 1 lần', () => {
+    const game = newGame(3);
+    content.balance.regulars.chance = 1;
+    try {
+      for (let i = 0; i < 400 && !game.state.restaurant.parties.some((p) => p.regular); i++) game.tick(1);
+      const party = game.state.restaurant.parties.find((p) => p.regular)!;
+      expect(party).toBeTruthy();
+      expect(party.size).toBeLessThanOrEqual(2);
+      expect(['be_na', 'cu_ti']).toContain(party.regular); // chỉ 2 khách quen mở từ đầu
+      expect(game.state.regulars[party.regular!].lastDay).toBe(1);
+      const events: string[] = [];
+      game.bus.on('regular/visited', (e) => events.push(e.regularId));
+      runDay(game);
+      expect(events.length).toBeGreaterThanOrEqual(1);
+      expect(new Set(events).size).toBe(events.length); // không ai ghé 2 lần trong ngày
+    } finally {
+      content.balance.regulars.chance = 0.22;
+    }
+  });
+
+  it('món ruột được ưu tiên khi đang bán; đủ 3 tim thì tặng quà (đồ trang trí bày sẵn)', () => {
+    const game = quietGame();
+    const party = seatParty(game, 'pair', 1);
+    party.regular = 'be_na';
+    game.state.menu.unlocked.push('flan');
+    game.state.menu.active.push('flan');
+    for (const ing of content.recipes.get('flan').ingredients) game.state.inventory[ing.item] = 20;
+    game.state.regulars.be_na = { visits: 5, lastDay: 0, gifted: false };
+    const visited: { hearts: number; gift: string | null }[] = [];
+    game.bus.on('regular/visited', (e) => visited.push(e));
+    let fav = false;
+    for (let i = 0; i < 600 && game.state.restaurant.parties.includes(party); i++) {
+      serve(game);
+      game.tick(1);
+      fav ||= game.state.restaurant.orders.some((o) => o.partyId === party.id && o.recipeId === 'flan' && o.fav);
+    }
+    expect(fav).toBe(true);
+    expect(visited[0].hearts).toBe(3);
+    expect(visited[0].gift).toBe('gift_teddy');
+    expect(game.state.restaurant.props.some((p) => p.def === 'gift_teddy' && !p.stored)).toBe(true);
+  });
+});
+
+describe('quán của riêng mình', () => {
+  it('đặt tên quán, nhận nuôi thú cưng (có hiệu ứng), đổi qua lại miễn phí', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 5000, level: 9 });
+    expect(game.dispatch({ type: 'profile/rename', name: '  Quán   Bé Na ' }).ok).toBe(true);
+    expect(game.state.profile.name).toBe('Quán Bé Na');
+    expect(game.dispatch({ type: 'profile/rename', name: '' }).ok).toBe(false);
+    const before = modifier(game.ctx, 'patience');
+    expect(game.dispatch({ type: 'pet/adopt', petId: 'cat' }).ok).toBe(true);
+    expect(modifier(game.ctx, 'patience')).toBeCloseTo(before * 1.06);
+    game.dispatch({ type: 'pet/adopt', petId: 'dog' });
+    const money = game.state.money;
+    expect(game.dispatch({ type: 'pet/adopt', petId: 'cat' }).ok).toBe(true);
+    expect(game.state.money).toBe(money);
+    expect(game.state.profile.pet).toBe('cat');
+  });
+
+  it('đồ trang trí: mua tự đặt chỗ trống, không chồng bàn; dời / xoay / cất / bán lại; hiệu ứng mỗi loại tính 1 lần', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 5000, level: 9 });
+    const base = modifier(game.ctx, 'patience');
+    expect(game.dispatch({ type: 'prop/buy', propId: 'fig_pot' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'prop/buy', propId: 'fig_pot' }).ok).toBe(true);
+    expect(modifier(game.ctx, 'patience')).toBeCloseTo(base * 1.03);
+    expect(game.dispatch({ type: 'prop/buy', propId: 'sakura' }).ok).toBe(false); // của quán Nhật
+    expect(game.dispatch({ type: 'prop/buy', propId: 'gift_teddy' }).ok).toBe(false);
+    const [a, b] = game.state.restaurant.props;
+    expect(a.x !== b.x || a.y !== b.y).toBe(true);
+    // Dời đè lên bàn bốn: không được
+    const big = tablePos(game.ctx, activeTables(game.ctx).find((t) => t.id === 'medium')!);
+    expect(game.dispatch({ type: 'prop/move', uid: a.uid, ...big }).ok).toBe(false);
+    expect(game.dispatch({ type: 'prop/rotate', uid: a.uid }).ok).toBe(true);
+    game.dispatch({ type: 'prop/store', uid: a.uid });
+    game.dispatch({ type: 'prop/store', uid: b.uid });
+    expect(modifier(game.ctx, 'patience')).toBeCloseTo(base);
+    expect(game.dispatch({ type: 'prop/place', uid: a.uid }).ok).toBe(true);
+    const money = game.state.money;
+    expect(game.dispatch({ type: 'prop/sell', uid: b.uid }).ok).toBe(true);
+    expect(game.state.money).toBe(money + 60);
+  });
+
+  it('mua thêm bàn (khách ngồi được), xoay bàn 90° (ghế xoay theo), bán lại bàn', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 5000, level: 9 });
+    expect(game.dispatch({ type: 'table/buy', kind: 'pair' }).ok).toBe(true);
+    const extra = game.state.restaurant.extraTables[0];
+    expect(activeTables(game.ctx).some((t) => t.id === extra.id)).toBe(true);
+    for (const t of activeTables(game.ctx).filter((t) => !t.fixed)) {
+      const at = tablePos(game.ctx, t);
+      expect(canPlaceTable(game.ctx, t.id, at.x, at.y)).toBeNull();
+    }
+    expect(game.dispatch({ type: 'layout/rotateTable', tableId: 'medium' }).ok).toBe(true);
+    const medium = activeTables(game.ctx).find((t) => t.id === 'medium')!;
+    expect(medium.rotated).toBe(true);
+    expect([medium.w, medium.h]).toEqual([76, 120]);
+    seatParty(game, 'pair', 2);
+    seatParty(game, 'pair2', 2);
+    expect(findSeats(game.ctx, 2)?.tableId).toBe(extra.id);
+    expect(game.dispatch({ type: 'table/sell', tableId: 'pair' }).ok).toBe(false);
+    expect(game.dispatch({ type: 'table/sell', tableId: extra.id }).ok).toBe(true);
+    game.state.restaurant.parties = [];
+    game.dispatch({ type: 'layout/reset' });
+    expect(activeTables(game.ctx).find((t) => t.id === 'medium')!.rotated).toBeFalsy();
+  });
+
+  it('nâng hạng quán: cần cấp + tiền, khu ăn uống sâu thêm, có hiệu ứng lượng khách', () => {
+    const game = quietGame();
+    game.state.money = 99999;
+    expect(game.dispatch({ type: 'restaurant/upgrade' }).ok).toBe(false); // cấp 1
+    game.state.level = 9;
+    const spawn = modifier(game.ctx, 'spawnRate');
+    expect(game.dispatch({ type: 'restaurant/upgrade' }).ok).toBe(true);
+    expect(game.state.restaurant.tier).toBe(2);
+    expect(modifier(game.ctx, 'spawnRate')).toBeCloseTo(spawn * 1.1);
+    expect(canPlaceTable(game.ctx, 'pair', 120, 520)).toBeNull(); // vùng mới mở
+    while (game.dispatch({ type: 'restaurant/upgrade' }).ok);
+    expect(game.state.restaurant.tier).toBe(content.room.tiers.length);
+  });
+
+  it('save v9 được nâng cấp lên v10', () => {
+    const old = JSON.parse(serialize(newGame().state));
+    old.version = 9;
+    delete old.regulars;
+    delete old.profile;
+    delete old.restaurant.props;
+    delete old.restaurant.extraTables;
+    delete old.restaurant.tier;
+    const state = deserialize(JSON.stringify(old), content)!;
+    expect(state.profile.name).toBe('Quán Nhà Vườn');
+    expect(state.restaurant.tier).toBe(1);
+    expect(state.restaurant.props).toEqual([]);
+  });
+});
+
+describe('ca làm, khay bưng nhiều món, dọn dẹp (đợt 14)', () => {
+  it('ngày 06:00–24:00; chỉ đón khách trong 2 ca, giờ nghỉ trưa không có khách mới; hết ca sàn có vết bẩn', () => {
+    const game = newGame(5);
+    expect(game.state.clock.minute).toBe(6 * 60);
+    const events: string[] = [];
+    game.bus.on('shift/started', (e) => events.push(`start${e.index}`));
+    game.bus.on('shift/ended', (e) => events.push(`end${e.index}`));
+    const arrivals: number[] = [];
+    game.bus.on('party/arrived', () => arrivals.push(game.state.clock.minute));
+    game.tick(15 * 60 - 6 * 60 + 1); // tới 15:01
+    expect(events).toEqual(['start0', 'end0', 'start1']);
+    expect(arrivals.length).toBeGreaterThan(0);
+    expect(arrivals.every((m) => m >= 7 * 60 && m < 12 * 60 + 1)).toBe(true);
+    expect(game.state.restaurant.stains.length).toBe(content.balance.stains.perShift);
+  });
+
+  it('khay: giao 2 món của bàn trong một lượt (bồi bàn bưng cả khay)', () => {
+    const game = quietGame();
+    const r = game.state.restaurant;
+    game.state.menu.active = ['egg_rice'];
+    const party = seatParty(game, 'pair', 2);
+    Object.assign(party, { phase: 'readyToOrder' });
+    game.dispatch({ type: 'service/takeOrder', partyId: party.id });
+    game.tick(3);
+    expect(r.orders).toHaveLength(2);
+    for (const o of r.orders) o.status = 'ready';
+    r.staff.forEach((s) => (s.orderId = null));
+    expect(game.dispatch({ type: 'service/deliver', orderIds: r.orders.map((o) => o.id), partyId: party.id }).ok).toBe(true);
+    expect(r.waiter.tasks).toHaveLength(1);
+    let carried = 0;
+    for (let i = 0; i < 20 && !r.orders.every((o) => o.status === 'served'); i++) {
+      game.tick(0.25);
+      carried = Math.max(carried, r.waiter.carrying.length);
+    }
+    expect(carried).toBe(2);
+    expect(r.orders.every((o) => o.status === 'served')).toBe(true);
+    game.tick(0.1);
+    expect(party.phase).toBe('eating');
+  });
+
+  it('khách trả tiền để lại chén dĩa dơ: bàn dơ không xếp khách tới khi dọn; bồi bàn rảnh thì đứng yên tại chỗ', () => {
+    const game = quietGame();
+    const r = game.state.restaurant;
+    const party = seatParty(game, 'pair', 2);
+    Object.assign(party, { phase: 'eating', timer: 0.5 });
+    game.tick(1);
+    expect(r.parties).toHaveLength(0);
+    expect(r.dirty.pair).toEqual([0, 1]);
+    seatParty(game, 'pair2', 2);
+    seatParty(game, 'medium', 3);
+    expect(findSeats(game.ctx, 2)).toBeNull(); // bàn đôi dơ, các bàn khác có khách
+    expect(game.dispatch({ type: 'service/clean', tableId: 'pair' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'service/clean', tableId: 'pair' }).ok).toBe(false);
+    for (let i = 0; i < 20 && r.dirty.pair; i++) game.tick(0.25);
+    expect(r.dirty.pair).toBeUndefined();
+    expect(findSeats(game.ctx, 2)?.tableId).toBe('pair');
+    const at = { x: r.waiter.x, y: r.waiter.y };
+    game.tick(5);
+    expect({ x: r.waiter.x, y: r.waiter.y }).toEqual(at);
+  });
+
+  it('vết bẩn làm khách kém kiên nhẫn; lau xong thì hết', () => {
+    const game = quietGame();
+    const r = game.state.restaurant;
+    const clean = modifier(game.ctx, 'patience');
+    r.stains.push({ id: 900, x: 200, y: 300, level: 2 });
+    expect(modifier(game.ctx, 'patience')).toBeLessThan(clean);
+    expect(game.dispatch({ type: 'service/mop', stainId: 900 }).ok).toBe(true);
+    for (let i = 0; i < 20 && r.stains.length; i++) game.tick(0.25);
+    expect(r.stains).toHaveLength(0);
+    expect(modifier(game.ctx, 'patience')).toBeCloseTo(clean);
+  });
+
+  it('vườn cây ăn quả: có sẵn cam + táo đang lớn, cây ra trái mãi', () => {
+    const game = quietGame();
+    const trees = game.state.farm.slots.filter((s) => s.type === 'orchard');
+    expect(trees.map((s) => s.producerId)).toEqual(['orange_tree', 'apple_tree']);
+    trees[0].stage = 'ready';
+    expect(game.dispatch({ type: 'farm/harvest', slotId: trees[0].id }).ok).toBe(true);
+    expect(game.state.inventory.orange).toBe(6);
+    expect(trees[0].producerId).toBe('orange_tree');
+  });
+
+  it('save v10 được nâng cấp lên v11 (khay, chén dĩa dơ, vết bẩn; quán nhỏ lại thì bàn cũ ngoài phòng về chỗ)', () => {
+    const old = JSON.parse(serialize(newGame().state));
+    old.version = 10;
+    old.restaurant.waiter.carrying = null;
+    old.restaurant.waiter.tasks = [];
+    delete old.restaurant.dirty;
+    delete old.restaurant.stains;
+    old.restaurant.layout = { pair: { x: 560, y: 500 }, big: { x: 300, y: 300 } };
+    const state = deserialize(JSON.stringify(old), content)!;
+    expect(state.restaurant.waiter.carrying).toEqual([]);
+    expect(state.restaurant.dirty).toEqual({});
+    expect(state.restaurant.layout).toEqual({});
+  });
+});
+
+describe('nhân viên phục vụ thuê thêm', () => {
+  it('chỉ thuê được khi lên hạng quán (mỗi bậc +1, tối đa 4)', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 1e6, level: 20 });
+    expect(game.dispatch({ type: 'helper/hire' }).ok).toBe(false);
+    game.dispatch({ type: 'restaurant/upgrade' });
+    expect(game.dispatch({ type: 'helper/hire' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'helper/hire' }).ok).toBe(false);
+    while (game.dispatch({ type: 'restaurant/upgrade' }).ok);
+    while (game.dispatch({ type: 'helper/hire' }).ok);
+    expect(game.state.restaurant.helpers).toHaveLength(4);
+    expect(new Set(game.state.restaurant.helpers.map((h) => h.name)).size).toBe(4);
+  });
+
+  it('tự nhận việc được giao (mang menu), tốn năng lượng; tắt việc thì không nhận', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 1e6, level: 20 });
+    game.dispatch({ type: 'restaurant/upgrade' });
+    game.dispatch({ type: 'helper/hire' });
+    const h = game.state.restaurant.helpers[0];
+    game.dispatch({ type: 'helper/setJob', helperId: h.id, job: 'menu', on: false });
+    const party = seatParty(game, 'pair', 2);
+    game.tick(2);
+    expect(party.phase).toBe('seated');
+    game.dispatch({ type: 'helper/setJob', helperId: h.id, job: 'menu', on: true });
+    for (let i = 0; i < 40 && party.phase === 'seated'; i++) game.tick(0.5);
+    expect(party.phase).toBe('browsing');
+    expect(h.energy).toBe(content.balance.helpers.maxEnergy - content.balance.helpers.energyPerTask);
+  });
+
+  it('cạn năng lượng thì xỉu (bỏ việc), bồi dưỡng 100 xu thì tỉnh lại', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 1e6, level: 20 });
+    game.dispatch({ type: 'restaurant/upgrade' });
+    game.dispatch({ type: 'helper/hire' });
+    const h = game.state.restaurant.helpers[0];
+    h.energy = 1;
+    const party = seatParty(game, 'pair', 2);
+    for (let i = 0; i < 40 && !h.fainted; i++) game.tick(0.5);
+    expect(h.fainted).toBe(true);
+    // Đang xỉu thì không nhận việc nữa
+    const other = seatParty(game, 'pair2', 2);
+    game.tick(5);
+    expect(other.called).toBe(false);
+    void party;
+    const money = game.state.money;
+    expect(game.dispatch({ type: 'helper/revive', helperId: h.id }).ok).toBe(true);
+    expect(game.state.money).toBe(money - content.balance.helpers.reviveCost);
+    expect(h.fainted).toBe(false);
+    expect(h.energy).toBe(content.balance.helpers.reviveEnergy);
+  });
+
+  it('chỉ đi ăn hàng rong trong giờ nghỉ: vắng mặt một lúc rồi về, năng lượng tăng theo món', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 1e6, level: 20 });
+    game.dispatch({ type: 'restaurant/upgrade' });
+    game.dispatch({ type: 'helper/hire' });
+    const h = game.state.restaurant.helpers[0];
+    h.energy = 10;
+    game.state.clock.minute = 9 * 60; // đang trong ca sáng
+    expect(game.dispatch({ type: 'helper/eat', helperId: h.id, stallId: 'hutieu' }).ok).toBe(false);
+    game.state.clock.minute = 12 * 60 + 30; // nghỉ trưa
+    expect(game.dispatch({ type: 'helper/eat', helperId: h.id, stallId: 'meat' }).ok).toBe(false); // sạp thịt không bán đồ ăn
+    expect(game.dispatch({ type: 'helper/eat', helperId: h.id, stallId: 'hutieu' }).ok).toBe(true);
+    expect(h.away?.stallId).toBe('hutieu');
+    game.tick(content.stalls.get('hutieu').staffMeal!.minutes + 1);
+    expect(h.away).toBeNull();
+    expect(h.energy).toBe(10 + content.stalls.get('hutieu').staffMeal!.energy);
+    // Thứ tự năng lượng: cà phê < bánh tráng < hủ tiếu < tiệm ăn vặt
+    const gain = ['cafe', 'banhtrang', 'hutieu', 'snack'].map((id) => content.stalls.get(id).staffMeal!.energy);
+    expect([...gain].sort((a, b) => a - b)).toEqual(gain);
+  });
+
+  it('save v11 được nâng cấp lên v12', () => {
+    const old = JSON.parse(serialize(newGame().state));
+    old.version = 11;
+    delete old.restaurant.helpers;
+    const state = deserialize(JSON.stringify(old), content)!;
+    expect(state.restaurant.helpers).toEqual([]);
   });
 });

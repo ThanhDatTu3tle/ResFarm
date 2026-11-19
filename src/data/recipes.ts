@@ -8,6 +8,9 @@ import type { CuisineId, RecipeDef } from './types';
  * dish(quán, id, tên, biểu tượng, nguyên liệu "id:số lượng ...", phút nấu, giá, cấp mở, tiền mở, độ ưa chuộng?)
  * cấp 1 + tiền 0 = món có sẵn từ đầu.
  */
+/** Số cookTime bên dưới ghi theo nhịp cũ (0.7 phút game / giây thực); nhân hệ số để giữ nguyên số giây thực khi minutesPerSecond = 1.5. */
+const COOK_SCALE = 1.5 / 0.7;
+
 function dish(cuisine: CuisineId, id: string, name: string, icon: string, ingredients: string, cookTime: number, price: number, level: number, cost: number, popularity?: number): RecipeDef {
   return {
     id,
@@ -18,7 +21,7 @@ function dish(cuisine: CuisineId, id: string, name: string, icon: string, ingred
       const [item, qty] = s.split(':');
       return { item, qty: Number(qty ?? 1) };
     }),
-    cookTime,
+    cookTime: Math.round(cookTime * COOK_SCALE),
     price,
     unlock: { level, cost },
     ...(popularity != null ? { popularity } : {}),
@@ -36,6 +39,8 @@ export const recipes: RecipeDef[] = [
   dish('vn', 'braised_pork', 'Thịt kho trứng', '🥘', 'pork egg:2 fish_sauce', 30, 44, 2, 200),
   dish('vn', 'hu_tieu', 'Hủ tiếu Nam Vang', '🍜', 'rice_noodle pork shrimp water', 26, 46, 2, 250),
   dish('vn', 'flan', 'Bánh flan', '🍮', 'egg:2 milk:2', 20, 34, 3, 300, 0.7),
+  dish('vn', 'fruit_plate', 'Đĩa trái cây', '🍉', 'orange apple mango', 8, 30, 1, 60, 0.8),
+  dish('vn', 'che_chuoi', 'Chè chuối', '🍌', 'banana:2 milk', 14, 26, 2, 120, 0.7),
   dish('vn', 'fried_fish', 'Cá chiên sốt cà', '🐠', 'fish tomato:2 oil', 28, 50, 3, 350),
   dish('vn', 'pho', 'Phở bò', '🍜', 'noodle beef onion water', 30, 58, 3, 400, 1.4),
   dish('vn', 'bun_bo', 'Bún bò Huế', '🌶️', 'rice_noodle beef chili water', 32, 60, 3, 450, 1.2),
@@ -48,6 +53,7 @@ export const recipes: RecipeDef[] = [
   // ---------- 🇯🇵 Quán Nhật ----------
   dish('jp', 'onigiri', 'Cơm nắm onigiri', '🍙', 'rice seaweed salt', 12, 16, 1, 0, 1.2),
   dish('jp', 'tamagoyaki', 'Trứng cuộn tamagoyaki', '🍳', 'egg:2 soy_sauce oil', 15, 20, 1, 0),
+  dish('jp', 'fruit_sando', 'Sandwich trái cây', '🥪', 'bread orange apple milk', 10, 32, 1, 60, 0.8),
   dish('jp', 'miso_soup', 'Súp miso', '🥣', 'tofu seaweed miso water', 15, 20, 1, 0),
   dish('jp', 'maki', 'Cơm cuộn maki', '🍣', 'rice seaweed cucumber fish', 22, 36, 2, 150, 1.2),
   dish('jp', 'teriyaki', 'Gà teriyaki', '🍗', 'chicken soy_sauce rice', 25, 40, 2, 200),
@@ -65,6 +71,7 @@ export const recipes: RecipeDef[] = [
   dish('kr', 'kimbap', 'Cơm cuộn kimbap', '🍙', 'rice seaweed carrot egg', 18, 22, 1, 0, 1.2),
   dish('kr', 'kimchi', 'Kimchi cải thảo', '🥬', 'cabbage:2 chili gochujang', 12, 16, 1, 0),
   dish('kr', 'gyeran_jjim', 'Trứng hấp gyeran-jjim', '🥚', 'egg:2 water salt', 15, 20, 1, 0),
+  dish('kr', 'hwachae', 'Trà trái cây hwachae', '🍹', 'apple orange banana water', 8, 30, 1, 60, 0.8),
   dish('kr', 'tteokbokki', 'Tokbokki', '🍢', 'rice_cake:2 gochujang onion', 20, 34, 2, 150, 1.4),
   dish('kr', 'kr_fried_chicken', 'Gà rán Hàn Quốc', '🍗', 'chicken flour oil gochujang', 28, 46, 2, 250, 1.4),
   dish('kr', 'gilgeori_toast', 'Bánh mì nướng đường phố', '🍞', 'bread egg cabbage', 15, 30, 2, 150, 1.2),

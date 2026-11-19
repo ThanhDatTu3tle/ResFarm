@@ -68,7 +68,7 @@ src/ui/three/areas/*.ts   restaurant, farm, market
 test/sim.test.ts          toàn bộ test (chỉ test sim + data)
 ```
 
-## 3. GameState (phiên bản 9)
+## 3. GameState (phiên bản 12)
 
 ```ts
 GameState {
@@ -88,7 +88,14 @@ GameState {
     orders: Order[]             // status 'queued'|'cooking'|'ready'(ở quầy ra món)|'carrying'|'served'
     staff: { id, orderId }[]
     spawnTimer
-    layout: Record<tableId, {x, y}>        // chỉ những bàn đã bị dời
+    layout: Record<tableId, {x, y, rot?}>  // bàn gốc đã dời / xoay (rot = xoay 90°); bàn mua thêm luôn có
+    extraTables: { id, kind }[]            // bàn lẻ mua thêm (kind = TableKindDef)
+    props: { uid, def, x, y, rot, stored }[]   // đồ trang trí đặt tự do; stored = đang cất kho
+    tier                                   // hạng quán 1..3 (content.room.tiers) — phòng sâu thêm theo hạng
+    dirty: Record<tableId, ghế[]>          // chén dĩa dơ khách để lại; ghế dơ không xếp khách
+    stains: { id, x, y, level }[]          // vết bẩn sàn (thêm lúc hết ca), làm khách kém kiên nhẫn
+    helpers: HelperState[]                 // nhân viên thuê: như waiter + id, name, look, jobs, energy, fainted, away { stallId, minutesLeft }
+    // waiter.carrying: id đơn[] (khay); WaiterTask thêm 'clean' { tableId }, 'mop' { stainId }; 'deliver' có orderIds[]
     waiter: { x, y, tasks: WaiterTask[], carrying }   // bồi bàn (người chơi); toạ độ mặt bằng
   }
   farm: {
@@ -98,6 +105,9 @@ GameState {
     mills: { id, type: 'windmill'|'ricemill', product, input, progress }[]   // cối chế biến: input = số lúa chờ xay
   }
   quests: { index, progress, done }   // nhiệm vụ hệ thống: đang làm content.quests[index]; done = đạt mục tiêu, chờ nhận thưởng
+  regulars: Record<regularId, { visits, lastDay, gifted }>   // khách quen đã từng ghé
+  profile: { name, pet, pets }        // tên quán, thú cưng đang ở quán, các con đã nhận nuôi
+  // Party có thêm regular: id khách quen dẫn đầu nhóm (ghế đầu) hoặc null; Order có thêm fav (món ruột)
   market: { priceFactor: Record<itemId, hệ số> }
   weather: { id, minutesLeft }
   stats: { today, total }       // DayStats: revenue, tips, spent, dishes, guestsServed, guestsLost
@@ -136,6 +146,18 @@ farmer/cancel                              bỏ các việc chưa tới lượt 
 mill/buy            { millType }           mua thêm cối (cối xay gió / nhà xay lúa)
 mill/setProduct     { millId, item }       chọn thành phẩm cối làm ra
 quest/claim                                nhận thưởng nhiệm vụ đã hoàn thành, mở nhiệm vụ kế
+profile/rename      { name }               đặt tên quán (1–24 ký tự)
+pet/adopt           { petId }              nhận nuôi (trả tiền lần đầu) và đưa ra quán
+pet/set             { petId | null }       đổi con đang ở quán / cho nghỉ
+prop/buy            { propId }             mua đồ trang trí, tự bày vào chỗ thoáng nhất
+prop/move | prop/rotate | prop/store | prop/place | prop/sell   { uid, (x, y) }   dời / xoay / cất kho / bày lại / bán lại 50%
+table/buy           { kind }               mua bàn lẻ, tự đặt chỗ trống; table/sell { tableId } bán lại bàn mua thêm
+layout/rotateTable  { tableId }            xoay bàn 90°
+restaurant/upgrade                         nâng hạng quán (phòng sâu thêm)
+service/deliver     { orderIds, partyId }  bưng cả khay (một hoặc nhiều món) tới bàn
+service/clean       { tableId }            dọn chén dĩa dơ
+service/mop         { stainId }            lau vết bẩn trên sàn
+helper/hire | helper/fire { helperId } | helper/setJob { helperId, job, on } | helper/revive { helperId } | helper/eat { helperId, stallId }
 ```
 
 UI dùng `farmer/*` cho mọi thao tác trên ô; `farm/till|water|plant|harvest|clear|harvestAll|waterAll` là lệnh "làm ngay", hiện chỉ test, `?do=` và bác nông dân (khi tới nơi) gọi.
@@ -160,6 +182,11 @@ farmer/done { kind, slotId, ok, reason? }  bác nông dân làm xong một việ
 mill/produced { millId, item, qty }        cối vừa làm xong thành phẩm (đã vào kho)
 quest/completed { questId }               nhiệm vụ đạt mục tiêu
 quest/claimed { questId, money }          đã nhận thưởng
+regular/arrived { regularId, partyId }    khách quen tới quán
+regular/visited { regularId, hearts, heartUp, fav, gift }   khách quen trả tiền xong (lên tim / món ruột / quà tặng)
+restaurant/upgraded { tier }              quán lên hạng (app.ts dựng lại khu quán)
+shift/started { index } · shift/ended { index }   bắt đầu / hết ca mở cửa (hết ca: sàn thêm vết bẩn)
+helper/fainted { helperId } · helper/returned { helperId, energy }   nhân viên xỉu / ăn xong về quán
 farm/ready     level/up      weather/changed
 day/ended      day/started
 ```
@@ -203,7 +230,7 @@ Người chơi đang có save thật trong trình duyệt. Mỗi lần đổi h�
 4. Nếu cần "sửa cho hợp lệ" (id bị xoá, số ô khởi đầu tăng...), thêm vào `reconcile()` — hàm này chạy sau migration ở mọi lần tải.
 5. Thêm test: lấy state mới, xoá trường mới, hạ `version`, `deserialize` lại, kiểm tra kết quả và chạy thử `tick`.
 
-v7 (phong cách quán) được chủ dự án chốt là **chơi lại từ đầu**: migration v1→v6 đã xoá, save cũ bị bỏ qua. Muốn xem mẫu migration cũ: lịch sử git trước nhánh `giai-doan-2`. Từ v7 trở đi viết migration bình thường: v7→v8 thêm cối + `farmer.carry` (`reconcile()` tạo đủ cối khởi đầu), v8→v9 thêm `quests`.
+v7 (phong cách quán) được chủ dự án chốt là **chơi lại từ đầu**: migration v1→v6 đã xoá, save cũ bị bỏ qua. Muốn xem mẫu migration cũ: lịch sử git trước nhánh `giai-doan-2`. Từ v7 trở đi viết migration bình thường: v7→v8 thêm cối + `farmer.carry` (`reconcile()` tạo đủ cối khởi đầu), v8→v9 thêm `quests`, v9→v10 thêm `regulars`, `profile`, `restaurant.extraTables/props/tier`, `party.regular`; v10→v11 đổi `waiter.carrying` thành mảng, `deliver.orderIds`, thêm `restaurant.dirty/stains` (reconcile dời bàn / đồ nằm ngoài phòng khi quán nhỏ lại); v11→v12 thêm `restaurant.helpers`.
 
 `deserialize` trả `null` (tạo game mới) nếu save hỏng hoặc thiếu migration. Khoá lưu: `quan-nha-vuon/save`.
 

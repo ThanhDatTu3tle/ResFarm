@@ -73,5 +73,15 @@ export function modifier(ctx: SimContext, key: ModifierKey): number {
   let value = ctx.content.weathers.get(ctx.state.weather.id).effects?.[key] ?? 1;
   for (const id of ctx.state.upgrades) value *= ctx.content.upgrades.get(id).modifiers?.[key] ?? 1;
   for (const id of Object.values(ctx.state.decor.equipped)) value *= ctx.content.decor.get(id).modifiers?.[key] ?? 1;
+  // Quán của riêng mình: hạng quán, thú cưng, đồ trang trí đang bày (mỗi loại tính một lần)
+  const { restaurant, profile } = ctx.state;
+  value *= ctx.content.room.tiers[restaurant.tier - 1]?.modifiers?.[key] ?? 1;
+  if (profile.pet) value *= ctx.content.pets.get(profile.pet).modifiers?.[key] ?? 1;
+  for (const id of new Set(restaurant.props.filter((p) => !p.stored).map((p) => p.def))) value *= ctx.content.props.get(id).modifiers?.[key] ?? 1;
+  // Sàn bẩn: khách kém kiên nhẫn hơn
+  if (key === 'patience' && restaurant.stains.length) {
+    const s = ctx.content.balance.stains;
+    value *= Math.max(s.minPatience, 1 - s.patiencePerLevel * restaurant.stains.reduce((a, x) => a + x.level, 0));
+  }
   return value;
 }

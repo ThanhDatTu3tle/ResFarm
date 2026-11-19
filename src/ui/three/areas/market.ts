@@ -20,7 +20,7 @@ const LANES = [11.8, 14.8];
 const ROAD_HALF = 26;
 
 const STALL_COLORS = [0xe2574c, 0x5fae57, 0x4a9bd8, 0xf2a23a, 0x9a6bd1];
-const STALL_SPACING = 6.5;
+const STALL_SPACING = 5.9;
 const STALL_Z = -1.6;
 
 export class MarketArea implements Area {
@@ -29,7 +29,7 @@ export class MarketArea implements Area {
   icon = '🧺';
   root = new THREE.Group();
   // Lùi camera ra sau con đường để thấy đủ sạp, vỉa hè và xe chạy
-  view = { position: [0, 12, 29] as V3, target: [0, 1.2, 4.6] as V3, orbit: 0.75 };
+  view = { position: [0, 13, 31] as V3, target: [0, 1.2, 4.2] as V3, orbit: 0.75 };
   rainBox = { min: [-22, 0, -12] as V3, max: [22, 14, 18] as V3 };
   outdoor = true;
 
@@ -43,11 +43,32 @@ export class MarketArea implements Area {
   private flags: THREE.Object3D[] = [];
   /** Xe trên đường: chạy theo làn, ra khỏi đầu đường thì vòng lại đầu kia. */
   private vehicles: { g: THREE.Group; speed: number; dir: 1 | -1; wheels: THREE.Object3D[]; rider: THREE.Group | null }[] = [];
+  /** Tâm từng hàng quán (để camera lướt tới khi bấm). */
+  private centers = new Map<string, { x: number; z: number }>();
+  /** Hơi nóng bốc lên từ nồi hủ tiếu / ly cà phê. */
+  private steams: THREE.Sprite[] = [];
 
-  constructor(game: Game) {
+  /** Tâm hàng quán `id` (mét, toạ độ khu chợ) — app.ts lướt camera tới đây khi bấm sạp. */
+  stallCenter(id: string): { x: number; z: number } | null {
+    return this.centers.get(id) ?? null;
+  }
+
+  constructor(private game: Game) {
     this.buildScenery();
-    const stalls = game.content.stalls.all();
-    stalls.forEach((def, i) => this.buildStall(game, def, (i - (stalls.length - 1) / 2) * STALL_SPACING, STALL_COLORS[i % STALL_COLORS.length], i));
+    // Dãy chợ: sạp mái bạt + tiệm nhỏ xếp hàng ngang; hàng rong đứng trên vỉa hè ở chỗ riêng (StallDef.spot)
+    const all = game.content.stalls.all();
+    const row = all.filter((d) => !d.kind || d.kind === 'stall' || d.kind === 'kiosk');
+    row.forEach((def, i) => {
+      const x = (i - (row.length - 1) / 2) * STALL_SPACING;
+      const color = STALL_COLORS[i % STALL_COLORS.length];
+      if (def.kind === 'kiosk') this.buildKiosk(game, def, x, color, i);
+      else this.buildStall(game, def, x, color, i);
+      this.centers.set(def.id, { x, z: STALL_Z + 1.2 });
+    });
+    all.filter((d) => d.spot).forEach((def, i) => {
+      this.buildStreetVendor(game, def, i);
+      this.centers.set(def.id, { x: def.spot!.x, z: def.spot!.z });
+    });
     this.swayNodes = collectSway(this.root);
   }
 
@@ -221,7 +242,159 @@ export class MarketArea implements Area {
     this.vendors.push(vendor);
   }
 
+  /** Bày hàng: thùng nhỏ + biểu tượng mặt hàng, dàn ngang quanh (x, z) trong group g. */
+  private showItems(game: Game, g: THREE.Group, def: StallDef, y: number, width: number, z: number, index: number): void {
+    def.items.forEach((id, i) => {
+      const px = (i - (def.items.length - 1) / 2) * (width / def.items.length);
+      const icon = emojiSprite(game.content.items.get(id).icon, 0.42);
+      icon.position.set(px, y + 0.3, z);
+      g.add(icon);
+      this.bobbers.push({ obj: icon, y: y + 0.3, phase: index * 3 + i, amp: 0.04 });
+    });
+  }
+
+  /** Bảng tên nhỏ (tấm gỗ + chữ) cho tiệm / hàng rong. */
+  private nameBoard(g: THREE.Group, def: StallDef, w: number, p: V3, color: number): void {
+    const board = group(g, { p });
+    mesh(board, G.box(w + 0.2, 0.62, 0.08), color);
+    mesh(board, G.box(w, 0.5, 0.1), 0xfffaf1);
+    const icon = emojiSprite(def.icon, 0.42);
+    icon.position.set(-w / 2 + 0.3, 0, 0.1);
+    board.add(icon);
+    const name = signText(def.name, '#3b2a1e', w - 0.7, 0.42);
+    name.position.set(0.22, 0, 0.065);
+    board.add(name);
+  }
+
+  /** Tiệm nhỏ ăn vặt / trà sữa trong dãy chợ: nhà hộp sơn hồng, mái hiên, quầy kính, ly trà sữa. */
+  private buildKiosk(game: Game, def: StallDef, x: number, color: number, index: number): void {
+    const g = group(this.root, { p: [x, 0, STALL_Z - 0.4] });
+    g.userData.pick = { type: 'stall', id: def.id } satisfies Pick;
+    const W = 4.6;
+    mesh(g, G.box(W, 3.2, 2.6), 0xf6c9d6, { p: [0, 1.6, -0.6] });
+    mesh(g, G.box(W + 0.2, 0.25, 2.8), 0xffffff, { p: [0, 3.3, -0.6] });
+    // Ô cửa bán hàng + quầy
+    mesh(g, G.box(W - 0.8, 1.5, 0.1), 0x5a3b2a, { p: [0, 1.75, 0.71] });
+    mesh(g, G.box(W - 0.6, 0.9, 0.7), 0xffffff, { p: [0, 0.45, 1.0] });
+    mesh(g, G.box(W - 0.5, 0.08, 0.8), 0xf28cb1, { p: [0, 0.92, 1.0] });
+    // Mái hiên sọc
+    const awning = group(g, { p: [0, 2.75, 1.05], r: [0.45, 0, 0] });
+    for (let i = 0; i < 8; i++) mesh(awning, G.box(W / 8, 0.06, 1.1), i % 2 ? 0xffffff : 0xf28cb1, { p: [-W / 2 + (i + 0.5) * (W / 8), 0, 0] });
+    // Ly trà sữa to trên nóc + ly nhỏ trên quầy
+    const cup = group(g, { p: [W / 2 - 0.7, 3.45, -0.3] });
+    mesh(cup, G.cyl(0.32, 0.24, 0.8, 14), new THREE.MeshToonMaterial({ color: 0xe8d2b0, transparent: true, opacity: 0.9 }), { p: [0, 0.4, 0] });
+    mesh(cup, G.cyl(0.34, 0.34, 0.08, 14), 0xffffff, { p: [0, 0.82, 0] });
+    mesh(cup, G.cyl(0.03, 0.03, 0.5, 6), 0xf28cb1, { p: [0.08, 1.05, 0], r: [0, 0, -0.2] });
+    for (let k = 0; k < 6; k++) mesh(cup, G.sphere(0.05, 6, 5), 0x3a2a1e, { p: [Math.cos(k) * 0.15, 0.1, Math.sin(k) * 0.15], cast: false });
+    this.nameBoard(g, def, W - 0.4, [0, 3.12, 0.75], color); // trên mép mái hiên cho khỏi bị che
+    this.showItems(game, g, def, 0.96, W - 1.2, 1.0, index);
+    const vendor = makePerson(LOOKS[(index * 3 + 1) % LOOKS.length]);
+    vendor.position.set(0, 0, 0.2);
+    vendor.scale.setScalar(1.2);
+    g.add(vendor);
+    this.vendors.push(vendor);
+  }
+
+  /** Hàng rong trên vỉa hè: xe hủ tiếu gõ, gánh bánh tráng trộn, xe đạp cà phê. */
+  private buildStreetVendor(game: Game, def: StallDef, index: number): void {
+    const g = group(this.root, { p: [def.spot!.x, 0, def.spot!.z] });
+    g.userData.pick = { type: 'stall', id: def.id } satisfies Pick;
+    const wood = 0xb9733f;
+    let vendorAt: V3 = [0, 0, -0.9];
+    let hat: 'none' | 'straw' = 'none';
+    if (def.kind === 'cart') {
+      // Xe đẩy: thùng gỗ, tủ kính, nồi nước lèo bốc khói, 2 bánh xe, bảng tên đỏ trên mái
+      mesh(g, G.box(2.2, 0.9, 0.9), wood, { p: [0, 0.75, 0] });
+      mesh(g, G.box(1.2, 0.6, 0.8), new THREE.MeshToonMaterial({ color: 0xcfefff, transparent: true, opacity: 0.45 }), { p: [-0.4, 1.5, 0], cast: false });
+      mesh(g, G.cyl(0.32, 0.3, 0.45, 14), 0xbfc5cc, { p: [0.6, 1.42, 0] });
+      for (const sx of [-0.7, 0.7]) {
+        const wheel = mesh(g, G.cyl(0.32, 0.32, 0.08, 14), 0x3a3a3a, { p: [sx, 0.32, 0.5], r: [Math.PI / 2, 0, 0] });
+        wheel.castShadow = true;
+      }
+      for (const sx of [-1, 1]) mesh(g, G.cyl(0.03, 0.03, 1.2, 6), 0x8a5a35, { p: [sx * 1.0, 1.8, -0.35] });
+      mesh(g, G.box(2.3, 0.08, 1.1), 0xd93a32, { p: [0, 2.42, -0.1] });
+      this.nameBoard(g, def, 1.9, [0, 2.0, 0.5], 0xd93a32);
+      this.showItems(game, g, def, 1.2, 1.1, 0.5, index + 5);
+      const steam = emojiSprite('♨️', 0.4);
+      steam.position.set(0.6, 1.95, 0);
+      g.add(steam);
+      this.steams.push(steam);
+      // Ghế nhựa thấp cho khách ngồi lề đường
+      for (const [sx, sz] of [[-1.6, 0.9], [1.6, 0.9]]) mesh(g, G.box(0.35, 0.3, 0.35), 0x4a9bd8, { p: [sx, 0.15, sz] });
+    } else if (def.kind === 'pole') {
+      // Gánh hàng: đòn gánh tre + hai thúng tròn đặt dưới đất, người bán đội nón lá
+      for (const sx of [-0.85, 0.85]) {
+        mesh(g, G.cyl(0.42, 0.34, 0.35, 14), 0xc9a066, { p: [sx, 0.2, 0.2] });
+        mesh(g, G.cyl(0.4, 0.4, 0.04, 14), 0xf3e9d2, { p: [sx, 0.39, 0.2], cast: false });
+        for (let k = 0; k < 3; k++) mesh(g, G.cyl(0.005, 0.005, 1.1, 4), 0x8a5a35, { p: [sx + Math.cos(k * 2.1) * 0.35, 0.95, 0.2 + Math.sin(k * 2.1) * 0.35], r: [Math.sin(k * 2.1) * 0.3, 0, -Math.cos(k * 2.1) * 0.3] });
+      }
+      mesh(g, G.cyl(0.04, 0.04, 2.3, 6), 0xd9c27a, { p: [0, 1.48, 0.2], r: [0, 0, Math.PI / 2] });
+      for (const sx of [-0.6, 0.6]) mesh(g, G.box(0.3, 0.25, 0.3), 0xe2574c, { p: [sx, 0.12, 1.1] }); // ghế nhựa
+      this.showItems(game, g, def, 0.45, 1.8, 0.2, index + 5);
+      this.nameBoard(g, def, 1.7, [0, 0.95, 1.6], 0x5fae57);
+      vendorAt = [0, 0, -0.55];
+      hat = 'straw';
+    } else {
+      // Xe đạp cà phê: 2 bánh, khung, thùng gỗ phía sau, dù che
+      for (const sx of [-0.75, 0.75]) mesh(g, G.torus(0.33, 0.04, 6, 18), 0x3a3a3a, { p: [sx, 0.36, 0] });
+      mesh(g, G.cyl(0.03, 0.03, 1.5, 6), 0x2f6f8f, { p: [0, 0.6, 0], r: [0, 0, Math.PI / 2] });
+      mesh(g, G.box(0.9, 0.6, 0.7), 0x6b4a2f, { p: [0.55, 0.95, 0] });
+      for (let i = 0; i < 4; i++) mesh(g, G.cyl(0.07, 0.06, 0.2, 10), 0xffffff, { p: [0.3 + i * 0.17, 1.35, 0.15] });
+      mesh(g, G.cyl(0.02, 0.02, 1.7, 6), 0x8a5a35, { p: [0.55, 1.9, 0] });
+      mesh(g, G.cone(1.0, 0.45, 10), 0xf2b23e, { p: [0.55, 2.85, 0] });
+      this.nameBoard(g, def, 1.6, [0.55, 0.95, 0.4], 0x6b4a2f);
+      this.showItems(game, g, def, 1.45, 0.9, -0.15, index + 5);
+      const steam = emojiSprite('☕', 0.36);
+      steam.position.set(-0.2, 1.4, 0.2);
+      g.add(steam);
+      vendorAt = [-0.4, 0, -0.75];
+    }
+    const vendor = makePerson(LOOKS[(index * 3 + 5) % LOOKS.length], hat);
+    vendor.position.set(...vendorAt);
+    vendor.scale.setScalar(1.15);
+    g.add(vendor);
+    this.vendors.push(vendor);
+  }
+
+  private eaters = new Map<string, THREE.Group>();
+
+  /** Nhân viên thuê đang ra chợ ăn hàng rong: ngồi ghế nhựa cạnh hàng đó, đưa tay lên miệng. */
+  private updateEaters(env: Env): void {
+    const helpers = this.game.state.restaurant.helpers;
+    for (const [id, g] of this.eaters) {
+      if (helpers.some((h) => h.id === id && h.away)) continue;
+      this.root.remove(g);
+      this.eaters.delete(id);
+    }
+    helpers.forEach((h, i) => {
+      if (!h.away) return;
+      const c = this.centers.get(h.away.stallId);
+      if (!c) return;
+      let g = this.eaters.get(h.id);
+      if (!g) {
+        g = group(this.root, { p: [c.x - 1.2 + i * 0.8, 0, c.z + 1.9] });
+        mesh(g, G.box(0.4, 0.3, 0.4), 0x4a9bd8, { p: [0, 0.15, 0] });
+        const shirts = [0x5fae57, 0xe2703a, 0x9a6bd1, 0x3fb6a8];
+        const p = makePerson({ shirt: shirts[h.look % shirts.length], hair: 0x3a2a1e, skin: 0xffd9b8 });
+        p.position.y = 0.3;
+        p.rotation.y = Math.PI;
+        g.add(p);
+        g.userData.person = p;
+        const yum = emojiSprite('😋', 0.4);
+        yum.position.set(0, 2.0, 0);
+        g.add(yum);
+        this.eaters.set(h.id, g);
+      }
+      animatePerson(g.userData.person, env.t, { sit: true, eat: true });
+    });
+  }
+
   update(env: Env, dt: number): void {
+    this.updateEaters(env);
+    for (const s of this.steams) {
+      s.position.y = (s.userData.y0 ??= s.position.y) + ((env.t * 0.6) % 0.5);
+      s.material.opacity = 1 - ((env.t * 0.6) % 0.5) * 1.6;
+    }
     for (const v of this.vehicles) {
       v.g.position.x += v.dir * v.speed * dt;
       if (v.g.position.x > ROAD_HALF) v.g.position.x = -ROAD_HALF;

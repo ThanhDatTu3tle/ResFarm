@@ -17,7 +17,11 @@ export type Pick =
   /** Chỗ trống mua thêm được ở nông trại: id = loại ô (SlotType) hoặc loại cối (MillType). */
   | { type: 'expand'; id: string }
   /** Toà nhà ở nông trại có khu bên trong (id = id của Area, vd 'greenhouse'): bấm để vào. */
-  | { type: 'building'; id: string };
+  | { type: 'building'; id: string }
+  /** Đồ trang trí trong quán (id = PropState.uid): kéo ở chế độ sắp xếp. */
+  | { type: 'prop'; id: string }
+  /** Vết bẩn trên sàn quán (id = String(stain.id)): bấm GIỮ để lau. */
+  | { type: 'stain'; id: string };
 
 /** Môi trường chung cho mọi khu, tính lại mỗi khung hình từ state (giờ + thời tiết). Mọi giá trị 0..1 trừ `t`. */
 export interface Env {
@@ -36,6 +40,8 @@ export interface Env {
   editLayout: boolean;
   /** Món (id đơn) người chơi vừa chọn ở quầy ra món, đang chờ chọn bàn để giao. */
   serving: number | null;
+  /** Bàn / đồ trang trí đang chọn ở chế độ sắp xếp (id bàn hoặc uid đồ trang trí). */
+  editSelected: string | null;
 }
 
 /**
@@ -70,15 +76,20 @@ const SUN_DAY = new THREE.Color(0xfff2d6);
 const SUN_NIGHT = new THREE.Color(0x8fa8ff);
 const RAIN_DROPS = 1100;
 const BASE_ASPECT = 1.6;
+/** Thời gian bấm giữ để lau vết bẩn (mili-giây). */
+export const HOLD_MS = 650;
 
 /** Renderer + camera + ánh sáng + bầu trời/thời tiết dùng chung; hiển thị một Area tại một thời điểm. */
 export class Stage {
-  onPick: (pick: Pick) => void = () => {};
+  /** held = số mili-giây người chơi giữ con trỏ trước khi thả (vết bẩn cần bấm giữ). */
+  onPick: (pick: Pick, held: number) => void = () => {};
+  /** Đang giữ con trỏ trên một vật (để vẽ vòng tiến độ bấm giữ): vật + mili-giây đã giữ; null = không giữ. */
+  holding: { pick: Pick; ms: number } | null = null;
   /** Trả true nếu vật này được phép kéo (khi đó camera tạm khoá trong lúc kéo). */
   dragFilter: (pick: Pick) => boolean = () => false;
   /** Gọi liên tục khi đang kéo, với toạ độ mặt đất (x, z) dưới con trỏ; end = true ở lần cuối khi thả. */
   onDrag: (pick: Pick, x: number, z: number, end: boolean) => void = () => {};
-  readonly env: Env = { t: 0, day: 1, night: 0, rain: 0, clouds: 0, wind: 0, dim: 0, noon: 0, selectedSlot: null, editLayout: false, serving: null };
+  readonly env: Env = { t: 0, day: 1, night: 0, rain: 0, clouds: 0, wind: 0, dim: 0, noon: 0, selectedSlot: null, editLayout: false, serving: null, editSelected: null };
 
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -160,10 +171,12 @@ export class Stage {
 
     // Con trỏ: kéo vật (nếu dragFilter cho phép) hoặc bấm chọn (con trỏ gần như không di chuyển).
     // Đăng ký TRƯỚC OrbitControls để kịp khoá camera khi bắt đầu kéo vật.
-    let down: { x: number; y: number } | null = null;
+    let down: { x: number; y: number; at: number; pick: Pick | null } | null = null;
     canvas.addEventListener('pointerdown', (e) => {
-      down = { x: e.clientX, y: e.clientY };
       const pick = this.pickAt(e.clientX, e.clientY);
+      down = { x: e.clientX, y: e.clientY, at: performance.now(), pick };
+      // Vết bẩn: bấm giữ — khoá xoay camera trong lúc giữ
+      if (pick?.type === 'stain') this.controls.enabled = false;
       if (pick && this.dragFilter(pick)) {
         this.dragging = pick;
         this.controls.enabled = false;
@@ -186,11 +199,28 @@ export class Stage {
         this.controls.enabled = true;
       } else if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 8) {
         const pick = this.pickAt(e.clientX, e.clientY);
-        if (pick) this.onPick(pick);
+        if (pick) this.onPick(pick, performance.now() - down.at);
       }
+      if (down?.pick?.type === 'stain') this.controls.enabled = true;
       down = null;
+      this.holding = null;
     };
     canvas.addEventListener('pointerup', release);
+    // Giữ đủ lâu trên vết bẩn thì lau luôn, không cần thả tay
+    const holdTick = () => {
+      if (down?.pick?.type === 'stain') {
+        const ms = performance.now() - down.at;
+        this.holding = { pick: down.pick, ms };
+        if (ms >= HOLD_MS) {
+          this.onPick(down.pick, ms);
+          this.controls.enabled = true;
+          down = null;
+          this.holding = null;
+        }
+      }
+      requestAnimationFrame(holdTick);
+    };
+    requestAnimationFrame(holdTick);
     canvas.addEventListener('pointercancel', release);
     canvas.addEventListener('dblclick', () => this.resetView());
 
@@ -204,6 +234,21 @@ export class Stage {
     this.controls.maxPolarAngle = 1.36;
 
     this.setArea(areas[0].id);
+  }
+
+  /** Thay một khu bằng bản dựng mới (vd quán lên hạng, phòng to hơn). Đang xem khu đó thì chuyển sang bản mới luôn. */
+  replaceArea(old: Area, next: Area): void {
+    const i = this.areas.indexOf(old);
+    if (i < 0) return;
+    this.scene.remove(old.root);
+    this.areas[i] = next;
+    next.root.visible = false;
+    this.scene.add(next.root);
+    if (this.current === old) {
+      this.current = next;
+      next.root.visible = true;
+      this.resetView();
+    }
   }
 
   get areaId(): string {
@@ -243,13 +288,15 @@ export class Stage {
    * Lướt camera lại gần một điểm trên mặt đất (giữ nguyên hướng nhìn hiện tại), gần hơn mặc định theo `closer` (0.6 = còn 60% khoảng cách).
    * Dùng khi bấm ô nông trại để người chơi thấy đúng chỗ mình vừa chọn.
    */
-  focusOn(x: number, z: number, closer = 0.62): void {
+  focusOn(x: number, z: number, closer = 0.62, y = 0): void {
     const c = this.controls;
     const { position, target } = this.current.view;
     const pull = Math.max(1, BASE_ASPECT / this.camera.aspect);
     const base = new THREE.Vector3(position[0] - target[0], position[1] - target[1], position[2] - target[2]).multiplyScalar(pull).length();
     const dir = this.camera.position.clone().sub(c.target).normalize();
-    const toT = new THREE.Vector3(x, 0, z);
+    const toT = new THREE.Vector3(x, y, z);
+    // Cho phép lại gần hơn giới hạn zoom thường (bấm sạp chợ: lướt hẳn vào sạp)
+    c.minDistance = Math.min(c.minDistance, base * closer * 0.95);
     this.camTween = { fromT: c.target.clone(), toT, fromP: this.camera.position.clone(), toP: toT.clone().add(dir.multiplyScalar(base * closer)), k: 0 };
   }
 

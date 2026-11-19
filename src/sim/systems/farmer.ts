@@ -22,6 +22,8 @@ export function slotCenter(ctx: SimContext, slot: FarmSlot): { x: number; z: num
 /** Tâm ô thứ `i` của loại (dùng cả cho chỗ trống chưa mua — viền đứt khúc). */
 export function slotCenterAt(ctx: SimContext, type: FarmSlot['type'], i: number): { x: number; z: number } {
   const { layout } = ctx.content.slotTypes.get(type);
+  const spot = layout.spots?.[i];
+  if (spot) return { x: spot.x, z: spot.z };
   return { x: layout.x + (i % layout.cols) * layout.dx, z: layout.z + Math.floor(i / layout.cols) * layout.dz };
 }
 
@@ -36,8 +38,9 @@ export function workSpot(ctx: SimContext, slot: FarmSlot): { x: number; z: numbe
   const { layout, building } = ctx.content.slotTypes.get(slot.type);
   if (building) return { ...building.door }; // ô trong nhà kính: bác vào cửa nhà
   const half = (layout.size * slotScale(ctx, slot)) / 2;
-  if (layout.work === 'left') return { x: c.x - half - 0.35, z: c.z };
-  if (layout.work === 'back') return { x: c.x, z: c.z - half - 0.35 };
+  const work = layout.spots?.[Math.max(0, slotsOfType(ctx, slot.type).indexOf(slot))]?.work ?? layout.work;
+  if (work === 'left') return { x: c.x - half - 0.35, z: c.z };
+  if (work === 'back') return { x: c.x, z: c.z - half - 0.35 };
   return { x: c.x, z: c.z + half + 0.35 };
 }
 

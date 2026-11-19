@@ -180,18 +180,11 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
       for (const bx of [-0.2, 0, 0.2]) mesh(crate, G.cyl(0.04, 0.05, 0.28, 8), 0x5fd08a, { p: [bx, 0.82, 0] });
     }
   } else {
-    // Đèn lồng Hội An nhiều màu, quạt trần, bàn thờ ông Địa, chữ Phúc, mành tre
+    // Đèn lồng Hội An nhiều màu, quạt trần, chữ Phúc, mành tre (không đặt bàn thờ ở quán nào)
     const colors = [0xd9433a, 0xf2b23e, 0x9a4fc4, 0xe2703a, 0x3f9f6a];
     for (const [i, x] of [-d.halfW * 0.55, 0, d.halfW * 0.55].entries()) swingers.push(hoiAnLantern(r, x, 3.1, 1, colors[i], 1.4));
     for (let i = 0; i < 9; i++) swingers.push(hoiAnLantern(r, -d.halfW + 0.9 + i * ((d.halfW * 2 - 1.8) / 8), 3.7, d.kitchenZ + 0.3, colors[i % colors.length], 0.7));
     for (const x of [-d.halfW * 0.3, d.halfW * 0.3]) spinners.push(ceilingFan(r, x, 3.7, -0.4));
-    // Bàn thờ ông Địa ở góc trước trái: tủ đỏ, tượng, nhang
-    const altar = group(r, { p: [-d.halfW + 0.55, 0, d.frontZ - 1.6], r: [0, Math.PI / 2, 0] });
-    mesh(altar, G.box(0.8, 0.6, 0.5), 0xb5302a, { p: [0, 0.3, 0] });
-    mesh(altar, G.box(0.86, 0.06, 0.56), 0xd4a537, { p: [0, 0.62, 0] });
-    mesh(altar, G.sphere(0.1, 10, 8), 0xf2c94c, { p: [-0.15, 0.75, 0] });
-    for (const ix of [0.12, 0.18, 0.24]) mesh(altar, G.cyl(0.008, 0.008, 0.3, 4), 0x8a2f2a, { p: [ix, 0.8, 0], cast: false });
-    mesh(altar, G.cyl(0.07, 0.06, 0.08, 10), 0xd4a537, { p: [0.18, 0.69, 0] });
     // Chữ Phúc trên giấy đỏ hình thoi
     const fu = group(r, { p: [(-d.halfW + d.kitchenX1) / 2, 3.3, back + 0.05], r: [0, 0, Math.PI / 4] }); // giữa hai cửa WC / kho
     mesh(fu, G.box(0.75, 0.75, 0.02), 0xd9433a, { cast: false });

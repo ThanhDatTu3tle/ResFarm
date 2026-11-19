@@ -15,7 +15,7 @@ const MODIFIER_NAMES: Record<ModifierKey, string> = {
 };
 
 /** "+10% độ kiên nhẫn của khách · +15% tiền tip" từ bảng hệ số. */
-function bonusText(modifiers?: Partial<Record<ModifierKey, number>>): string {
+export function bonusText(modifiers?: Partial<Record<ModifierKey, number>>): string {
   return Object.entries(modifiers ?? {})
     .map(([key, mul]) => `${mul >= 1 ? '+' : ''}${Math.round((mul - 1) * 100)}% ${MODIFIER_NAMES[key as ModifierKey]}`)
     .join(' · ');
@@ -77,8 +77,60 @@ export const shopPanel: Panel = {
       })
       .join('');
 
+    // Đồ trang trí đặt tự do (F4): mua là tự bày vào chỗ trống
+    const owned = (id: string) => state.restaurant.props.filter((p) => p.def === id).length;
+    const props = content.props
+      .all()
+      .filter((p) => !p.giftOnly && (!p.cuisine || p.cuisine === state.cuisine))
+      .map((p) => {
+        const levelOk = state.level >= p.level;
+        const n = owned(p.id);
+        return `<div class="card" data-key="prop-${p.id}"><div class="row">
+          <span class="big">${p.icon}</span>
+          <div class="grow"><b>${esc(p.name)}</b>${n ? ` <span class="pill">Có ${n}</span>` : ''}
+            <div class="muted">${bonusText(p.modifiers) || 'Chỉ để đẹp'}</div></div>
+          <button${cmd({ type: 'prop/buy', propId: p.id })}${levelOk && state.money >= p.cost ? '' : ' disabled'}>${levelOk ? coins(p.cost) : `🔒 Cấp ${p.level}`}</button></div></div>`;
+      })
+      .join('');
+
+    // Bàn lẻ mua thêm (B7)
+    const extraCount = (kind: string) => state.restaurant.extraTables.filter((t) => t.kind === kind).length;
+    const tables = content.tableKinds
+      .all()
+      .map((k) => {
+        const levelOk = state.level >= k.level;
+        const n = extraCount(k.id);
+        return `<div class="card" data-key="tk-${k.id}"><div class="row">
+          <span class="big">${k.icon}</span>
+          <div class="grow"><b>${esc(k.name)}</b>${n ? ` <span class="pill">Đã mua ${n}</span>` : ''}<div class="muted">${k.seats} chỗ ngồi · tự đặt vào chỗ trống</div></div>
+          <button${cmd({ type: 'table/buy', kind: k.id })}${levelOk && state.money >= k.cost ? '' : ' disabled'}>${levelOk ? coins(k.cost) : `🔒 Cấp ${k.level}`}</button></div></div>`;
+      })
+      .join('');
+
+    // Thú cưng (F5)
+    const pets = content.pets
+      .all()
+      .map((p) => {
+        const has = state.profile.pets.includes(p.id);
+        const using = state.profile.pet === p.id;
+        const levelOk = state.level >= p.level;
+        const button = using
+          ? `<button class="on"${cmd({ type: 'pet/set', petId: null })}>✔ Ở quán · Cho nghỉ</button>`
+          : has
+            ? `<button${cmd({ type: 'pet/adopt', petId: p.id })}>Đưa ra quán</button>`
+            : `<button${cmd({ type: 'pet/adopt', petId: p.id })}${levelOk && state.money >= p.cost ? '' : ' disabled'}>${levelOk ? coins(p.cost) : `🔒 Cấp ${p.level}`}</button>`;
+        return `<div class="card ${using ? 'owned' : ''}" data-key="pet-${p.id}"><div class="row">
+          <span class="big">${p.icon}</span>
+          <div class="grow"><b>${esc(p.name)}</b><div class="muted">${esc(p.desc)}</div><div class="muted">${bonusText(p.modifiers)}</div></div>
+          ${button}</div></div>`;
+      })
+      .join('');
+
     return `<div class="row"><p class="muted grow">Mua nội thất là dùng ngay; món đã mua đổi qua lại miễn phí.</p>
-      <button class="mini"${ui('edit')}>🪑 Sắp xếp bàn</button></div>
+      <button class="mini"${ui('edit')}>🪑 Sắp xếp quán</button></div>
+      <h3>Đồ trang trí</h3><p class="muted">Mua là tự bày vào chỗ trống; vào 🪑 Sắp xếp quán để kéo đi chỗ khác, xoay, cất kho. Mỗi loại tính hiệu ứng một lần.</p>${props}
+      <h3>Thú cưng</h3>${pets}
+      <h3>Bàn thêm</h3>${tables}
       ${decor}<h3>Trang thiết bị</h3>${equipment}`;
   },
 };

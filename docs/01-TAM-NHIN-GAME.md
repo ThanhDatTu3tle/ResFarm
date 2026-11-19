@@ -131,6 +131,36 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 | 6 | 🔥 Ngày đắt hàng | Doanh thu một ngày đạt 600 xu | 300 xu, 60 XP |
 | 7 | ⭐ Quán có tiếng | Uy tín đạt 4 sao | 500 xu, 100 XP |
 
+### Đợt 13 — Khách quen + Giai đoạn 3 "Quán của riêng mình" (19/11/2026)
+
+- Làm **F2 Khách quen** trước rồi vào **Giai đoạn 3** (F4 đồ trang trí tự do, F5 tên quán / thú cưng / chụp ảnh, C3 nâng hạng quán, B2 xoay bàn, B7 mua thêm bàn).
+
+**AI tự chọn (đổi được):**
+- 8 khách quen (sửa ở `src/data/regulars.ts`): Bé Na, Cu Tí mở từ đầu; Chị Thảo, Anh Tâm, Cô Lan, Chú Hùng, Bà Tư, Ông Sáu mở dần theo uy tín + cấp. Món ruột theo từng quán (vd Bà Tư: phở / udon / sundubu).
+- Tim: lần ghé thứ 1 / 3 / 6 / 10 / 15 lên 1 tim; mỗi tim +12% tip, đúng món ruột +50% tip và thêm uy tín; đủ 3 tim tặng một món đồ trang trí riêng. Mỗi khách quen ghé tối đa 1 lần / ngày, đi tối đa 2 người.
+- Vòng sáng dưới chân khách quen màu **hồng** (không phải vàng như thiết kế gốc) để không trùng vòng vàng của bồi bàn.
+- 3 hạng quán: Quán nhỏ → Tiệm ăn (cấp 4, 1.500 xu) → Nhà hàng (cấp 6, 4.000 xu); mỗi hạng phòng ăn sâu thêm 2 mét về phía cửa.
+- Thú cưng: Mèo mướp (khách kiên nhẫn +6%), Cún vàng (khách tới +6%). Bán lại đồ / bàn được 50% giá.
+- Trước cửa có "lối ra vào" không đặt bàn / đồ được (chỗ khách xếp hàng).
+
+### Đợt 14 — Chỉnh theo phản hồi (19/11/2026)
+
+- Khách quen: chủ dự án thấy hơi lạ với người chơi nhưng **cứ để chạy thử**.
+- Nông trại: bỏ nhánh suối phía đông ao; vườn cây ăn quả (cam, táo, xoài, chuối) 8 gốc, có sẵn 1 cam + 1 táo; đường đất thêm đá, cát.
+- Quán: bỏ bàn thờ (cả 3 quán); quán khởi đầu nhỏ lại — 1 bàn bốn, 2 bàn đôi, 3 ghế quầy; khách thưa hơn chút; bồi bàn đưa menu xong đứng yên tại bàn; 1 ngày 12 phút, giờ chạy 06:00–24:00; 2 ca 07:00–12:00 và 15:00–20:00; khay bưng cả bàn ở quầy ra món (kéo thả món vào khay 2 / 4 ô); chén dĩa dơ phải dọn; vết bẩn sau mỗi ca, bấm giữ để lau; tường hai bên đầy đủ; tổng kết ngày kèm kho.
+- Chợ: thêm xe hủ tiếu, gánh bánh tráng trộn, xe cà phê dạo (trên vỉa hè), tiệm ăn vặt / trà sữa cạnh quầy đồ khô; sạp thịt đổi tên "Thịt bò/lợn cô Bủm"; bấm sạp thì zoom sát vào.
+- Giao diện: nút không bị tai thỏ / góc màn hình che, tránh góc logo Netlify; bảng nhiệm vụ bấm xem chi tiết.
+
+**AI tự chọn (đổi được):** món dùng trái cây (Đĩa trái cây, Chè chuối, Sandwich trái cây, Trà trái cây hwachae); hàng rong mới bán nguyên liệu có sẵn với giá cao hơn 10%; nhóm 5–6 người chỉ tới khi có bàn đủ chỗ; khay 2 ô dành cho bàn đôi / quầy, 4 ô cho bàn từ 3 ghế; mỗi ca để lại 3 vết bẩn, vết cũ bẩn thêm, mỗi bậc bẩn làm khách kém kiên nhẫn 1.5% (tối đa −20%).
+
+### Đợt 15 — Nhân viên phục vụ (19/11/2026)
+
+- Bồi bàn đi chậm lại. Bấm món ở quầy thì phải chọn bàn để giao, hoặc kéo vào khay 2 / 4 ô — không tự thêm vào khay.
+- Thuê nhân viên phục vụ, giao được các việc: bưng món, đưa menu, dọn bàn, dọn dẹp quán. Phải nâng hạng quán: mỗi bậc thêm 1 nhân viên, tối đa 4.
+- Nhân viên có thanh năng lượng, tốn mỗi lần làm việc; cạn thì xỉu, bồi dưỡng nhanh 100 xu. Giờ nghỉ cho đi ăn hàng rong ở chợ, năng lượng từ ít đến nhiều: cà phê → bánh tráng → hủ tiếu → tiệm ăn vặt (đổi tên "Tiệm 25caaaaa").
+
+**AI tự chọn (đổi được):** hạng quán thêm 2 bậc (Quán đông khách, Nhà hàng nổi tiếng) để đủ 4 bậc lên hạng; phí thuê 300 xu/người, chưa có lương; mỗi việc tốn 3 năng lượng (100 = ~33 việc); bồi dưỡng hồi về 60; qua đêm hồi thêm 40 (người đang xỉu cũng tỉnh); suất ăn: cà phê 15 xu +25, bánh tráng 25 xu +40, hủ tiếu 35 xu +60, Tiệm 25caaaaa 45 xu +80, đi ăn mất 40–70 phút game; bồi bàn của người chơi không có năng lượng; "Menu" gồm cả ghi món.
+
 ## Quyết định mình đã tự đưa ra (đổi được)
 
 Những chỗ chủ dự án chưa nói rõ, mình chọn phương án đơn giản nhất chơi được. Tất cả đều là con số hoặc dữ liệu, sửa không đụng kiến trúc.

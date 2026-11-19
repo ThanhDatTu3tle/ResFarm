@@ -1,12 +1,15 @@
 import * as THREE from 'three';
-import type { TableDef } from '../../../data';
+import type { RoomDef, TableDef } from '../../../data';
 import type { Game } from '../../../sim/game';
-import { canPlaceTable, LAYOUT_GRID, seatSpots, tablePos } from '../../../sim/layout';
+import { canPlaceProp, canPlaceTable, LAYOUT_GRID, placedProps, roomOf, seatSpots, tableById, tablePos, withRotation } from '../../../sim/layout';
+import { heartsOf } from '../../../sim/systems/regulars';
+import { makePet, makeRegular } from '../people';
+import { animateProp, makeProp } from '../props';
 import { activeTables, moodOf } from '../../../sim/systems/customers';
 import { isReserved, needOf, wantedOrder } from '../../../sim/systems/service';
-import { animatePerson, LOOKS, makeBush, makeDish, makePerson } from '../models';
+import { animateCreature, animatePerson, LOOKS, makeBush, makeDish, makePerson } from '../models';
 import { buildSeat, counterExtras, decorateInterior, seatStyle, signText, tableExtras, type InteriorAnimator } from '../cuisine';
-import type { Area, Env, Pick } from '../stage';
+import { HOLD_MS, type Area, type Env, type Pick } from '../stage';
 import { Bar3D, bubbleSprite, emojiSprite, G, group, mesh, textSprite, toon } from '../toon';
 import { easeOutBack, wobble } from '../../ease';
 import { Particles } from '../fx';
@@ -16,7 +19,8 @@ import { Particles } from '../fx';
  *  - Kích thước phòng lấy từ content.room, bàn từ TableDef + state.restaurant.layout (toạ độ 2D),
  *    quy đổi sang mét bằng wx()/wz(). Nới rộng quán chỉ cần sửa data.
  *  - Màu sàn, tường, bàn ghế lấy từ nội thất đang dùng (state.decor.equipped).
- *  - Chế độ sắp xếp: kéo bàn (Pick {type:'table'}) -> dragTable()/endDrag().
+ *  - Chế độ sắp xếp: kéo bàn / đồ trang trí (Pick {type:'table' | 'prop'}) -> dragItem()/endDrag(); bàn xoay = group.rotation.y -π/2.
+ *  - Khách quen: model riêng (people.ts), vòng hồng, bảng tên -> ⭐; thú cưng đi lang thang; biển tên quán trên tường sau.
  *  - Phục vụ: bồi bàn (người chơi) vẽ theo state.restaurant.waiter; bong bóng chat trên đầu khách (Pick {type:'party'})
  *    báo việc cần làm; quầy ra món (Pick {type:'pass'}) bày các món bếp đã nấu xong.
  */
@@ -45,6 +49,35 @@ interface PartyFx {
 }
 
 const UNIT = 55; // số đơn vị toạ độ 2D ứng với 1 mét trong cảnh
+
+/** Bảng tên khách quen: nền kem viền hồng, tên + dãy tim. */
+function tagSprite(name: string, hearts: string): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  canvas.width = 384;
+  canvas.height = 128;
+  const c = canvas.getContext('2d')!;
+  c.fillStyle = '#fffaf1';
+  c.strokeStyle = '#ff8fc0';
+  c.lineWidth = 8;
+  c.beginPath();
+  c.roundRect(8, 8, 368, 112, 40);
+  c.fill();
+  c.stroke();
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillStyle = '#3b2a1e';
+  c.font = 'bold 46px Mali, system-ui, sans-serif';
+  c.fillText(name, 192, 48);
+  c.fillStyle = '#e2468a';
+  c.font = 'bold 34px Mali, system-ui, sans-serif';
+  c.fillText(hearts, 192, 92);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  sprite.scale.set(1.2, 0.4, 1);
+  sprite.renderOrder = 10;
+  return sprite;
+}
 const WALK_SPEED = 4.2;
 const TABLE_TOP = 0.8;
 const COUNTER_TOP = 1.1;
@@ -62,6 +95,15 @@ interface Actor {
   /** Đã có ghế (để ngồi khi tới nơi) và đang ăn (đưa tay lên miệng). */
   seated: boolean;
   eating: boolean;
+  /** Khách quen: bảng tên (hiện vài giây lúc mới tới) rồi thu thành ngôi sao nhỏ trên đầu. */
+  regular?: { tag: THREE.Sprite; star: THREE.Sprite; born: number };
+}
+
+interface PropView {
+  g: THREE.Group;
+  pad: THREE.Mesh;
+  hand: THREE.Sprite;
+  def: string;
 }
 
 interface TableView {
@@ -119,7 +161,16 @@ export class RestaurantArea implements Area {
   private chefs: { g: THREE.Group; icon: THREE.Sprite; iconFor: string; bar: Bar3D; smoke: number }[] = [];
   private fx = new Particles(this.root);
   private tables = new Map<string, TableView>();
-  private drag: { id: string; x: number; y: number } | null = null;
+  private drag: { kind: 'table' | 'prop'; id: string; x: number; y: number } | null = null;
+  private props = new Map<string, PropView>();
+  private selMat = new THREE.MeshBasicMaterial({ color: 0xffd23e, transparent: true, opacity: 0.45 });
+  /** Thú cưng đi lang thang trong khu ăn uống (chỉ là hình ảnh, sim chỉ biết đang nuôi con nào). */
+  private pet: { id: string; g: THREE.Group; x: number; z: number; tx: number; tz: number; wait: number; petting: number } | null = null;
+  /** Biển tên quán trên tường sau. */
+  private nameSign: { text: string; g: THREE.Group } | null = null;
+  /** Mặt bằng theo hạng quán lúc dựng cảnh (lên hạng thì app.ts dựng lại cả khu). */
+  readonly room: RoomDef;
+  private unsub: (() => void)[] = [];
   private floats: { sprite: THREE.Sprite; life: number }[] = [];
   private lamps: THREE.PointLight[] = [];
   private firstFrame = true;
@@ -127,7 +178,7 @@ export class RestaurantArea implements Area {
   private interior: InteriorAnimator;
 
   constructor(private game: Game) {
-    const room = game.content.room;
+    const room = (this.room = roomOf(game.ctx));
     this.halfW = room.width / 2 / UNIT + 0.4;
     this.backZ = this.wz(0) - 0.7;
     this.frontZ = this.wz(room.height) + 0.4;
@@ -144,9 +195,9 @@ export class RestaurantArea implements Area {
     this.buildKitchen();
     this.interior = decorateInterior(game.state.cuisine, this.root, { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, kitchenZ: this.kitchenZ, kitchenX1: this.kitchenX1, wallH: WALL_H });
 
-    game.bus.on('party/left', (e) => {
+    this.unsub.push(game.bus.on('party/left', (e) => {
       let anchor: THREE.Vector3 | null = null;
-      const table = e.tableId ? game.content.tables.get(e.tableId) : null;
+      const table = e.tableId ? tableById(game.ctx, e.tableId) : null;
       if (table) {
         const at = tablePos(game.ctx, table);
         anchor = new THREE.Vector3(this.wx(at.x), 0, this.wz(at.y));
@@ -169,15 +220,21 @@ export class RestaurantArea implements Area {
       sprite.position.set(anchor.x, 2, anchor.z);
       this.root.add(sprite);
       this.floats.push({ sprite, life: 1.8 });
-    });
+    }));
   }
 
-  private wx(px: number): number {
-    return (px - this.game.content.room.width / 2) / UNIT;
+  /** Gỡ các đăng ký sự kiện (khi app dựng lại khu quán sau lúc lên hạng). */
+  dispose(): void {
+    for (const off of this.unsub) off();
+    this.unsub = [];
   }
 
-  private wz(py: number): number {
-    return (py - this.game.content.room.height / 2) / UNIT;
+  wx(px: number): number {
+    return (px - this.room.width / 2) / UNIT;
+  }
+
+  wz(py: number): number {
+    return (py - this.room.height / 2) / UNIT;
   }
 
   // ---------- Dựng cảnh tĩnh ----------
@@ -210,18 +267,23 @@ export class RestaurantArea implements Area {
     this.buildCorridor();
 
     // Hai tường bên (chỉ nửa sau để nhìn thấy bên trong), mỗi bên 1 cửa sổ
-    const sideLen = Math.min(6.5, depth * 0.6);
+    // Hai tường bên chạy suốt tới mép trước; mỗi bên 2 ô cửa sổ (tường bên phải thấp hơn ở nửa trước để camera nhìn rõ)
+    const sideLen = depth + 0.3;
     for (const side of [-1, 1]) {
       const x = side * (halfW + 0.15);
       const z0 = backZ - 0.3;
       const seg = (za: number, zb: number, y1: number, y2: number, mat = mats.wall) =>
         mesh(r, G.box(0.3, 1, 1), mat, { p: [x, (y1 + y2) / 2, (za + zb) / 2], s: [1, y2 - y1, zb - za] });
+      const wins = [z0 + sideLen * 0.3, z0 + sideLen * 0.7];
       seg(z0, z0 + sideLen, 0, 1.3, mats.trim);
       seg(z0, z0 + sideLen, 3.3, WALL_H);
-      seg(z0, z0 + sideLen / 2 - 1.2, 1.3, 3.3);
-      seg(z0 + sideLen / 2 + 1.2, z0 + sideLen, 1.3, 3.3);
-      this.buildWindow(x, 2.3, z0 + sideLen / 2, Math.PI / 2);
+      seg(z0, wins[0] - 1.2, 1.3, 3.3);
+      seg(wins[0] + 1.2, wins[1] - 1.2, 1.3, 3.3);
+      seg(wins[1] + 1.2, z0 + sideLen, 1.3, 3.3);
+      for (const wz of wins) this.buildWindow(x, 2.3, wz, Math.PI / 2);
     }
+    // Mép trước: chân tường thấp hai bên cửa (không che phòng)
+    for (const side of [-1, 1]) mesh(r, G.box(halfW - 1.3, 0.5, 0.3), mats.trim, { p: [side * (halfW + 1.3) / 2, 0.25, frontZ + 0.15] });
 
     // Bảng thực đơn phấn trên tường sau (quán Việt; quán Nhật treo thẻ gỗ, quán Hàn treo biển neon — xem cuisine.ts)
     if (this.game.state.cuisine === 'vn') {
@@ -330,7 +392,7 @@ export class RestaurantArea implements Area {
 
   /** Quầy ra món: bếp nấu xong đặt đĩa ở đây, đèn giữ nóng phía trên, chuông báo khi có món chờ. */
   private buildPass(): void {
-    const pass = this.game.content.room.pass;
+    const pass = this.room.pass;
     const g = group(this.root, { p: [this.wx(pass.x), 0, this.wz(pass.y)] });
     g.userData.pick = { type: 'pass', id: 'pass' } satisfies Pick;
     mesh(g, G.box(1.7, PASS_TOP - 0.06, 0.8), 0x9aa6b2, { p: [0, (PASS_TOP - 0.06) / 2, 0] });
@@ -363,32 +425,38 @@ export class RestaurantArea implements Area {
   }
 
   /** Món đang trên tay bồi bàn: đĩa có model món, hoặc menu / sổ ghi món khi đang đi làm việc đó. */
-  private setWaiterHand(key: string, recipeId: string | null): void {
-    const w = this.waiter;
+  private setWaiterHand(key: string, recipeIds: string[] | null, w: { hand: THREE.Group; handKey: string } = this.waiter): void {
     if (w.handKey === key) return;
     w.handKey = key;
     w.hand.clear();
     if (!key) return;
-    if (recipeId) {
-      mesh(w.hand, G.cyl(0.2, 0.14, 0.04, 14), 0xffffff);
-      const food = makeDish(recipeId);
-      if (food) {
-        food.position.y = 0.02;
-        w.hand.add(food);
-      } else {
-        const icon = emojiSprite(this.game.content.recipes.get(recipeId).icon, 0.4);
-        icon.position.y = 0.22;
-        w.hand.add(icon);
-      }
+    if (recipeIds) {
+      // Khay gỗ, các đĩa xếp cạnh nhau (tối đa 4 đĩa)
+      const n = recipeIds.length;
+      if (n > 1) mesh(w.hand, G.box(0.3 * Math.min(n, 2) + 0.12, 0.03, n > 2 ? 0.62 : 0.34), 0x8a5a35, { p: [0, -0.02, 0] });
+      recipeIds.forEach((recipeId, i) => {
+        const plate = group(w.hand, { p: n > 1 ? [((i % 2) - 0.5) * 0.3 * (n > 1 ? 1 : 0), 0, n > 2 ? (Math.floor(i / 2) - 0.5) * 0.3 : 0] : [0, 0, 0], s: n > 1 ? 0.72 : 1 });
+        mesh(plate, G.cyl(0.2, 0.14, 0.04, 14), 0xffffff);
+        const food = makeDish(recipeId);
+        if (food) {
+          food.position.y = 0.02;
+          plate.add(food);
+        } else {
+          const icon = emojiSprite(this.game.content.recipes.get(recipeId).icon, 0.4);
+          icon.position.y = 0.22;
+          plate.add(icon);
+        }
+      });
     } else {
-      const icon = emojiSprite(key === 'menu' ? '📖' : '📝', 0.42);
+      const icon = emojiSprite({ menu: '📖', note: '📝', clean: '🧽', mop: '🧹' }[key] ?? '📝', 0.42);
       icon.position.y = 0.1;
       w.hand.add(icon);
     }
   }
 
   /** Dựng một bàn + ghế trong group riêng (gốc ở tâm bàn) để dời được cả cụm. */
-  private buildTable(t: TableDef): TableView {
+  private buildTable(rotated: TableDef): TableView {
+    const t = withRotation(rotated, false);
     const { mats } = this;
     const g = group(this.root);
     g.userData.pick = { type: 'table', id: t.id } satisfies Pick;
@@ -433,7 +501,8 @@ export class RestaurantArea implements Area {
     else if (party.phase === 'browsing') main = '💭';
     else if (party.phase === 'readyToOrder') main = '😊';
     else if (party.phase === 'waitingFood') main = MOOD_FACES[moodOf(ctx, party)];
-    const waiting = party.phase === 'waitingFood' ? state.restaurant.orders.filter((o) => o.partyId === party.id && o.status !== 'served').map((o) => content.recipes.get(o.recipeId).icon) : [];
+    // Món ruột của khách quen có tim đứng trước
+    const waiting = party.phase === 'waitingFood' ? state.restaurant.orders.filter((o) => o.partyId === party.id && o.status !== 'served').flatMap((o) => (o.fav ? ['💖', content.recipes.get(o.recipeId).icon] : [content.recipes.get(o.recipeId).icon])) : [];
     const dishesKey = waiting.join('|');
 
     if (fx.mainKey !== main) {
@@ -516,9 +585,15 @@ export class RestaurantArea implements Area {
 
   /** Bồi bàn đi theo vị trí trong sim (làm mượt), quay mặt theo hướng đi, cầm thứ đang mang. */
   private updateWaiter(env: Env, dt: number): void {
+    this.moveWorker(this.game.state.restaurant.waiter, this.waiter, env, dt);
+    (this.waiter.ring.material as THREE.MeshBasicMaterial).opacity = 1;
+    this.waiter.ring.scale.setScalar(1 + Math.sin(env.t * 4) * 0.06);
+    this.updateHelpers(env, dt);
+  }
+
+  /** Một người phục vụ (bồi bàn hoặc nhân viên thuê) đi theo vị trí trong sim, quay theo hướng đi, cầm thứ đang mang. */
+  private moveWorker(sim: import('../../../sim/state').WaiterState, w: { g: THREE.Group; hand: THREE.Group; handKey: string; lastX: number; lastZ: number }, env: Env, dt: number, still = false): void {
     const { state } = this.game;
-    const sim = state.restaurant.waiter;
-    const w = this.waiter;
     const tx = this.wx(sim.x);
     const tz = this.wz(sim.y);
     const pos = w.g.position;
@@ -533,31 +608,333 @@ export class RestaurantArea implements Area {
     else if (!sim.tasks.length) w.g.rotation.y += (0 - w.g.rotation.y) * Math.min(1, dt * 5); // rảnh: quay mặt ra phòng
     pos.y = moving ? Math.abs(Math.sin(env.t * 11)) * 0.06 : 0;
 
-    const carrying = sim.carrying != null ? state.restaurant.orders.find((o) => o.id === sim.carrying) : null;
+    const carrying = sim.carrying.map((id) => state.restaurant.orders.find((o) => o.id === id)).filter((o) => !!o);
     const task = sim.tasks[0];
-    if (carrying) this.setWaiterHand(`dish:${carrying.id}`, carrying.recipeId);
-    else if (task?.kind === 'menu') this.setWaiterHand('menu', null);
-    else if (task?.kind === 'takeOrder') this.setWaiterHand('note', null);
-    else this.setWaiterHand('', null);
-    animatePerson(w.g, env.t, { walk: moving ? 1 : 0, carry: !!carrying });
-    (w.ring.material as THREE.MeshBasicMaterial).opacity = 1;
-    w.ring.scale.setScalar(1 + Math.sin(env.t * 4) * 0.06);
+    if (carrying.length) this.setWaiterHand(`dish:${sim.carrying.join(',')}`, carrying.map((o) => o!.recipeId), w);
+    else if (task?.kind === 'menu') this.setWaiterHand('menu', null, w);
+    else if (task?.kind === 'takeOrder') this.setWaiterHand('note', null, w);
+    else if (task?.kind === 'clean') this.setWaiterHand('clean', null, w);
+    else if (task?.kind === 'mop') this.setWaiterHand('mop', null, w);
+    else this.setWaiterHand('', null, w);
+    if (!still) animatePerson(w.g, env.t, { walk: moving ? 1 : 0, carry: carrying.length > 0 });
+  }
+
+  private helperViews = new Map<string, { g: THREE.Group; hand: THREE.Group; handKey: string; lastX: number; lastZ: number; bar: Bar3D; status: THREE.Sprite; statusKey: string }>();
+
+  /** Nhân viên thuê: áo theo người, mũ vàng, thanh năng lượng trên đầu; xỉu thì nằm lăn ra sàn 😵; đi ăn ở chợ thì vắng mặt. */
+  private updateHelpers(env: Env, dt: number): void {
+    const helpers = this.game.state.restaurant.helpers;
+    for (const [id, v] of this.helperViews) {
+      if (helpers.some((h) => h.id === id && !h.away)) continue;
+      this.root.remove(v.g);
+      this.helperViews.delete(id);
+    }
+    for (const h of helpers) {
+      if (h.away) continue;
+      let v = this.helperViews.get(h.id);
+      if (!v) {
+        const shirts = [0x5fae57, 0xe2703a, 0x9a6bd1, 0x3fb6a8];
+        const g = makePerson({ shirt: shirts[h.look % shirts.length], hair: [0x3a2a1e, 0x1f1a17, 0x6b3f22, 0x2a1f1a][h.look % 4], skin: h.look % 2 ? 0xf2c49b : 0xffd9b8 });
+        const rig = g.userData.rig;
+        mesh(rig.body, G.box(0.36, 0.34, 0.05), 0xffffff, { p: [0, 0.14, 0.18] }); // tạp dề
+        mesh(rig.head, G.box(0.42, 0.06, 0.3), 0xf2b23e, { p: [0, 0.36, 0.06], r: [-0.2, 0, 0] }); // mũ vàng
+        const hand = group(g, { p: [0, 0.98, 0.34] });
+        const bar = new Bar3D(0.7);
+        bar.group.position.set(0, 2.0, 0);
+        g.add(bar.group);
+        const status = emojiSprite('😵', 0.45);
+        status.position.set(0, 1.0, 0);
+        status.visible = false;
+        g.add(status);
+        g.scale.setScalar(1.05);
+        g.position.set(this.wx(h.x), 0, this.wz(h.y));
+        this.root.add(g);
+        this.helperViews.set(h.id, (v = { g, hand, handKey: '', lastX: g.position.x, lastZ: g.position.z, bar, status, statusKey: '' }));
+      }
+      this.moveWorker(h, v, env, dt, h.fainted);
+      const max = this.game.content.balance.helpers.maxEnergy;
+      v.bar.set(h.energy / max, true);
+      v.bar.group.visible = !h.fainted;
+      // Xỉu: nằm nghiêng ra sàn, ngôi sao quay trên đầu
+      v.g.rotation.z += ((h.fainted ? Math.PI / 2 : 0) - v.g.rotation.z) * Math.min(1, dt * 6);
+      v.status.visible = h.fainted || h.energy < max * 0.2;
+      const key = h.fainted ? '😵' : '😓';
+      if (v.statusKey !== key) {
+        v.g.remove(v.status);
+        v.status = emojiSprite(key, 0.45);
+        v.status.position.set(0, h.fainted ? 0.6 : 2.3, 0);
+        v.g.add(v.status);
+        v.statusKey = key;
+      }
+      if (h.fainted) v.g.position.y = 0.2;
+    }
   }
 
   // ---------- Sắp xếp bàn ----------
 
   /** Đang kéo bàn `id` tới điểm (x, z) trên sàn: cập nhật vị trí xem trước. */
-  dragTable(id: string, x: number, z: number): void {
-    const room = this.game.content.room;
+  dragItem(kind: 'table' | 'prop', id: string, x: number, z: number): void {
+    const room = this.room;
     const snap = (v: number) => Math.round(v / LAYOUT_GRID) * LAYOUT_GRID;
-    this.drag = { id, x: snap(x * UNIT + room.width / 2), y: snap(z * UNIT + room.height / 2) };
+    this.drag = { kind, id, x: snap(x * UNIT + room.width / 2), y: snap(z * UNIT + room.height / 2) };
   }
 
   /** Kết thúc kéo: trả về vị trí để app gửi lệnh 'layout/moveTable' (null nếu không kéo gì). */
-  endDrag(): { tableId: string; x: number; y: number } | null {
+  endDrag(): { kind: 'table' | 'prop'; id: string; x: number; y: number } | null {
     const d = this.drag;
     this.drag = null;
-    return d && { tableId: d.id, x: d.x, y: d.y };
+    return d;
+  }
+
+  // ---------- Chén dĩa dơ, vết bẩn sàn ----------
+
+  private dirtyViews = new Map<string, THREE.Group>();
+  private stainViews = new Map<number, { g: THREE.Group; ring: THREE.Mesh; level: number }>();
+  private holdRing = new THREE.MeshBasicMaterial({ color: 0x5fd068, transparent: true, opacity: 0.9, depthTest: false });
+
+  /** Chén dĩa dơ ở chỗ khách vừa ngồi + bong bóng 🧽 nhắc dọn (bấm bàn là dọn). */
+  private updateDirty(env: Env): void {
+    const { state, ctx } = this.game;
+    const dirty = state.restaurant.dirty;
+    for (const [key, g] of this.dirtyViews) {
+      const [tableId, seats] = key.split('|');
+      if (dirty[tableId]?.join(',') === seats) continue;
+      this.root.remove(g);
+      this.dirtyViews.delete(key);
+    }
+    for (const [tableId, seats] of Object.entries(dirty)) {
+      const key = `${tableId}|${seats.join(',')}`;
+      const table = tableById(ctx, tableId);
+      if (!table || !seats.length) continue;
+      let g = this.dirtyViews.get(key);
+      const spots = seatSpots(table, tablePos(ctx, table));
+      if (!g) {
+        g = group(this.root);
+        g.userData.pick = { type: 'table', id: tableId } satisfies Pick;
+        const top = (table.shared ? COUNTER_TOP : TABLE_TOP) + 0.02;
+        for (const i of seats) {
+          const s = spots[i];
+          if (!s) continue;
+          const plate = group(g, { p: [this.wx(s.dishX), top, this.wz(s.dishY)] });
+          mesh(plate, G.cyl(0.2, 0.14, 0.04, 14), 0xf4f1e8);
+          mesh(plate, G.cyl(0.13, 0.1, 0.03, 10), 0xc9b48a, { p: [0, 0.03, 0], cast: false }); // vụn thức ăn
+          mesh(plate, G.cyl(0.1, 0.07, 0.1, 10), 0xffffff, { p: [0.12, 0.07, -0.06] }); // chén úp
+          mesh(plate, G.box(0.02, 0.01, 0.22), 0x8a5a35, { p: [-0.12, 0.05, 0.02], r: [0, 0.4, 0], cast: false }); // đũa
+        }
+        const cx = seats.reduce((a, i) => a + this.wx(spots[i]?.dishX ?? 0), 0) / seats.length;
+        const cz = seats.reduce((a, i) => a + this.wz(spots[i]?.dishY ?? 0), 0) / seats.length;
+        const bubble = bubbleSprite(['🧽'], 0.6);
+        bubble.position.set(cx, 1.75, cz);
+        bubble.userData.base = bubble.scale.clone();
+        g.add(bubble);
+        g.userData.bubble = bubble;
+        this.dirtyViews.set(key, g);
+      }
+      const bubble = g.userData.bubble as THREE.Sprite;
+      const queued = state.restaurant.waiter.tasks.some((t) => t.kind === 'clean' && t.tableId === tableId);
+      bubble.material.opacity = queued ? 0.5 : 1;
+      bubble.scale.copy(bubble.userData.base).multiplyScalar(queued ? 1 : 1 + Math.max(0, Math.sin(env.t * 6)) * 0.15);
+    }
+  }
+
+  /** Vết bẩn trên sàn: đốm nâu theo độ bẩn; đang bấm giữ thì hiện vòng tiến độ. */
+  private updateStains(env: Env): void {
+    const { state } = this.game;
+    const stains = state.restaurant.stains;
+    for (const [id, v] of this.stainViews) {
+      const s = stains.find((x) => x.id === id);
+      if (s && s.level === v.level) continue;
+      this.root.remove(v.g);
+      this.stainViews.delete(id);
+    }
+    for (const s of stains) {
+      let v = this.stainViews.get(s.id);
+      if (!v) {
+        const g = group(this.root, { p: [this.wx(s.x), 0.02, this.wz(s.y)] });
+        g.userData.pick = { type: 'stain', id: String(s.id) } satisfies Pick;
+        const k = 0.55 + s.level * 0.22;
+        const rnd = (n: number) => ((Math.sin(s.id * 12.9898 + n * 78.233) * 43758.5453) % 1 + 1) % 1;
+        for (let i = 0; i < 3 + s.level; i++) {
+          mesh(g, G.cyl(1, 1, 0.01, 12), new THREE.MeshBasicMaterial({ color: i % 2 ? 0x8a6a45 : 0x7a5a3a, transparent: true, opacity: 0.55 + s.level * 0.1, depthWrite: false }), {
+            p: [(rnd(i) - 0.5) * k, 0.003 * i, (rnd(i + 9) - 0.5) * k * 0.8],
+            s: [0.12 + rnd(i + 3) * 0.2 * k, 1, 0.1 + rnd(i + 5) * 0.16 * k],
+            cast: false,
+            receive: false,
+          });
+        }
+        // Vùng bấm rộng hơn vết bẩn cho dễ trúng
+        mesh(g, G.cyl(0.55 * k + 0.2, 0.55 * k + 0.2, 0.02, 12), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }), { cast: false, receive: false });
+        const ring = mesh(g, G.torus(0.45, 0.05, 6, 32, 0.001), this.holdRing, { p: [0, 0.3, 0], r: [-Math.PI / 2, 0, 0], cast: false, receive: false });
+        ring.renderOrder = 11;
+        if (s.level >= 2) {
+          const fly = emojiSprite('🪰', 0.28);
+          fly.position.set(0.2, 0.5, 0);
+          g.add(fly);
+          g.userData.fly = fly;
+        }
+        this.stainViews.set(s.id, (v = { g, ring, level: s.level }));
+      }
+      const fly = v.g.userData.fly as THREE.Sprite | undefined;
+      if (fly) fly.position.set(Math.cos(env.t * 3 + s.id) * 0.3, 0.45 + Math.sin(env.t * 5) * 0.08, Math.sin(env.t * 3 + s.id) * 0.3);
+      // Vòng tiến độ bấm giữ: Stage ghi lại vật đang giữ (holding), vẽ lại cung theo thời gian giữ
+      const held = this.holdFor === String(s.id) ? Math.min(1, this.holdMs / HOLD_MS) : 0;
+      v.ring.visible = held > 0;
+      if (held > 0) v.ring.geometry = G.torus(0.45, 0.05, 6, 32, Math.max(0.001, Math.round(held * 20) / 20) * Math.PI * 2);
+    }
+  }
+
+  /** app.ts báo vết bẩn đang được bấm giữ (id) và đã giữ bao lâu (ms). */
+  holdFor: string | null = null;
+  holdMs = 0;
+
+  // ---------- Khách quen ----------
+
+  /** Vòng sáng hồng dưới chân + bảng tên (tên + tim) + ngôi sao nhỏ thay bảng tên sau vài giây. */
+  private decorateRegular(g: THREE.Group, name: string, hearts: number, t: number): NonNullable<Actor['regular']> {
+    const k = 1 / g.scale.x; // trẻ em thu nhỏ: giữ vòng sáng và chữ đúng cỡ
+    const ring = mesh(g, G.torus(0.4, 0.035, 6, 24), new THREE.MeshBasicMaterial({ color: 0xff8fc0, transparent: true, opacity: 0.85 }), { p: [0, 0.03, 0], r: [Math.PI / 2, 0, 0], s: k, cast: false, receive: false });
+    ring.userData.regularRing = true;
+    const max = this.game.content.balance.regulars.heartVisits.length;
+    const tag = tagSprite(name, '♥'.repeat(hearts) + '♡'.repeat(max - hearts));
+    tag.position.set(0, 2.15 * k, 0);
+    tag.scale.multiplyScalar(k);
+    g.add(tag);
+    const star = emojiSprite('⭐', 0.32 * k);
+    star.position.set(0, 1.95 * k, 0);
+    star.visible = false;
+    g.add(star);
+    return { tag, star, born: t };
+  }
+
+  private updateRegularTag(actor: Actor, env: Env): void {
+    const r = actor.regular!;
+    const age = env.t - r.born;
+    const show = age < 4.5;
+    r.tag.visible = show;
+    r.tag.material.opacity = Math.min(1, age * 4, (4.5 - age) * 3);
+    r.star.visible = !show;
+    r.star.position.y = r.star.userData.y0 ??= r.star.position.y;
+    r.star.position.y = r.star.userData.y0 + Math.sin(env.t * 3) * 0.04;
+    const ring = actor.g.children.find((c) => c.userData.regularRing) as THREE.Mesh | undefined;
+    if (ring) ring.rotation.z = env.t * 1.5;
+  }
+
+  // ---------- Đồ trang trí, thú cưng, biển tên ----------
+
+  /** Đang kéo đồ trang trí `uid` tới điểm (x, z) trên sàn. */
+  private updateProps(env: Env): void {
+    const { ctx, content } = this.game;
+    const placed = placedProps(ctx);
+    const keep = new Set(placed.map((p) => p.uid));
+    for (const [uid, view] of this.props) {
+      if (keep.has(uid)) continue;
+      this.root.remove(view.g);
+      this.props.delete(uid);
+    }
+    for (const p of placed) {
+      const def = content.props.get(p.def);
+      let view = this.props.get(p.uid);
+      if (!view) {
+        const g = group(this.root);
+        g.userData.pick = { type: 'prop', id: p.uid } satisfies Pick;
+        g.add(makeProp(def.model, def.icon));
+        const pad = mesh(g, G.box(1, 0.03, 1), this.selMat, { p: [0, 0.03, 0], s: [def.w / UNIT + 0.3, 1, def.h / UNIT + 0.3], cast: false, receive: false });
+        const hand = emojiSprite('✋', 0.45);
+        hand.position.set(0, 1.9, 0);
+        g.add(hand);
+        // Đồ mới bày: nảy lên
+        g.userData.born = env.t;
+        this.props.set(p.uid, (view = { g, pad, hand, def: p.def }));
+      }
+      const dragging = this.drag?.kind === 'prop' && this.drag.id === p.uid;
+      const at = dragging ? this.drag! : p;
+      view.g.position.set(this.wx(at.x), dragging ? 0.25 : 0, this.wz(at.y));
+      view.g.rotation.y = p.rot ? -Math.PI / 2 : 0;
+      const pop = easeOutBack(Math.min(1, (env.t - view.g.userData.born) / 0.45), 3);
+      view.g.scale.setScalar(Math.max(0.001, pop));
+      const selected = env.editLayout && env.editSelected === p.uid;
+      view.pad.visible = dragging || selected;
+      view.pad.material = dragging ? this.padMat : this.selMat;
+      if (dragging) this.padMat.color.setHex(canPlaceProp(ctx, p.uid, at.x, at.y, p.rot) ? 0xe2574c : 0x5fd068);
+      view.hand.visible = env.editLayout && !dragging;
+      view.hand.position.y = 1.9 + Math.sin(env.t * 3 + view.g.position.x) * 0.08;
+      animateProp(view.g, env.t);
+    }
+  }
+
+  /** Thú cưng: đi lang thang tới chỗ trống ngẫu nhiên, thỉnh thoảng lại gần khách đang ngồi cho vuốt ve (tim bay). */
+  private updatePet(env: Env, dt: number): void {
+    const { state, content } = this.game;
+    const id = state.profile.pet;
+    if (this.pet && this.pet.id !== id) {
+      this.root.remove(this.pet.g);
+      this.pet = null;
+    }
+    if (!id) return;
+    const d = this.room.dining;
+    if (!this.pet) {
+      const g = makePet(id);
+      const x = this.wx((d.x1 + d.x2) / 2);
+      const z = this.wz(d.y2 - 40);
+      g.position.set(x, 0, z);
+      this.root.add(g);
+      this.pet = { id, g, x, z, tx: x, tz: z, wait: 1, petting: 0 };
+      void content;
+    }
+    const pet = this.pet;
+    const dx = pet.tx - pet.x;
+    const dz = pet.tz - pet.z;
+    const dist = Math.hypot(dx, dz);
+    const legs = pet.g.userData.legs as THREE.Object3D[];
+    if (dist > 0.05) {
+      const step = Math.min(dist, dt * 1.1);
+      pet.x += (dx / dist) * step;
+      pet.z += (dz / dist) * step;
+      pet.g.rotation.y = Math.atan2(dx, dz);
+      legs.forEach((l, i) => (l.rotation.x = Math.sin(env.t * 14 + i * Math.PI) * 0.5));
+      pet.g.position.y = Math.abs(Math.sin(env.t * 14)) * 0.03;
+    } else {
+      legs.forEach((l) => (l.rotation.x = 0));
+      pet.g.position.y = 0;
+      if ((pet.wait -= dt) <= 0) {
+        // Lúc thì ghé khách đang ngồi (được vuốt ve), lúc thì đi dạo chỗ ngẫu nhiên
+        const seated = [...this.actors.values()].filter((a) => a.seated && !a.leaving);
+        const guest = Math.random() < 0.45 && seated.length ? seated[Math.floor(Math.random() * seated.length)] : null;
+        if (guest) {
+          pet.tx = guest.tx + 0.45;
+          pet.tz = guest.tz + 0.35;
+          pet.petting = 1;
+        } else {
+          pet.tx = this.wx(d.x1 + 30 + Math.random() * (d.x2 - d.x1 - 60));
+          pet.tz = this.wz(d.y1 + 30 + Math.random() * (d.y2 - d.y1 - 60));
+          pet.petting = 0;
+        }
+        pet.wait = 2.5 + Math.random() * 3;
+      } else if (pet.petting === 1 && pet.wait < 2) {
+        pet.petting = 2;
+        this.fx.burst('💕', new THREE.Vector3(pet.x, 0.9, pet.z), { count: 3, up: 1.1, spread: 0.4, gravity: 0.4, life: 1.2, size: 0.3, stagger: 0.12 });
+      }
+    }
+    pet.g.position.x = pet.x;
+    pet.g.position.z = pet.z;
+    animateCreature(pet.g, env.t, 0.7);
+    const head = pet.g.userData.head as THREE.Object3D;
+    head.rotation.y = Math.sin(env.t * 0.7) * 0.4;
+  }
+
+  /** Biển tên quán treo trên tường sau (dựng lại khi đổi tên). */
+  private updateNameSign(): void {
+    const name = this.game.state.profile.name;
+    if (this.nameSign?.text === name) return;
+    if (this.nameSign) this.root.remove(this.nameSign.g);
+    const g = group(this.root, { p: [-this.halfW + 4 + 3.1 - 0.6, 3.78, this.backZ + 0.04] });
+    const w = Math.min(4.6, 1.2 + name.length * 0.2);
+    mesh(g, G.box(w + 0.25, 0.7, 0.06), this.mats.trim);
+    mesh(g, G.box(w, 0.56, 0.08), 0xfff4dc, { p: [0, 0, 0.01] });
+    const text = signText(name, '#8a3a2a', w - 0.15, 0.48);
+    text.position.z = 0.06;
+    g.add(text);
+    this.nameSign = { text: name, g };
   }
 
   // ---------- Đồng bộ với state mỗi khung hình ----------
@@ -583,17 +960,32 @@ export class RestaurantArea implements Area {
     mats.back.color.setHex(furn.back);
 
     // Bàn: dựng bàn mới có, đặt đúng vị trí hiện tại (hoặc vị trí đang kéo)
-    for (const t of activeTables(ctx)) {
+    const tablesNow = activeTables(ctx);
+    for (const t of tablesNow) {
       let view = this.tables.get(t.id);
       if (!view) this.tables.set(t.id, (view = this.buildTable(t)));
-      const dragging = this.drag?.id === t.id;
+      const dragging = this.drag?.kind === 'table' && this.drag.id === t.id;
       const at = dragging ? this.drag! : tablePos(ctx, t);
       view.g.position.set(this.wx(at.x), dragging ? 0.25 : 0, this.wz(at.y));
-      view.pad.visible = dragging;
+      view.g.rotation.y = t.rotated ? -Math.PI / 2 : 0;
+      const selected = env.editLayout && env.editSelected === t.id;
+      view.pad.visible = dragging || selected;
+      view.pad.material = dragging ? this.padMat : this.selMat;
       if (dragging) this.padMat.color.setHex(canPlaceTable(ctx, t.id, at.x, at.y) ? 0xe2574c : 0x5fd068);
       view.hand.visible = env.editLayout && !t.fixed && !dragging;
       view.hand.position.y = 1.75 + Math.sin(env.t * 3 + view.g.position.x) * 0.08;
     }
+    // Bàn mua thêm đã bán: bỏ khỏi cảnh
+    for (const [id, view] of this.tables) {
+      if (tablesNow.some((t) => t.id === id)) continue;
+      this.root.remove(view.g);
+      this.tables.delete(id);
+    }
+    this.updateProps(env);
+    this.updatePet(env, dt);
+    this.updateNameSign();
+    this.updateDirty(env);
+    this.updateStains(env);
 
     // Ánh sáng trong nhà
     for (const lamp of this.lamps) lamp.intensity = 0.25 + env.night * 1.5;
@@ -634,7 +1026,7 @@ export class RestaurantArea implements Area {
     let queueX = 1.4;
     for (const party of parties) {
       seenParties.add(party.id);
-      const table = party.tableId ? content.tables.get(party.tableId) : null;
+      const table = party.tableId ? tableById(ctx, party.tableId) : null;
       const spots = table ? seatSpots(table, tablePos(ctx, table)) : null;
       let cx = 0;
       let cz = 0;
@@ -646,13 +1038,16 @@ export class RestaurantArea implements Area {
         const tz = spot ? this.wz(spot.y) : this.queueZ;
         let actor = this.actors.get(key);
         if (!actor) {
-          const g = makePerson(LOOKS[party.looks[i] % LOOKS.length]);
+          const regular = i === 0 && party.regular ? content.regulars.get(party.regular) : null;
+          const g = regular ? makeRegular(regular.style) : makePerson(LOOKS[party.looks[i] % LOOKS.length]);
           g.userData.pick = { type: 'party', id: String(party.id) } satisfies Pick;
           const [sx, sz] = this.firstFrame ? [tx, tz] : this.door;
           g.position.set(sx, 0, sz);
           this.root.add(g);
           this.actors.set(key, (actor = { g, tx, tz, face: 0, restY: 0, leaving: false, seated: false, eating: false }));
+          if (regular) actor.regular = this.decorateRegular(g, regular.name, heartsOf(ctx, regular.id), env.t);
         }
+        if (actor.regular) this.updateRegularTag(actor, env);
         actor.seated = !!spot;
         actor.eating = party.phase === 'eating';
         actor.tx = tx;

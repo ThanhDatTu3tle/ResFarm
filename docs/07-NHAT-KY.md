@@ -4,6 +4,42 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 19/11/2026 (laptop) — Đợt 15: nhân viên phục vụ thuê thêm
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-3`. **Kết quả:** typecheck sạch, 63 test qua (5 test mới); đã xem trên localhost bảng Quán có 2 nhân viên (đang làm, xỉu, đang ăn), nhân viên trong quán, nhân viên ngồi ăn ở xe hủ tiếu. **Chưa thử bằng tay:** các nút trong bảng nhân viên, chọn món rồi bấm bàn.
+
+1. waiterSpeed 700 → 430; hud.ts: bấm món ở quầy = `serve:id` (cầm món, bấm bàn để giao), khay vẫn kéo thả.
+2. Save v12: `restaurant.helpers` (`HelperState` kế thừa `WaiterState`). service.ts tách `stepWorker` cho mọi người phục vụ (`workers()`, `taskTaken()`, `isReserved` xét cả nhân viên), `spendEnergy` / `faint`. `systems/helpers.ts`: lệnh thuê / cho nghỉ / giao việc / bồi dưỡng / đi ăn, `pickTask`, hồi qua đêm. `balance.helpers`, `StallDef.staffMeal`; hạng quán 5 bậc.
+3. Hình: `RestaurantArea.updateHelpers` (áo màu, mũ vàng, thanh ⚡, xỉu nằm ra 😵), `MarketArea.updateEaters`; bảng Quán `helpersHtml`; thông báo xỉu / ăn xong.
+
+---
+
+## 19/11/2026 (laptop) — Đợt 14: chỉnh theo phản hồi (nông trại, quán, chợ, giao diện điện thoại)
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-3`. **Kết quả:** typecheck sạch, 58 test qua (6 test mới); đã xem trên localhost: quán nhỏ có tường đủ, khay quầy ra món, chén dĩa dơ + vết bẩn, nông trại có vườn cây + đường đá, chợ có 4 hàng mới, zoom sạp, bố cục màn ngang thấp. **Chưa thử bằng tay:** kéo thả món vào khay, bấm giữ lau vết bẩn, bấm bàn dơ, bảng nhiệm vụ; vùng an toàn tai thỏ chỉ thấy được trên iPhone thật.
+
+1. **Giờ game** (balance): `minutesPerSecond` 1.5, 06:00–24:00, `shifts` 2 ca; mốc phục vụ nhân ~2.1, `COOK_SCALE` trong recipes.ts; clock.ts phát `shift/started|ended`; customers chỉ đón khách trong ca, nhóm khách không lớn hơn bàn lớn nhất.
+2. **Phục vụ** (save v11): khay `service/deliver { orderIds }`, `waiter.carrying[]`; `service/clean` + `restaurant.dirty`; `service/mop` + `restaurant.stains` (`addStains` lúc hết ca, `modifier('patience')` giảm theo độ bẩn); bồi bàn rảnh đứng yên. UI: `trayParty`/`trayFor`/`questHtml` trong hud.ts, kéo thả bằng pointer trong app.ts; `stage.onPick(pick, held)` + `HOLD_MS` cho bấm giữ.
+3. **Quán nhỏ lại:** room 540×480, bàn `counter` 3 ghế, `medium`, `pair`, `pair2`; bỏ bàn 6 + nâng cấp `patio`; reconcile (`fixLayout`) đưa bàn cũ nằm ngoài phòng về chỗ. Bỏ bàn thờ (cuisine.ts). Tường bên chạy suốt.
+4. **Nông trại:** suối kết thúc ở ao; loại ô `orchard` (layout.spots, initialPlants), 4 producer cây ăn quả, 4 trái cây, 4 món; đá / cát trên đường đất.
+5. **Chợ:** `StallDef.kind/spot`; tiệm `snack`, hàng rong `hutieu`, `banhtrang`, `cafe`; `stallCenter` + `focusOn(x, z, closer, y)`.
+6. **CSS:** biến `--pad-*` theo safe-area, `--badge-w/h` chừa logo Netlify; style khay, bảng nhiệm vụ, kho cuối ngày.
+
+---
+
+## 19/11/2026 (laptop) — Đợt 13: Khách quen (F2) + Giai đoạn 3 "Quán của riêng mình"
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-3` (tách từ `main` sau PR #2). **Kết quả:** typecheck sạch, 52 test qua (7 test mới); đã xem trên localhost: khách quen có bảng tên + vòng hồng + thông báo chân dung, bảng Khách quen, đồ trang trí 3 quán, quán hạng 3, lên hạng giữa ván, chế độ chụp ảnh. **Chưa thử bằng tay:** kéo thả đồ trang trí, nút xoay / cất / bán, đổi tên (hộp prompt), bấm Chụp ảnh tải file.
+
+1. **Save v10** (migration 9→10): `regulars`, `profile`, `restaurant.extraTables/props/tier`, `party.regular`, `order.fav`.
+2. **Khách quen:** `RegularDef` + `src/data/regulars.ts`, `systems/regulars.ts` (không phải system: customers.ts gọi `pickRegular` lúc tạo khách, ưu tiên món ruột lúc gọi món, `regularTipBonus` + `regularPaid` lúc trả tiền). Hình: `ui/three/people.ts` (`makeRegular`: dáng trẻ em / người lớn / người già khom, 7 kiểu tóc, 14 phụ kiện); `ui/three/portraits.ts` render chân dung từ model; bảng `panels/regulars.ts`.
+3. **Mặt bằng:** `sim/layout.ts` giờ chứa `activeTables` (bàn gốc + bàn mua thêm, có xoay), `roomOf` (phòng theo hạng), `propRect`, `blockerOf`, `findFreeSpot` (chọn chỗ thoáng nhất), `entranceOf` (lối ra vào). Mọi chỗ trước đây gọi `content.tables.get` đổi sang `tableById`.
+4. **Quán của riêng mình:** `systems/home.ts` (đổi tên, thú cưng, đồ trang trí, bàn mua thêm, xoay bàn, nâng hạng); `modifier()` cộng thêm hạng quán, thú cưng, đồ trang trí (mỗi loại 1 lần). Data: `src/data/props.ts` (props, pets, tableKinds), `room.tiers`. Hình: `ui/three/props.ts`, `makePet`; khu quán dựng lại khi lên hạng (`stage.replaceArea`). Chế độ sắp xếp: bấm / kéo bàn hoặc đồ → thanh trên hiện ⟳ Xoay, 📦 Cất kho, 💰 Bán.
+
+**Phiên sau:** chủ dự án thử tay các thao tác kéo / xoay / chụp; xem G9 trong roadmap.
+
+---
+
 ## 18/11/2026 (laptop) — Đợt 12: nhiệm vụ hệ thống (+ sửa chợ)
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2`. **Kết quả:** typecheck sạch, 45 test qua, build qua; đã xem thẻ nhiệm vụ đang làm / chờ nhận thưởng trên HUD.
