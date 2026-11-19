@@ -1,4 +1,5 @@
 import { fitsSlot, type ItemStack, type ProducerDef, type SlotType } from '../../data';
+import { isFrozen } from '../calendar';
 import { addItem, modifier, spend } from '../helpers';
 import { bumpQuest } from './quests';
 import { createSlot, type FarmSlot } from '../state';
@@ -9,6 +10,9 @@ import { fail, ok, type CommandResult, type SimContext, type System } from '../t
  * Vòng đời một ô ruộng: chưa cuốc -> cuốc (tơi xốp) -> gieo -> tưới/hứng mưa -> lớn -> thu -> lại chưa cuốc.
  * Loại ô nào cần cuốc/tưới, nâng cấp được hay không là do SlotTypeDef quyết định (needsTilling, needsWater, tiers).
  */
+/** Lời báo khi làm việc ngoài trời giữa mùa đông. */
+export const FROZEN = 'Mùa đông đất ngoài trời đóng băng, chuồng ao nghỉ — chỉ trồng được trong nhà kính.';
+
 export const farmSystem: System = {
   id: 'farm',
   update(ctx, dt) {
@@ -24,6 +28,7 @@ export const farmSystem: System = {
       if (!ctx.content.slotTypes.get(slot.type).needsTilling) return fail('Ô này không cần cuốc.');
       if (slot.producerId) return fail('Ô đang có cây, không cuốc được.');
       if (slot.tilled) return fail('Đất đã tơi xốp rồi.');
+      if (isFrozen(ctx, slot.type)) return fail(FROZEN);
       slot.tilled = true;
       return ok();
     },
@@ -31,12 +36,13 @@ export const farmSystem: System = {
       const slot = findSlot(ctx, cmd.slotId);
       if (!slot) return fail('Không tìm thấy ô.');
       if (!ctx.content.slotTypes.get(slot.type).needsWater) return fail('Ô này không cần tưới.');
+      if (isFrozen(ctx, slot.type)) return fail(FROZEN);
       if (!needsWatering(ctx, slot)) return fail('Đất vẫn còn ẩm.');
       slot.wet = ctx.content.balance.farm.waterDuration;
       return ok();
     },
     'farm/waterAll'(ctx) {
-      const dry = ctx.state.farm.slots.filter((s) => s.producerId && needsWatering(ctx, s));
+      const dry = ctx.state.farm.slots.filter((s) => s.producerId && needsWatering(ctx, s) && !isFrozen(ctx, s.type));
       if (!dry.length) return fail('Không có cây nào cần tưới.');
       for (const slot of dry) slot.wet = ctx.content.balance.farm.waterDuration;
       return ok();
@@ -48,6 +54,7 @@ export const farmSystem: System = {
       if (!ctx.content.producers.has(cmd.producerId)) return fail('Không có giống này.');
       const def = ctx.content.producers.get(cmd.producerId);
       if (!fitsSlot(def, slot.type)) return fail(`${def.name} không hợp với loại ô này.`);
+      if (isFrozen(ctx, slot.type)) return fail(FROZEN);
       if (ctx.content.slotTypes.get(slot.type).needsTilling && !slot.tilled) return fail('Đất chưa tơi xốp, cuốc đất trước đã.');
       if (ctx.state.level < def.level) return fail(`Cần cấp ${def.level}.`);
       if (!spend(ctx, def.cost)) return fail('Không đủ tiền.');
@@ -153,7 +160,8 @@ function grow(ctx: SimContext, minutes: number): void {
       moisture = (wetPart + (minutes - wetPart) * dryGrowth) / minutes;
       slot.wet = Math.max(0, slot.wet - minutes);
     }
-    if (!slot.producerId || slot.stage !== 'growing') continue;
+    // Mùa đông: ngoài trời đóng băng, cây và con vật ngừng lớn (nhà kính vẫn lớn)
+    if (!slot.producerId || slot.stage !== 'growing' || isFrozen(ctx, slot.type)) continue;
     slot.progress += minutes * speed * moisture * (content.slotTypes.get(slot.type).growMul ?? 1);
     if (slot.progress >= cycleTime(content.producers.get(slot.producerId), slot)) {
       slot.stage = 'ready';

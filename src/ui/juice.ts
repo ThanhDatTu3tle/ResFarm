@@ -36,14 +36,14 @@ function centerOf(el: Element): Point {
  * Biểu tượng bay theo đường cong từ `from` (toạ độ màn hình) về phần tử `to`.
  * Bay xong thì gọi `onArrive` (thường là bump đích).
  */
-export function flyIcon(layer: HTMLElement, icon: string, from: Point, to: Element | null, opts: { delay?: number; size?: number; onArrive?: () => void } = {}): void {
+export function flyIcon(layer: HTMLElement, icon: string, from: Point, to: Element | null, opts: { delay?: number; size?: number; cls?: string; onArrive?: () => void } = {}): void {
   if (!to) return;
   if (reduced()) {
     opts.onArrive?.();
     return;
   }
   const el = document.createElement('span');
-  el.className = 'fly';
+  el.className = opts.cls ? `fly ${opts.cls}` : 'fly';
   el.textContent = icon;
   el.style.fontSize = `${opts.size ?? 26}px`;
   layer.appendChild(el);

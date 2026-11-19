@@ -298,13 +298,16 @@ export interface WeatherDef {
   icon: string;
   /** Trọng số xuất hiện. */
   weight: number;
+  /** Trọng số riêng từng mùa [Xuân, Hạ, Thu, Đông] (bỏ trống = `weight` cho mọi mùa; 0 = không có ở mùa đó). */
+  seasonWeights?: [number, number, number, number];
   /** Thời lượng [ngắn nhất, dài nhất] tính bằng phút game. */
   duration: [number, number];
   /** Hệ số nhân lên các chỉ số khi thời tiết này diễn ra. */
   effects?: Partial<Record<ModifierKey, number>>;
   /** Trời này làm ẩm đất (khỏi tưới). */
   wetsSoil?: boolean;
-  visual: { rain: number; clouds: number; wind: number; dim: number };
+  /** snow: tuyết rơi 0..1 (mùa đông lúc nào cũng có tuyết lất phất). */
+  visual: { rain: number; clouds: number; wind: number; dim: number; snow?: number };
 }
 
 /** Hằng số cân bằng game. */

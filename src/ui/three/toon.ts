@@ -209,3 +209,41 @@ export class Bar3D {
     if (mood) this.fillMat.color.setHex(f > 0.5 ? 0x5a9e4b : f > 0.25 ? 0xe0a030 : 0xd04a3a);
   }
 }
+
+/** Màu nền cỏ của các khu ngoài trời (đổi theo mùa cùng tán lá). */
+const GROUND = new Set([0x8fd16a, 0xbfd88f, 0xb9d48a, 0x9eda7a, 0x9ed47a]);
+/** [màu hướng tới, mức pha] theo mùa: Xuân giữ nguyên, Hạ ngả vàng, Thu ngả cam, Đông phủ tuyết. */
+const SEASON_TINT: [number, number][] = [
+  [0, 0],
+  [0xc9c44e, 0.2],
+  [0xd9822b, 0.6],
+  [0xeef3f7, 0.8],
+];
+/** Nền cỏ đổi nhẹ hơn tán lá (mùa thu nền chỉ ngả vàng cam, không cam rực như lá). */
+const GROUND_K = [0, 0.15, 0.3, 0.8];
+const hsl = { h: 0, s: 0, l: 0 };
+
+/**
+ * Tô lại tán lá (khối ico màu xanh lá) và nền cỏ trong `root` theo mùa (0..3). Chỉ đụng vật liệu toon dùng chung;
+ * màu gốc giữ ở `userData.seasonBase` nên gọi lại bao nhiêu lần cũng được. `foliage = false`: chỉ đổi nền cỏ
+ * (trong quán có chậu cây, không phủ tuyết lên chậu cây trong nhà).
+ */
+export function paintSeason(root: THREE.Object3D, season: number, foliage = true): void {
+  const [to, k] = SEASON_TINT[season] ?? [0, 0];
+  root.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    let base = o.userData.seasonBase as number | undefined;
+    if (base === undefined) {
+      const m = o.material;
+      if (!(m instanceof THREE.MeshToonMaterial)) return;
+      const hex = m.color.getHex();
+      if (matCache.get(hex) !== m) return;
+      m.color.getHSL(hsl);
+      const leafy = foliage && o.geometry instanceof THREE.IcosahedronGeometry && hsl.h > 0.17 && hsl.h < 0.45 && hsl.s > 0.2;
+      if (!leafy && !GROUND.has(hex)) return;
+      o.userData.seasonBase = base = hex;
+    }
+    const kk = GROUND.has(base) ? (GROUND_K[season] ?? 0) : k;
+    o.material = toon(kk ? new THREE.Color(base).lerp(new THREE.Color(to), kk).getHex() : base);
+  });
+}

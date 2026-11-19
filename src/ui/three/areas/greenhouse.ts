@@ -8,7 +8,7 @@ import { dashedRect, makeGreenhouse } from '../farmkit';
 import { Particles } from '../fx';
 import { animatePerson, cropStageOf, LOOKS, makeCrop, makePerson, type CropStage } from '../models';
 import type { Area, Env, Pick } from '../stage';
-import { Bar3D, emojiSprite, G, group, mesh, type V3 } from '../toon';
+import { Bar3D, emojiSprite, G, group, mesh, paintSeason, type V3 } from '../toon';
 
 /**
  * KHU NHÀ KÍNH (bên trong nhà màng ở nông trại). Toạ độ riêng của khu: nhà chạy dọc +x từ x = 0 (cửa, đầu tây),
@@ -127,7 +127,14 @@ export class GreenhouseArea implements Area {
     view.content.add(view.ready);
   }
 
+  private paintedSeason = -1;
+
   update(env: Env, dt: number): void {
+    // Nền cỏ ngoài nhà đổi theo mùa (cây trồng bên trong giữ nguyên)
+    if (this.paintedSeason !== env.season) {
+      this.paintedSeason = env.season;
+      paintSeason(this.root, env.season, false);
+    }
     const { state, ctx, content } = this.game;
     const type = this.plotType();
     const plots = state.farm.slots.filter((s) => s.type === type.id);

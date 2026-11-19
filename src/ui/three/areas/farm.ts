@@ -12,7 +12,7 @@ import { Particles } from '../fx';
 import { makeFruitTree } from '../farmkit';
 import { animateCreature, animatePerson, cropStageOf, LOOKS, makeAnimals, makeBush, makeCrop, makeFence, makeLampPost, makePerson, makeTree, type CropStage } from '../models';
 import { collectSway, sway, type Area, type Env, type Pick } from '../stage';
-import { Bar3D, emojiSprite, G, group, mesh, seeded, toon, type V3 } from '../toon';
+import { Bar3D, emojiSprite, G, group, mesh, seeded, toon, type V3, paintSeason } from '../toon';
 
 /**
  * KHU NÔNG TRẠI — ruộng, chuồng, ao ngoài trời. Mỗi ô trong state.farm.slots có một SlotView;
@@ -126,6 +126,8 @@ export class FarmArea implements Area {
   private farmerWalk = 0;
   private ringMat = new THREE.MeshBasicMaterial({ color: 0xffd23e });
   private waterMat = toon(0x5bbbe8, { transparent: true, opacity: 0.85 });
+  /** Mùa đã tô màu cây cỏ (tô lại khi sang mùa). */
+  private paintedSeason = -1;
   private fx = new Particles(this.root);
   /** Vệt sóng trôi trên sông/suối: vị trí u (0..1) dọc đường cong, lệch ngang off. */
   private flow: { m: THREE.Mesh; curve: THREE.Curve<THREE.Vector3>; u: number; off: number; speed: number }[] = [];
@@ -762,6 +764,14 @@ export class FarmArea implements Area {
       f.m.rotation.y = Math.atan2(n.x, n.z);
     }
     sway(this.swayNodes, env);
-    this.waterMat.color.setHex(0x5bbbe8).multiplyScalar(0.55 + 0.45 * env.day);
+    // Mùa đông: sông, ao, mương đóng băng (màu băng nhạt, dòng nước ngừng chảy)
+    const frozen = env.season === 3;
+    this.waterMat.color.setHex(frozen ? 0xd3ebf5 : 0x5bbbe8).multiplyScalar(0.55 + 0.45 * env.day);
+    this.waterMat.opacity = frozen ? 0.97 : 0.85;
+    for (const f of this.flow) f.m.visible = !frozen;
+    if (this.paintedSeason !== env.season) {
+      this.paintedSeason = env.season;
+      paintSeason(this.root, env.season);
+    }
   }
 }

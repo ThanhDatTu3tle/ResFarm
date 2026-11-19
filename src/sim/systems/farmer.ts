@@ -1,4 +1,5 @@
 import { EventBus } from '../../core/events';
+import { isFrozen } from '../calendar';
 import type { FarmerTask, FarmerTaskKind, FarmSlot } from '../state';
 import { fail, ok, type Command, type CommandResult, type SimContext, type SimEvents, type System } from '../types';
 import { awayReason, tire } from './crew';
@@ -188,7 +189,7 @@ function autoChain(ctx: SimContext, slot: FarmSlot, harvested: { item: string; q
   const type = ctx.content.slotTypes.get(slot.type);
   const mill = type.mill ? pickMill(ctx, type.mill) : null;
   const next: FarmerTask[] = [];
-  if (slot.lastProducerId && !slot.producerId) next.push({ kind: 'plant', slotId: slot.id, producerId: slot.lastProducerId });
+  if (slot.lastProducerId && !slot.producerId && !isFrozen(ctx, slot.type)) next.push({ kind: 'plant', slotId: slot.id, producerId: slot.lastProducerId });
   const grain = harvested.find((y) => mill && y.item === ctx.content.mills.get(mill.type).input);
   if (mill && grain && grain.qty > 0) {
     // Lấy lại từ kho (farm/harvest đã cộng vào) để chở đi; đang chở dở mẻ trước thì gộp chung

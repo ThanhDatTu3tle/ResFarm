@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { Game } from '../../sim/game';
 import { G, mesh, seeded, toon, type V3 } from './toon';
+import { calendarOf } from '../../sim/calendar';
+import { wardrobe } from './models';
 
 /** Thứ người chơi có thể bấm vào trong cảnh 3D. Gắn vào object bằng `obj.userData.pick = {...}`. */
 export type Pick =
@@ -39,6 +41,10 @@ export interface Env {
   dim: number;
   /** Nắng gắt buổi trưa 0..1 (sáng sớm / chiều tối ≈ 0, 12:00 = 1); 0 khi trời tối. */
   noon: number;
+  /** Mùa: 0 Xuân, 1 Hạ, 2 Thu, 3 Đông (số nguyên, theo lịch). */
+  season: number;
+  /** Tuyết rơi 0..1 (mùa đông lúc nào cũng lất phất, trời "Tuyết rơi" thì dày). */
+  snow: number;
   selectedSlot: string | null;
   /** Đang ở chế độ sắp xếp bàn ghế. */
   editLayout: boolean;
@@ -79,6 +85,24 @@ const SKY_NIGHT = new THREE.Color(0x18213f);
 const SUN_DAY = new THREE.Color(0xfff2d6);
 const SUN_NIGHT = new THREE.Color(0x8fa8ff);
 const RAIN_DROPS = 1100;
+const FLAKES = 700;
+/** Tâm nhìn được trôi xa nhất bao nhiêu mét khỏi tâm mặc định của khu khi zoom sát vào (zoom theo con trỏ). */
+const TARGET_ROAM = 24;
+/** Tông trời / ánh nắng theo mùa [màu, mức pha] — Xuân giữ nguyên. */
+const SEASON_SKY: [THREE.Color, number][] = [
+  [new THREE.Color(0x9fd8f5), 0],
+  [new THREE.Color(0x8fd3f7), 0.25],
+  [new THREE.Color(0xf2c48e), 0.3],
+  [new THREE.Color(0xd6e2ec), 0.55],
+];
+const SEASON_SUN: [THREE.Color, number][] = [
+  [new THREE.Color(0xffffff), 0],
+  [new THREE.Color(0xffc670), 0.35],
+  [new THREE.Color(0xff9a4a), 0.45],
+  [new THREE.Color(0xe4f0ff), 0.5],
+];
+const GROUND_WARM = new THREE.Color(0xd9c9a0);
+const GROUND_SNOW = new THREE.Color(0xe8eef4);
 const BASE_ASPECT = 1.6;
 /** Thời gian bấm giữ để lau vết bẩn (mili-giây). */
 export const HOLD_MS = 650;
@@ -93,7 +117,7 @@ export class Stage {
   dragFilter: (pick: Pick) => boolean = () => false;
   /** Gọi liên tục khi đang kéo, với toạ độ mặt đất (x, z) dưới con trỏ; end = true ở lần cuối khi thả. */
   onDrag: (pick: Pick, x: number, z: number, end: boolean) => void = () => {};
-  readonly env: Env = { t: 0, day: 1, night: 0, rain: 0, clouds: 0, wind: 0, dim: 0, noon: 0, selectedSlot: null, editLayout: false, serving: null, editSelected: null };
+  readonly env: Env = { t: 0, day: 1, night: 0, rain: 0, clouds: 0, wind: 0, dim: 0, noon: 0, season: 0, snow: 0, selectedSlot: null, editLayout: false, serving: null, editSelected: null };
 
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -107,6 +131,9 @@ export class Stage {
   private stars: THREE.Points;
   private rain: THREE.LineSegments;
   private rainSeed: Float32Array;
+  /** Hạt rơi theo mùa: bông tuyết (Đông) hoặc lá vàng cam (Thu). */
+  private flakes: THREE.Points;
+  private flakeSeed: Float32Array;
   /** Vệt gió (sợi trắng mảnh bay ngang) ở khu ngoài trời; life < 0 = đang nghỉ. */
   private streaks: { m: THREE.Line; life: number; max: number; speed: number; phase: number }[] = [];
   /** Camera đang lướt tới một chỗ (bấm ô nông trại) hoặc lướt về góc mặc định. */
@@ -167,6 +194,27 @@ export class Stage {
     this.rain.frustumCulled = false;
     this.scene.add(this.rain);
 
+    // Tuyết / lá rơi: chấm tròn mềm vẽ bằng canvas
+    const dot = document.createElement('canvas');
+    dot.width = dot.height = 32;
+    const dc = dot.getContext('2d')!;
+    const grad = dc.createRadialGradient(16, 16, 2, 16, 16, 15);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.6, 'rgba(255,255,255,0.9)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    dc.fillStyle = grad;
+    dc.fillRect(0, 0, 32, 32);
+    this.flakeSeed = new Float32Array(FLAKES * 4).map(() => Math.random());
+    const flakeGeo = new THREE.BufferGeometry();
+    flakeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(FLAKES * 3), 3));
+    this.flakes = new THREE.Points(
+      flakeGeo,
+      new THREE.PointsMaterial({ map: new THREE.CanvasTexture(dot), size: 0.16, transparent: true, depthWrite: false, color: 0xffffff }),
+    );
+    this.flakes.frustumCulled = false;
+    this.flakes.visible = false;
+    this.scene.add(this.flakes);
+
     for (const area of areas) {
       area.root.visible = false;
       this.scene.add(area.root);
@@ -218,6 +266,8 @@ export class Stage {
     this.controls.rotateSpeed = 0.6;
     this.controls.minPolarAngle = 0.3;
     this.controls.maxPolarAngle = 1.36;
+    // Zoom vào đúng chỗ con trỏ / tâm hai ngón đang chụm (không chỉ giữa màn hình); xem clampTarget
+    this.controls.zoomToCursor = true;
 
     this.setArea(areas[0].id);
   }
@@ -262,7 +312,7 @@ export class Stage {
     c.target.set(...target);
     this.camera.position.copy(c.target).add(offset);
     const distance = offset.length();
-    c.minDistance = distance * 0.4;
+    c.minDistance = distance * 0.3;
     c.maxDistance = distance * 1.25;
     const azimuth = Math.atan2(offset.x, offset.z);
     c.minAzimuthAngle = azimuth - orbit;
@@ -306,6 +356,28 @@ export class Stage {
     if (tw.k >= 1) this.camTween = null;
   }
 
+  /**
+   * Zoom theo con trỏ làm tâm nhìn trôi đi: càng lại gần thì được trôi xa khỏi tâm mặc định của khu (tối đa TARGET_ROAM m),
+   * lùi ra hết cỡ thì tâm nhìn tự kéo về giữa khu — không bao giờ lạc ra ngoài bản đồ.
+   */
+  private clampTarget(): void {
+    const c = this.controls;
+    const [tx, ty, tz] = this.current.view.target;
+    const d = this.camera.position.distanceTo(c.target);
+    const near = c.minDistance;
+    const far = c.maxDistance;
+    const roam = TARGET_ROAM * Math.max(0, Math.min(1, (far - d) / Math.max(0.001, far - near)));
+    const dx = c.target.x - tx;
+    const dz = c.target.z - tz;
+    const len = Math.hypot(dx, dz);
+    const dy = c.target.y - ty;
+    if (len <= roam && Math.abs(dy) <= 2) return;
+    const k = len > roam ? roam / len : 1;
+    const fix = new THREE.Vector3(tx + dx * k - c.target.x, Math.max(-2, Math.min(2, dy)) + ty - c.target.y, tz + dz * k - c.target.z);
+    c.target.add(fix);
+    this.camera.position.add(fix);
+  }
+
   /** Toạ độ màn hình (px, theo viewport) của một điểm trong thế giới 3D — để hiệu ứng DOM bay ra từ vật thể. */
   toScreen(world: THREE.Vector3): { x: number; y: number } {
     const ndc = world.clone().project(this.camera);
@@ -320,7 +392,9 @@ export class Stage {
     for (const area of this.areas) area.update(this.env, dt, speed);
     this.updateSky(dt);
     this.updateStreaks(dt);
+    this.updateFlakes(dt);
     this.updateTween(dt);
+    if (!this.camTween) this.clampTarget();
     this.renderer.render(this.scene, this.camera);
     this.firstFrame = false;
   }
@@ -348,10 +422,15 @@ export class Stage {
     env.day = smooth(330, 420, m) * (1 - smooth(1050, 1170, m));
     env.night = 1 - env.day;
     const target = content.weathers.get(state.weather.id).visual;
+    env.season = calendarOf(state.clock.day).season;
+    wardrobe.winter = env.season === 3;
+    wardrobe.rain = env.rain > 0.3;
+    const snowTarget = env.season === 3 ? Math.max(0.35, target.snow ?? 0) : 0;
     const k = this.firstFrame ? 1 : Math.min(1, dt * 0.6 * Math.max(1, speed));
     env.rain += (target.rain - env.rain) * k;
     env.clouds += (target.clouds - env.clouds) * k;
     env.dim += (target.dim - env.dim) * k;
+    env.snow += (snowTarget - env.snow) * k;
     // Nắng: 06:00 → 18:00 là nửa vòng; gắt nhất lúc 12:00, nhẹ lúc sáng sớm và chiều
     const arc = Math.max(0, Math.sin(((m - 360) / 720) * Math.PI));
     env.noon = arc * arc * env.day * (1 - env.dim);
@@ -361,7 +440,9 @@ export class Stage {
     const afternoon = smooth(600, 900, m) * (1 - smooth(1080, 1260, m));
     const gust = Math.max(0, Math.sin(m * 0.031 + d * 1.7) * Math.sin(m * 0.0113 + d * 0.9));
     const breeze = 0.08 + 0.22 * afternoon + 0.45 * gust * (0.4 + 0.6 * afternoon);
-    const windTarget = Math.min(1, Math.max(target.wind, breeze) + target.wind * 0.3 * gust);
+    // Mùa thu gió lộng hơn hẳn
+    const autumn = env.season === 2 ? 0.3 : 0;
+    const windTarget = Math.min(1, Math.max(target.wind, breeze) + target.wind * 0.3 * gust + autumn);
     env.wind += (windTarget - env.wind) * Math.min(1, dt * 0.8);
   }
 
@@ -420,6 +501,9 @@ export class Stage {
     const dusk = 4 * env.day * (1 - env.day);
 
     this.sky.copy(SKY_DAY).lerp(SKY_GREY, env.dim);
+    // Tông trời theo mùa: Hạ trong và nắng, Thu ngả cam, Đông nhạt màu
+    const [skyTint, skyK] = SEASON_SKY[env.season];
+    if (skyK) this.sky.lerp(skyTint, skyK);
     this.sky.copy(SKY_NIGHT.clone().lerp(this.sky, env.day)).lerp(SKY_DUSK, dusk * 0.55);
 
     // Sáng sớm / chiều: nắng dịu; trưa: nắng gắt, cảnh sáng hơn hẳn
@@ -427,6 +511,13 @@ export class Stage {
     this.hemi.color.copy(SUN_NIGHT).lerp(new THREE.Color(0xffffff), env.day);
     this.sun.intensity = 0.5 + (1.15 + 1.9 * env.noon) * env.day * (1 - 0.6 * env.dim);
     this.sun.color.copy(SUN_NIGHT).lerp(SUN_DAY, env.day).lerp(SKY_DUSK, dusk * 0.5 + (1 - env.noon) * env.day * 0.3);
+    // Ánh nắng theo mùa: Hạ vàng cam, Thu cam đậm, Đông trắng lạnh
+    const [sunTint, sunK] = SEASON_SUN[env.season];
+    if (sunK) {
+      this.sun.color.lerp(sunTint, sunK * env.day);
+      this.hemi.color.lerp(sunTint, sunK * 0.6 * env.day);
+    }
+    this.hemi.groundColor.copy(env.season === 3 ? GROUND_SNOW : GROUND_WARM);
     const angle = ((this.game.state.clock.minute - 360) / 720) * Math.PI;
     const [tx, ty, tz] = this.current.view.target;
     this.sun.position.set(tx - Math.cos(angle) * 14, ty + 8 + Math.max(0, Math.sin(angle)) * 12, tz + 10);
@@ -460,6 +551,36 @@ export class Stage {
       }
       pos.needsUpdate = true;
     }
+  }
+
+  /** Tuyết rơi lả tả (Đông) / lá vàng cam bay theo gió (Thu) trong vùng mưa của khu đang xem. */
+  private updateFlakes(dt: number): void {
+    const env = this.env;
+    const autumn = env.season === 2;
+    const count = env.season === 3 ? Math.round(FLAKES * env.snow) : autumn ? Math.round(30 + env.wind * 70) : 0;
+    this.flakes.visible = count > 0;
+    if (!count) return;
+    const mat = this.flakes.material as THREE.PointsMaterial;
+    mat.color.setHex(autumn ? 0xe08a2e : 0xffffff);
+    mat.size = autumn ? 0.6 : 0.42 + env.snow * 0.12;
+    mat.opacity = autumn ? 0.95 : 0.9;
+    const { min, max } = this.current.rainBox;
+    const pos = this.flakes.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const fall = autumn ? 0.16 : 0.12 + env.snow * 0.06;
+    const drift = autumn ? 0.6 + env.wind * 2.5 : 0.3 + env.wind;
+    const s = this.flakeSeed;
+    for (let i = 0; i < FLAKES; i++) {
+      if (i >= count) {
+        pos.setXYZ(i, 0, -100, 0);
+        continue;
+      }
+      const y = (s[i * 4 + 1] = (s[i * 4 + 1] - dt * fall * (0.7 + s[i * 4 + 3] * 0.6) + 1) % 1);
+      const wob = Math.sin(env.t * (1.2 + s[i * 4 + 3]) + i) * 0.35;
+      const w = max[0] - min[0];
+      const px = min[0] + ((((s[i * 4] * w + (1 - y) * drift * 4 + wob) % w) + w) % w);
+      pos.setXYZ(i, px, min[1] + y * (max[1] - min[1]), min[2] + s[i * 4 + 2] * (max[2] - min[2]) + wob * 0.5);
+    }
+    pos.needsUpdate = true;
   }
 
   private aim(clientX: number, clientY: number): void {

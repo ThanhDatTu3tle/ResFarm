@@ -34,7 +34,7 @@ export const stalls: StallDef[] = [
     ],
   },
   {
-    id: 'cafe', name: 'Cà phê dạo', icon: '☕', markup: 1, kind: 'bike', spot: { x: 9, z: 6.4 }, items: [],
+    id: 'cafe', name: 'Cà phê dạo', icon: '☕', markup: 1, kind: 'bike', spot: { x: -4.2, z: 7.4 }, items: [],
     menu: [
       { name: 'Cà phê sữa đá', icon: '☕', price: 8, energy: 5 },
       { name: 'Bạc xỉu', icon: '🥛', price: 9, energy: 6 },

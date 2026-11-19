@@ -1193,3 +1193,72 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
     expect(state.restaurant.staff[0].energy).toBe(content.balance.crew.maxEnergy);
   });
 });
+
+describe('mùa trong năm', () => {
+  const winterDay = 3 * 28 + 1; // mùng 1 mùa Đông năm 1
+
+  it('mùa đông: ruộng ngoài trời đóng băng, nhà kính vẫn trồng; cây ngoài trời ngừng lớn', async () => {
+    const { fitsSlot } = await import('../src/data');
+    const game = quietGame();
+    expect(game.dispatch({ type: 'farm/till', slotId: 'field-0' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farm/plant', slotId: 'field-0', producerId: 'cabbage' }).ok).toBe(true);
+    game.state.clock.day = winterDay;
+    const field = game.state.farm.slots.find((s) => s.id === 'field-0')!;
+    const before = field.progress;
+    game.tick(60);
+    expect(field.progress).toBe(before);
+    expect(game.dispatch({ type: 'farm/till', slotId: 'field-1' }).ok).toBe(false);
+    const plot = game.state.farm.slots.find((s) => s.type === 'gplot')!;
+    const crop = content.producers.all().find((p) => fitsSlot(p, 'gplot') && p.level <= game.state.level)!;
+    if (content.slotTypes.get('gplot').needsTilling) expect(game.dispatch({ type: 'farm/till', slotId: plot.id }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farm/plant', slotId: plot.id, producerId: crop.id }).ok).toBe(true);
+    game.tick(30);
+    expect(plot.progress).toBeGreaterThan(0);
+  });
+
+  it('tuyết chỉ rơi mùa đông, mùa đông không mưa', () => {
+    const game = quietGame();
+    const seen = (day: number) => {
+      const ids = new Set<string>();
+      game.state.clock.day = day;
+      for (let i = 0; i < 300; i++) {
+        game.state.clock.minute = 8 * 60;
+        game.state.weather.minutesLeft = 0;
+        game.tick(1);
+        ids.add(game.state.weather.id);
+      }
+      return ids;
+    };
+    const spring = seen(1);
+    const winter = seen(winterDay);
+    expect(spring.has('snow')).toBe(false);
+    expect(winter.has('snow')).toBe(true);
+    expect(winter.has('rain')).toBe(false);
+  });
+
+  it('cộng dồn doanh thu theo mùa / năm, sang mùa mới thì đếm lại', () => {
+    const game = newGame();
+    game.state.clock.day = 4 * 28; // ngày cuối năm 1
+    runDay(game);
+    const today = game.state.stats.today;
+    expect(today.revenue).toBeGreaterThan(0);
+    expect(game.state.stats.season.revenue).toBe(today.revenue);
+    expect(game.state.stats.year.revenue).toBe(today.revenue);
+    game.dispatch({ type: 'day/next' });
+    expect(calendarOf(game.state.clock.day)).toMatchObject({ dayOfSeason: 1, season: 0, year: 2 });
+    expect(game.state.stats.season.revenue).toBe(0);
+    expect(game.state.stats.year.revenue).toBe(0);
+    expect(game.state.stats.total.revenue).toBeGreaterThan(0);
+  });
+
+  it('save v13 nâng lên v14 có thống kê mùa / năm', () => {
+    const game = newGame();
+    const old = JSON.parse(serialize(game.state));
+    delete old.stats.season;
+    delete old.stats.year;
+    old.version = 13;
+    const loaded = deserialize(JSON.stringify(old), content)!;
+    expect(loaded.stats.season).toBeDefined();
+    expect(loaded.stats.year.revenue).toBe(0);
+  });
+});

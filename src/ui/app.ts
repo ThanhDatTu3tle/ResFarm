@@ -9,7 +9,7 @@ import type { Command } from '../sim/types';
 import { cmd, esc, morph, ui as uiAttr } from './dom';
 import { coins } from './format';
 import { Sound } from './audio';
-import { billHtml, buyHtml, mealHtml, hudHtml, questHtml, serviceAlerts, serviceHtml, settingsHtml, SPEEDS, trayFor } from './hud';
+import { billHtml, buyHtml, mealHtml, moneyText, periodSummaryHtml, SIDE_PANELS, hudHtml, questHtml, serviceAlerts, serviceHtml, settingsHtml, SPEEDS, trayFor } from './hud';
 import { memberOf } from '../sim/systems/crew';
 import { farmerBlocked } from '../sim/systems/farmer';
 import { isReserved, needOf } from '../sim/systems/service';
@@ -51,6 +51,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     // Chỉ ở bản dev: ?rich (nhiều tiền + cấp 9) · ?do=[{"type":"farm/plant",...}] chạy sẵn một chuỗi lệnh
     // · ?weather=rain ép thời tiết · ?edit mở sẵn chế độ sắp xếp bàn
     if (params.has('rich')) Object.assign(game.state, { money: 99999, level: 9 });
+    // ?day=85 nhảy tới ngày đó trong lịch (xem mùa: 1 Xuân, 29 Hạ, 57 Thu, 85 Đông)
+    if (Number(params.get('day')) > 0) game.state.clock.day = Math.floor(Number(params.get('day')));
     for (const command of JSON.parse(params.get('do') ?? '[]') as Command[]) game.dispatch(command);
     const weather = params.get('weather');
     if (weather && content.weathers.has(weather)) game.state.weather = { id: weather, minutesLeft: 100000 };
@@ -62,7 +64,6 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
       <canvas id="scene"></canvas>
       <header id="hud"></header>
       <div id="areabar"></div>
-      <div id="nav"></div>
       <nav id="tools"></nav>
     </section>
     <aside id="drawer"></aside>
@@ -117,6 +118,13 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     stallView: null,
     buyItem: null,
   };
+  // Chỉ bản dev: ?stall=seafood mở thẳng bên trong một quầy chợ (sạp nguyên liệu / Tiệm 25caaaaa)
+  const devStall = import.meta.env.DEV ? params.get('stall') : null;
+  if (devStall && content.stalls.has(devStall)) {
+    stall.show(devStall);
+    ui.stallView = devStall;
+    ui.area = 'stall';
+  }
   stage.setArea(ui.area);
 
   /** Thông báo nổi; `pic` = HTML ảnh nhỏ đứng trước chữ (chân dung khách quen). */
@@ -161,13 +169,15 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
   const money = new Counter(game.state.money);
   let lastMoney = game.state.money;
   const moneyEl = () => $('hud').querySelector('[data-key="money"]');
+  const moneyNum = () => $('hud').querySelector('[data-key="money"] .num');
   const storeEl = () => $('tools').querySelector('[data-ui="drawer:inventory"]');
 
   restaurant.onPaid = (world, amount) => {
     if (ui.area !== 'restaurant') return;
     const from = stage.toScreen(world);
     const n = Math.max(1, Math.min(5, Math.round(amount / 25)));
-    for (let i = 0; i < n; i++) flyIcon(fx, '🪙', from, moneyEl(), {
+    for (let i = 0; i < n; i++) flyIcon(fx, '', from, moneyEl(), {
+        cls: 'coin',
         delay: i * 80,
         size: 22,
         onArrive: () => {
@@ -339,27 +349,26 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
       $('areabar'),
       ui.editLayout ? editBar() : '', // ngoài chế độ sắp xếp bàn thì không hiện gì (hướng dẫn nằm trong bảng Cài đặt)
     );
-    morph(
-      $('nav'),
-      [prev && ['left', '‹', prev], next && ['right', '›', next]]
-        .map((entry) => {
-          if (!entry) return '';
-          const [side, arrow, a] = entry as [string, string, Area];
-          // Đang ở khu khác mà quán có việc cần làm: hiện số việc trên nút sang quán
-          const alerts = a.id === 'restaurant' ? serviceAlerts(game) : 0;
-          return `<button class="side ${side}" data-key="${side}-${a.id}"${uiAttr(`area:${a.id}`)}><i>${arrow}</i><span class="big">${a.icon}</span><span>${esc(a.label)}</span>${alerts ? `<span class="badge">${alerts}</span>` : ''}</button>`;
-        })
-        .join(''),
-    );
-
+    // Thanh dưới: nút sang khu bên trái, các bảng (Khách quen, Thực đơn, Kho), nút sang khu bên phải.
+    // Nút chuyển khu tô màu riêng cho dễ phân biệt với nút mở bảng.
+    const navBtn = (side: 'left' | 'right', a: Area | undefined) => {
+      if (!a) return '';
+      // Đang ở khu khác mà quán có việc cần làm: hiện số việc trên nút sang quán
+      const alerts = a.id === 'restaurant' ? serviceAlerts(game) : 0;
+      const label = `<span class="big">${a.icon}</span><span>${esc(a.label)}</span>`;
+      return `<button class="navbtn ${side}" data-key="nav-${side}-${a.id}"${uiAttr(`area:${a.id}`)} title="Sang ${esc(a.label)}">${side === 'left' ? `<i>‹</i>${label}` : `${label}<i>›</i>`}${alerts ? `<span class="badge">${alerts}</span>` : ''}</button>`;
+    };
     morph(
       $('tools'),
-      panels
-        .map((p) => {
-          const badge = p.badge?.(game) ?? 0;
-          return `<button class="${ui.drawer === p.id ? 'on' : ''}"${uiAttr(`drawer:${p.id}`)}>${p.icon} ${esc(p.label)}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
-        })
-        .join(''),
+      navBtn('left', prev) +
+        panels
+          .filter((p) => !SIDE_PANELS.includes(p.id))
+          .map((p) => {
+            const badge = p.badge?.(game) ?? 0;
+            return `<button class="${ui.drawer === p.id ? 'on' : ''}" data-key="tool-${p.id}"${uiAttr(`drawer:${p.id}`)}>${p.icon} ${esc(p.label)}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
+          })
+          .join('') +
+        navBtn('right', next),
     );
 
     // Nút chuyển khu nằm ngay trên thanh công cụ: theo chiều cao thật của thanh (màn hẹp thanh xuống 2 hàng)
@@ -371,7 +380,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
       passHere
         ? `<div id="panel" class="pass-panel" data-key="pass">${serviceHtml(game, ui)}</div>`
         : panel
-        ? `<div class="drawer-head" data-key="h-${panel.id}"><b>${panel.icon} ${esc(panel.label)}</b><button class="mini"${uiAttr('drawer:')}>✕</button></div>
+        ? `<div class="drawer-head" data-key="h-${panel.id}"><b>${panel.icon} ${esc(panel.label)}</b><button class="x-close"${uiAttr('drawer:')} aria-label="Đóng">✕</button></div>
            <div id="panel" data-key="${panel.id}">${panel.render(game, ui)}</div>`
         : '',
     );
@@ -394,6 +403,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
               <div><span>Khách hài lòng</span><b>${today.guestsServed}</b></div>
               <div><span>Khách bỏ về</span><b>${today.guestsLost}</b></div>
             </div>
+            ${periodSummaryHtml(game)}
             <h3>📦 Trong kho còn</h3>
             ${stockHtml()}
             <p class="muted">Qua đêm nông trại vẫn tiếp tục lớn. Giá chợ ngày mai sẽ thay đổi.</p>
@@ -782,8 +792,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
 
     // Tiền: số trên HUD chạy dần tới giá trị thật, có chữ +/- nổi lên khi đổi
     const shown = money.step(game.state.money, dt);
-    const el = moneyEl();
-    if (el && el.textContent !== coins(shown)) el.textContent = coins(shown);
+    const el = moneyNum();
+    if (el && el.textContent !== moneyText(shown)) el.textContent = moneyText(shown);
     const diff = Math.round(game.state.money - lastMoney);
     if (diff !== 0) {
       lastMoney = game.state.money;
