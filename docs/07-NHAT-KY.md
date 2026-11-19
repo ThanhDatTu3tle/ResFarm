@@ -4,6 +4,15 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 20/11/2026 (laptop) — Giai đoạn 9: bưng món theo màu bàn
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-9`. **Kết quả:** typecheck sạch, 91 test qua (thêm 3 test); đã xem trên localhost (`?ff=150&ffserve&pickup`): bàn chờ món có bong bóng nền màu, bồi bàn cầm 2 món cùng màu, thanh "Đang cầm" phía dưới. **Chưa thử bằng tay:** bấm quầy / bấm bàn.
+
+1. Sim: `Order.readyAt`, `Party.color`, task `pickup`, lệnh `service/pickup` + `service/serve` (không đổi chủ món cùng loại), `passQueue`, `balance.service.carryMax` / `partyColors`; save.ts lọc task `pickup` + sửa số chỗ nhân viên theo hạng bếp. Không đổi SAVE_VERSION (trường mới đều tuỳ chọn).
+2. UI: bỏ `passOpen`, `serving`, `tray2/tray4/trayPick`, kéo thả; `serviceHtml(game)` mới; `src/ui/colors.ts`; `bubbleSprite(..., bg)`; `updateCarryBadges`; trang hướng dẫn "Quầy line và màu bàn"; `?ffserve` (dev).
+
+---
+
 ## 19/11/2026 (laptop) — Giai đoạn 8: đơn đặt hàng, bán hàng dư, sự kiện ngẫu nhiên
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-8`. **Kết quả:** typecheck sạch, 88 test qua (thêm 6 test); đã xem trên localhost: bảng Đơn hàng, nút bán ở Kho, dải sự kiện (xe du lịch, nhà phê bình), nhà phê bình ngồi trong quán. **Chưa thử bằng tay:** bấm giao đơn, bán hàng, phục vụ nhà phê bình tới cuối.

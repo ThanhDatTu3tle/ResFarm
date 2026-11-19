@@ -34,11 +34,11 @@ export const GUIDE: GuidePage[] = [
   },
   {
     icon: '🔔',
-    title: 'Quầy line và khay',
+    title: 'Quầy line và màu bàn',
     points: [
-      'Đầu bếp nấu xong đặt đĩa lên **quầy line**. Bấm quầy để mở ngăn bên phải.',
-      'Bấm **một món** rồi bấm bàn đã gọi món đó để bưng ra.',
-      'Hoặc kéo nhiều món vào **khay 2 ô / 4 ô**, bấm **Cầm khay** rồi bấm bàn: giao một lượt cả bàn.',
+      'Gọi món xong, mỗi bàn được một **màu**: bong bóng của khách đổi sang màu đó, đĩa của bàn trên quầy line có vòng cùng màu.',
+      'Đầu bếp nấu xong đặt đĩa lên **quầy line**. **Bấm quầy**: bồi bàn ra lấy món nấu xong sớm nhất, **tối đa 2 món** một lượt.',
+      'Món đang cầm hiện trên đầu bồi bàn với màu của bàn đã gọi — **bấm bàn cùng màu** để giao.',
       'Quầy line đầy đĩa thì bếp phải chờ — nhớ bưng món đều tay.',
     ],
   },

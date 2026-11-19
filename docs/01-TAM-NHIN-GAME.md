@@ -153,6 +153,14 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** món dùng trái cây (Đĩa trái cây, Chè chuối, Sandwich trái cây, Trà trái cây hwachae); hàng rong mới bán nguyên liệu có sẵn với giá cao hơn 10%; nhóm 5–6 người chỉ tới khi có bàn đủ chỗ; khay 2 ô dành cho bàn đôi / quầy, 4 ô cho bàn từ 3 ghế; mỗi ca để lại 3 vết bẩn, vết cũ bẩn thêm, mỗi bậc bẩn làm khách kém kiên nhẫn 1.5% (tối đa −20%).
 
+### Giai đoạn 9 — Bưng món theo màu bàn (20/11/2026)
+
+- Cơ chế kéo thả vào khay rối: bỏ. Nhân viên vẫn gửi menu, ghi món như cũ; bưng tối đa 2 món.
+- Quầy line có món thì người chơi bấm quầy để nhân viên đi bưng; lấy theo thứ tự món nào nấu trước lấy trước. Món đang cầm hiện icon trên đầu nhân viên, có màu giống màu khung bong bóng của khách đang chờ món đó; các món cùng bàn cùng màu.
+- Bấm bàn nào thì chỉ giao đúng món mang màu của bàn đó.
+
+**AI tự chọn (đổi được):** bảng 8 màu (`src/ui/colors.ts`); màu gán lúc ghi món, chọn màu chưa bàn nào đang dùng; đĩa trên quầy line có vòng màu bên dưới; thanh "Đang cầm" phía dưới có nút "+ Lấy thêm món" khi tay còn trống.
+
 ### Giai đoạn 8 — Đơn đặt hàng, bán hàng dư, sự kiện ngẫu nhiên (19/11/2026)
 
 - Chủ dự án chọn: bán hàng dư + đơn đặt hàng, sự kiện ngẫu nhiên. Chưa làm: chế biến / chăn nuôi sâu, khách quen có hội thoại, làm đẹp quán, tiện ích (save, offline).

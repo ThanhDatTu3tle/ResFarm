@@ -45,6 +45,7 @@ export const kitchenSystem: System = {
       order.progress += dt * content.staff.get(s.id).speed * speedMul;
       if (order.progress >= content.recipes.get(order.recipeId).cookTime) {
         order.status = 'ready';
+        order.readyAt = state.clock.day * 1440 + state.clock.minute;
         s.orderId = null;
         state.stats.today.dishes++;
         state.stats.total.dishes++;

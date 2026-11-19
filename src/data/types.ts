@@ -350,6 +350,10 @@ export interface Balance {
   service: {
     /** Tốc độ đi của bồi bàn: đơn vị mặt bằng (55 = 1 mét) mỗi phút game. */
     waiterSpeed: number;
+    /** Bồi bàn cầm tối đa bao nhiêu món một lượt. */
+    carryMax: number;
+    /** Số màu bàn (bong bóng + món cùng màu) — khớp bảng màu trong UI. */
+    partyColors: number;
     /** Khách xem menu mất bao lâu [min, max] (phút game). */
     browseTime: [number, number];
     /** Khách chờ được mang menu tới bao lâu thì bỏ về. */

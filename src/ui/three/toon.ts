@@ -130,16 +130,17 @@ const bubbleTextures = new Map<string, THREE.Texture>();
  * Bong bóng chat (nền trắng bo tròn, đuôi nhọn chỉ xuống) chứa một hoặc nhiều emoji — dùng cho yêu cầu của khách
  * (📖 cần menu, 😊 chọn xong món, mặt theo tâm trạng, các món đã gọi). Texture có cache theo nội dung.
  */
-export function bubbleSprite(icons: string[], size = 0.62): THREE.Sprite {
-  const key = icons.join('|');
+export function bubbleSprite(icons: string[], size = 0.62, bg?: string | null): THREE.Sprite {
+  const key = icons.join('|') + (bg ? `#${bg}` : '');
   let tex = bubbleTextures.get(key);
   const n = Math.max(1, icons.length);
   const w = 64 + 96 * n;
   if (!tex) {
     tex = canvasTexture(w, 168, (c) => {
       const r = 46;
-      c.fillStyle = '#fffaf1';
-      c.strokeStyle = '#8a5a35';
+      // Có màu bàn thì tô nền theo màu đó (viền đậm hơn) để người chơi so với món đang cầm
+      c.fillStyle = bg ?? '#fffaf1';
+      c.strokeStyle = bg ? '#4a3626' : '#8a5a35';
       c.lineWidth = 8;
       c.beginPath();
       c.roundRect(6, 6, w - 12, 124, r);

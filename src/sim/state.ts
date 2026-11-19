@@ -86,6 +86,8 @@ export interface Party {
   regular: string | null;
   /** Khách đặc biệt của sự kiện (id EventDef, vd 'critic'). */
   vip?: string;
+  /** Màu của bàn (chỉ số trong bảng màu UI), gán lúc gọi món: bong bóng của khách và món của bàn cùng màu. */
+  color?: number;
 }
 
 /** Một đơn đặt hàng từ khách ngoài (systems/contracts.ts). */
@@ -147,6 +149,8 @@ export interface Order {
   progress: number;
   /** Món ruột của khách quen trong nhóm. */
   fav?: boolean;
+  /** Lúc món ra quầy line (ngày × 1440 + phút) — bồi bàn lấy món ra quầy trước trước. */
+  readyAt?: number;
 }
 
 /** Sức của một người trong đội: mỗi việc tốn năng lượng, cạn thì xỉu (đứng im tới khi được bồi dưỡng / ăn / ngủ). */
@@ -208,6 +212,8 @@ export interface CrewState {
 export type WaiterTask =
   | { kind: 'menu'; partyId: number }
   | { kind: 'takeOrder'; partyId: number }
+  /** Ra quầy line lấy món nấu xong sớm nhất (tối đa `balance.service.carryMax` món trên tay). */
+  | { kind: 'pickup' }
   /** Bưng cả khay: lấy các món ở quầy rồi giao một lượt cho bàn. */
   | { kind: 'deliver'; orderIds: number[]; partyId: number }
   /** Dọn chén dĩa dơ ở bàn. */
