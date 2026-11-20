@@ -105,7 +105,7 @@ export const kitchenCommands = {
     if (r.staff.length >= kitchenTierOf(ctx).chefs) return fail('Bếp chật rồi — nâng hạng bếp để thuê thêm đầu bếp.');
     if (ctx.state.crew.restaurantAway) return fail('Cả đội đang ở chợ — đợi về quán rồi thuê nhé.');
     if (!spend(ctx, ctx.content.balance.kitchen.chefHireCost)) return fail('Không đủ tiền.');
-    r.staff.push({ id: def.id, orderId: null, energy: ctx.content.balance.crew.maxEnergy, fainted: false });
+    r.staff.push({ id: def.id, orderId: null, energy: ctx.content.balance.crew.chefMaxEnergy, fainted: false });
     ctx.bus.emit('kitchen/changed', { tier: r.kitchenTier, chefs: r.staff.length });
     return ok();
   },

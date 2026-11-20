@@ -16,7 +16,7 @@ import { sellPrice } from '../src/sim/systems/contracts';
 import { buildingRect, nextWaypoint, slotCenter, slotScale, workSpot } from '../src/sim/systems/farmer';
 import { millCenter, millSpot } from '../src/sim/systems/mills';
 import { moodOf } from '../src/sim/systems/customers';
-import type { FarmSlot, Party } from '../src/sim/state';
+import { ownerName, type FarmSlot, type Party } from '../src/sim/state';
 
 const content = createContent();
 const newGame = (seed = 42) => new Game(content, { seed });
@@ -179,10 +179,13 @@ describe('nông trại', () => {
     expect(days('wheat')).toBe(3);
     const crops = content.producers.all().filter((p) => p.slot === 'field');
     expect(crops.every((p) => p.growTime >= day && p.growTime <= 5 * day)).toBe(true);
+    // Ao nhanh hơn ~40%: cá 3 ngày, cá hồi 4, tôm / ốc / sò 3.5; lứa sau 3 ngày, 15 con
+    expect(days('fish_fry')).toBe(3);
+    expect(days('salmon_fry')).toBe(4);
     // Ốc, sò nuôi ở ao giống tôm
     for (const id of ['oc_huong_fry', 'oc_mong_tay_fry', 'so_diep_fry', 'ngheu_fry', 'hau_fry', 'oc_bu_fry']) {
       const p = content.producers.get(id);
-      expect([p.slot, p.growTime / day, p.regrowTime! / day, p.yields[0].qty]).toEqual(['pond', 6, 5, 10]);
+      expect([p.slot, p.growTime / day, p.regrowTime! / day, p.yields[0].qty]).toEqual(['pond', 3.5, 3, 15]);
     }
   });
 
@@ -695,7 +698,7 @@ describe('ruộng tự động + cối chế biến', () => {
     expect(mill.input).toBeGreaterThan(0);
     game.tick(200);
     expect(mill.input).toBe(0);
-    expect((game.state.inventory.flour ?? 0) - flour0).toBe(8);
+    expect((game.state.inventory.flour ?? 0) - flour0).toBe(content.producers.get('wheat').yields[0].qty);
   });
 
   it('đổi thành phẩm của cối, mua thêm cối (tối đa 2), không giao tay việc chở hàng', () => {
@@ -1134,19 +1137,31 @@ describe('nhân viên phục vụ thuê thêm', () => {
 });
 
 describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () => {
-  it('đầu bếp nấu 1 món tốn 2, bác nông dân làm 1 việc tốn 1', () => {
+  it('đầu bếp (tối đa 30) nấu 1 món tốn 2, bồi bàn / bác nông dân (tối đa 50) làm 1 việc tốn 1; dọn bàn không tốn', () => {
     const game = quietGame();
     const party = seatParty(game, 'pair', 1, [0]);
     party.phase = 'readyToOrder';
     game.dispatch({ type: 'service/takeOrder', partyId: party.id });
     for (let i = 0; i < 200 && !game.state.restaurant.orders.some((o) => o.status === 'ready'); i++) game.tick(0.5);
     const max = content.balance.crew.maxEnergy;
-    expect(game.state.restaurant.staff.map((s) => max - s.energy).sort()).toEqual([0, content.balance.crew.chefPerDish]);
+    const chefMax = content.balance.crew.chefMaxEnergy;
+    expect([chefMax, max]).toEqual([30, 50]);
+    expect(game.state.restaurant.staff.map((s) => chefMax - s.energy).sort()).toEqual([0, content.balance.crew.chefPerDish]);
     expect(game.state.restaurant.waiter.energy).toBe(max - content.balance.crew.waiterPerTask);
     const slot = game.state.farm.slots.find((s) => s.type === 'field')!;
     expect(game.dispatch({ type: 'farmer/do', kind: 'till', slotId: slot.id }).ok).toBe(true);
     for (let i = 0; i < 100 && !slot.tilled; i++) game.tick(0.5);
     expect(game.state.farm.farmer.energy).toBe(max - content.balance.crew.farmerPerTask);
+    // Dọn bàn không tốn sức
+    const r = game.state.restaurant;
+    r.dirty.pair = [0, 1];
+    const e0 = r.waiter.energy;
+    expect(game.dispatch({ type: 'service/clean', tableId: 'pair' }).ok).toBe(true);
+    for (let i = 0; i < 40 && r.dirty.pair; i++) game.tick(0.25);
+    expect(r.dirty.pair).toBeUndefined();
+    expect(r.waiter.energy).toBe(e0);
+    // Xỉu thì bồi dưỡng 50 xu
+    expect(content.balance.crew.reviveCost).toBe(50);
   });
 
   it('bồi bàn kiệt sức thì không nhận việc, bồi dưỡng thì làm tiếp', () => {
@@ -1186,7 +1201,7 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
     game.state.money = 1000;
     const b = content.balance.crew;
     game.state.clock.minute = 11 * 60 + 50;
-    game.state.restaurant.waiter.energy = 5;
+    game.state.restaurant.waiter.energy = 15;
     game.tick(15);
     expect(game.state.crew.farmerAway).toBe('lunch');
     expect(game.state.crew.restaurantAway).toBe('lunch');
@@ -1198,10 +1213,10 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
     const people = 4; // 2 đầu bếp + bồi bàn + bác nông dân
     expect(game.state.crew.pending).toHaveLength(people);
     // Người chơi chọn Matcha ở Tiệm 25caaaaa cho bồi bàn
-    // Bồi bàn còn 5⚡: Matcha (+16) chưa đầy nên vẫn đang chọn; gọi thêm Combo gà (+22) là đầy → xong, không gọi thêm được
+    // Bồi bàn còn 15⚡ (tối đa 50): Matcha (+16) chưa đầy nên vẫn đang chọn; gọi thêm Combo gà (+22) là đầy → xong, không gọi thêm được
     expect(game.dispatch({ type: 'crew/order', who: 'waiter', stallId: 'snack', dish: 0 }).ok).toBe(true);
     expect(game.state.crew.pending.some((p) => p.who === 'waiter')).toBe(true);
-    expect(missingEnergy(game.ctx, 'waiter')).toBe(b.maxEnergy - 5 - 16);
+    expect(missingEnergy(game.ctx, 'waiter')).toBe(b.maxEnergy - 15 - 16);
     // Bỏ món vừa gọi rồi gọi lại
     expect(game.dispatch({ type: 'crew/unorder', who: 'waiter' }).ok).toBe(true);
     expect(game.state.crew.meals.some((l) => l.who === 'waiter')).toBe(false);
@@ -1279,7 +1294,7 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
     for (const s of old.restaurant.staff) delete s.energy;
     const state = deserialize(JSON.stringify(old), content)!;
     expect(state.crew.bill).toEqual([]);
-    expect(state.restaurant.staff[0].energy).toBe(content.balance.crew.maxEnergy);
+    expect(state.restaurant.staff[0].energy).toBe(content.balance.crew.chefMaxEnergy);
   });
 
   it('khách tới đều: ngày vắng nhất (uy tín thấp, mưa, lưu lượng thấp) giờ nào trong ca cũng có khách; mở ca chiều có khách ngay', () => {
@@ -1300,17 +1315,33 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
     }
   });
 
-  it('ông / bà chủ: chọn lúc tạo ván, tuổi kẹp 25..50, lưu / tải giữ nguyên; save v17 có ông chủ mặc định', () => {
-    const g = new Game(content, { seed: 3, cuisine: 'oc', owner: { gender: 'female', age: 42 } });
-    expect(g.state.owner).toEqual({ gender: 'female', age: 42 });
-    expect(deserialize(serialize(g.state), content)!.owner).toEqual({ gender: 'female', age: 42 });
+  it('ông / bà chủ: chọn lúc tạo ván (giới tính, tuổi 25..50, tên, tóc, quần áo), lưu / tải giữ nguyên; save cũ có ông chủ mặc định', () => {
+    const mine = { gender: 'female', age: 42, name: '  Cô   Ba  Sài Gòn  ', hair: 'braid', outfit: 'aodai' } as const;
+    const g = new Game(content, { seed: 3, cuisine: 'oc', owner: mine });
+    expect(g.state.owner).toEqual({ gender: 'female', age: 42, name: 'Cô Ba Sài Gòn', hair: 'braid', outfit: 'aodai' });
+    expect(ownerName(g.state.owner)).toBe('Cô Ba Sài Gòn');
+    expect(deserialize(serialize(g.state), content)!.owner).toEqual(g.state.owner);
     expect(new Game(content, { seed: 3, owner: { gender: 'male', age: 90 } }).state.owner.age).toBe(50);
     expect(new Game(content, { seed: 3, owner: { gender: 'male', age: 3 } }).state.owner.age).toBe(25);
-    expect(newGame().state.owner).toEqual({ gender: 'male', age: 30 });
-    const old = JSON.parse(serialize(newGame().state));
-    old.version = 17;
-    delete old.owner;
-    expect(deserialize(JSON.stringify(old), content)!.owner).toEqual({ gender: 'male', age: 30 });
+    // Tên quá dài bị cắt, kiểu tóc / quần áo lạ về mặc định
+    const odd = new Game(content, { seed: 3, owner: { name: 'x'.repeat(40), hair: 'mohawk', outfit: 'spacesuit' } }).state.owner;
+    expect([odd.name.length, odd.hair, odd.outfit]).toEqual([16, 'auto', 'auto']);
+    // Tóc / quần áo theo giới tính: ông chủ không tết tóc, mặc áo kiểu + váy; tạp dề, áo dài thì ai cũng mặc được
+    const man = new Game(content, { seed: 3, owner: { gender: 'male', hair: 'braid', outfit: 'blouse' } }).state.owner;
+    expect([man.hair, man.outfit]).toEqual(['auto', 'auto']);
+    const man2 = new Game(content, { seed: 3, owner: { gender: 'male', hair: 'undercut', outfit: 'aodai' } }).state.owner;
+    expect([man2.hair, man2.outfit]).toEqual(['undercut', 'aodai']);
+    const woman = new Game(content, { seed: 3, owner: { gender: 'female', hair: 'buzz', outfit: 'polo' } }).state.owner;
+    expect([woman.hair, woman.outfit]).toEqual(['auto', 'auto']);
+    expect(newGame().state.owner).toEqual({ gender: 'male', age: 30, name: '', hair: 'auto', outfit: 'auto' });
+    expect(ownerName(newGame().state.owner)).toBe('Ông chủ');
+    for (const v of [17, 18]) {
+      const old = JSON.parse(serialize(newGame().state));
+      old.version = v;
+      if (v === 17) delete old.owner;
+      else old.owner = { gender: 'female', age: 33 };
+      expect(deserialize(JSON.stringify(old), content)!.owner).toEqual({ gender: v === 17 ? 'male' : 'female', age: v === 17 ? 30 : 33, name: '', hair: 'auto', outfit: 'auto' });
+    }
   });
 });
 
@@ -2018,8 +2049,7 @@ describe('bữa ăn của đội', () => {
     expect(game.state.crew.restaurantAway).toBe('lunch');
     expect(game.dispatch({ type: 'crew/autoOrder' }).ok).toBe(true);
     game.tick(content.balance.crew.eatMinutes + 1);
-    const max = content.balance.crew.maxEnergy;
-    for (const s of game.state.restaurant.staff) expect(s.energy).toBe(max);
-    expect(game.state.restaurant.waiter.energy).toBe(max);
+    for (const s of game.state.restaurant.staff) expect(s.energy).toBe(content.balance.crew.chefMaxEnergy);
+    expect(game.state.restaurant.waiter.energy).toBe(content.balance.crew.maxEnergy);
   });
 });

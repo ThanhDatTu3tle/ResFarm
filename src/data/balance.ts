@@ -74,14 +74,15 @@ export const balance: Balance = {
   helpers: { hireCost: 300, names: ['Bé Mận', 'Anh Bin', 'Chị Hoa', 'Cu Tèo'] },
   // Người làm vườn: chậm hơn bác nông dân một chút; nghỉ cùng giờ với bác
   gardeners: { hireCost: 350, levels: [2, 4, 6], names: ['Cô Lài', 'Chú Tư', 'Anh Sáu'], speed: 3.0, workTime: 1.4, homes: [{ x: 0.2, z: 5.4 }, { x: 2.3, z: 5.4 }, { x: 1.25, z: 6.4 }] },
-  // Mỗi người 30 năng lượng; ngủ qua đêm đầy lại. Nghỉ trưa: quán đóng 12:00, cả đội ra chợ (đội quán 14:00 về,
+  // Đầu bếp 30 năng lượng, bồi bàn / nhân viên / bác nông dân 50; ngủ qua đêm đầy lại. Dọn bàn không tốn sức. Nghỉ trưa: quán đóng 12:00, cả đội ra chợ (đội quán 14:00 về,
   // bác nông dân 13:00 về). Tối: quán đóng 21:00, cả đội ra chợ ăn tối. Người chơi chọn món cho từng người; quá hạn thì tự chọn.
   crew: {
-    maxEnergy: 40,
+    maxEnergy: 50,
+    chefMaxEnergy: 30,
     chefPerDish: 2,
     waiterPerTask: 1,
     farmerPerTask: 1,
-    reviveCost: 100,
+    reviveCost: 50,
     reviveEnergy: 15,
     restEnergy: 10,
     lunchBack: 14 * 60,

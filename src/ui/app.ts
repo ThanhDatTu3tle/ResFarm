@@ -329,9 +329,10 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     const ids = new Set(low.map((l) => l.recipe.id));
     if (game.state.clock.phase === 'open' && inShift(game.ctx)) {
       const fresh = low.filter((l) => !lowShown.has(l.recipe.id));
+      // Không bật thông báo nổi nữa: dải cảnh báo dưới hàng tiền / sao gộp sẵn món hết + sắp hết; chỉ nảy nhẹ để để ý
       if (fresh.length) {
-        const l = fresh[0];
-        toast(`⚠️ ${l.recipe.icon} ${l.recipe.name} ${l.count ? `chỉ còn đủ nguyên liệu cho ${l.count} phần` : 'đã hết nguyên liệu'}${fresh.length > 1 ? ` (và ${fresh.length - 1} món khác)` : ''} — ra chợ hoặc nông trại nhé.`, 'bad', '', 4200);
+        const chip = root.querySelector<HTMLElement>('.stock-warn');
+        if (chip) bump(chip, 0.4);
       }
     }
     lowShown = ids;
@@ -519,7 +520,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       $('modal'),
       state.clock.phase !== 'summary'
         ? ''
-        : `<div class="backdrop"><div class="dialog">
+        : `<div class="backdrop"><div class="dialog day-end">
             <h2>🌙 Hết ngày ${state.clock.day}</h2>
             <div class="stats">
               <div><span>Doanh thu</span><b>${coins(today.revenue)}</b></div>
@@ -529,10 +530,12 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
               <div><span>Khách hài lòng</span><b>${today.guestsServed}</b></div>
               <div><span>Khách bỏ về</span><b>${today.guestsLost}</b></div>
             </div>
-            ${tomorrowFestivalHtml(game)}
-            ${periodSummaryHtml(game)}
-            <h3>📦 Trong kho còn</h3>
-            ${stockHtml()}
+            <div class="day-body">
+              ${tomorrowFestivalHtml(game)}
+              ${periodSummaryHtml(game)}
+              <h3>📦 Trong kho còn</h3>
+              ${stockHtml()}
+            </div>
             <p class="muted">Qua đêm nông trại vẫn tiếp tục lớn. Giá chợ ngày mai sẽ thay đổi.</p>
             <button class="primary"${cmd({ type: 'day/next' })}>☀️ Bắt đầu ngày mới</button>
           </div></div>`,
@@ -708,7 +711,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     const need = needOf(party);
     if (need === 'menu') run({ type: 'service/menu', partyId });
     else if (need === 'order') run({ type: 'service/takeOrder', partyId });
-    else if (party.phase === 'waitingFood') toast('Món nấu xong sẽ ra quầy line 🔔 — bấm quầy để bồi bàn lấy món (tối đa 2), rồi bấm bàn có bong bóng cùng màu.');
+    // Bàn đang chờ món, chưa cầm món: không nhắc nữa (đã có hướng dẫn chơi + ngày hướng dẫn)
   };
 
   // Kéo bàn khi đang ở chế độ sắp xếp
@@ -928,8 +931,10 @@ function readSave(): string | null {
   }
 }
 
-/** ?owner=f35 (kèm ?fresh): ông chủ (m) / bà chủ (f) + tuổi cho ván tạm. */
+/** ?owner=f35 (kèm ?fresh): ông chủ (m) / bà chủ (f) + tuổi cho ván tạm; thêm -tóc-quần áo-tên: ?owner=f35-braid-aodai-Cô Ba. */
 function paramOwner(params: URLSearchParams): OwnerProfile | undefined {
   const v = params.get('owner');
-  return v ? cleanOwner({ gender: v.startsWith('f') ? 'female' : 'male', age: Number(v.slice(1)) || 30 }) : undefined;
+  if (!v) return undefined;
+  const [ga, hair, outfit, name] = v.split('-');
+  return cleanOwner({ gender: ga.startsWith('f') ? 'female' : 'male', age: Number(ga.slice(1)) || 30, hair, outfit, name });
 }

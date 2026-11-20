@@ -12,7 +12,7 @@ import { currentQuest } from '../sim/systems/quests';
 import { questChapters } from '../data/quests';
 import { mealCoachTip } from './coach';
 import { acceptingGuests, inShift } from '../sim/systems/customers';
-import { billDue, billTotal, crewMembers, mealBudget, missingEnergy, orderedEnergy } from '../sim/systems/crew';
+import { billDue, billTotal, crewMembers, maxEnergyOf, mealBudget, missingEnergy, orderedEnergy } from '../sim/systems/crew';
 import { priceOf } from '../sim/systems/market';
 import { stockOf } from '../sim/helpers';
 import { clockText, coins } from './format';
@@ -107,13 +107,15 @@ export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
   const speed = ui.speed === 0 ? `<span class="tag paused" title="Đang tạm dừng">⏸</span>` : ui.speed > 1 ? `<span class="tag fast" title="Tốc độ">x${ui.speed}</span>` : '';
 
   return `<div class="hud-left">
-      ${levelBadge(state.level, state.xp / xpForLevel(state.level))}
-      <div class="hud-stack">
-        <span class="stat money" data-key="money"><span class="num">${moneyText(moneyShown)}</span>${COIN}</span>
-        <span class="stat rep" title="Uy tín của quán">⭐ ${state.reputation.toFixed(1)}</span>
-        ${lowStockChip(game)}
+      <div class="hud-top">
+        ${levelBadge(state.level, state.xp / xpForLevel(state.level))}
+        <div class="hud-stack">
+          <span class="stat money" data-key="money"><span class="num">${moneyText(moneyShown)}</span>${COIN}</span>
+          <span class="stat rep" title="Uy tín của quán">⭐ ${state.reputation.toFixed(1)}</span>
+        </div>
+        ${questCard(game)}
       </div>
-      ${questCard(game)}
+      ${lowStockChip(game)}
     </div>
     <div class="hud-right">
       <div class="clock" title="${esc(`${weekday.name}, ngày ${cal.dayOfSeason} mùa ${season.name}, năm ${cal.year}`)}">
@@ -359,7 +361,6 @@ export function mealHtml(game: Game, ui: UiState): string {
   const { state, content, ctx } = game;
   const c = state.crew;
   if (!ui.mealOpen) return '';
-  const max = content.balance.crew.maxEnergy;
   const pending = c.pending;
   const isPending = (who: string) => pending.some((p) => p.who === who);
   if (!isPending(ui.mealWho ?? '')) ui.mealWho = pending[0]?.who ?? null;
@@ -370,6 +371,7 @@ export function mealHtml(game: Game, ui: UiState): string {
   const rows = people
     .map((m) => {
       const ordered = orderedEnergy(ctx, m.who);
+      const max = maxEnergyOf(ctx, m.who);
       const now = Math.min(max, m.vitals.energy);
       const add = Math.max(0, Math.min(max - now, ordered));
       const open = isPending(m.who);
@@ -478,13 +480,22 @@ export function lowStock(game: Game): { recipe: RecipeDef; count: number }[] {
     .sort((a, b) => a.count - b.count);
 }
 
-/** Thẻ cảnh báo dưới số tiền: món sắp hết nguyên liệu; bấm mở bảng Thực đơn. */
+/**
+ * Dải cảnh báo nguyên liệu dưới hàng cấp / tiền / sao (thẳng lề trái với huy hiệu cấp): gộp món đã hết và món sắp hết
+ * vào một chỗ (không còn thông báo nổi riêng); bấm mở bảng Thực đơn.
+ */
 function lowStockChip(game: Game): string {
   const low = lowStock(game);
   if (!low.length) return '';
-  const first = low[0];
-  const title = low.map((l) => `${l.recipe.name}: ${l.count ? `còn ${l.count} phần` : 'hết'}`).join(' · ');
-  return `<button class="stock-warn" data-key="stock-warn"${uiAttr('drawer:menu')} title="${esc(title)}">⚠️ ${first.count ? 'Sắp hết' : 'Hết'}: ${first.recipe.icon} ${esc(first.recipe.name)}${low.length > 1 ? ` <em>+${low.length - 1}</em>` : ''}</button>`;
+  const out = low.filter((l) => !l.count);
+  const soon = low.filter((l) => l.count);
+  const part = (label: string, list: typeof low) => {
+    if (!list.length) return '';
+    const [first, ...rest] = list;
+    return `<span class="sw-part"><b>${label}:</b> ${first.recipe.icon} ${esc(first.recipe.name)}${rest.length ? ` <em>${rest.map((l) => l.recipe.icon).join('')}</em>` : ''}</span>`;
+  };
+  const title = low.map((l) => `${l.recipe.name}: ${l.count ? `còn ${l.count} phần` : 'hết'}`).join(' · ') + ' — bấm để mở Thực đơn';
+  return `<button class="stock-warn" data-key="stock-warn"${uiAttr('drawer:menu')} title="${esc(title)}">⚠️ ${part('Hết', out)}${part('Sắp hết', soon)}</button>`;
 }
 
 /** Dải sự kiện ngẫu nhiên: báo trước giờ tới (nhà phê bình, thanh tra) hoặc đang diễn ra (còn bao lâu). */

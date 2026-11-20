@@ -1,4 +1,4 @@
-import { awayReason, crewMembers, type CrewMember } from '../../sim/systems/crew';
+import { awayReason, crewMembers, maxEnergyOf, type CrewMember } from '../../sim/systems/crew';
 import { kitchenTierOf, nextChefDef, uncookedDishes } from '../../sim/systems/kitchen';
 import { maxHelpers } from '../../sim/systems/helpers';
 import type { Game } from '../../sim/game';
@@ -46,7 +46,8 @@ export const crewPanel: Panel = {
               : busy(game, m)
                 ? '🏃 Đang làm việc'
                 : '🙂 Đang rảnh';
-        const low = !m.vitals.fainted && m.vitals.energy <= b.maxEnergy * 0.2;
+        const max = maxEnergyOf(game.ctx, m.who);
+        const low = !m.vitals.fainted && m.vitals.energy <= max * 0.2;
         const revive =
           m.vitals.fainted && !away
             ? `<button class="primary wide"${cmd({ type: 'crew/revive', who: m.who })}${state.money >= b.reviveCost ? '' : ' disabled'}>💊 Bồi dưỡng nhanh · ${coins(b.reviveCost)}</button>`
@@ -55,7 +56,7 @@ export const crewPanel: Panel = {
         return `<div class="card helper${m.vitals.fainted ? ' fainted' : ''}${low ? ' low' : ''}" data-key="${m.who}">
           <div class="row"><span class="big">${m.vitals.fainted ? '😵' : m.icon}</span>
             <div class="grow"><b>${esc(m.name)}</b> <span class="pill">${ROLE[m.role]}</span><div class="muted">${status}</div>
-              <div class="energy">⚡ ${bar(m.vitals.energy / b.maxEnergy)}<em>${Math.round(m.vitals.energy)}/${b.maxEnergy}</em></div></div>
+              <div class="energy">⚡ ${bar(m.vitals.energy / max)}<em>${Math.round(m.vitals.energy)}/${max}</em></div></div>
           </div>
           ${revive}${helper ? helperControls(helper) : ''}${m.role === 'chef' ? chefControls(game, m.who) : ''}
         </div>`;
@@ -68,7 +69,7 @@ export const crewPanel: Panel = {
       r.helpers.length < max
         ? `<button class="wide"${cmd({ type: 'helper/hire' })}${state.money >= hb.hireCost ? '' : ' disabled'}>➕ Thuê nhân viên phục vụ · ${coins(hb.hireCost)}</button>`
         : `<div class="muted">${max >= content.room.tiers.length - 1 ? 'Đã đủ 4 nhân viên phục vụ.' : `Nâng hạng quán để thuê thêm nhân viên phục vụ (mỗi bậc thêm 1 người, hiện ${r.helpers.length}/${max}).`}</div>`;
-    return `<p class="muted">Mỗi người tối đa ${b.maxEnergy} ⚡. Đầu bếp nấu 1 món tốn ${b.chefPerDish}; phục vụ (menu, ghi món, bưng, dọn, lau) và bác nông dân (cuốc, gieo, tưới, thu hoạch) mỗi việc tốn ${b.waiterPerTask}. Cạn là xỉu.
+    return `<p class="muted">Đầu bếp tối đa ${b.chefMaxEnergy} ⚡, bồi bàn / nhân viên / bác nông dân ${b.maxEnergy} ⚡. Đầu bếp nấu 1 món tốn ${b.chefPerDish}; phục vụ (menu, ghi món, bưng, lau sàn — dọn bàn không tốn) và bác nông dân (cuốc, gieo, tưới, thu hoạch) mỗi việc tốn ${b.waiterPerTask}. Cạn là xỉu.
       Nghỉ trưa: bác ra chợ ${clockText(b.farmerLunch.from)}–${clockText(b.farmerLunch.to)}, đội quán ra chợ khi hết ca sáng và quán vắng khách, ${clockText(b.lunchBack)} về. Tối sau ca cuối cả đội ra chợ ăn tối. Ngủ qua đêm là đầy sức.</p>
       ${uncookedNote(game)}${rows}${chefHire(game)}${hire}`;
   },

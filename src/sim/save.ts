@@ -69,6 +69,8 @@ const migrations: Record<number, (old: any) => any> = {
   16: (s) => ({ ...s, farm: { ...s.farm, tools: [], gardeners: [] }, achievements: { counts: {}, done: [], claimed: [] }, traffic: 1, tutorial: null, version: 17 }),
   // v17 -> v18: ông / bà chủ quán (giới tính + tuổi), ván cũ mặc định ông chủ 30 tuổi.
   17: (s) => ({ ...s, owner: { gender: 'male', age: 30 }, version: 18 }),
+  // v18 -> v19: tên, kiểu tóc, quần áo của chủ quán (cleanOwner điền mặc định).
+  18: (s) => ({ ...s, owner: { ...s.owner, name: '', hair: 'auto', outfit: 'auto' }, version: 19 }),
 };
 
 export function serialize(state: GameState): string {
@@ -153,7 +155,7 @@ function reconcile(state: GameState, content: Content): GameState {
     .filter((def) => !def.hire || r.staff.some((s) => s.id === def.id))
     .map((def) => {
       const old = r.staff.find((s) => s.id === def.id);
-      const max = content.balance.crew.maxEnergy;
+      const max = content.balance.crew.chefMaxEnergy;
       const dishes = old?.dishes ? old.dishes.filter((id) => content.recipes.has(id)) : null;
       return { id: def.id, orderId: old && r.orders.some((o) => o.id === old.orderId) ? old.orderId : null, energy: Math.min(max, old?.energy ?? max), fainted: old?.fainted ?? false, ...(dishes ? { dishes } : {}) };
     });

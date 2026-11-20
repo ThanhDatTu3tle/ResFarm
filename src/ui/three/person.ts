@@ -271,6 +271,35 @@ export function addHair(head: THREE.Group, style: HairStyle, c: number, accent: 
       mesh(head, G.sphere(0.1, 10, 8), c, { p: [-0.05, 0.36, 0.15], s: [1.5, 0.55, 0.8] });
       mesh(head, G.sphere(0.11, 12, 10), c, { p: [0, 0.48, -0.1] });
       break;
+    case 'buzz':
+      // Đầu đinh: tóc ôm sát, không mái
+      mesh(head, G.sphere(0.243), c, { p: [0, 0.24, -0.04], s: [1.0, 0.82, 1.0] });
+      hairBack(head, c);
+      break;
+    case 'undercut':
+      // Hai bên cạo ngắn, trên đỉnh dày vuốt ngược ra sau
+      mesh(head, G.sphere(0.24), c, { p: [0, 0.23, -0.05], s: [0.98, 0.78, 0.98] });
+      hairBack(head, c);
+      mesh(head, G.sphere(0.17, 12, 10), c, { p: [0, 0.4, 0.0], s: [1.0, 0.62, 1.35], r: [-0.25, 0, 0] });
+      mesh(head, G.sphere(0.1, 10, 8), c, { p: [0, 0.39, 0.15], s: [1.4, 0.7, 0.9], r: [0.5, 0, 0] }); // chỏm mái vuốt lên
+      break;
+    case 'braid':
+      // Tóc dài tết lệch một bên, vắt qua vai trước
+      hairCap(head, c, 1.02);
+      mesh(head, G.sphere(0.11, 10, 8), c, { p: [-0.05, 0.35, 0.15], s: [1.6, 0.55, 0.8] });
+      for (let i = 0; i < 5; i++) mesh(head, G.sphere(0.062 - i * 0.004, 8, 6), c, { p: [0.19 + i * 0.006, 0.08 - i * 0.085, 0.04 + i * 0.03] });
+      mesh(head, G.sphere(0.035, 8, 6), accent, { p: [0.22, -0.34, 0.18] }); // dây buộc đuôi tết
+      break;
+    case 'wavy':
+      // Tóc dài uốn sóng: nhiều lọn tròn rủ xuống vai
+      hairCap(head, c, 1.04);
+      mesh(head, G.sphere(0.11, 10, 8), c, { p: [0.06, 0.35, 0.15], s: [1.6, 0.55, 0.8], r: [0, 0, -0.15] });
+      for (let i = 0; i < 7; i++) {
+        const a = -1.2 + (i / 6) * 2.4;
+        mesh(head, G.sphere(0.085, 10, 8), c, { p: [Math.sin(a) * 0.2, 0.0 - Math.abs(Math.sin(a * 2)) * 0.05 - (i % 2) * 0.05, -0.12 + Math.cos(a) * -0.06] });
+      }
+      for (const side of [-1, 1]) mesh(head, G.capsule(0.06, 0.16), c, { p: [side * 0.21, 0.07, 0.05], r: [0, 0, side * 0.1] });
+      break;
     default: // short
       hairCap(head, c, 1.0);
       mesh(head, G.sphere(0.1, 10, 8), c, { p: [0.07, 0.36, 0.15], s: [1.4, 0.6, 0.8] }); // mái tóc

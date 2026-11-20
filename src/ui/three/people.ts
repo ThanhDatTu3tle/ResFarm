@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { PersonStyle } from '../../data';
+import type { HairStyle, PersonStyle } from '../../data';
 import type { OwnerProfile } from '../../sim/state';
 import { makePerson, rimify, type Rig } from './models';
 import { G, group, mesh, toon } from './toon';
@@ -109,25 +109,37 @@ export function makeOwner(o: OwnerProfile): THREE.Group {
   const k = (o.age - 25) / 25; // 0 trẻ … 1 có tuổi
   const female = o.gender === 'female';
   const hairColor = mixHex(female ? 0x3a2418 : 0x221a16, 0xb9b4ae, (k - 0.45) * 1.3);
-  const hair = female ? (o.age < 31 ? 'pony' : o.age < 42 ? 'bob' : 'bun') : o.age < 31 ? 'spiky' : o.age < 42 ? 'side' : 'short';
+  const autoHair: HairStyle = female ? (o.age < 31 ? 'pony' : o.age < 42 ? 'bob' : 'bun') : o.age < 31 ? 'spiky' : o.age < 42 ? 'side' : 'short';
+  const hair = o.hair && o.hair !== 'auto' ? (o.hair as HairStyle) : autoHair;
+  const outfit = o.outfit && o.outfit !== 'auto' ? o.outfit : female ? 'blouse' : 'vest';
   const acc: PersonStyle['acc'] = [];
   if (o.age >= 44) acc.push('readingGlasses');
   if (!female && o.age >= 40) acc.push('mustache');
-  if (!female) acc.push('jacket');
-  const g = makeRegular({
-    build: 'adult',
-    hair,
-    hairColor,
-    skin: 0xf6cfa8,
-    shirt: female ? 0xd9566b : 0xf4f1ea,
-    bottom: female ? 'skirt' : 'pants',
-    bottomColor: female ? 0x3b3f63 : 0x34384a,
-    acc,
-    accent: female ? 0xf2b23e : 0x2f4f6f,
-    width: 0.95 + k * 0.22,
-  });
+  // Bộ quần áo: màu áo, quần / váy, phụ kiện
+  const OUT: Record<string, Pick<PersonStyle, 'shirt' | 'bottom' | 'bottomColor' | 'accent'> & { jacket?: boolean }> = {
+    vest: { shirt: 0xf4f1ea, bottom: 'pants', bottomColor: 0x34384a, accent: 0x2f4f6f, jacket: true },
+    blouse: { shirt: 0xd9566b, bottom: 'skirt', bottomColor: 0x3b3f63, accent: 0xf2b23e },
+    tee: { shirt: 0x3fb6a8, bottom: 'pants', bottomColor: 0x3d5f8f, accent: 0xf2b23e },
+    polo: { shirt: 0x5fae57, bottom: 'pants', bottomColor: 0xc9b28a, accent: 0xffffff },
+    apron: { shirt: 0xf6efe0, bottom: 'pants', bottomColor: 0x5a3e2b, accent: 0x8a5a35 },
+    aodai: { shirt: female ? 0xd9435f : 0x2f5f9f, bottom: 'pants', bottomColor: 0xffffff, accent: 0xf2c14e },
+  };
+  const out = OUT[outfit] ?? OUT.vest;
+  if (out.jacket) acc.push('jacket');
+  const g = makeRegular({ build: 'adult', hair, hairColor, skin: 0xf6cfa8, shirt: out.shirt, bottom: out.bottom, bottomColor: out.bottomColor, acc, accent: out.accent, width: 0.95 + k * 0.22 });
   const rig = g.userData.rig as Rig;
-  mesh(rig.body, G.cyl(0.045, 0.045, 0.02, 10), 0xf2c14e, { p: [0.1, 0.36, 0.215], r: [Math.PI / 2, 0, 0], cast: false }); // huy hiệu chủ quán
+  if (outfit === 'apron') {
+    mesh(rig.body, G.box(0.36, 0.46, 0.04), 0x8a5a35, { p: [0, 0.1, 0.2] }); // tạp dề nâu
+    mesh(rig.body, G.box(0.16, 0.08, 0.02), 0xf2c14e, { p: [0, 0.12, 0.225], cast: false }); // túi
+  } else if (outfit === 'aodai') {
+    // Vạt áo dài trước / sau rủ xuống gần gối, cổ đứng
+    for (const z of [0.12, -0.12]) mesh(rig.body, G.box(0.3, 0.42, 0.03), out.shirt, { p: [0, -0.2, z] });
+    mesh(rig.body, G.cyl(0.09, 0.1, 0.07, 12), out.shirt, { p: [0, 0.5, 0] });
+    mesh(rig.body, G.box(0.04, 0.3, 0.02), out.accent, { p: [0.08, 0.3, 0.2], cast: false }); // đường viền nút
+  } else if (outfit === 'polo') {
+    for (const side of [-1, 1]) mesh(rig.body, G.box(0.1, 0.03, 0.08), out.shirt, { p: [side * 0.06, 0.48, 0.13], r: [0.5, 0, side * 0.4] }); // cổ áo
+  }
+  mesh(rig.body, G.cyl(0.045, 0.045, 0.02, 10), 0xf2c14e, { p: [-0.1, 0.36, 0.215], r: [Math.PI / 2, 0, 0], cast: false }); // huy hiệu chủ quán
   return g;
 }
 

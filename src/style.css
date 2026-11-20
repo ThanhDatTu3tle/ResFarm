@@ -960,6 +960,49 @@ button.danger {
   font-size: 13px;
 }
 
+/* Tổng kết cuối ngày: rộng hơn, số liệu 3 cột; phần giữa (lễ, tổng kết mùa, kho) tự cuộn nên nút "Bắt đầu ngày mới" luôn thấy */
+.dialog.day-end {
+  width: min(820px, 96vw);
+  max-height: 94vh;
+  max-height: 94dvh;
+  gap: 10px;
+  padding: 18px 22px;
+}
+.dialog.day-end h2 {
+  margin: 0;
+}
+.dialog.day-end .stats {
+  grid-template-columns: repeat(3, 1fr);
+}
+.dialog.day-end .day-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+}
+.dialog.day-end .day-body h3 {
+  margin: 2px 0 0;
+}
+.dialog.day-end .stock-grid {
+  max-height: 30vh;
+  overflow-y: auto;
+  flex: none;
+}
+.dialog.day-end > .muted {
+  margin: 0;
+}
+.dialog.day-end > button.primary {
+  flex: none;
+}
+@media (max-width: 560px) {
+  .dialog.day-end .stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .swatches {
   display: flex;
   gap: 4px;
@@ -1513,6 +1556,52 @@ button.side .badge {
   margin: 0;
   font-size: 13px;
   line-height: 1.4;
+}
+.owner-card {
+  max-height: calc(100% - 130px);
+  overflow-y: auto;
+}
+.owner-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.owner-name input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 15px;
+  border-radius: 10px;
+  border: 2px solid var(--wood);
+  background: #fffdf8;
+  color: var(--text);
+}
+.owner-name input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.owner-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.owner-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.owner-chips .chip {
+  padding: 4px 9px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: 2px solid var(--line);
+  background: #fffdf8;
+}
+.owner-chips .chip.on {
+  border-color: var(--accent);
+  background: #fff0e3;
+  color: var(--text);
 }
 .owner-gender {
   display: grid;
@@ -2556,8 +2645,18 @@ i.coin {
   font-variant-numeric: tabular-nums;
 }
 
+/* Bên trái HUD: hàng trên (cấp, tiền / sao, thẻ nhiệm vụ sát bên phải), dưới là dải cảnh báo nguyên liệu thẳng lề trái */
+.hud-left {
+  flex-direction: column;
+  gap: 6px;
+}
+.hud-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
 /* Thẻ nhiệm vụ nằm cạnh tiền / sao */
-.hud-left > .quest {
+.hud-top > .quest {
   width: 230px;
   margin: 0;
 }
@@ -2652,7 +2751,7 @@ button.x-close {
   .side-col {
     gap: 6px;
   }
-  .hud-left > .quest {
+  .hud-top > .quest {
     width: 190px;
   }
   button.x-close {
@@ -2677,12 +2776,14 @@ button.x-close {
 
 /* Khung HUD hai bên cao theo cột nút tròn / thẻ nhiệm vụ: chỗ trống trong khung không được chặn bấm vào cảnh 3D (vd Tiệm 25caaaaa ở mép phải chợ) */
 .hud-left,
+.hud-top,
 .hud-right,
 .side-col,
 .hud-stack {
   pointer-events: none;
 }
-.hud-left > *,
+.hud-left > *:not(.hud-top),
+.hud-top > *,
 .hud-right > *:not(.side-col),
 .side-col > *,
 .hud-stack > * {
@@ -2752,7 +2853,7 @@ button.stock-warn {
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
-  max-width: 220px;
+  max-width: min(460px, 60vw);
   overflow: hidden;
   text-overflow: ellipsis;
   box-shadow: 0 2px 0 rgba(200, 72, 58, 0.35);
@@ -2761,6 +2862,13 @@ button.stock-warn {
 button.stock-warn em {
   font-style: normal;
   opacity: 0.8;
+}
+button.stock-warn .sw-part + .sw-part::before {
+  content: ' · ';
+  color: var(--muted);
+}
+button.stock-warn b {
+  font-weight: 900;
 }
 .low-note {
   margin: 4px 0;
