@@ -9,7 +9,7 @@ import { fail, ok, type SimContext, type System } from '../types';
 
 /**
  * CẢ ĐỘI — đầu bếp, bồi bàn (người chơi điều khiển), nhân viên thuê, bác nông dân.
- *  - Năng lượng: mỗi người tối đa balance.crew.maxEnergy; mỗi việc tốn (nấu 1 món, phục vụ 1 việc, 1 việc đồng áng).
+ *  - Năng lượng: tối đa `maxEnergyOf` (đầu bếp balance.crew.chefMaxEnergy, còn lại balance.crew.maxEnergy); mỗi việc tốn (nấu 1 món, phục vụ 1 việc, 1 việc đồng áng).
  *    Cạn thì xỉu: đứng im tới khi được bồi dưỡng (reviveCost xu), ăn ở chợ, hoặc ngủ qua đêm (đầy lại).
  *  - Giờ nghỉ: hết ca sáng, quán vắng khách thì đội quán ra chợ, về lúc crew.lunchBack; bác nông dân ra chợ
  *    crew.farmerLunch.from, về lúc .to. Hết ca cuối (tối) cả đội ra chợ ăn tối, không quay lại.
@@ -45,6 +45,12 @@ export function crewMembers(ctx: SimContext): CrewMember[] {
     ...r.helpers.map((h): CrewMember => ({ who: h.id, name: h.name, icon: '🧑‍🍳', role: 'helper', group: 'restaurant', vitals: h })),
     { who: 'farmer', name: 'Bác nông dân', icon: '👨‍🌾', role: 'farmer', group: 'farm', vitals: state.farm.farmer },
   ];
+}
+
+/** Năng lượng tối đa của một người: đầu bếp ít hơn (nấu tốn sức), bồi bàn / nhân viên / bác nông dân nhiều hơn. */
+export function maxEnergyOf(ctx: SimContext, who: string): number {
+  const b = ctx.content.balance.crew;
+  return ctx.content.staff.has(who) ? b.chefMaxEnergy : b.maxEnergy;
 }
 
 export function memberOf(ctx: SimContext, who: string): CrewMember | undefined {
@@ -108,7 +114,7 @@ export function orderedEnergy(ctx: SimContext, who: string): number {
 
 /** Năng lượng còn thiếu cho đầy thanh, đã tính các món đã gọi (≤ 0 = đã đủ). */
 export function missingEnergy(ctx: SimContext, who: string): number {
-  return ctx.content.balance.crew.maxEnergy - (memberOf(ctx, who)?.vitals.energy ?? 0) - orderedEnergy(ctx, who);
+  return maxEnergyOf(ctx, who) - (memberOf(ctx, who)?.vitals.energy ?? 0) - orderedEnergy(ctx, who);
 }
 
 /**
@@ -180,7 +186,7 @@ function finishMeal(ctx: SimContext, line: MealLine): void {
   const c = ctx.state.crew;
   const m = memberOf(ctx, line.who);
   if (m) {
-    m.vitals.energy = Math.min(ctx.content.balance.crew.maxEnergy, m.vitals.energy + line.energy);
+    m.vitals.energy = Math.min(maxEnergyOf(ctx, line.who), m.vitals.energy + line.energy);
     if (m.vitals.energy > 0) m.vitals.fainted = false;
   }
   c.meals = c.meals.filter((x) => x !== line);
@@ -195,7 +201,7 @@ function comeBack(ctx: SimContext, group: CrewGroup): void {
   for (const p of state.crew.pending.filter((x) => mine(x.who))) autoPick(ctx, p);
   for (const line of state.crew.meals.filter((l) => mine(l.who))) finishMeal(ctx, line);
   for (const m of crewMembers(ctx).filter((x) => x.group === group)) {
-    m.vitals.energy = Math.min(b.maxEnergy, m.vitals.energy + b.restEnergy);
+    m.vitals.energy = Math.min(maxEnergyOf(ctx, m.who), m.vitals.energy + b.restEnergy);
     m.vitals.fainted = false;
   }
   if (group === 'restaurant') {
@@ -258,7 +264,7 @@ export const crewSystem: System = {
     state.crew.restaurantAway = null;
     state.crew.farmerAway = null;
     // Ngủ một đêm: ai cũng đầy năng lượng
-    for (const m of crewMembers(ctx)) Object.assign(m.vitals, { energy: content.balance.crew.maxEnergy, fainted: false });
+    for (const m of crewMembers(ctx)) Object.assign(m.vitals, { energy: maxEnergyOf(ctx, m.who), fainted: false });
     Object.assign(state.restaurant.waiter, content.room.waiterHome);
     for (const h of state.restaurant.helpers) Object.assign(h, content.room.waiterHome);
   },

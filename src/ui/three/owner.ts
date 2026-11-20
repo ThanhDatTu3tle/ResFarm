@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import type { Game } from '../../sim/game';
 import { animatePerson } from './models';
 import { makeOwner } from './people';
-import { emojiSprite } from './toon';
+import { emojiSprite, textSprite } from './toon';
+import { ownerName } from '../../sim/state';
 
 /**
  * ÔNG / BÀ CHỦ QUÁN đi dạo trong một khu (quán, chợ, nông trại): chọn chỗ ngẫu nhiên → đi chậm tới → đứng ngó quanh
@@ -27,6 +28,8 @@ export class OwnerWalker {
   stay = false;
   /** Ngôi sao nhấp nhô trên đầu (khu nhìn xa: chợ, nông trại) để nhận ra chủ quán giữa đám đông. */
   private marker: THREE.Sprite | null = null;
+  /** Tên ông / bà chủ lơ lửng trên đầu. */
+  private label: THREE.Sprite;
   private key: string;
 
   constructor(
@@ -43,6 +46,13 @@ export class OwnerWalker {
     this.obj.scale.setScalar(scale);
     this.obj.position.set(start.x, 0, start.z);
     parent.add(this.obj);
+    this.label = this.makeLabel();
+  }
+
+  private makeLabel(): THREE.Sprite {
+    const s = textSprite(ownerName(this.game.state.owner), '#8a3a2a', 0.55 * this.scale);
+    this.parent.add(s);
+    return s;
   }
 
   /** Bật ngôi sao trên đầu. */
@@ -79,6 +89,8 @@ export class OwnerWalker {
       const p = this.obj.position.clone();
       const r = this.obj.rotation.y;
       this.parent.remove(this.obj);
+      this.parent.remove(this.label);
+      this.label = this.makeLabel();
       Object.assign(this, { obj: makeOwner(this.game.state.owner) });
       this.obj.scale.setScalar(this.scale);
       this.obj.position.copy(p);
@@ -121,12 +133,14 @@ export class OwnerWalker {
       }
     }
     animatePerson(this.obj, t, { walk: walking ? 0.55 : 0, reach: walking ? 0 : pose.reach ?? 0 });
-    if (this.marker) this.marker.position.set(o.x, 2.2 * this.scale + Math.abs(Math.sin(t * 2.2)) * 0.15, o.z);
+    this.label.position.set(o.x, 1.95 * this.scale, o.z);
+    if (this.marker) this.marker.position.set(o.x, 2.45 * this.scale + Math.abs(Math.sin(t * 2.2)) * 0.15, o.z);
   }
 }
 
 function ownerKey(game: Game): string {
-  return `${game.state.owner.gender}:${game.state.owner.age}`;
+  const o = game.state.owner;
+  return `${o.gender}:${o.age}:${o.name}:${o.hair}:${o.outfit}`;
 }
 
 /** Điểm ngẫu nhiên trong hình chữ nhật. */

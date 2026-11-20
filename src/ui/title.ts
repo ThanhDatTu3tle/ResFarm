@@ -6,7 +6,7 @@ import { animatePerson, makeBush, makeTree } from './three/models';
 import { makeShopfront, shopkeeper } from './three/cuisine';
 import { G, group, mesh, seeded } from './three/toon';
 import { makeOwner } from './three/people';
-import { cleanOwner, DEFAULT_OWNER, OWNER_AGE, type OwnerProfile } from '../sim/state';
+import { cleanOwner, DEFAULT_OWNER, OWNER_AGE, OWNER_HAIRS, OWNER_NAME_MAX, OWNER_OUTFITS, type OwnerProfile } from '../sim/state';
 
 /**
  * MÀN HÌNH MỞ ĐẦU — logo + "Chơi tiếp" (khi có save hợp lệ) + "Ván mới".
@@ -113,7 +113,8 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
   // Chỉ bản dev: ?owner=f35 mở thẳng bước chọn chủ quán (m / f + tuổi; kèm ?pick=oc để chọn quán)
   const devOwner = import.meta.env.DEV ? new URLSearchParams(location.search).get('owner') : null;
   if (devOwner) {
-    owner = cleanOwner({ gender: devOwner.startsWith('f') ? 'female' : 'male', age: Number(devOwner.slice(1)) || 30 });
+    const [ga, hair, outfit, name] = devOwner.split('-');
+    owner = cleanOwner({ gender: ga.startsWith('f') ? 'female' : 'male', age: Number(ga.slice(1)) || 30, hair, outfit, name });
     rebuildOwner();
     step = 'owner';
     pickedOwner = true;
@@ -155,10 +156,15 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
             <button class="${female ? '' : 'on'}" data-title="gender:male">👨 Ông chủ</button>
             <button class="${female ? 'on' : ''}" data-title="gender:female">👩 Bà chủ</button>
           </div>
+          <label class="owner-name"><span>Tên</span>
+            <input type="text" maxlength="${OWNER_NAME_MAX}" value="${esc(owner.name)}" placeholder="${female ? 'Bà chủ' : 'Ông chủ'}" data-name-input autocomplete="off" enterkeyhint="done">
+          </label>
           <label class="owner-age"><span>Tuổi <b data-age>${owner.age}</b> · <em data-age-label>${ageLabel(owner.age)}</em></span>
             <input type="range" min="${OWNER_AGE.min}" max="${OWNER_AGE.max}" step="1" value="${owner.age}" data-age-input>
             <span class="owner-age-marks"><i>25</i><i>35</i><i>50</i></span>
           </label>
+          <div class="owner-pick"><span>Kiểu tóc</span><div class="owner-chips">${OWNER_HAIRS.filter((h) => h.for.includes(owner.gender)).map((h) => `<button class="chip${owner.hair === h.id ? ' on' : ''}" data-title="hair:${h.id}">${esc(h.name)}</button>`).join('')}</div></div>
+          <div class="owner-pick"><span>Quần áo</span><div class="owner-chips">${OWNER_OUTFITS.filter((o) => o.for.includes(owner.gender)).map((o) => `<button class="chip${owner.outfit === o.id ? ' on' : ''}" data-title="outfit:${o.id}">${esc(o.name)}</button>`).join('')}</div></div>
         </div>
         <div class="pick-foot"><span class="muted">Mỗi ván mới chọn lại được.</span>
           <button class="primary big" data-title="start" style="--accent:${c.accent}"><span class="flag">${FLAGS[focus]}</span> Mở ${esc(c.name)}</button></div>
@@ -177,6 +183,11 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
   // Kéo thanh tuổi: đổi model + nhãn ngay, không vẽ lại cả bảng (để kéo mượt)
   uiEl.addEventListener('input', (e) => {
     const el = e.target as HTMLInputElement;
+    // Gõ tên: giữ nguyên chữ đang gõ (cắt khoảng trắng lúc mở quán)
+    if (el.matches('[data-name-input]')) {
+      owner = { ...owner, name: el.value.slice(0, OWNER_NAME_MAX) };
+      return;
+    }
     if (!el.matches('[data-age-input]')) return;
     owner = cleanOwner({ ...owner, age: Number(el.value) });
     uiEl.querySelector('[data-age]')!.textContent = String(owner.age);
@@ -196,11 +207,17 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
     if (!el) return;
     const [action, arg] = el.dataset.title!.split(':');
     if (action === 'continue') return finish(null);
-    if (action === 'gender') {
-      owner = cleanOwner({ ...owner, gender: arg as OwnerProfile['gender'] });
+    if (action === 'gender' || action === 'hair' || action === 'outfit') {
+      // Đổi giới tính: kiểu tóc / quần áo của giới kia về "Theo tuổi" / "Mặc định" (giữ nguyên tên đang gõ)
+      owner = action === 'gender' ? { ...cleanOwner({ ...owner, gender: arg as OwnerProfile['gender'] }), name: owner.name } : { ...owner, [action]: arg };
       rebuildOwner();
       ownerHop = clock.elapsedTime;
-      return render();
+      // Vẽ lại bảng nhưng giữ chỗ đang cuộn trong thẻ (thẻ dài trên màn hình thấp)
+      const scroll = uiEl.querySelector('.owner-card')?.scrollTop ?? 0;
+      render();
+      const card = uiEl.querySelector('.owner-card');
+      if (card) card.scrollTop = scroll;
+      return;
     }
     if (action === 'owner') {
       step = 'owner';
@@ -309,6 +326,6 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
     window.removeEventListener('resize', resize);
     renderer.dispose();
     renderer.forceContextLoss();
-    opts.onStart(cuisine, cuisine ? owner : undefined);
+    opts.onStart(cuisine, cuisine ? cleanOwner(owner) : undefined);
   }
 }

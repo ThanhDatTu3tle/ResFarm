@@ -375,20 +375,64 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 18;
+export const SAVE_VERSION = 19;
 
 export interface OwnerProfile {
   gender: 'male' | 'female';
   /** 25 trẻ trung · 35 chững chạc · 50 hơi có tuổi. */
   age: number;
+  /** Tên ông / bà chủ (tối đa 16 ký tự), hiện trên đầu nhân vật. */
+  name: string;
+  /** Kiểu tóc (id trong OWNER_HAIRS); 'auto' = theo giới tính + tuổi. */
+  hair: string;
+  /** Bộ quần áo (id trong OWNER_OUTFITS). */
+  outfit: string;
 }
 export const OWNER_AGE = { min: 25, max: 50 };
-export const DEFAULT_OWNER: OwnerProfile = { gender: 'male', age: 30 };
+export const OWNER_NAME_MAX = 16;
+type Gender = OwnerProfile['gender'];
+const BOTH: Gender[] = ['male', 'female'];
+/** Kiểu tóc chọn được cho chủ quán (id trùng HairStyle của model người), theo giới tính. */
+export const OWNER_HAIRS: { id: string; name: string; for: Gender[] }[] = [
+  { id: 'auto', name: 'Theo tuổi', for: BOTH },
+  { id: 'short', name: 'Ngắn', for: ['male'] },
+  { id: 'side', name: 'Rẽ ngôi', for: ['male'] },
+  { id: 'undercut', name: 'Undercut', for: ['male'] },
+  { id: 'buzz', name: 'Đầu đinh', for: ['male'] },
+  { id: 'spiky', name: 'Dựng', for: ['male'] },
+  { id: 'curly', name: 'Xoăn', for: ['female'] },
+  { id: 'bob', name: 'Bob', for: ['female'] },
+  { id: 'long', name: 'Dài thẳng', for: ['female'] },
+  { id: 'wavy', name: 'Dài uốn', for: ['female'] },
+  { id: 'pony', name: 'Đuôi ngựa', for: ['female'] },
+  { id: 'braid', name: 'Tết lệch', for: ['female'] },
+  { id: 'bun', name: 'Búi', for: ['female'] },
+];
+/** Bộ quần áo chọn được cho chủ quán, theo giới tính (tạp dề, áo dài: cả hai). */
+export const OWNER_OUTFITS: { id: string; name: string; for: Gender[] }[] = [
+  { id: 'auto', name: 'Mặc định', for: BOTH },
+  { id: 'vest', name: 'Gi-lê công sở', for: ['male'] },
+  { id: 'tee', name: 'Áo thun + jean', for: ['male'] },
+  { id: 'polo', name: 'Polo + kaki', for: ['male'] },
+  { id: 'blouse', name: 'Áo kiểu + váy', for: ['female'] },
+  { id: 'apron', name: 'Tạp dề chủ quán', for: BOTH },
+  { id: 'aodai', name: 'Áo dài', for: BOTH },
+];
+export const DEFAULT_OWNER: OwnerProfile = { gender: 'male', age: 30, name: '', hair: 'auto', outfit: 'auto' };
+/** Tên hiển thị: tên đã đặt, chưa đặt thì "Ông chủ" / "Bà chủ". */
+export function ownerName(o: OwnerProfile): string {
+  return o.name || (o.gender === 'female' ? 'Bà chủ' : 'Ông chủ');
+}
 export function cleanOwner(o: Partial<OwnerProfile> | null | undefined): OwnerProfile {
   const age = Math.round(Number(o?.age));
+  const gender: Gender = o?.gender === 'female' ? 'female' : 'male';
   return {
-    gender: o?.gender === 'female' ? 'female' : 'male',
+    gender,
     age: Number.isFinite(age) ? Math.max(OWNER_AGE.min, Math.min(OWNER_AGE.max, age)) : DEFAULT_OWNER.age,
+    name: String(o?.name ?? '').replace(/\s+/g, ' ').trim().slice(0, OWNER_NAME_MAX),
+    // Kiểu tóc / quần áo không hợp giới tính (vd đổi từ bà chủ sang ông chủ) thì về mặc định
+    hair: OWNER_HAIRS.some((h) => h.id === o?.hair && h.for.includes(gender)) ? o!.hair! : 'auto',
+    outfit: OWNER_OUTFITS.some((h) => h.id === o?.outfit && h.for.includes(gender)) ? o!.outfit! : 'auto',
   };
 }
 
@@ -414,7 +458,7 @@ export function createSlot(type: SlotType, index: number): FarmSlot {
   return { id: `${type}-${index}`, type, producerId: null, stage: 'growing', progress: 0, cyclesDone: 0, lastProducerId: null, tilled: false, wet: 0, tier: 1 };
 }
 
-export function createInitialState(content: Content, seed: number, cuisine: CuisineId = 'vn', owner: OwnerProfile = DEFAULT_OWNER): GameState {
+export function createInitialState(content: Content, seed: number, cuisine: CuisineId = 'vn', owner: Partial<OwnerProfile> = DEFAULT_OWNER): GameState {
   const b = content.balance;
   const starters = recipesFor(content, cuisine)
     .filter((r) => r.unlock.level <= 1 && r.unlock.cost === 0)
@@ -444,7 +488,7 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
     restaurant: {
       parties: [],
       orders: [],
-      staff: content.staff.all().filter((s) => !s.hire).map((s) => ({ id: s.id, orderId: null, energy: b.crew.maxEnergy, fainted: false })),
+      staff: content.staff.all().filter((s) => !s.hire).map((s) => ({ id: s.id, orderId: null, energy: b.crew.chefMaxEnergy, fainted: false })),
       kitchenTier: 1,
       spawnTimer: 10,
       layout: {},

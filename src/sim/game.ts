@@ -49,7 +49,7 @@ export class Game {
 
   constructor(
     readonly content: Content,
-    options: { state?: GameState; seed?: number; cuisine?: CuisineId; owner?: OwnerProfile; tutorial?: boolean } = {},
+    options: { state?: GameState; seed?: number; cuisine?: CuisineId; owner?: Partial<OwnerProfile>; tutorial?: boolean } = {},
     private systems: System[] = defaultSystems,
   ) {
     this.state = options.state ?? createInitialState(content, options.seed ?? Date.now(), options.cuisine, options.owner);

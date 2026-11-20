@@ -4,6 +4,18 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 20/11/2026 (laptop) — Giai đoạn 13: cân bằng nông trại + kinh tế, chủ quán tuỳ biến, HUD gọn
+
+**Nhánh:** `giai-doan-13` (từ main sau khi merge giai đoạn 12).
+
+1. Ao theo yêu cầu (người thử chơi thấy ao lâu, ít): nhanh hơn ~40%, 15 con một lứa. AI tự chọn phần còn lại: rau lâu lớn cho nhiều hơn (mỗi ô ~10–12 xu / ngày theo giá gốc), lúa mì 14 / lúa nước 15, heo 8, bò thịt 10; cây ăn quả, gà, bò sữa giữ nguyên.
+2. Năng lượng theo yêu cầu: đầu bếp 30, còn lại 50 (`balance.crew.chefMaxEnergy` / `maxEnergy`, `maxEnergyOf` trong crew.ts); dọn bàn không tốn; bồi dưỡng 50 xu.
+3. Chủ quán theo yêu cầu: tên + kiểu tóc + quần áo (`OwnerProfile.name / hair / outfit`, `OWNER_HAIRS`, `OWNER_OUTFITS`, `ownerName`, save v19); 4 kiểu tóc mới trong `addHair`; tên lơ lửng trên đầu (`OwnerWalker`). Dev: `?owner=f28-braid-aodai-Cô Ba`.
+4. HUD theo yêu cầu: bỏ thông báo nâu "món nấu xong…"; bỏ thông báo đỏ sắp hết nguyên liệu, gộp vào dải `stock-warn` (Hết: … · Sắp hết: …) ở hàng riêng dưới cấp / tiền / sao (`.hud-top`); thẻ nhiệm vụ không bị đẩy nữa.
+5. Mô phỏng mùa Xuân (script tạm, bản lưu ở `notes/`): 4 quán, seed 7 + 11, nông trại tự trồng / thu / bán dư, đơn hàng tự giao. Trước khi chỉnh giá: Nhật ~11.600, Hàn ~7.800, Việt ~5.900, Ốc ~11.500 xu cuối mùa. AI chọn: nâng giá 8 món Việt + 3 món Hàn cấp thấp (lãi 5–10 xu) → cả 4 quán ~8.900–11.600 xu.
+
+---
+
 ## 22/11/2026 (laptop) — Giai đoạn 12: Sổ tay tự sinh
 
 **Nhánh:** `giai-doan-12` (đã push 9d0b279; phần 8 chưa commit). Giai đoạn 11 đã merge vào `main`.

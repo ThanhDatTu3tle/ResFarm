@@ -50,6 +50,15 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [ ] **Đơn mang về / giao tận nơi** *(chủ dự án: ý hay, để sau)* — thỉnh thoảng khách gọi điện đặt món ("2 phần Phở giao tới khu chợ trước 12:00"); bếp nấu xong đóng hộp ở quầy line, shipper xe máy đi giao; đúng hạn nhận tiền + tip. Tận dụng bếp lúc quán vắng, nối với hệ bếp + quầy line + màu bàn.
 - [ ] **Lương nhân viên** *(để dành từ giai đoạn 7)*.
 
+## Giai đoạn 13 — Cân bằng nông trại + kinh tế, chủ quán tuỳ biến, HUD gọn (20/11/2026)
+
+- [x] Ao nhanh hơn ~40% (cá 3 ngày, cá hồi 4, tôm / ốc / sò 3.5; lứa sau 3 ngày), 15 con mỗi lứa. Rau lâu lớn thì nhiều trái hơn (mỗi ô lời ~10–12 xu / ngày), lúa mì 14 / lúa nước 15, heo 8, bò thịt 10.
+- [x] Năng lượng: đầu bếp 30, bồi bàn / nhân viên / bác nông dân 50 (`maxEnergyOf`); dọn bàn không tốn sức; bồi dưỡng khi xỉu 50 xu.
+- [x] Chủ quán: đặt tên (hiện trên đầu nhân vật), 4 kiểu tóc mới (đầu đinh, undercut, tết lệch, dài uốn) + chọn tóc, 6 bộ quần áo (gi-lê, áo kiểu + váy, thun + jean, polo + kaki, tạp dề, áo dài). Save v19.
+- [x] HUD: bỏ thông báo "món nấu xong ra quầy line"; cảnh báo hết / sắp hết nguyên liệu gộp một dải dưới hàng cấp / tiền / sao (không bật thông báo nổi nữa); thẻ nhiệm vụ luôn sát bên phải tiền / sao.
+- [x] Mô phỏng mùa Xuân (14 ngày, người chơi mẫu phục vụ hoàn hảo, đi chợ sát nhu cầu, làm nông trại): cả 4 quán cuối mùa ~8.900–11.600 xu (bắt đầu 200), cấp 10–11. Quán Việt / Hàn lời thấp vì món rẻ lãi 5–10 xu → nâng giá 11 món cấp thấp.
+- [ ] Việc mở ra: nông trại thu ~4.000 xu nông sản / mùa nhưng phần lớn không khớp món đang bán → bán lại nửa giá; có thể thêm cách dùng nông sản (đơn hàng nhiều hơn, chế biến). Người chơi thật phục vụ chậm hơn mẫu nên lời thấp hơn.
+
 ## Giai đoạn 12 — Sổ tay tự sinh, tinh chỉnh đồ hoạ nhân vật + HUD (22/11/2026)
 
 - [x] Sổ tay (cơ sở dữ liệu tra cứu) tự sinh từ `src/data`: `npm run sotay` → `notes/so-tay-quan-nha-vuon.html`. Đủ mọi nội dung: nguyên liệu, món (giá vốn, lãi, lãi/giây), giống + vật nuôi (lời vụ đầu, hoà vốn), loại ô, cối, sạp + hàng rong, hạng quán / bếp, đầu bếp, nâng cấp, bàn, nội thất, đồ trang trí, thú cưng, người làm vườn, dụng cụ, khách quen, nhiệm vụ, thành tựu, mùa, lễ hội, thời tiết, sự kiện. Bản viết tay cũ giữ ở `notes/so-tay-cu-giai-doan-6.html`.

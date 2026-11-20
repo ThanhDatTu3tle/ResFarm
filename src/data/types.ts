@@ -449,7 +449,10 @@ export interface Balance {
    * Ăn xong mà còn tiền ít thì chọn món rẻ, không đủ thì nhịn (tổng hoá đơn không vượt số tiền đang có).
    */
   crew: {
+    /** Năng lượng tối đa của bồi bàn, nhân viên thuê, bác nông dân. */
     maxEnergy: number;
+    /** Năng lượng tối đa của đầu bếp. */
+    chefMaxEnergy: number;
     chefPerDish: number;
     waiterPerTask: number;
     farmerPerTask: number;
@@ -477,7 +480,7 @@ export interface Balance {
 
 /** Dáng người: trẻ em (nhỏ, đầu to), thiếu niên, người lớn, người già (hơi khom). */
 export type PersonBuild = 'kid' | 'teen' | 'adult' | 'elder';
-export type HairStyle = 'short' | 'spiky' | 'long' | 'pony' | 'twin' | 'bun' | 'bald' | 'bob' | 'curly' | 'side';
+export type HairStyle = 'short' | 'spiky' | 'long' | 'pony' | 'twin' | 'bun' | 'bald' | 'bob' | 'curly' | 'side' | 'buzz' | 'undercut' | 'braid' | 'wavy';
 /** Phụ kiện. Khách vãng lai không bao giờ có phụ kiện — thấy phụ kiện là biết khách quen. */
 export type Accessory =
   | 'bow'
