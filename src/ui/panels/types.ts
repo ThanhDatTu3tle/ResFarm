@@ -40,6 +40,8 @@ export interface UiState {
   /** Hộp đổi tên quán đang mở (giữ tên lúc mở làm giá trị ban đầu), null = đóng. Thay cho window.prompt (điện thoại / app cài lên
    *  màn hình chính / trình duyệt trong Zalo, Messenger hay chặn hộp prompt nên bấm không thấy gì). */
   rename: string | null;
+  /** Hộp đổi tên đang đổi tên gì: quán (biển hiệu) hay chủ quán (tên trên đầu nhân vật). */
+  renameKind: 'shop' | 'owner';
 }
 
 /**

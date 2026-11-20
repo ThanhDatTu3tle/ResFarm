@@ -1128,25 +1128,29 @@ button.water {
   text-align: center;
 }
 
+/* Thông báo nổi: góc phải, dưới đồng hồ, cạnh cột nút tròn — không che giữa màn hình */
 #toasts {
   position: fixed;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
+  top: var(--toast-top, 168px);
+  right: var(--toast-right, 84px);
   display: flex;
   flex-direction: column;
   gap: 6px;
-  align-items: center;
+  align-items: flex-end;
+  width: min(320px, 40vw);
   z-index: 20;
   pointer-events: none;
 }
 
 .toast {
-  padding: 8px 14px;
+  padding: 7px 12px;
   border-radius: 10px;
   background: var(--text);
   color: #fff;
+  font-size: 13px;
   font-weight: 700;
+  line-height: 1.35;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
 }
 
 .toast.bad {
@@ -1163,6 +1167,12 @@ button.water {
 @media (max-height: 540px) {
   :root {
     font-size: 13px;
+    --toast-top: 120px;
+    --toast-right: 64px;
+  }
+  .toast {
+    font-size: 11px;
+    padding: 5px 9px;
   }
   #hud {
     padding: 6px 8px;

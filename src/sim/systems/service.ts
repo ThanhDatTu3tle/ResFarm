@@ -336,8 +336,8 @@ function stepWorker(ctx: SimContext, w: WaiterState, dt: number): void {
     if (act(ctx, task, w)) {
       const i = w.tasks.indexOf(task);
       if (i >= 0) w.tasks.splice(i, 1);
-      // Dọn bàn không tốn sức; mang menu, ghi món, bưng, lau sàn mỗi việc tốn 1
-      if (task.kind !== 'clean' && spendEnergy(ctx, w)) return;
+      // Mang menu, dọn bàn không tốn sức; ghi món, bưng, lau sàn mỗi việc tốn 1
+      if (task.kind !== 'clean' && task.kind !== 'menu' && spendEnergy(ctx, w)) return;
     }
   }
 }

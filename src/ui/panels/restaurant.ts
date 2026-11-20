@@ -63,7 +63,7 @@ export const restaurantPanel: Panel = {
         <div class="row"><span class="big">${tier.icon}</span>
           <div class="grow"><b class="shop-name">${esc(state.profile.name)}</b><div class="muted">Hạng: ${esc(tier.name)}${pet ? ` · ${pet.icon} ${esc(pet.name)}` : ''}</div></div>
 </div>
-        <div class="row shop-actions"><button class="mini"${ui('rename')}>✏️ Đổi tên quán</button><button class="mini"${ui('photo')}>📸 Chụp ảnh quán</button></div>
+        <div class="row shop-actions"><button class="mini"${ui('rename')}>✏️ Đổi tên quán</button><button class="mini"${ui('rename:owner')}>🙋 Tên chủ quán</button><button class="mini"${ui('photo')}>📸 Chụp ảnh quán</button></div>
       </div>
       ${upgrade}${storage}
       <h3>Gian bếp</h3>${kitchenCard(game)}${chefs}

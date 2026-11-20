@@ -1,4 +1,4 @@
-import { stockOf } from '../../sim/helpers';
+import { canAfford, stockOf } from '../../sim/helpers';
 import { priceOf } from '../../sim/systems/market';
 import { cmd, esc, ui } from '../dom';
 import { coins } from '../format';
@@ -33,7 +33,7 @@ export const marketPanel: Panel = {
             const factor = state.market.priceFactor[id] ?? 1;
             const trend = factor > 1.08 ? '<span class="bad-text" title="Hôm nay đắt">▲</span>' : factor < 0.92 ? '<span class="good-text" title="Hôm nay rẻ">▼</span>' : '';
             const buttons = BUY_SIZES.map(
-              (n) => `<button${cmd({ type: 'market/buy', stallId: stall.id, itemId: id, qty: n })}${state.money >= price * n ? '' : ' disabled'}>+${n}</button>`,
+              (n) => `<button${cmd({ type: 'market/buy', stallId: stall.id, itemId: id, qty: n })}${canAfford(game.ctx, price * n) ? '' : ' disabled'}>+${n}</button>`,
             ).join('');
             return `<div class="row" data-key="${id}">
               <span class="big">${item.icon}</span>

@@ -27,6 +27,7 @@ export type Command =
   | { type: 'mill/setProduct'; millId: string; item: string }
   | { type: 'quest/claim' }
   | { type: 'profile/rename'; name: string }
+  | { type: 'profile/renameOwner'; name: string }
   | { type: 'pet/adopt'; petId: string }
   | { type: 'pet/set'; petId: string | null }
   | { type: 'prop/buy'; propId: string }
@@ -153,6 +154,8 @@ export interface SimEvents {
   'kitchen/changed': { tier: number; chefs: number };
   /** Đơn đặt hàng vừa giao xong / hết hạn. */
   'contract/done': { id: number; reward: number };
+  'shipper/left': { id: number; until: number };
+  'game/bankrupt': { money: number };
   'contract/expired': { id: number };
   /** Sự kiện ngẫu nhiên: báo trước buổi sáng (critic, inspector), bắt đầu, kết thúc (kết quả + xu thưởng / phạt). */
   'event/announced': { id: string; at: number };

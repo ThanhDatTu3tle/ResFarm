@@ -192,6 +192,40 @@ export function bubbleSprite(icons: string[], size = 0.62, bg?: string | null): 
 }
 
 /** Chữ nổi (vd "+52"). Mỗi lần gọi tạo texture riêng — nhớ dispose khi bỏ. */
+/**
+ * Viền đèn LED nhiều màu quanh một bảng hiệu (khung chữ nhật w × h, mặt nhìn về +z). Trả về danh sách bóng để
+ * `blinkLeds` nhấp nháy chạy vòng mỗi khung hình.
+ */
+export function ledFrame(parent: THREE.Object3D, w: number, h: number, z = 0.09, step = 0.22): THREE.MeshBasicMaterial[] {
+  const colors = [0xff4d4d, 0xffd23e, 0x4dc3ff, 0x6bff8a, 0xff7ad9];
+  const mats: THREE.MeshBasicMaterial[] = [];
+  const pts: [number, number][] = [];
+  const nx = Math.max(2, Math.round(w / step));
+  const ny = Math.max(2, Math.round(h / step));
+  for (let i = 0; i < nx; i++) pts.push([-w / 2 + (i * w) / nx, h / 2]);
+  for (let i = 0; i < ny; i++) pts.push([w / 2, h / 2 - (i * h) / ny]);
+  for (let i = 0; i < nx; i++) pts.push([w / 2 - (i * w) / nx, -h / 2]);
+  for (let i = 0; i < ny; i++) pts.push([-w / 2, -h / 2 + (i * h) / ny]);
+  pts.forEach(([x, y], i) => {
+    const m = new THREE.MeshBasicMaterial({ color: colors[i % colors.length] });
+    m.userData.on = new THREE.Color(colors[i % colors.length]);
+    m.userData.i = i;
+    mats.push(m);
+    mesh(parent, G.sphere(0.045, 8, 6), m, { p: [x, y, z], cast: false, receive: false });
+  });
+  return mats;
+}
+
+/** Đèn LED chạy vòng: cứ 3 bóng thì 2 bóng sáng, dịch dần theo thời gian; thỉnh thoảng cả viền chớp cùng lúc. */
+export function blinkLeds(mats: THREE.MeshBasicMaterial[], t: number): void {
+  const step = Math.floor(t * 7);
+  const flash = Math.floor(t / 4) % 3 === 0 && Math.floor(t * 4) % 2 === 0;
+  for (const m of mats) {
+    const on = flash || (step + (m.userData.i as number)) % 3 !== 0;
+    m.color.copy(m.userData.on as THREE.Color).multiplyScalar(on ? 1 : 0.25);
+  }
+}
+
 export function textSprite(text: string, color: string, size = 0.7): THREE.Sprite {
   const tex = canvasTexture(256, 96, (c) => {
     c.font = `bold 64px Mali, system-ui, ${EMOJI_FONT}`;

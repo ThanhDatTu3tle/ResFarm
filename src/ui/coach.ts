@@ -121,6 +121,7 @@ export function coachHtml(game: Game, ui: UiState): string {
       return `<div class="backdrop coach-modal" data-key="coach-done">
         <div class="dialog coach-dialog" role="dialog" aria-label="Xong ngày hướng dẫn">
           <h2>🌟 Bạn đã sẵn sàng!</h2>
+          <p class="coach-reward">🎁 Thưởng hoàn thành hướng dẫn: <b>+${game.content.balance.tutorialReward} xu</b></p>
           <p>Từ chiều nay quán là của bạn: tự đón khách, đi chợ, chăm nông trại. Nhớ để ý <b>năng lượng</b> của cả đội và <b>nguyên liệu</b> trong kho.</p>
           <p class="muted">Xem lại cách chơi bất cứ lúc nào ở Cài đặt → Hướng dẫn.</p>
           <div class="row end"><button class="primary"${cmd({ type: 'tutorial/next' })}>Chơi thôi ▶</button></div>

@@ -17,6 +17,7 @@ import { Bar3D, bubbleSprite, emojiSprite, G, group, mesh, textSprite, toon, pai
 import { easeOutBack, wobble } from '../../ease';
 import { Particles } from '../fx';
 import { FestiveSet } from '../festive';
+import { makeScooter } from '../farmkit';
 import { nextWaypoint } from '../../../sim/pathing';
 import { OwnerWalker, type Spot } from '../owner';
 
@@ -188,6 +189,8 @@ export class RestaurantArea implements Area {
   nightDark = 0;
   /** Ông / bà chủ đi chậm quanh khu ăn quan sát. */
   private owner: OwnerWalker | null = null;
+  /** Anh shipper đứng cạnh xe máy đậu trước cửa quán; đi giao thì cả người lẫn xe vắng mặt. */
+  private shipper: { person: THREE.Group; bike: THREE.Group; badge: THREE.Sprite } | null = null;
   /** Cập nhật riêng khu bếp vỉa hè (than hồng lập loè). */
   private streetAnim: InteriorAnimator = () => {};
 
@@ -197,7 +200,8 @@ export class RestaurantArea implements Area {
     this.backZ = this.wz(0) - 0.7;
     this.frontZ = this.wz(room.height) + 0.4;
     this.kitchenZ = this.wz(room.kitchenDepth);
-    this.kitchenX1 = -this.halfW + 4;
+    // Gian bếp giữ nguyên chỗ so với quầy ra món khi quán rộng thêm (giai đoạn 14: 540 → 620); lối đi WC / kho bên trái rộng ra
+    this.kitchenX1 = -this.halfW + 4 + (room.width - 540) / 2 / UNIT;
     this.door = [0, this.frontZ + 0.6];
     this.queueZ = this.wz(room.height - 32);
     const depth = this.frontZ - this.backZ;
@@ -208,7 +212,7 @@ export class RestaurantArea implements Area {
     this.root.userData.areaRoot = true;
     this.street = game.state.cuisine === 'oc';
     if (this.street) {
-      this.nightDark = 0.78;
+      this.nightDark = 0.7;
       // Ngoài trời: mưa rơi khắp khu quán (cả bàn ghế), không chỉ ngoài cửa sổ
       this.rainBox = { min: [-this.halfW - 3, 0, this.backZ - 3], max: [this.halfW + 3, 12, this.frontZ + 3] };
       buildStreetGround(this.root, this.dims(), this.mats);
@@ -272,6 +276,37 @@ export class RestaurantArea implements Area {
 
   private dims() {
     return { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, kitchenZ: this.kitchenZ };
+  }
+
+  /** Anh shipper + xe máy trước cửa (bên phải cửa ra vào). */
+  private updateShipper(env: Env): void {
+    if (!this.shipper) {
+      const person = makePerson({ shirt: 0x2fa84f, hair: 0x2a1f1a, skin: 0xf2c49b }, 'none', { width: 1.0 });
+      mesh(person.userData.rig.head, G.sphere(0.27, 12, 8), 0x2fa84f, { p: [0, 0.24, -0.02], s: [1, 0.85, 1] }); // mũ bảo hiểm xanh
+      mesh(person.userData.rig.body, G.box(0.34, 0.36, 0.26), 0x2fa84f, { p: [0, 0.28, -0.24] }); // thùng giao hàng sau lưng
+      person.scale.setScalar(1.1);
+      const rider = makePerson({ shirt: 0x2fa84f, hair: 0x2a1f1a, skin: 0xf2c49b });
+      rider.visible = false;
+      const bike = makeScooter(0x2fa84f, rider);
+      mesh(bike, G.box(0.5, 0.42, 0.5), 0x2fa84f, { p: [-0.55, 0.92, 0] }); // thùng hàng trên baga
+      const x = this.halfW - 1.0;
+      const z = this.frontZ + 1.3;
+      bike.position.set(x, 0, z);
+      bike.rotation.y = Math.PI / 2;
+      person.position.set(x - 1.0, 0, z + 0.1);
+      person.rotation.y = -0.3;
+      const badge = emojiSprite('🛵', 0.5);
+      badge.position.set(x - 1.0, 2.25, z + 0.1);
+      badge.visible = false;
+      this.root.add(bike, person, badge);
+      this.shipper = { person, bike, badge };
+    }
+    const s = this.game.state.restaurant.shipper;
+    const away = !!this.game.state.crew.restaurantAway;
+    this.shipper.bike.visible = !s.trip;
+    this.shipper.person.visible = !s.trip && !away;
+    // Kiệt sức: ngồi bệt; còn lại đứng chờ, thỉnh thoảng vẫy
+    if (this.shipper.person.visible) animatePerson(this.shipper.person, env.t, { sit: s.fainted, wave: s.fainted ? 0 : Math.max(0, Math.min(1, (Math.sin(env.t * 0.4) - 0.85) * 7)) });
   }
 
   /** Chỗ đứng ngẫu nhiên trong khu ăn (không vướng bàn ghế, đồ trang trí, lối vào) — toạ độ mét. */
@@ -1138,6 +1173,7 @@ export class RestaurantArea implements Area {
     this.interior(env, dt);
     this.streetAnim(env, dt);
     this.updateOwner(env, dt);
+    this.updateShipper(env);
 
     // Màu theo nội thất đang dùng
     const colors = (slot: 'floor' | 'wall' | 'furniture') => content.decor.get(state.decor.equipped[slot]).colors;
@@ -1183,7 +1219,7 @@ export class RestaurantArea implements Area {
     this.updateStains(env);
 
     // Ánh sáng trong nhà
-    for (const lamp of this.lamps) lamp.intensity = this.street ? env.night * 0.8 : 0.25 + env.night * 1.5;
+    for (const lamp of this.lamps) lamp.intensity = this.street ? env.night * 1.4 : 0.25 + env.night * 1.5;
     this.bulbMat.emissiveIntensity = 0.3 + env.night * 1.4;
     this.windowMat.opacity = 0.18 + env.day * 0.15;
 

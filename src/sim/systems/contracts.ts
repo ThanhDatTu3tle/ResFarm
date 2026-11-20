@@ -4,6 +4,7 @@ import { addReputation, addXp, earn, hasAll, removeAll, stockOf } from '../helpe
 import type { ItemStack } from '../../data';
 import { fail, ok, type SimContext, type System } from '../types';
 import { bumpQuest } from './quests';
+import { tire } from './crew';
 
 /**
  * ĐƠN ĐẶT HÀNG + BÁN HÀNG DƯ.
@@ -26,8 +27,15 @@ const CLIENTS: [string, string][] = [
 export const contractSystem: System = {
   id: 'contracts',
   init: rollContracts,
-  onDayStart: rollContracts,
+  onDayStart(ctx) {
+    // Qua đêm mà shipper còn đang đi: coi như giao xong
+    if (ctx.state.restaurant.shipper.trip) finishTrip(ctx);
+    rollContracts(ctx);
+  },
   update(ctx) {
+    // Anh shipper giao xong thì về, nhận thưởng đơn đó
+    const s = ctx.state.restaurant.shipper;
+    if (s.trip && ctx.state.clock.minute >= s.trip.until) finishTrip(ctx);
     const due = ctx.content.balance.contracts.due;
     if (ctx.state.clock.minute < due) return;
     for (const c of ctx.state.contracts) {
@@ -40,14 +48,17 @@ export const contractSystem: System = {
     'contract/deliver'(ctx, cmd) {
       const c = ctx.state.contracts.find((x) => x.id === cmd.contractId);
       if (!c || c.status !== 'open') return fail('Đơn này không còn nữa.');
+      const blocked = shipperBlocked(ctx);
+      if (blocked) return fail(blocked);
       if (!hasAll(ctx, c.items)) return fail('Trong kho chưa đủ hàng cho đơn này.');
       removeAll(ctx, c.items);
-      earn(ctx, c.reward);
-      addXp(ctx, c.xp);
-      addReputation(ctx, ctx.content.balance.contracts.rep);
-      c.status = 'done';
-      ctx.bus.emit('contract/done', { id: c.id, reward: c.reward });
-      bumpQuest(ctx, 'contract');
+      // Anh shipper chở đi: 15–40 phút, tốn 5–10 năng lượng; về mới nhận thưởng
+      const b = ctx.content.balance.crew.shipperTrip;
+      const s = ctx.state.restaurant.shipper;
+      s.trip = { contractId: c.id, until: ctx.state.clock.minute + randInt(ctx.state.rng, b.minutes[0], b.minutes[1]) };
+      c.status = 'shipping';
+      tire(ctx, 'shipper', s, randInt(ctx.state.rng, b.energy[0], b.energy[1]));
+      ctx.bus.emit('shipper/left', { id: c.id, until: s.trip.until });
       return ok();
     },
     'market/sell'(ctx, cmd) {
@@ -103,6 +114,34 @@ function rollContracts(ctx: SimContext): void {
 }
 
 /** Đơn đang mở mà kho đã đủ hàng để giao. */
+/** Anh shipper đi giao được không: đang đi giao, đang ở chợ với đội, hoặc kiệt sức thì không. */
+export function shipperBlocked(ctx: SimContext): string | null {
+  const s = ctx.state.restaurant.shipper;
+  if (s.trip) return 'Anh shipper đang đi giao đơn khác — đợi anh về nhé.';
+  if (ctx.state.crew.restaurantAway) return 'Anh shipper đang ăn ở chợ cùng cả đội.';
+  if (s.fainted) return 'Anh shipper kiệt sức rồi — bồi dưỡng ở bảng Nhân viên.';
+  return null;
+}
+
+/** Giao xong đơn đang chở: nhận thưởng, XP, uy tín; shipper về quán. */
+function finishTrip(ctx: SimContext): void {
+  const s = ctx.state.restaurant.shipper;
+  const c = ctx.state.contracts.find((x) => x.id === s.trip?.contractId);
+  s.trip = null;
+  if (!c || c.status !== 'shipping') return;
+  earn(ctx, c.reward);
+  addXp(ctx, c.xp);
+  addReputation(ctx, ctx.content.balance.contracts.rep);
+  c.status = 'done';
+  ctx.bus.emit('contract/done', { id: c.id, reward: c.reward });
+  bumpQuest(ctx, 'contract');
+}
+
+/** Số đơn còn mở (badge nút Đơn hàng). */
+export function openContracts(ctx: SimContext): number {
+  return ctx.state.contracts.filter((c) => c.status === 'open').length;
+}
+
 export function deliverable(ctx: SimContext): number {
   return ctx.state.contracts.filter((c) => c.status === 'open' && hasAll(ctx, c.items)).length;
 }

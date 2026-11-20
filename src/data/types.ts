@@ -344,6 +344,8 @@ export interface Balance {
   /** Số phút nông trại được cộng thêm qua đêm. */
   nightMinutes: number;
   startMoney: number;
+  tutorialReward: number;
+  debtLimit: number;
   startReputation: number;
   /** Khoảng cách trung bình giữa hai lượt khách (phút) ở uy tín trung bình. */
   spawnInterval: number;
@@ -453,6 +455,10 @@ export interface Balance {
     maxEnergy: number;
     /** Năng lượng tối đa của đầu bếp. */
     chefMaxEnergy: number;
+    shipperMaxEnergy: number;
+    shipperTrip: { energy: [number, number]; minutes: [number, number] };
+    /** Bác nông dân còn trên tỉ lệ năng lượng này lúc trưa thì không nghỉ ăn trưa. */
+    farmerSkipLunchAbove: number;
     chefPerDish: number;
     waiterPerTask: number;
     farmerPerTask: number;

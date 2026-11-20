@@ -6,7 +6,7 @@ import { signText } from '../cuisine';
 import { adultShape, animatePerson, FARMER_SHAPE, LOOKS, makePerson, randomShape } from '../models';
 import type { Area, Env, Pick } from '../stage';
 import { OwnerWalker } from '../owner';
-import { emojiSprite, G, group, mesh, paintSeason, type V3 } from '../toon';
+import { blinkLeds, emojiSprite, G, group, ledFrame, mesh, paintSeason, type V3 } from '../toon';
 
 /**
  * KHU BÊN TRONG QUẦY CHỢ (bấm sạp ở chợ thì camera "đi vào" đây, giống nhà kính ở nông trại).
@@ -73,6 +73,8 @@ export class StallArea implements Area {
   private seats: { p: V3; table: [number, number] }[] = [];
   /** Khách mua hàng đứng trước sạp (2-3 người): đứng ngó hàng, thỉnh thoảng cúi chọn; một người đi dạo qua lại. */
   private shoppers: { obj: THREE.Group; x: number; z: number; range: number; speed: number; phase: number; face: number }[] = [];
+  /** Bóng LED nhấp nháy quanh tên sạp (sạp hải sản). */
+  private leds: THREE.MeshBasicMaterial[] = [];
   /** Ông / bà chủ: bước vào sạp rồi đứng chọn hàng (chỗ đứng đầu tiên của addShoppers). */
   private owner: OwnerWalker | null = null;
   /** Đèn trong quầy / tiệm: sáng dần khi trời tối. */
@@ -102,6 +104,7 @@ export class StallArea implements Area {
     this.lamps = [];
     this.shoppers = [];
     this.owner = null;
+    this.leds = [];
     this.vendor = null;
     this.day = this.game.state.clock.day;
     const { content } = this.game;
@@ -138,6 +141,11 @@ export class StallArea implements Area {
     const name = signText(def.name, '#3b2a1e', 5.4, 0.7);
     name.position.set(0, 3.15, -4.1);
     g.add(name);
+    // Sạp hải sản: viền đèn LED nhấp nháy quanh tên sạp trên vách
+    if (def.id === 'seafood') {
+      const frame = group(g, { p: [0, 3.15, -4.12] });
+      this.leds = ledFrame(frame, 5.9, 0.95, 0.04);
+    }
     // Khách mua hàng: chỗ đứng theo kiểu sạp (không che khay / biển giá từ góc nhìn mặc định)
     if (tanks) {
       this.buildTanks(def, index);
@@ -463,11 +471,25 @@ export class StallArea implements Area {
   /** Tiệm 25caaaaa: phòng hồng, quầy pha chế có biển logo, bảng menu, bàn ghế cho cả đội ngồi ăn. */
   private buildKiosk(def: StallDef): void {
     const g = this.content;
-    // Sàn trắng ngà trơn cho đỡ rối mắt
-    mesh(g, G.box(11, 0.1, 9), 0xf7f0e1, { p: [0, 0, -1], receive: true });
+    // Sàn trơn màu be ấm cho đỡ rối mắt, đỡ chói
+    mesh(g, G.box(11, 0.1, 9), 0xdcb88c, { p: [0, 0, -1], receive: true }); // sàn màu be (vàng cam nhạt) cho đỡ chói
     mesh(g, G.box(11, 3.8, 0.15), 0xf4a7bd, { p: [0, 1.9, -5.4] });
     // Hai tường bên chạy suốt tới mép trước của sàn
     for (const sx of [-1, 1]) mesh(g, G.box(0.15, 3.8, 9.05), 0xf4a7bd, { p: [sx * 5.5, 1.9, -0.98] });
+    // Cửa sổ hai bên tường: khung trắng, kính xanh nhạt, song chữ thập, bậu cửa có chậu hoa nhỏ
+    const glass = new THREE.MeshBasicMaterial({ color: 0xcdeeff });
+    for (const sx of [-1, 1]) {
+      for (const z of [-3.0, 0.4]) {
+        const w = group(g, { p: [sx * 5.4, 2.0, z], r: [0, sx > 0 ? -Math.PI / 2 : Math.PI / 2, 0] });
+        mesh(w, G.box(1.7, 1.3, 0.06), 0xffffff, { cast: false });
+        mesh(w, G.box(1.5, 1.1, 0.07), glass, { cast: false, receive: false });
+        mesh(w, G.box(0.06, 1.1, 0.08), 0xffffff, { cast: false });
+        mesh(w, G.box(1.5, 0.06, 0.08), 0xffffff, { cast: false });
+        mesh(w, G.box(1.8, 0.08, 0.22), 0xf28fb0, { p: [0, -0.7, 0.08], cast: false }); // bậu cửa
+        mesh(w, G.cyl(0.1, 0.08, 0.14, 10), 0xd9785b, { p: [0.45, -0.58, 0.1], cast: false });
+        mesh(w, G.sphere(0.11, 8, 6), 0x7fc35a, { p: [0.45, -0.45, 0.1], cast: false });
+      }
+    }
     this.addLamps([[-2.6, 3.3, -1.4], [1.2, 3.3, -3.0], [2.4, 3.3, 0.9], [-0.8, 3.3, 1.6]], 3.8);
     // Sọc tường như logo
     for (let i = 0; i < 11; i++) mesh(g, G.box(0.45, 3.8, 0.02), 0xf8c6d4, { p: [-5 + i, 1.9, -5.32], cast: false });
@@ -516,7 +538,7 @@ export class StallArea implements Area {
     // Bàn tròn + ghế đẩu: chỗ ngồi cho người trong đội
     // Bàn dễ thấy xếp trước (người trong đội ngồi theo thứ tự này); bàn góc trong sau bảng menu để cuối
     for (const [tx, tz] of [[0.4, -0.6], [-1.2, 1.4], [2.0, 1.6], [3.2, -1.4], [-3.4, -2.7]] as const) {
-      mesh(g, G.cyl(0.55, 0.55, 0.06, 18), 0xffffff, { p: [tx, 0.8, tz] });
+      mesh(g, G.cyl(0.55, 0.55, 0.06, 18), 0xf7a8c4, { p: [tx, 0.8, tz] }); // mặt bàn hồng
       mesh(g, G.cyl(0.06, 0.1, 0.78, 8), 0xf28fb0, { p: [tx, 0.4, tz] });
       // Ghế hai bên trái / phải bàn: nhìn từ cửa không ai che đĩa món của ai
       for (const a of [Math.PI / 2, -Math.PI / 2]) {
@@ -647,6 +669,7 @@ export class StallArea implements Area {
     for (const b of this.bubbles) b.obj.position.y = b.y0 + ((env.t * 0.45 + b.phase) % 1) * b.h;
     this.updateEaters(env);
     this.updateShoppers(env);
+    blinkLeds(this.leds, env.t);
     // Ông / bà chủ: tới nơi thì thỉnh thoảng cúi chọn hàng
     this.owner?.update(env.t, dt, { reach: Math.sin(env.t * 0.35 + 1) > 0.8 ? 0.35 : 0 });
   }
@@ -656,6 +679,11 @@ export class StallArea implements Area {
 export function crewLook(game: Game, who: string): THREE.Group {
   const { state, content } = game;
   if (who === 'farmer') return makePerson(LOOKS[2], 'straw', FARMER_SHAPE);
+  if (who === 'shipper') {
+    const p = makePerson({ shirt: 0x2fa84f, hair: 0x2a1f1a, skin: 0xf2c49b });
+    mesh(p.userData.rig.head, G.sphere(0.27, 12, 8), 0x2fa84f, { p: [0, 0.24, -0.02], s: [1, 0.85, 1] }); // mũ bảo hiểm
+    return p;
+  }
   if (content.staff.has(who)) {
     const i = content.staff.all().findIndex((s) => s.id === who);
     return makePerson({ shirt: 0xffffff, hair: 0x3a2a1e, skin: i % 2 ? 0xffd9b8 : 0xf2c49b }, 'chef', { width: [1.2, 0.95, 1.05, 0.9][i % 4] });

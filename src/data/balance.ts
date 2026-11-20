@@ -8,6 +8,10 @@ export const balance: Balance = {
   nightMinutes: 600,
 
   startMoney: 200,
+  // Hoàn thành ngày hướng dẫn (không bỏ qua) được thưởng
+  tutorialReward: 500,
+  // Được nợ tới mức này (tiền âm); hoá đơn / phạt đẩy xuống thấp hơn thì phá sản, hết ván
+  debtLimit: 500,
   startReputation: 2.5,
   // Nguyên liệu khởi đầu: theo từng phong cách quán (CuisineDef.startInventory trong cuisines.ts)
 
@@ -79,6 +83,9 @@ export const balance: Balance = {
   crew: {
     maxEnergy: 50,
     chefMaxEnergy: 30,
+    // Anh shipper: 40 năng lượng, mỗi chuyến giao tốn 5–10; chuyến đi 15–40 phút game
+    shipperMaxEnergy: 40,
+    shipperTrip: { energy: [5, 10], minutes: [15, 40] },
     chefPerDish: 2,
     waiterPerTask: 1,
     farmerPerTask: 1,
@@ -87,6 +94,8 @@ export const balance: Balance = {
     restEnergy: 10,
     lunchBack: 14 * 60,
     farmerLunch: { from: 12 * 60, to: 13 * 60 },
+    // Bác còn trên 75% năng lượng lúc trưa thì ở lại làm, không đi ăn
+    farmerSkipLunchAbove: 0.75,
     dinnerMinutes: 60,
     eatMinutes: 30,
     endDayAfter: 21 * 60, // quán đóng cửa tối là kết thúc ngày được

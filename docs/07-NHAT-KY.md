@@ -4,6 +4,13 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 21/11/2026 (laptop) — Giai đoạn 14: sửa lỗi sau khi chơi thử
+
+**Nhánh:** `giai-doan-14`. Chủ dự án và người thân chơi thử 3 ngày đầu, gửi 22 mục — làm hết (xem `04-ROADMAP.md`).
+AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm khách đông tính theo loại bàn vừa nhóm; shipper nhận thưởng khi giao xong; quà khách quen để trong kho; quán rộng thêm 80 đơn vị và dời mọi toạ độ x 40 (migration v21); nhịp lên cấp ×(1 + 0.5 × (cấp − 3)) từ cấp 4, lên sao còn 35% / 15% từ 3 / 4 sao; nhà kính vốn đã trồng được trái mùa (không cần sửa).
+
+---
+
 ## 20/11/2026 (laptop) — Giai đoạn 13: cân bằng nông trại + kinh tế, chủ quán tuỳ biến, HUD gọn
 
 **Nhánh:** `giai-doan-13` (từ main sau khi merge giai đoạn 12).

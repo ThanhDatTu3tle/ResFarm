@@ -182,6 +182,21 @@ function nextSpawnDelay(ctx: SimContext): number {
   return Math.min(delay, b.spawnMaxGap * randRange(state.rng, 0.7, 1));
 }
 
+/** Sức chứa nhỏ nhất của bàn vừa nhóm `size` người (bàn ghép / quầy không tính). */
+function smallestFit(ctx: SimContext, size: number): number {
+  const caps = activeTables(ctx).filter((t) => !t.shared).map((t) => t.maxParty ?? t.seats).filter((c) => c >= size);
+  return caps.length ? Math.min(...caps) : Infinity;
+}
+
+/** Đã đủ (số bàn ≥ `fit` + 1) nhóm đang chờ / ngồi cần loại bàn từ `fit` chỗ trở lên chưa. */
+function bigGroupsFull(ctx: SimContext, size: number): boolean {
+  const fit = smallestFit(ctx, size);
+  if (!Number.isFinite(fit)) return false;
+  const tables = activeTables(ctx).filter((t) => !t.shared && (t.maxParty ?? t.seats) >= fit).length;
+  const groups = ctx.state.restaurant.parties.filter((p) => p.size > 2 && smallestFit(ctx, p.size) >= fit).length;
+  return groups >= tables + 1;
+}
+
 /** Thêm một nhóm khách vào hàng chờ. `opts`: nhóm đặc biệt của sự kiện (vd nhà phê bình đi một mình). */
 export function spawnParty(ctx: SimContext, opts: { size?: number; vip?: string; want?: string; tutorial?: boolean } = {}): Party {
   const { state, content } = ctx;
@@ -190,6 +205,8 @@ export function spawnParty(ctx: SimContext, opts: { size?: number; vip?: string;
   if (regular) size = Math.min(size, content.balance.regulars.maxPartySize);
   // Không có bàn đủ chỗ thì nhóm nhỏ lại cho vừa bàn lớn nhất đang có (quán nhỏ chỉ có bàn bốn)
   size = Math.min(size, Math.max(1, ...activeTables(ctx).map((t) => t.maxParty ?? (t.shared ? 1 : t.seats))));
+  // Nhóm đông (3 người trở lên): cùng lúc tối đa (số bàn vừa nhóm đó + 1) nhóm cần loại bàn đó — đông hơn thì nhóm nhỏ lại
+  if (!opts.size) while (size > 2 && bigGroupsFull(ctx, size)) size--;
   const patience = content.balance.queuePatience * modifier(ctx, 'patience');
   const party: Party = {
     id: state.nextId++,

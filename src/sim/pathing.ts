@@ -1,14 +1,14 @@
-import { activeTables, placedProps, propRect, roomOf, tablePos, type Point, type Rect } from './layout';
+import { activeTables, footprint, placedProps, propRect, roomOf, tablePos, type Point, type Rect } from './layout';
 import type { SimContext } from './types';
 
 /**
  * ĐI VÒNG QUA BÀN — người phục vụ đi thẳng nếu đường thẳng không cắt bàn / đồ trang trí; vướng thì tìm đường trên lưới
  * (A*, ô 15 đơn vị) rồi đi tới điểm xa nhất trên đường còn nhìn thấy thẳng. Hàm thuần theo state (vẫn tất định).
- * Vật cản = mặt bàn (không tính ghế — người phục vụ lách giữa các ghế được) và đồ trang trí đang bày, nới thêm `CLEAR`.
+ * Vật cản = bàn kèm ghế (`footprint` — không đi xuyên ghế / khách đang ngồi) và đồ trang trí đang bày, nới thêm `CLEAR`.
  * Bàn có thể dời tuỳ ý nên lưới được tính lại theo "chữ ký" bố cục và lưu cache (ít khi đổi).
  */
 const CELL = 15;
-const CLEAR = 14;
+const CLEAR = 10;
 
 interface Grid {
   key: string;
@@ -23,10 +23,8 @@ interface Grid {
 let cached: Grid | null = null;
 
 function bodiesOf(ctx: SimContext): Rect[] {
-  const rects = activeTables(ctx).map((t) => {
-    const at = tablePos(ctx, t);
-    return { x1: at.x - t.w / 2, y1: at.y - t.h / 2, x2: at.x + t.w / 2, y2: at.y + t.h / 2 };
-  });
+  // Cả bàn lẫn ghế (khách đang ngồi ở ghế): người phục vụ không đi xuyên qua ghế / khách
+  const rects = activeTables(ctx).map((t) => footprint(t, tablePos(ctx, t)));
   for (const p of placedProps(ctx)) {
     const def = ctx.content.props.get(p.def);
     rects.push(propRect(def, p.x, p.y, p.rot));

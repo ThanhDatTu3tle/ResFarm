@@ -25,7 +25,9 @@ function weightOf(ctx: SimContext, w: WeatherDef): number {
 function rollWeather(ctx: SimContext): void {
   const { state, content } = ctx;
   const all = content.weathers.all();
-  const def = all[weightedIndex(state.rng, all.map((w) => weightOf(ctx, w)))];
+  // Ngày đầu tiên của ván không mưa / bão (mới vào game mà mưa thì buồn)
+  const firstDay = state.clock.day <= 1;
+  const def = all[weightedIndex(state.rng, all.map((w) => (firstDay && (w.wetsSoil || w.effects?.spawnRate && w.effects.spawnRate < 0.85) ? 0 : weightOf(ctx, w))))];
   state.weather = { id: def.id, minutesLeft: randRange(state.rng, def.duration[0], def.duration[1]) };
   ctx.bus.emit('weather/changed', { id: def.id });
   if (def.damage) stormDamage(ctx, def.damage);
