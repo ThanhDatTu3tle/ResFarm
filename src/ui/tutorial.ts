@@ -50,6 +50,7 @@ export const GUIDE: GuidePage[] = [
       'Rau củ chỉ gieo ngoài trời **đúng mùa**; **nhà kính** trồng quanh năm.',
       'Chuồng cho trứng, sữa, thịt; ao cho cá, tôm; vườn cây cho trái cây.',
       'Ruộng lúa có **máy cày** tự thu và chở lúa tới **cối xay** làm bột, mì, bún.',
+      'Bảng **Nhà nông** 🧰: thuê **người làm vườn** (bật việc thu hoạch, chuồng ao, tưới, gieo lại — họ tự làm) và sắm **dụng cụ** cho cả nhà làm nhanh hơn.',
     ],
   },
   {
@@ -75,7 +76,7 @@ export const GUIDE: GuidePage[] = [
     icon: '🌸',
     title: 'Mùa và lễ hội',
     points: [
-      'Một năm **4 mùa**, mỗi mùa **28 ngày**. Mùa Đông ngoài trời đóng băng, chỉ nhà kính trồng được.',
+      'Một năm **4 mùa**, mỗi mùa **14 ngày**. Mùa Đông ngoài trời đóng băng, chỉ nhà kính trồng được.',
       '**Món hợp mùa** bán đắt hơn; rau đúng mùa ở chợ rẻ hơn.',
       'Ngày lễ (Tết, Lễ hội pháo hoa, Trung thu, Giáng sinh, Tất niên) khách rất đông — chuẩn bị nguyên liệu từ hôm trước.',
     ],

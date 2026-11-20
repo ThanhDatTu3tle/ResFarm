@@ -4,7 +4,7 @@ import type { StallDef } from './types';
 export const stalls: StallDef[] = [
   { id: 'meat', name: 'Thịt bò/lợn cô Bủm', icon: '🥩', markup: 1, items: ['beef', 'pork', 'chicken'] },
   { id: 'produce', name: 'Tạp hóa cậu Ba', icon: '🥬', markup: 1, items: ['cabbage', 'tomato', 'onion', 'carrot', 'potato', 'chili', 'cucumber', 'mushroom', 'egg', 'milk'] },
-  { id: 'seafood', name: 'Hải sản Tuyết Nhung', icon: '🦐', markup: 1, items: ['fish', 'shrimp', 'squid', 'salmon'], standee: 'Chuyên các loại ốc' },
+  { id: 'seafood', name: 'Hải sản Tuyết Nhung', icon: '🦐', markup: 1, items: ['fish', 'shrimp', 'squid', 'salmon'], standee: 'Chuyên các loại ốc', interior: 'tanks' },
   { id: 'dry', name: 'Chuyên đồ khô, mì, bún, phở', icon: '🍥', markup: 1, items: ['noodle', 'rice_noodle', 'wheat_noodle', 'rice_cake', 'tofu', 'seaweed', 'flour', 'bread'] },
   // Tiệm ăn vặt cạnh quầy đồ khô + hàng rong trên vỉa hè: chỉ bán đồ ăn cho cả đội giờ nghỉ (không bán nguyên liệu).
   // Năng lượng hồi tăng dần: cà phê < bánh tráng < hủ tiếu < Tiệm 25caaaaa.

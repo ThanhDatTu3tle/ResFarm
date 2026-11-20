@@ -145,6 +145,8 @@ export interface Pose {
   dig?: number;
   /** Tưới: tay phải đưa ra trước, nghiêng bình qua lại (0..1). */
   pour?: number;
+  /** Lau nhà: hai tay cầm cán đưa ra trước, đẩy qua đẩy lại, người hơi cúi (0..1). */
+  mop?: number;
   /** Cúi xuống đất: gieo hạt / nhổ thu hoạch / cho con vật ăn (0..1). */
   reach?: number;
 }
@@ -165,6 +167,7 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   const dig = pose.dig ?? 0;
   const pour = pose.pour ?? 0;
   const reach = pose.reach ?? 0;
+  const mop = pose.mop ?? 0;
   const chop = Math.sin(t * 9); // nhịp bổ cuốc
 
   // Thở + chớp mắt (mỗi ~3.7 giây, vài người thỉnh thoảng chớp đôi)
@@ -214,6 +217,12 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
     left = left * (1 - reach) + (-0.9 + Math.sin(t * 7) * 0.35) * reach;
     right = right * (1 - reach) + (-0.9 - Math.sin(t * 7) * 0.35) * reach;
   }
+  if (mop > 0) {
+    // Hai tay nắm cán cây lau nhà trước bụng, đẩy tới kéo lui theo nhịp lau
+    const push = Math.sin(t * 7) * 0.25;
+    left = left * (1 - mop) + (-0.95 + push) * mop;
+    right = right * (1 - mop) + (-0.75 + push) * mop;
+  }
   if (wave > 0) {
     right = right * (1 - wave) - 2.6 * wave;
     rightZ = -0.18 + (-0.5 + Math.sin(t * 12) * 0.35) * wave;
@@ -227,7 +236,7 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   rig.armR.rotation.x = right;
   rig.armR.rotation.z = rightZ;
   // Nghiêng người tới trước: đi, nấu, bổ cuốc theo nhịp, cúi xuống đất
-  rig.body.rotation.x = walk * 0.08 + cook * 0.12 + dig * (0.18 + Math.max(0, -chop) * 0.22) + pour * 0.1 + reach * 0.55 + ((g.userData.hunch as number | undefined) ?? 0); // người già hơi khom
+  rig.body.rotation.x = walk * 0.08 + cook * 0.12 + dig * (0.18 + Math.max(0, -chop) * 0.22) + pour * 0.1 + reach * 0.55 + mop * 0.22 + ((g.userData.hunch as number | undefined) ?? 0); // người già hơi khom
 }
 
 /** Chớp mắt / vẫy đuôi cho con vật: model nào gắn `userData.eyes` / `userData.tail` thì được cử động. */

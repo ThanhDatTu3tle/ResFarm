@@ -1,11 +1,11 @@
 /**
- * LỊCH trong game: ngày 1 là Thứ Hai, mùng 1 mùa Xuân năm 1. Mỗi mùa 28 ngày (4 tuần), 4 mùa một năm.
+ * LỊCH trong game: ngày 1 là Thứ Hai, mùng 1 mùa Xuân năm 1. Mỗi mùa 14 ngày (2 tuần), 4 mùa một năm.
  * Thời tiết theo mùa (`WeatherDef.seasonWeights`), mùa đông đóng băng đất ngoài trời (`frozen`), tổng kết mùa / năm.
  */
 
 import type { ModifierKey } from './types';
 
-export const DAYS_PER_SEASON = 28;
+export const DAYS_PER_SEASON = 14;
 
 export interface SeasonDef {
   id: string;
@@ -41,7 +41,7 @@ export interface FestivalDef {
   id: string;
   name: string;
   icon: string;
-  /** Chỉ số mùa (0 Xuân … 3 Đông) và ngày trong mùa (1..28). */
+  /** Chỉ số mùa (0 Xuân … 3 Đông) và ngày trong mùa (1..DAYS_PER_SEASON). */
   season: number;
   day: number;
   desc: string;
@@ -54,8 +54,8 @@ export interface FestivalDef {
 /** Thêm ngày lễ: thêm 1 mục ở đây. Năm đầu khai trương đúng mùng 1 Tết nên ngày 1 của ván không tính lễ. */
 export const festivals: FestivalDef[] = [
   { id: 'tet', name: 'Tết Nguyên Đán', icon: '🧧', season: 0, day: 1, desc: 'Khách du xuân đông, tip lì xì hậu hĩnh. Quán được lì xì đầu năm.', effects: { spawnRate: 1.5, tip: 1.5 }, gift: 200, decor: 'tet' },
-  { id: 'phao_hoa', name: 'Lễ hội pháo hoa', icon: '🎆', season: 1, day: 20, desc: 'Cả phố đi xem pháo hoa: khách đông và vui vẻ, chịu chờ lâu hơn.', effects: { spawnRate: 1.4, patience: 1.15 }, decor: 'bunting' },
-  { id: 'trung_thu', name: 'Tết Trung thu', icon: '🏮', season: 2, day: 15, desc: 'Rước đèn phá cỗ: khách đông, tip nhiều.', effects: { spawnRate: 1.4, tip: 1.3 }, decor: 'lantern' },
-  { id: 'giang_sinh', name: 'Đêm Giáng sinh', icon: '🎄', season: 3, day: 24, desc: 'Khách đi chơi Noel ghé quán sưởi ấm, tip nhiều.', effects: { spawnRate: 1.4, tip: 1.4 }, decor: 'xmas' },
-  { id: 'tat_nien', name: 'Tất niên', icon: '🎊', season: 3, day: 28, desc: 'Bữa cơm cuối năm: khách đông, tip rất hậu.', effects: { spawnRate: 1.3, tip: 1.6 }, decor: 'tet' },
+  { id: 'phao_hoa', name: 'Lễ hội pháo hoa', icon: '🎆', season: 1, day: 10, desc: 'Cả phố đi xem pháo hoa: khách đông và vui vẻ, chịu chờ lâu hơn.', effects: { spawnRate: 1.4, patience: 1.15 }, decor: 'bunting' },
+  { id: 'trung_thu', name: 'Tết Trung thu', icon: '🏮', season: 2, day: 8, desc: 'Rước đèn phá cỗ: khách đông, tip nhiều.', effects: { spawnRate: 1.4, tip: 1.3 }, decor: 'lantern' },
+  { id: 'giang_sinh', name: 'Đêm Giáng sinh', icon: '🎄', season: 3, day: 12, desc: 'Khách đi chơi Noel ghé quán sưởi ấm, tip nhiều.', effects: { spawnRate: 1.4, tip: 1.4 }, decor: 'xmas' },
+  { id: 'tat_nien', name: 'Tất niên', icon: '🎊', season: 3, day: 14, desc: 'Bữa cơm cuối năm: khách đông, tip rất hậu.', effects: { spawnRate: 1.3, tip: 1.6 }, decor: 'tet' },
 ];

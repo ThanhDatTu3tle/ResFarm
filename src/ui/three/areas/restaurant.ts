@@ -483,6 +483,13 @@ export class RestaurantArea implements Area {
           plate.add(icon);
         }
       });
+    } else if (key === 'mop') {
+      // Cây lau nhà: cán gỗ chéo xuống sàn trước mặt, đầu lau sợi bông trắng
+      const mop = group(w.hand, { p: [0, -0.1, 0], r: [0.55, 0, 0] });
+      mesh(mop, G.cyl(0.025, 0.025, 1.25, 6), 0xb07a45, { p: [0, -0.45, 0] });
+      const head = group(mop, { p: [0, -1.08, 0] });
+      mesh(head, G.box(0.42, 0.06, 0.12), 0x6f8fb3);
+      for (let i = 0; i < 7; i++) mesh(head, G.box(0.05, 0.16, 0.08), 0xf4f1ea, { p: [-0.18 + i * 0.06, -0.1, 0], cast: false });
     } else {
       const icon = emojiSprite({ menu: '📖', note: '📝', clean: '🧽', mop: '🧹' }[key] ?? '📝', 0.42);
       icon.position.y = 0.1;
@@ -535,7 +542,7 @@ export class RestaurantArea implements Area {
     let main = '';
     if (party.phase === 'seated') main = '📖';
     else if (party.phase === 'browsing') main = '💭';
-    else if (party.phase === 'readyToOrder') main = '😊';
+    else if (party.phase === 'readyToOrder') main = '📝'; // chọn xong, chờ ghi món (ghi xong mới hiện mặt cười / tâm trạng)
     else if (party.phase === 'waitingFood') main = MOOD_FACES[moodOf(ctx, party)];
     // Món ruột của khách quen có tim đứng trước
     const waiting = party.phase === 'waitingFood' ? state.restaurant.orders.filter((o) => o.partyId === party.id && o.status !== 'served').flatMap((o) => (o.fav ? ['💖', content.recipes.get(o.recipeId).icon] : [content.recipes.get(o.recipeId).icon])) : [];
@@ -662,7 +669,10 @@ export class RestaurantArea implements Area {
     else if (task?.kind === 'clean') this.setWaiterHand('clean', null, w);
     else if (task?.kind === 'mop') this.setWaiterHand('mop', null, w);
     else this.setWaiterHand('', null, w);
-    if (!still) animatePerson(w.g, env.t, { walk: moving ? 1 : 0, carry: carrying.length > 0 });
+    // Đang đứng lau vết bẩn: đẩy cây lau qua lại
+    const mopping = task?.kind === 'mop' && sim.work != null && !moving;
+    w.hand.rotation.y = mopping ? Math.sin(env.t * 7) * 0.45 : 0;
+    if (!still) animatePerson(w.g, env.t, { walk: moving ? 1 : 0, carry: carrying.length > 0, mop: mopping ? 1 : 0 });
     this.updateCarryBadges(w.g, carrying.map((o) => o!));
   }
 

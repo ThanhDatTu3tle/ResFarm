@@ -1,6 +1,7 @@
 import type { EventBus } from '../core/events';
 import type { Content, SlotType, MillType } from '../data';
 import type { DayStats, GameState, FarmerTaskKind, HelperJob } from './state';
+import type { GardenerJob } from '../data/farmhands';
 
 /** Ngữ cảnh truyền cho mọi system / handler. */
 export interface SimContext {
@@ -69,6 +70,13 @@ export type Command =
   | { type: 'helper/hire' }
   | { type: 'helper/fire'; helperId: string }
   | { type: 'helper/setJob'; helperId: string; job: HelperJob; on: boolean }
+  | { type: 'gardener/hire' }
+  | { type: 'gardener/fire'; gardenerId: string }
+  | { type: 'gardener/setJob'; gardenerId: string; job: GardenerJob; on: boolean }
+  | { type: 'tool/buy'; toolId: string }
+  | { type: 'achievement/claim'; id: string }
+  | { type: 'tutorial/next' }
+  | { type: 'tutorial/skip' }
   | { type: 'crew/revive'; who: string }
   | { type: 'crew/pay' }
   | { type: 'crew/order'; who: string; stallId: string; dish: number }
@@ -123,6 +131,14 @@ export interface SimEvents {
   /** Nhiệm vụ hệ thống vừa đạt mục tiêu (chờ người chơi nhận thưởng). */
   'quest/completed': { questId: string };
   'quest/claimed': { questId: string; money: number };
+  /** Người làm vườn vừa làm xong một việc. */
+  'gardener/done': { gardenerId: string; kind: FarmerTaskKind; slotId: string };
+  'tool/bought': { toolId: string };
+  /** Ngày hướng dẫn sang bước mới (null = hết hướng dẫn). */
+  'tutorial/step': { step: import('./state').TutorialStep | null };
+  /** Vừa đạt một thành tựu (chờ nhận thưởng). */
+  'achievement/reached': { id: string };
+  'achievement/claimed': { id: string; money: number };
   /** Khách quen vừa tới quán (xếp hàng). */
   'regular/arrived': { regularId: string; partyId: number };
   /** Khách quen trả tiền xong: số tim mới, có lên tim không, được ăn món ruột không, quà tặng (id PropDef). */

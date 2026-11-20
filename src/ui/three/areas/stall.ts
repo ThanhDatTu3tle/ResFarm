@@ -9,12 +9,17 @@ import { emojiSprite, G, group, mesh, paintSeason, type V3 } from '../toon';
 
 /**
  * KHU BÊN TRONG QUẦY CHỢ (bấm sạp ở chợ thì camera "đi vào" đây, giống nhà kính ở nông trại).
+ *  - Sạp hải sản (`StallDef.interior: 'tanks'`): bể nước xếp chữ U, hải sản bơi trong bể (bấm bể → mua), giữa sạp người bán + cân, rổ, xô nước.
  *  - Sạp nguyên liệu: quầy gỗ bày các khay hàng, mỗi khay một nguyên liệu với biển giá hôm nay; bấm khay → Pick 'goods'
  *    (app.ts mở bảng mua nhỏ). Người bán đứng sau quầy.
  *  - Tiệm 25caaaaa: phòng hồng, quầy pha chế có biển logo, bảng menu (bảng chân đứng gần cửa; bấm → Pick 'menuboard', mở bảng gọi món
  *    cho cả đội), bàn ghế nhỏ — người trong đội gọi món ở tiệm thì ngồi ăn ở đây.
  * Dựng lại khi đổi sạp (show) hoặc sang ngày mới (giá đổi).
  */
+
+/** Nước trong bể / xô (trong suốt, không ghi độ sâu để hải sản bên trong vẫn hiện). */
+const WATER = new THREE.MeshBasicMaterial({ color: 0x7fd3f0, transparent: true, opacity: 0.32, depthWrite: false });
+const WATER_TOP = new THREE.MeshBasicMaterial({ color: 0x5fb8e0 });
 
 /** Màu quầy theo thứ tự sạp (khớp màu mái bạt ngoài chợ). */
 const STALL_COLORS = [0xe2574c, 0x5fae57, 0x4a9bd8, 0xf2a23a, 0x9a6bd1];
@@ -54,6 +59,10 @@ export class StallArea implements Area {
   private vendor: THREE.Group | null = null;
   private eaters = new Map<string, THREE.Group>();
   private bobbers: { obj: THREE.Object3D; y: number; phase: number }[] = [];
+  /** Hải sản bơi trong bể (sạp kiểu 'tanks'): bơi qua lại theo trục x của bể, quay đầu khi đổi hướng. */
+  private swimmers: { obj: THREE.Sprite; x: number; y: number; range: number; speed: number; phase: number; size: number }[] = [];
+  /** Bọt khí trong bể: nổi lên rồi quay lại đáy. */
+  private bubbles: { obj: THREE.Object3D; y0: number; h: number; phase: number }[] = [];
   /** Ghế đẩu trong tiệm: vị trí ghế + tâm bàn (để đặt đĩa món lên mặt bàn trước mặt người ngồi). */
   private seats: { p: V3; table: [number, number] }[] = [];
   /** Đèn trong quầy / tiệm: sáng dần khi trời tối. */
@@ -77,6 +86,8 @@ export class StallArea implements Area {
     this.content.clear();
     this.eaters.clear();
     this.bobbers = [];
+    this.swimmers = [];
+    this.bubbles = [];
     this.seats = [];
     this.lamps = [];
     this.vendor = null;
@@ -90,10 +101,11 @@ export class StallArea implements Area {
     else this.buildStall(def, STALL_COLORS[index % STALL_COLORS.length], index);
   }
 
-  /** Sạp nguyên liệu: sàn gạch, mái bạt sọc, kệ thùng phía sau, quầy gỗ bày khay hàng có biển giá. */
+  /** Sạp nguyên liệu: sàn gạch, mái bạt sọc, kệ thùng phía sau, quầy gỗ bày khay hàng có biển giá (sạp 'tanks': bể nước, xem buildTanks). */
   private buildStall(def: StallDef, color: number, index: number): void {
     const { game } = this;
     const g = this.content;
+    const tanks = def.interior === 'tanks';
     mesh(g, G.box(12, 0.1, 9), 0xe8dcc4, { p: [0, 0, -1], receive: true });
     for (let i = -5; i <= 5; i++) mesh(g, G.box(0.03, 0.11, 9), 0xd6c7aa, { p: [i, 0.01, -1], cast: false });
     // Vách sau + hai bên (vải bạt) và mái sọc
@@ -103,14 +115,18 @@ export class StallArea implements Area {
     for (let i = 0; i < 10; i++) mesh(g, G.box(1, 0.08, 4.8), i % 2 ? color : 0xffffff, { p: [-4.5 + i, 5.0, -2], r: [0.12, 0, 0], cast: false });
     for (const sx of [-4.85, 4.85]) mesh(g, G.cyl(0.08, 0.08, 5.0, 8), 0x8a5a35, { p: [sx, 2.5, 0.3] });
     this.addLamps([[-2.6, 4.2, -1.8], [2.6, 4.2, -1.8]], 4.9);
-    // Kệ thùng gỗ sau lưng người bán
-    for (let row = 0; row < 2; row++) {
+    // Kệ thùng gỗ sau lưng người bán (sạp bể cá: vách sau dành cho bể)
+    for (let row = 0; row < (tanks ? 0 : 2); row++) {
       mesh(g, G.box(8, 0.08, 0.7), 0x8a5a35, { p: [0, 0.9 + row * 0.9, -3.7] });
       for (let i = 0; i < 6; i++) mesh(g, G.box(1, 0.5, 0.5), 0xc98b4f, { p: [-3.4 + i * 1.36, 1.2 + row * 0.9, -3.7] });
     }
     const name = signText(def.name, '#3b2a1e', 5.4, 0.7);
     name.position.set(0, 3.15, -4.1);
     g.add(name);
+    if (tanks) {
+      this.buildTanks(def, index);
+      return;
+    }
     // Người bán sau quầy
     const vendor = makePerson(LOOKS[(index * 3 + 5) % LOOKS.length], index % 2 ? 'none' : 'straw');
     vendor.position.set(0, 0.3, -2.6);
@@ -159,6 +175,119 @@ export class StallArea implements Area {
       tag.add(label);
       mesh(tray, G.cyl(0.015, 0.015, 0.3, 4), 0x6b4a2f, { p: [0, 0.15, td / 2 + 0.02], cast: false });
     });
+  }
+
+  /** Bể kính: khung, nước xanh trong, cát + rong dưới đáy, bọt khí, hải sản bơi; biển giá trước bể. Bấm bể → mua (Pick 'goods'). */
+  private buildTank(id: string, p: V3, rotY: number, phase: number): void {
+    const { game } = this;
+    const item = game.content.items.get(id);
+    const def = game.content.stalls.get(this.stallId!);
+    const W = 2.3;
+    const D = 1.0;
+    const H = 0.95;
+    const base = 0.62; // chân bể
+    const tank = group(this.content, { p, r: [0, rotY, 0] });
+    tank.userData.pick = { type: 'goods', id } satisfies Pick;
+    // Chân bể (tủ gỗ) + đáy
+    mesh(tank, G.box(W + 0.12, base, D + 0.12), 0x5d7f8f, { p: [0, base / 2, 0] });
+    mesh(tank, G.box(W, 0.08, D), 0xe8d7a8, { p: [0, base + 0.04, 0] }); // cát
+    // Nước + khung kính
+    const water = mesh(tank, G.box(W - 0.04, H - 0.12, D - 0.04), WATER, { p: [0, base + (H - 0.12) / 2 + 0.02, 0], cast: false, receive: false });
+    water.renderOrder = -1;
+    const top = base + H;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) mesh(tank, G.box(0.05, H, 0.05), 0x2f4f5f, { p: [(sx * W) / 2, base + H / 2, (sz * D) / 2], cast: false });
+    for (const sz of [-1, 1]) for (const y of [base + 0.02, top]) mesh(tank, G.box(W, 0.05, 0.05), 0x2f4f5f, { p: [0, y, (sz * D) / 2], cast: false });
+    for (const sx of [-1, 1]) for (const y of [base + 0.02, top]) mesh(tank, G.box(0.05, 0.05, D), 0x2f4f5f, { p: [(sx * W) / 2, y, 0], cast: false });
+    // Rong, đá dưới đáy
+    for (let k = 0; k < 3; k++) {
+      const x = -0.8 + k * 0.8 + (phase % 0.3);
+      mesh(tank, G.cone(0.06, 0.45 + (k % 2) * 0.2, 5), 0x3f9b5a, { p: [x, base + 0.3, -0.25 + (k % 2) * 0.15], cast: false });
+      mesh(tank, G.ico(0.09, 0), 0x9a9a9a, { p: [x + 0.25, base + 0.12, 0.2], cast: false });
+    }
+    // Máy sủi oxy ở góc + bọt khí
+    mesh(tank, G.cyl(0.04, 0.04, H - 0.1, 6), 0xdfe8ec, { p: [W / 2 - 0.15, base + H / 2, -D / 2 + 0.12], cast: false });
+    for (let k = 0; k < 5; k++) {
+      const b = mesh(tank, G.sphere(0.035, 6, 5), 0xffffff, { p: [W / 2 - 0.15, base + 0.1, -D / 2 + 0.15], cast: false });
+      this.bubbles.push({ obj: b, y0: base + 0.1, h: H - 0.25, phase: k / 5 + phase });
+    }
+    // Hải sản bơi: vài con ở các độ sâu khác nhau
+    for (let k = 0; k < 4; k++) {
+      const size = 0.56 - (k % 2) * 0.08;
+      const s = emojiSprite(item.icon, size);
+      tank.add(s);
+      this.swimmers.push({ obj: s, x: 0, y: base + 0.3 + (k % 3) * 0.18, range: W / 2 - 0.35, speed: 0.6 + (k % 3) * 0.25, phase: phase * 2 + k * 1.7, size });
+      s.position.z = -0.25 + (k % 2) * 0.35;
+    }
+    // Biển giá dán trước bể
+    const price = priceOf(game.ctx, def.id, id);
+    const factor = game.state.market.priceFactor[id] ?? 1;
+    const tagColor = factor > 1.08 ? '#c0392b' : factor < 0.92 ? '#2f8f3a' : '#3b2a1e';
+    const tag = group(tank, { p: [0, base / 2, D / 2 + 0.07] });
+    mesh(tag, G.box(1.5, 0.42, 0.03), 0xffffff);
+    const label = signText(`${item.name} · ${price} xu`, tagColor, 1.4, 0.36);
+    label.position.z = 0.02;
+    tag.add(label);
+  }
+
+  /**
+   * Sạp hải sản: bể nước xếp chữ U quanh sạp (hai bể sát vách sau, hai bể chéo hai bên), giữa sạp không có quầy —
+   * người bán đứng cạnh cái cân, vài rổ hải sản và xô nước dưới chân.
+   */
+  private buildTanks(def: StallDef, index: number): void {
+    const g = this.content;
+    const items = def.items;
+    const spots: { p: V3; r: number }[] = [
+      { p: [-1.45, 0, -3.35], r: 0 },
+      { p: [1.45, 0, -3.35], r: 0 },
+      { p: [-3.55, 0, -1.0], r: 0.75 },
+      { p: [3.55, 0, -1.0], r: -0.75 },
+      { p: [-3.55, 0, 1.4], r: 1.2 },
+      { p: [3.55, 0, 1.4], r: -1.2 },
+    ];
+    items.forEach((id, i) => {
+      const s = spots[i % spots.length];
+      this.buildTank(id, s.p, s.r, i * 0.37);
+    });
+    // Người bán đứng giữa sạp, ủng cao su + tạp dề
+    const vendor = makePerson(LOOKS[(index * 3 + 5) % LOOKS.length], 'none');
+    vendor.position.set(-0.3, 0, -1.3);
+    vendor.scale.setScalar(1.25);
+    mesh(vendor, G.box(0.42, 0.5, 0.05), 0x3f6f8f, { p: [0, 0.55, 0.19], cast: false }); // tạp dề
+    g.add(vendor);
+    this.vendor = vendor;
+    // Cái cân đồng hồ trên ghế đẩu
+    const scale = group(g, { p: [0.9, 0, -1.0] });
+    mesh(scale, G.cyl(0.22, 0.26, 0.5, 10), 0x2f6fb0, { p: [0, 0.25, 0] }); // ghế đẩu nhựa
+    mesh(scale, G.box(0.42, 0.22, 0.36), 0xe9e4da, { p: [0, 0.61, 0] }); // thân cân
+    mesh(scale, G.cyl(0.13, 0.13, 0.04, 16), 0xffffff, { p: [0, 0.62, 0.19], r: [Math.PI / 2, 0, 0], cast: false }); // mặt đồng hồ
+    mesh(scale, G.box(0.01, 0.09, 0.01), 0xc0392b, { p: [0.02, 0.64, 0.215], r: [0, 0, -0.5], cast: false }); // kim
+    mesh(scale, G.cyl(0.26, 0.22, 0.04, 16), 0xb9c2c8, { p: [0, 0.75, 0] }); // đĩa cân
+    const onScale = emojiSprite('🦐', 0.3);
+    onScale.position.set(0, 0.88, 0);
+    scale.add(onScale);
+    // Rổ hải sản dưới đất
+    const baskets: [number, number, string][] = [[-1.4, -0.4, '🦀'], [1.6, 0.1, '🐚'], [-0.6, 0.4, '🦪']];
+    for (const [x, z, icon] of baskets) {
+      const b = group(g, { p: [x, 0, z] });
+      mesh(b, G.cyl(0.36, 0.26, 0.26, 12), 0xc99a52, { p: [0, 0.13, 0] });
+      mesh(b, G.torus(0.35, 0.03, 4, 14), 0xa77a3a, { p: [0, 0.26, 0], r: [Math.PI / 2, 0, 0], cast: false });
+      for (let k = 0; k < 3; k++) {
+        const s = emojiSprite(icon, 0.26);
+        s.position.set((k - 1) * 0.15, 0.32 + (k === 1 ? 0.06 : 0), (k % 2) * 0.06);
+        b.add(s);
+      }
+    }
+    // Xô nước (xanh, đỏ) + gáo
+    const buckets: [number, number, number][] = [[0.4, 0.5, 0x3d8fd1], [2.2, -1.9, 0xd9534f]];
+    for (const [x, z, color] of buckets) {
+      const b = group(g, { p: [x, 0, z] });
+      mesh(b, G.cyl(0.24, 0.19, 0.42, 12), color, { p: [0, 0.21, 0] });
+      mesh(b, G.cyl(0.21, 0.21, 0.02, 12), WATER_TOP, { p: [0, 0.38, 0], cast: false });
+      mesh(b, G.torus(0.24, 0.015, 4, 14, Math.PI), 0x888888, { p: [0, 0.42, 0], cast: false }); // quai xô
+    }
+    mesh(g, G.cyl(0.07, 0.06, 0.08, 8), 0xf2c14e, { p: [2.32, 0.44, -1.85], cast: false }); // gáo
+    // Vũng nước nhỏ trên sàn
+    mesh(g, G.cyl(0.5, 0.5, 0.01, 16), WATER, { p: [0.9, 0.06, 0.3], s: [1, 1, 0.6], cast: false, receive: false });
   }
 
   /** Tiệm 25caaaaa: phòng hồng, quầy pha chế có biển logo, bảng menu, bàn ghế cho cả đội ngồi ăn. */
@@ -292,6 +421,14 @@ export class StallArea implements Area {
     if (this.stallId && this.game.state.clock.day !== this.day) this.build(); // giá đổi theo ngày
     if (this.vendor) animatePerson(this.vendor, env.t, { wave: Math.max(0, Math.min(1, (Math.sin(env.t * 0.5) - 0.8) * 6)) });
     for (const b of this.bobbers) b.obj.position.y = b.y + Math.abs(Math.sin(env.t * 2.4 + b.phase)) * 0.05;
+    // Hải sản bơi qua lại, quay đầu theo hướng bơi (emoji nhìn sang trái: bơi sang phải thì lật ngang)
+    for (const s of this.swimmers) {
+      const a = env.t * s.speed + s.phase;
+      s.obj.position.x = s.x + Math.sin(a) * s.range;
+      s.obj.position.y = s.y + Math.sin(a * 2.3) * 0.05;
+      s.obj.scale.x = (Math.cos(a) > 0 ? -1 : 1) * s.size;
+    }
+    for (const b of this.bubbles) b.obj.position.y = b.y0 + ((env.t * 0.45 + b.phase) % 1) * b.h;
     this.updateEaters(env);
   }
 }

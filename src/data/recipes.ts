@@ -5,11 +5,23 @@ import type { CuisineId, RecipeDef } from './types';
  * Thêm món mới: thêm 1 dòng `dish(...)` ở đây. Không cần sửa code nào khác
  * (muốn có model 3D riêng thì thêm vào DISHES trong src/ui/three/models.ts, không có thì quán hiện emoji).
  *
- * dish(quán, id, tên, biểu tượng, nguyên liệu "id:số lượng ...", phút nấu, giá, cấp mở, tiền mở, độ ưa chuộng?)
+ * dish(quán, id, tên, biểu tượng, nguyên liệu "id:số lượng ...", độ khó (8..40), giá, cấp mở, tiền mở, độ ưa chuộng?)
  * cấp 1 + tiền 0 = món có sẵn từ đầu.
  */
-/** Số cookTime bên dưới ghi theo nhịp cũ (0.7 phút game / giây thực); nhân hệ số để giữ nguyên số giây thực khi minutesPerSecond = 1.5. */
-const COOK_SCALE = 1.5 / 0.7;
+/**
+ * Số "phút nấu" bên dưới là ĐỘ KHÓ tương đối của món (8 = dễ nhất … 40 = khó nhất, giữ từ bản cũ).
+ * `cookMinutes` đổi ra phút game sao cho bếp trưởng (tốc độ 1.6, chưa nâng cấp) nấu xong trong 4 → 10 giây thực.
+ */
+const COOK_EASY = 8;
+const COOK_HARD = 40;
+const COOK_SECONDS: [number, number] = [4, 10];
+const HEAD_CHEF_SPEED = 1.6;
+const MINUTES_PER_SECOND = 1.5;
+function cookMinutes(difficulty: number): number {
+  const k = Math.max(0, Math.min(1, (difficulty - COOK_EASY) / (COOK_HARD - COOK_EASY)));
+  const seconds = COOK_SECONDS[0] + k * (COOK_SECONDS[1] - COOK_SECONDS[0]);
+  return Math.round(seconds * MINUTES_PER_SECOND * HEAD_CHEF_SPEED * 10) / 10;
+}
 
 function dish(cuisine: CuisineId, id: string, name: string, icon: string, ingredients: string, cookTime: number, price: number, level: number, cost: number, popularity?: number): RecipeDef {
   return {
@@ -21,7 +33,7 @@ function dish(cuisine: CuisineId, id: string, name: string, icon: string, ingred
       const [item, qty] = s.split(':');
       return { item, qty: Number(qty ?? 1) };
     }),
-    cookTime: Math.round(cookTime * COOK_SCALE),
+    cookTime: cookMinutes(cookTime),
     price,
     unlock: { level, cost },
     ...(popularity != null ? { popularity } : {}),

@@ -3,6 +3,7 @@ import type { SlotType } from '../../../data';
 import type { Game } from '../../../sim/game';
 import type { FarmerTaskKind, FarmSlot } from '../../../sim/state';
 import type { MillType } from '../../../data';
+import { farmChecklist } from '../../../sim/systems/tutorial';
 import { buildingRect, currentWork, isAutoSlot, slotCenter, slotCenterAt, slotScale } from '../../../sim/systems/farmer';
 import { millCenter, millCenterAt } from '../../../sim/systems/mills';
 import { dashedOutline, dashedRect, fillSacks, makeGreenhouse, grainField, hayBale, makeRiceMill, makeTractor, makeWindmill, outlineSlab, pondOutline, strawLitter } from '../farmkit';
@@ -44,6 +45,8 @@ function ribbon(curve: THREE.Curve<THREE.Vector3>, width: number, samples: numbe
 }
 
 /** Biểu tượng việc bác nông dân đang làm / sắp làm, hiện trên đầu bác. */
+/** Áo người làm vườn (khác áo bác nông dân). */
+const GARDENER_LOOKS = [LOOKS[5], LOOKS[3], LOOKS[6]];
 const TASK_ICON: Record<FarmerTaskKind, string> = { till: '⛏️', water: '💧', plant: '🌱', harvest: '🧺', clear: '🧹', visit: '👀', haul: '🚜' };
 
 const SOIL = { hard: 0xbf9a66, tilled: 0x8a5a36, wetMul: 0.6 };
@@ -63,6 +66,8 @@ interface SlotView {
   soil?: THREE.MeshToonMaterial;
   furrows?: THREE.Object3D;
   weeds?: THREE.Object3D;
+  /** Ngày hướng dẫn: khung vàng nhấp nháy (+ mũi tên ở ô đầu mỗi loại) chỉ chỗ cần làm. */
+  hint?: THREE.Group;
   drop: THREE.Sprite;
   hoe: THREE.Sprite;
   /** Trạng thái ô ở khung hình trước — so sánh để biết vừa xảy ra chuyện gì (gieo, chín, thu...) mà phát hiệu ứng. */
@@ -114,6 +119,8 @@ export class FarmArea implements Area {
   private expand = group(this.root);
   private expandKey = '';
   private tractor = makeTractor();
+  /** Người làm vườn (state.farm.gardeners): hình theo id, tạo / xoá theo state. */
+  private gardeners = new Map<string, { g: THREE.Group; prev: THREE.Vector2; walk: number; icon: THREE.Sprite | null; iconKind: FarmerTaskKind | null }>();
   private bulbs: THREE.MeshToonMaterial[] = [];
   /** Nhà màng (luống bên trong vẽ ở areas/greenhouse.ts); dựng lại khi nhà dài thêm. */
   private house: { count: number; g: THREE.Group; fans: THREE.Object3D[] } | null = null;
@@ -516,6 +523,55 @@ export class FarmArea implements Area {
   }
 
   /** Viền đứt khúc + dấu ➕ ở mọi chỗ còn mua thêm ô / cối được (bấm vào để mở bảng mua). */
+  /** Vật liệu khung nhấp nháy dùng chung (độ mờ đổi theo nhịp). */
+  private hintMat = new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.4, depthWrite: false });
+  private hintFrame = new THREE.MeshBasicMaterial({ color: 0xffc400 });
+
+  /** Ngày hướng dẫn (bước nông trại): ô ruộng trống, ruộng lúa mì, chuồng trống nhấp nháy cho người chơi thấy chỗ. */
+  private updateHints(env: Env): void {
+    const { state, content, ctx } = this.game;
+    const types = new Set<SlotType>();
+    if (state.tutorial?.step === 'farm') {
+      const todo = farmChecklist(ctx).filter((c) => !c.done).map((c) => c.id);
+      if (todo.includes('veg')) types.add('field');
+      if (todo.includes('wheat')) types.add('wheat');
+      if (todo.includes('hen')) types.add('pen');
+    }
+    const pulse = 0.5 + 0.5 * Math.sin(env.t * 6);
+    this.hintMat.opacity = 0.2 + 0.35 * pulse;
+    this.hintFrame.color.setHSL(0.13, 1, 0.5 + 0.35 * pulse);
+    const arrowed = new Set<SlotType>();
+    for (const slot of state.farm.slots) {
+      const view = this.slots.get(slot.id);
+      if (!view) continue;
+      const show = types.has(slot.type) && !slot.producerId;
+      if (show && !view.hint) {
+        const size = content.slotTypes.get(slot.type).layout.size * slotScale(ctx, slot) + 0.3;
+        const h = (view.hint = group(view.g));
+        // Mặt vàng mờ + khung viền 4 cạnh dày, đặt cao hơn mặt đất / rơm cho khỏi bị che
+        mesh(h, G.box(size, 0.03, size), this.hintMat, { p: [0, 0.45, 0], cast: false });
+        const bar = 0.16;
+        for (const s of [-1, 1]) {
+          mesh(h, G.box(size + bar, 0.14, bar), this.hintFrame, { p: [0, 0.45, (s * size) / 2], cast: false });
+          mesh(h, G.box(bar, 0.14, size + bar), this.hintFrame, { p: [(s * size) / 2, 0.45, 0], cast: false });
+        }
+        const arrow = emojiSprite('👇', 1.8);
+        arrow.name = 'arrow';
+        h.add(arrow);
+      }
+      if (!view.hint) continue;
+      view.hint.visible = show;
+      if (!show) continue;
+      const arrow = view.hint.getObjectByName('arrow');
+      if (arrow) {
+        // Mũi tên chỉ ở ô đầu tiên của mỗi loại cho đỡ rối
+        arrow.visible = !arrowed.has(slot.type);
+        arrowed.add(slot.type);
+        arrow.position.set(0, 2.4 + Math.abs(Math.sin(env.t * 4)) * 0.5, 0);
+      }
+    }
+  }
+
   private updateExpand(env: Env): void {
     const { state, ctx, content } = this.game;
     const key = [...content.slotTypes.all().map((t) => state.farm.slots.filter((s) => s.type === t.id).length), ...content.mills.all().map((m) => state.farm.mills.filter((x) => x.type === m.id).length), ...state.farm.slots.map((s) => s.tier)].join(',');
@@ -659,6 +715,58 @@ export class FarmArea implements Area {
     if (this.farmerIcon) this.farmerIcon.position.set(0, 1.75 + Math.abs(Math.sin(env.t * 4)) * 0.08, 0);
   }
 
+  /** Vẽ người làm vườn: đi theo state, làm động tác theo việc, nghỉ cùng giờ bác nông dân (ẩn). */
+  private updateGardeners(env: Env, dt: number): void {
+    const { state, ctx } = this.game;
+    const list = state.farm.gardeners;
+    for (const [id, v] of this.gardeners) {
+      if (list.some((x) => x.id === id)) continue;
+      this.root.remove(v.g);
+      this.gardeners.delete(id);
+    }
+    for (const gs of list) {
+      let v = this.gardeners.get(gs.id);
+      if (!v) {
+        const g = makePerson(GARDENER_LOOKS[gs.look % GARDENER_LOOKS.length], 'straw');
+        g.scale.setScalar(1.05);
+        g.position.set(gs.x, 0, gs.z);
+        this.root.add(g);
+        v = { g, prev: new THREE.Vector2(gs.x, gs.z), walk: 0, icon: null, iconKind: null };
+        this.gardeners.set(gs.id, v);
+      }
+      const g = v.g;
+      g.visible = !state.crew.farmerAway;
+      if (!g.visible) {
+        v.prev.set(gs.x, gs.z);
+        continue;
+      }
+      const moved = Math.hypot(gs.x - v.prev.x, gs.z - v.prev.y);
+      v.walk += ((moved > 1e-4 ? 1 : 0) - v.walk) * Math.min(1, dt * 12);
+      if (moved > 1e-4) g.rotation.y = Math.atan2(gs.x - v.prev.x, gs.z - v.prev.y);
+      v.prev.set(gs.x, gs.z);
+      g.position.set(gs.x, Math.abs(Math.sin(env.t * 11 + 1)) * 0.08 * v.walk, gs.z);
+      let pose = {};
+      const task = gs.task;
+      if (task && gs.work != null) {
+        const slot = state.farm.slots.find((s) => s.id === task.slotId);
+        if (slot && !this.game.content.slotTypes.get(slot.type).building) {
+          const c = slotCenter(ctx, slot);
+          g.rotation.y = Math.atan2(c.x - gs.x, c.z - gs.z);
+        }
+        pose = task.kind === 'till' ? { dig: 1 } : task.kind === 'water' ? { pour: 1 } : { reach: 1 };
+      }
+      animatePerson(g, env.t, { walk: v.walk, ...pose });
+      const kind = task?.kind ?? null;
+      if (kind !== v.iconKind) {
+        if (v.icon) g.remove(v.icon);
+        v.icon = kind ? emojiSprite(TASK_ICON[kind], 0.36) : null;
+        if (v.icon) g.add(v.icon);
+        v.iconKind = kind;
+      }
+      if (v.icon) v.icon.position.set(0, 1.7 + Math.abs(Math.sin(env.t * 4 + 1)) * 0.08, 0);
+    }
+  }
+
   update(env: Env, dt: number): void {
     const { state, content, ctx } = this.game;
     const counts: Partial<Record<SlotType, number>> = {};
@@ -748,7 +856,9 @@ export class FarmArea implements Area {
     this.updateMills(env, dt);
     this.updateGreenhouse(dt);
     this.updateExpand(env);
+    this.updateHints(env);
     this.updateFarmer(env, dt);
+    this.updateGardeners(env, dt);
     for (const view of this.slots.values()) {
       if (!view.grain) continue;
       const amp = 0.04 + env.wind * 0.22;

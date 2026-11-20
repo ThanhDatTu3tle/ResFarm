@@ -2,7 +2,7 @@ import type { MillTypeDef, ProducerDef, SlotTypeDef } from './types';
 
 export const slotTypes: SlotTypeDef[] = [
   { id: 'field', name: 'Ruộng', icon: '🌱', initial: 9, max: 15, basePrice: 80, priceGrowth: 1.45, level: 1, needsTilling: true, needsWater: true, layout: { x: -6.6, z: -1.6, cols: 3, dx: 2.6, dz: 2.75, size: 2.3, tierGrowth: 0 } },
-  { id: 'pen', name: 'Chuồng', icon: '🏚️', initial: 2, max: 6, basePrice: 200, priceGrowth: 1.6, level: 1, layout: { x: 4.6, z: -1.6, cols: 3, dx: 5.0, dz: 5.2, size: 4.2, tierGrowth: 0 } },
+  { id: 'pen', name: 'Chuồng', icon: '🏚️', animals: true, initial: 2, max: 6, basePrice: 200, priceGrowth: 1.6, level: 1, layout: { x: 4.6, z: -1.6, cols: 3, dx: 5.0, dz: 5.2, size: 4.2, tierGrowth: 0 } },
   {
     id: 'pond',
     name: 'Ao cá',

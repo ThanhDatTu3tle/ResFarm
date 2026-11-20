@@ -1,4 +1,6 @@
 import { randInt } from '../../core/rng';
+import { hasAll } from '../helpers';
+import { nextWaypoint } from '../pathing';
 import { roomOf, serviceSpot, tableById, tablePos, type Point } from '../layout';
 import type { HelperState, Order, Party, WaiterState, WaiterTask } from '../state';
 import { fail, ok, type Command, type SimContext, type System } from '../types';
@@ -210,6 +212,7 @@ export const serviceSystem: System = {
       const party = ctx.state.restaurant.parties.find((p) => p.id === cmd.partyId);
       if (!party || party.phase !== 'readyToOrder') return fail('Khách chưa chọn xong món.');
       if (party.called) return fail('Đang tới ghi món cho bàn này rồi.');
+      if (party.want && !hasAll(ctx, ctx.content.recipes.get(party.want).ingredients)) return fail(`Khách muốn ${ctx.content.recipes.get(party.want).name} nhưng quán đang thiếu nguyên liệu — ra Chợ mua trước đã.`);
       party.called = true;
       ctx.state.restaurant.waiter.tasks.push({ kind: 'takeOrder', partyId: party.id });
       return ok();
@@ -296,25 +299,38 @@ export const serviceSystem: System = {
 function stepWorker(ctx: SimContext, w: WaiterState, dt: number): void {
   let budget = ctx.content.balance.service.waiterSpeed * dt;
   // Một bước có thể đi tới nơi rồi làm luôn việc kế tiếp nếu còn quãng đường
-  for (let guard = 0; guard < 8 && budget > 0; guard++) {
+  for (let guard = 0; guard < 16 && budget > 0; guard++) {
     const task = w.tasks[0];
     if (!task) return; // rảnh: đứng yên tại chỗ vừa làm xong
+    if (task.kind !== 'mop') delete w.work;
     const target = targetOf(ctx, task, w);
     if (!target) {
       w.tasks.shift();
       continue;
     }
-    const dx = target.x - w.x;
-    const dy = target.y - w.y;
+    // Đi vòng qua bàn: tới từng điểm rẽ (pathing.ts), tới đúng chỗ mới làm việc
+    const step = nextWaypoint(ctx, w, target);
+    const dx = step.x - w.x;
+    const dy = step.y - w.y;
     const dist = Math.hypot(dx, dy);
     if (dist > budget) {
       w.x += (dx / dist) * budget;
       w.y += (dy / dist) * budget;
       return;
     }
-    w.x = target.x;
-    w.y = target.y;
+    w.x = step.x;
+    w.y = step.y;
     budget -= dist;
+    if (step !== target) continue;
+    // Lau sàn: đứng lau một lúc rồi mới xong
+    if (task.kind === 'mop') {
+      if (w.work == null) w.work = ctx.content.balance.service.mopTime;
+      const used = Math.min(w.work, budget / ctx.content.balance.service.waiterSpeed);
+      w.work -= used;
+      budget -= used * ctx.content.balance.service.waiterSpeed;
+      if (w.work > 1e-9) return;
+      delete w.work;
+    }
     // Xoá đúng việc vừa làm (không dùng shift): làm việc có thể khiến khách bỏ về và leave() đã lọc lại hàng việc,
     // shift() lúc đó sẽ xoá nhầm việc kế tiếp của bàn khác
     if (act(ctx, task, w)) {

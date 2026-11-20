@@ -1,7 +1,13 @@
+import { achievements } from '../data/achievements';
+import { farmTools } from '../data/farmhands';
 import type * as THREE from 'three';
 import { defOf } from '../sim/systems/events';
 import { clockText } from './format';
 import { guideHtml } from './tutorial';
+import { coachHtml } from './coach';
+import { billDue } from '../sim/systems/crew';
+import { tutorialJump } from '../sim/systems/tutorial';
+import type { TutorialStep } from '../sim/state';
 import { inShift } from '../sim/systems/customers';
 import { festivals, seasons } from '../data/calendar';
 import { calendarOf } from '../sim/calendar';
@@ -52,8 +58,13 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
   // ?cuisine=jp|kr|vn (kèm ?fresh) để thử nhanh một quán mà không qua màn hình mở đầu
   const paramCuisine = params.get('cuisine');
   const cuisine = opts.cuisine ?? (paramCuisine && content.cuisines.has(paramCuisine) ? (paramCuisine as CuisineId) : 'vn');
-  const game = new Game(content, saved ? { state: saved } : { seed: params.has('seed') ? Number(params.get('seed')) : undefined, cuisine });
+  // Ván mới từ màn mở đầu: ngày 1 là ngày hướng dẫn (ván tạm ?fresh thì chỉ khi có ?tutorial)
+  const tutorial = !!opts.cuisine || params.has('tutorial');
+  const game = new Game(content, saved ? { state: saved } : { seed: params.has('seed') ? Number(params.get('seed')) : undefined, cuisine, tutorial });
   if (import.meta.env.DEV) {
+    // ?tut=market — nhảy tới một bước của ngày hướng dẫn (intro / serve / hard / market / cook / farm / morning / lunch / done)
+    const tut = params.get('tut');
+    if (tut) tutorialJump(game.ctx, tut as TutorialStep);
     // Chỉ ở bản dev: ?rich (nhiều tiền + cấp 9) · ?do=[{"type":"farm/plant",...}] chạy sẵn một chuỗi lệnh
     // · ?weather=rain ép thời tiết · ?edit mở sẵn chế độ sắp xếp bàn
     if (params.has('rich')) Object.assign(game.state, { money: 99999, level: 9 });
@@ -92,6 +103,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     <div id="questdlg"></div>
     <div id="bill"></div>
     <div id="meal"></div>
+    <div id="coach"></div>
     <div id="settings"></div>
     <div id="service"></div>
     <div id="buy"></div>
@@ -129,7 +141,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     editSelected: null,
     photo: false,
     questOpen: false,
-    mealOpen: false,
+    mealOpen: import.meta.env.DEV && params.has('meal'), // ?meal: mở sẵn bảng gọi món cho đội (chỉ bản dev)
     mealWho: null,
     mealStall: null,
     stallView: null,
@@ -166,7 +178,10 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
   // ---------- Âm thanh ----------
   const sound = new Sound();
   // Trình duyệt chỉ cho phát tiếng sau thao tác đầu tiên
-  root.addEventListener('pointerdown', () => sound.unlock(), { capture: true });
+  // pointerdown chưa đủ để iOS cho phát tiếng (cần touchend / click): nghe cả mấy loại thao tác
+  for (const type of ['pointerdown', 'touchend', 'click', 'keydown'] as const) root.addEventListener(type, () => sound.unlock(), { capture: true });
+  window.addEventListener('keydown', () => sound.unlock());
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && sound.unlock());
 
   let pauseHintAt = -1e9;
   const run = (command: Command) => {
@@ -248,6 +263,19 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
   game.bus.on('quest/claimed', () => {
     sound.play('coin');
     bump(moneyEl(), 0.6);
+  });
+  game.bus.on('achievement/reached', (e) => {
+    const a = achievements.find((x) => x.id === e.id);
+    if (a) toast(`${a.icon} Thành tựu mới: "${a.name}" — mở 🏆 Thành tựu để nhận thưởng`);
+    sound.play('ripe');
+  });
+  game.bus.on('achievement/claimed', () => {
+    sound.play('coin');
+    bump(moneyEl(), 0.6);
+  });
+  game.bus.on('tool/bought', (e) => {
+    const t = farmTools.find((x) => x.id === e.toolId);
+    if (t) toast(`${t.icon} Đã sắm ${t.name}`);
   });
   game.bus.on('day/ended', () => sound.play('dayEnd'));
   game.bus.on('crew/fainted', (e) => {
@@ -469,6 +497,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     const today = state.stats.today;
     morph($('bill'), billHtml(game));
     morph($('meal'), mealHtml(game, ui));
+    morph($('coach'), coachHtml(game, ui));
     morph($('buy'), ui.area === 'stall' ? buyHtml(game, ui) : '');
     morph(
       $('modal'),
@@ -704,7 +733,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     }
     const uiEl = target.closest<HTMLElement>('[data-ui]');
     if (!uiEl) return;
-    const [action, arg = ''] = uiEl.dataset.ui!.split(':');
+    const [action, ...rest] = uiEl.dataset.ui!.split(':');
+    const arg = rest.join(':');
     if (action === 'area') setArea(arg);
     else if (action === 'drawer') {
       ui.drawer = ui.drawer === arg || !arg ? null : arg;
@@ -727,6 +757,18 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
       return;
     } else if (action === 'editSel') ui.editSelected = arg || null;
     else if (action === 'quest') ui.questOpen = arg !== 'close';
+    else if (action === 'coach') {
+      // Nút trên thẻ hướng dẫn: sang khu cần tới / vào thẳng sạp chợ
+      const [kind, id] = arg.split(':');
+      ui.drawer = null;
+      if (kind === 'area') setArea(id);
+      else if (kind === 'stall' && content.stalls.has(id)) {
+        ui.stallView = id;
+        ui.buyItem = null;
+        stall.show(id);
+        setArea('stall');
+      }
+    }
     else if (action === 'guide') {
       // Mở hướng dẫn từ Cài đặt: đóng Cài đặt, game vẫn tạm dừng tới khi đóng hướng dẫn
       ui.settings = false;
@@ -791,8 +833,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     // Giới hạn dt: tab bị ẩn thì game tạm dừng thay vì tua một mạch.
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
-    // Mở bảng Cài đặt thì game tạm dừng; đóng lại chạy tiếp ở tốc độ đã chọn
-    const speed = ui.settings ? 0 : ui.speed;
+    // Mở bảng Cài đặt, bảng gọi món cho đội hay hoá đơn ăn uống thì game tạm dừng; đóng lại chạy tiếp ở tốc độ đã chọn
+    const speed = ui.settings || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
     game.tick(dt * speed * content.balance.minutesPerSecond);
     stage.env.selectedSlot = ui.selectedSlot;
     stage.env.editLayout = ui.editLayout;

@@ -1,6 +1,7 @@
 import { bumpQuest } from './quests';
 import { criticDone } from './events';
-import { seasonalPrice } from '../calendar';
+import { festivalOf, seasonalPrice } from '../calendar';
+import { tutorialHoldsGuests, tutorialLunch } from './tutorial';
 import { randInt, randRange, weightedIndex } from '../../core/rng';
 import { addReputation, addXp, earn, hasAll, modifier, removeAll } from '../helpers';
 import { activeTables, occupiedSeats } from '../layout';
@@ -27,12 +28,22 @@ export function moodOf(ctx: SimContext, party: Party): Mood {
  */
 export const customerSystem: System = {
   id: 'customers',
+  init: rollTraffic,
+  onDayStart: rollTraffic,
   update(ctx, dt) {
     const { state, content } = ctx;
     const b = content.balance;
     const r = state.restaurant;
 
-    if (state.clock.phase === 'open' && acceptingGuests(ctx)) {
+    // Quá giờ khách phải về (12:30 / 21:30): khách đang ăn trả tiền luôn, còn lại mời về (không trừ uy tín)
+    if (r.parties.length && !inSeating(ctx)) {
+      for (const p of [...r.parties]) {
+        if (p.phase === 'eating') pay(ctx, p);
+        else leave(ctx, p, 'closed');
+      }
+    }
+
+    if (state.clock.phase === 'open' && acceptingGuests(ctx) && !tutorialHoldsGuests(ctx)) {
       r.spawnTimer -= dt;
       if (r.spawnTimer <= 0) {
         r.spawnTimer = nextSpawnDelay(ctx);
@@ -88,7 +99,7 @@ export const customerSystem: System = {
           const mine = r.orders.filter((o) => o.partyId === p.id);
           if (mine.length && mine.every((o) => o.status === 'served')) {
             p.phase = 'eating';
-            p.timer = b.eatTime;
+            p.timer = eatMinutes(ctx, p.size);
             break;
           }
           // Tâm trạng chỉ tụt khi có món đã nấu xong mà chưa mang tới (việc của người chơi)
@@ -118,6 +129,26 @@ export function acceptingGuests(ctx: SimContext, minute = ctx.state.clock.minute
   return ctx.content.balance.shifts.some((s) => minute >= s.from && minute < s.lastCall);
 }
 
+/** Còn cho khách ngồi không (từ đầu ca tới giờ khách phải về `kickOut`; ngày hướng dẫn ca sáng về lúc 12:00). */
+export function inSeating(ctx: SimContext, minute = ctx.state.clock.minute): boolean {
+  return ctx.content.balance.shifts.some((s, i) => minute >= s.from && minute < (i === 0 && tutorialLunch(ctx) ? s.to : s.kickOut));
+}
+
+/** Thời gian ngồi ăn của nhóm `size` người (ngẫu nhiên trong khoảng `balance.eatTime`). */
+function eatMinutes(ctx: SimContext, size: number): number {
+  const table = ctx.content.balance.eatTime;
+  const [lo, hi] = table[Math.max(0, Math.min(table.length - 1, size - 1))];
+  return randRange(ctx.state.rng, lo, hi);
+}
+
+/** Lưu lượng khách mỗi sáng: ngày thường / ngày lễ (ngày hướng dẫn giữ 1). */
+export function rollTraffic(ctx: SimContext): void {
+  const { state, content } = ctx;
+  const t = content.balance.traffic;
+  const [lo, hi] = festivalOf(state.clock.day) ? t.festival : t.normal;
+  state.traffic = state.tutorial ? 1 : Math.round(randRange(state.rng, lo, hi) * 100) / 100;
+}
+
 /** Đang trong một ca mở cửa (balance.shifts) không. */
 export function inShift(ctx: SimContext, minute = ctx.state.clock.minute): boolean {
   return ctx.content.balance.shifts.some((s) => minute >= s.from && minute < s.to);
@@ -143,13 +174,13 @@ function nextSpawnDelay(ctx: SimContext): number {
   const b = content.balance;
   const repFactor = 0.5 + (state.reputation / 5) * 1.2;
   const rush = b.rushHours.find((h) => state.clock.minute >= h.from && state.clock.minute < h.to)?.factor ?? 1;
-  return (b.spawnInterval * randRange(state.rng, 0.5, 1.5)) / (repFactor * rush * modifier(ctx, 'spawnRate'));
+  return (b.spawnInterval * randRange(state.rng, 0.5, 1.5)) / (repFactor * rush * state.traffic * modifier(ctx, 'spawnRate'));
 }
 
 /** Thêm một nhóm khách vào hàng chờ. `opts`: nhóm đặc biệt của sự kiện (vd nhà phê bình đi một mình). */
-export function spawnParty(ctx: SimContext, opts: { size?: number; vip?: string } = {}): Party {
+export function spawnParty(ctx: SimContext, opts: { size?: number; vip?: string; want?: string; tutorial?: boolean } = {}): Party {
   const { state, content } = ctx;
-  const regular = opts.vip ? null : pickRegular(ctx);
+  const regular = opts.vip || opts.tutorial ? null : pickRegular(ctx);
   let size = opts.size ?? Math.max(1, weightedIndex(state.rng, content.balance.partySizeWeights));
   if (regular) size = Math.min(size, content.balance.regulars.maxPartySize);
   // Không có bàn đủ chỗ thì nhóm nhỏ lại cho vừa bàn lớn nhất đang có (quán nhỏ chỉ có bàn bốn)
@@ -170,6 +201,7 @@ export function spawnParty(ctx: SimContext, opts: { size?: number; vip?: string 
     wait: 0,
     regular: regular?.id ?? null,
     ...(opts.vip ? { vip: opts.vip } : {}),
+    ...(opts.want ? { want: opts.want } : {}),
   };
   state.restaurant.parties.push(party);
   ctx.bus.emit('party/arrived', { partyId: party.id });
@@ -192,11 +224,14 @@ export function startBrowsing(ctx: SimContext, party: Party): void {
 export function placeOrders(ctx: SimContext, party: Party): void {
   const { state, content } = ctx;
   for (let i = 0; i < party.size; i++) {
-    const options = state.menu.active.map((id) => content.recipes.get(id)).filter((r) => hasAll(ctx, r.ingredients));
+    const ids = party.want && i === 0 && !state.menu.active.includes(party.want) ? [...state.menu.active, party.want] : state.menu.active;
+    const options = ids.map((id) => content.recipes.get(id)).filter((r) => hasAll(ctx, r.ingredients));
     if (!options.length) break;
     // Khách quen (ghế đầu) gọi món ruột nếu quán đang bán và còn nguyên liệu
     const fav = i === 0 && party.regular ? options.find((r) => r.id === favoriteOf(ctx, party.regular!)) : undefined;
-    const recipe = fav ?? options[weightedIndex(state.rng, options.map((r) => r.popularity ?? 1))];
+    // Ngày hướng dẫn: khách của bước "món khó" gọi đúng món đã định
+    const wanted = i === 0 && party.want ? options.find((r) => r.id === party.want) : undefined;
+    const recipe = wanted ?? fav ?? options[weightedIndex(state.rng, options.map((r) => r.popularity ?? 1))];
     removeAll(ctx, recipe.ingredients);
     const order = { id: state.nextId++, partyId: party.id, recipeId: recipe.id, status: 'queued' as const, progress: 0, ...(fav ? { fav: true } : {}) };
     state.restaurant.orders.push(order);

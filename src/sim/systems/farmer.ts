@@ -1,6 +1,6 @@
 import { EventBus } from '../../core/events';
-import { canPlantNow } from '../calendar';
-import type { FarmerTask, FarmerTaskKind, FarmSlot } from '../state';
+import { canPlantNow, isFrozen } from '../calendar';
+import type { FarmerTask, FarmerTaskKind, FarmSlot, GardenerState } from '../state';
 import { fail, ok, type Command, type CommandResult, type SimContext, type SimEvents, type System } from '../types';
 import { awayReason, tire } from './crew';
 import { farmSystem, needsWatering, slotsOfType, yieldsOf } from './farm';
@@ -112,8 +112,45 @@ function commandOf(task: FarmerTask): Command | null {
   }
 }
 
-/** Áp dụng một việc ngay (dùng khi bác tới nơi, và khi chạy thử trên bản sao state). */
-function perform(ctx: SimContext, task: FarmerTask): CommandResult {
+/** Đã sắm dụng cụ này chưa (src/data/farmhands.ts). */
+export function hasTool(ctx: SimContext, id: string): boolean {
+  return ctx.state.farm.tools.includes(id);
+}
+
+/** Việc trên ruộng lúa (máy cày): thu / gieo ô tự động, chở lúa tới cối. */
+function tractorTask(ctx: SimContext, task: FarmerTask): boolean {
+  if (task.kind === 'haul') return true;
+  const slot = ctx.state.farm.slots.find((s) => s.id === task.slotId);
+  return !!slot && isAutoSlot(ctx, slot) && (task.kind === 'harvest' || task.kind === 'plant');
+}
+
+/** Tốc độ đi (m / phút game) khi làm việc này, đã tính dụng cụ: giày nhẹ ×1.3, máy cày mới chở lúa ×1.5. */
+export function walkSpeed(ctx: SimContext, task: FarmerTask, base: number): number {
+  let v = base;
+  if (hasTool(ctx, 'boots')) v *= 1.3;
+  if (task.kind === 'haul' && hasTool(ctx, 'tractor2')) v *= 1.5;
+  return v;
+}
+
+/** Phút làm một việc khi đã tới nơi, đã tính dụng cụ: liềm bén thu ×0.5, máy cày mới (ruộng lúa) ×0.5. */
+export function workTimeOf(ctx: SimContext, task: FarmerTask, base: number): number {
+  if (task.kind === 'visit') return 0;
+  if (tractorTask(ctx, task)) return hasTool(ctx, 'tractor2') ? base * 0.5 : base;
+  if (task.kind === 'harvest' && hasTool(ctx, 'sickle')) return base * 0.5;
+  return base;
+}
+
+/** Bình tưới lớn: tưới xong một ô thì tưới luôn các ô cùng loại, cùng hàng đang khô. */
+function waterRow(ctx: SimContext, slot: FarmSlot): void {
+  const z = slotCenter(ctx, slot).z;
+  for (const s of slotsOfType(ctx, slot.type)) {
+    if (s === slot || !s.producerId || !needsWatering(ctx, s) || isFrozen(ctx, s.type)) continue;
+    if (Math.abs(slotCenter(ctx, s).z - z) < 0.05) s.wet = ctx.content.balance.farm.waterDuration;
+  }
+}
+
+/** Áp dụng một việc ngay (dùng khi bác / người làm vườn tới nơi, và khi chạy thử trên bản sao state). */
+export function perform(ctx: SimContext, task: FarmerTask): CommandResult {
   if (task.kind === 'haul') {
     // Đổ hàng trên máy cày vào cối (lúc chạy thử trên bản sao state thì tay không, coi như xong)
     const f = ctx.state.farm.farmer;
@@ -127,7 +164,12 @@ function perform(ctx: SimContext, task: FarmerTask): CommandResult {
   const command = commandOf(task);
   if (!command) return task.kind === 'plant' ? fail('Chưa chọn giống.') : ok();
   const handler = farmSystem.commands?.[command.type] as ((c: SimContext, cmd: Command) => CommandResult) | undefined;
-  return handler ? handler(ctx, command) : fail(`Lệnh "${command.type}" chưa có handler.`);
+  const result = handler ? handler(ctx, command) : fail(`Lệnh "${command.type}" chưa có handler.`);
+  if (result.ok && task.kind === 'water' && hasTool(ctx, 'big_can')) {
+    const slot = ctx.state.farm.slots.find((s) => s.id === task.slotId);
+    if (slot) waterRow(ctx, slot);
+  }
+  return result;
 }
 
 /**
@@ -162,11 +204,17 @@ function enqueue(ctx: SimContext, task: FarmerTask): CommandResult {
     f.tasks = f.tasks.filter((t, i) => !(t.kind === 'visit' && t.slotId === task.slotId && !(i === 0 && f.work != null)));
   }
   if (f.tasks.some((t) => t.slotId === task.slotId && t.kind === task.kind)) return fail('Bác nông dân đang tới ô này rồi.');
+  if (task.kind !== 'visit' && gardenerOn(ctx, task.slotId)) return fail(`${gardenerOn(ctx, task.slotId)!.name} đang lo ô này rồi.`);
   if (f.tasks.length >= MAX_FARMER_TASKS) return fail('Bác đang nhiều việc quá, đợi chút nhé.');
   const result = preview(ctx, task);
   if (!result.ok) return result;
   f.tasks.push(task);
   return ok();
+}
+
+/** Người làm vườn đang đi tới / làm ở ô này (nếu có). */
+export function gardenerOn(ctx: SimContext, slotId: string): GardenerState | undefined {
+  return ctx.state.farm.gardeners.find((g) => g.task?.slotId === slotId);
 }
 
 /** Ô nào đang có việc chờ bác (để bảng Nông trại hiện dấu "sắp tới"). */
@@ -207,7 +255,7 @@ export const farmerSystem: System = {
     const f = state.farm.farmer;
     // Đang ở chợ hoặc kiệt sức: đứng im, hàng việc giữ nguyên để làm tiếp sau
     if (state.crew.farmerAway || f.fainted) return;
-    const { speed, workTime } = content.balance.farmer;
+    const { workTime } = content.balance.farmer;
     let time = dt;
     // Một bước có thể qua vài khúc đường, tới nơi, làm xong rồi chuyển luôn sang việc kế nếu còn thời gian
     for (let guard = 0; guard < 16 && time > 1e-9; guard++) {
@@ -223,6 +271,7 @@ export const farmerSystem: System = {
         continue;
       }
       const target = nextWaypoint(f, spot, content.balance.farmer.lanes);
+      const speed = walkSpeed(ctx, task, content.balance.farmer.speed);
       const dx = target.x - f.x;
       const dz = target.z - f.z;
       const dist = Math.hypot(dx, dz);
@@ -236,7 +285,7 @@ export const farmerSystem: System = {
       f.z = target.z;
       time -= walk;
       if (target !== spot) continue; // mới tới khúc rẽ, đi tiếp khúc sau
-      if (f.work == null) f.work = task.kind === 'visit' ? 0 : workTime;
+      if (f.work == null) f.work = workTimeOf(ctx, task, workTime);
       if (f.work > time) {
         f.work -= time;
         return;
@@ -262,7 +311,7 @@ export const farmerSystem: System = {
       const blocked = farmerBlocked(ctx);
       if (blocked) return fail(blocked);
       const wanted = ctx.state.farm.slots.filter((s) => {
-        if (!s.producerId || f.tasks.some((t) => t.slotId === s.id && t.kind === cmd.kind)) return false;
+        if (!s.producerId || f.tasks.some((t) => t.slotId === s.id && t.kind === cmd.kind) || gardenerOn(ctx, s.id)) return false;
         return cmd.kind === 'harvest' ? s.stage === 'ready' : s.stage === 'growing' && needsWatering(ctx, s);
       });
       if (!wanted.length) return fail(cmd.kind === 'harvest' ? 'Chưa có gì để thu hoạch.' : 'Không có cây nào cần tưới.');

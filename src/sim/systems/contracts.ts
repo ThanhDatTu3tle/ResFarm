@@ -3,6 +3,7 @@ import { seasonPriceFactor } from '../calendar';
 import { addReputation, addXp, earn, hasAll, removeAll, stockOf } from '../helpers';
 import type { ItemStack } from '../../data';
 import { fail, ok, type SimContext, type System } from '../types';
+import { bumpQuest } from './quests';
 
 /**
  * ĐƠN ĐẶT HÀNG + BÁN HÀNG DƯ.
@@ -46,6 +47,7 @@ export const contractSystem: System = {
       addReputation(ctx, ctx.content.balance.contracts.rep);
       c.status = 'done';
       ctx.bus.emit('contract/done', { id: c.id, reward: c.reward });
+      bumpQuest(ctx, 'contract');
       return ok();
     },
     'market/sell'(ctx, cmd) {

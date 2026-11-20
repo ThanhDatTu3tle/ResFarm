@@ -1,3 +1,4 @@
+import { farmTools } from '../data/farmhands';
 import { decorFor, defaultDecor, type Content } from '../data';
 import { EventBus } from '../core/events';
 import { canPlaceTable } from './layout';
@@ -64,6 +65,8 @@ const migrations: Record<number, (old: any) => any> = {
   14: (s) => ({ ...s, restaurant: { ...s.restaurant, kitchenTier: 1 }, version: 15 }),
   // v15 -> v16: đơn đặt hàng, sự kiện ngẫu nhiên (bắt đầu từ ngày hôm sau).
   15: (s) => ({ ...s, contracts: [], event: null, version: 16 }),
+  // v16 -> v17: người làm vườn, dụng cụ nông trại, sổ thành tựu.
+  16: (s) => ({ ...s, farm: { ...s.farm, tools: [], gardeners: [] }, achievements: { counts: {}, done: [], claimed: [] }, traffic: 1, tutorial: null, version: 17 }),
 };
 
 export function serialize(state: GameState): string {
@@ -110,6 +113,16 @@ function reconcile(state: GameState, content: Content): GameState {
   const tableIds = new Set([...content.tables.all().map((t) => t.id), ...r.extraTables.map((t) => t.id)]);
   r.parties = r.parties.filter((p) => p.tableId == null || tableIds.has(p.tableId));
   for (const p of r.parties) if (p.regular && !content.regulars.has(p.regular)) p.regular = null;
+  // Nông trại: dụng cụ còn trong data, số người làm vườn theo chỗ đã mở, việc trỏ tới ô không còn thì bỏ
+  const farm = state.farm;
+  if (typeof state.traffic !== 'number' || !(state.traffic > 0)) state.traffic = 1;
+  if (state.tutorial === undefined) state.tutorial = null;
+  farm.tools = farm.tools.filter((id) => farmTools.some((t) => t.id === id));
+  farm.gardeners = farm.gardeners.slice(0, content.balance.gardeners.levels.filter((l) => state.level >= l).length);
+  for (const g of farm.gardeners) {
+    if (g.task && !farm.slots.some((s) => s.id === g.task!.slotId)) Object.assign(g, { task: null, work: null });
+  }
+  for (const id of state.achievements.claimed) if (!state.achievements.done.includes(id)) state.achievements.done.push(id);
   // Bồi bàn: bỏ việc trỏ tới khách / món không còn; món đang bưng mà không còn trên tay thì trả về quầy
   if (r.waiter.x < 0) Object.assign(r.waiter, content.room.waiterHome);
   // Chỗ nhân viên: theo hạng quán + phần cộng của hạng bếp (khớp maxHelpers trong systems/helpers.ts)

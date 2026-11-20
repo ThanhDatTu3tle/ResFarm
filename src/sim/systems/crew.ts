@@ -103,28 +103,37 @@ export function mealBudget(ctx: SimContext): number {
 
 /** Gọi món cho một người đang chờ: ăn trong crew.eatMinutes (không quá giờ về). */
 function serveMeal(ctx: SimContext, p: PendingMeal, stallId: string, dish: StaffDishDef): void {
-  const c = ctx.state.crew;
-  c.pending = c.pending.filter((x) => x !== p);
-  const until = Math.min(p.back, ctx.state.clock.minute + ctx.content.balance.crew.eatMinutes);
-  c.meals.push({ who: p.who, name: p.name, stallId, dish: dish.name, icon: dish.icon, price: dish.price, energy: dish.energy, until, kind: p.kind });
+  ctx.state.crew.pending = ctx.state.crew.pending.filter((x) => x !== p);
+  addMeal(ctx, p, stallId, dish);
 }
 
-/** Người chơi chưa chọn kịp: tự chọn ngẫu nhiên một hàng rồi một món; hết tiền thì món khác vừa túi, không có thì nhịn. */
+/** Thêm một món vào bữa đang ăn của người này (một người có thể ăn vài món khi tự chọn). */
+function addMeal(ctx: SimContext, p: PendingMeal, stallId: string, dish: StaffDishDef): void {
+  const until = Math.min(p.back, ctx.state.clock.minute + ctx.content.balance.crew.eatMinutes);
+  ctx.state.crew.meals.push({ who: p.who, name: p.name, stallId, dish: dish.name, icon: dish.icon, price: dish.price, energy: dish.energy, until, kind: p.kind });
+}
+
+/**
+ * Tự chọn món (người chơi bấm "Để mọi người tự chọn" hoặc quá hạn): ăn cho ĐẦY năng lượng.
+ * Mỗi lượt chọn ngẫu nhiên một món đủ bù phần còn thiếu (không có thì món nhiều ⚡ nhất), lặp tới khi no hoặc hết tiền.
+ * Đang đầy sức thì vẫn ăn một món cho bữa đó. Không đủ tiền món nào thì nhịn.
+ */
 function autoPick(ctx: SimContext, p: PendingMeal): void {
   const { state, content } = ctx;
-  const vendors = content.stalls.all().filter((s) => s.menu?.length);
-  const budget = mealBudget(ctx);
-  let pick: { stallId: string; dish: StaffDishDef } | undefined;
-  if (vendors.length) {
-    const stall = vendors[randInt(state.rng, 0, vendors.length - 1)];
-    pick = { stallId: stall.id, dish: stall.menu![randInt(state.rng, 0, stall.menu!.length - 1)] };
-    if (pick.dish.price > budget) {
-      const cheap = vendorDishes(ctx).filter((d) => d.dish.price <= budget);
-      pick = cheap.length ? cheap[randInt(state.rng, 0, cheap.length - 1)] : undefined;
-    }
+  const c = state.crew;
+  c.pending = c.pending.filter((x) => x !== p);
+  const m = memberOf(ctx, p.who);
+  let missing = content.balance.crew.maxEnergy - (m?.vitals.energy ?? 0);
+  for (let n = 0; n < 4; n++) {
+    const budget = mealBudget(ctx);
+    const affordable = vendorDishes(ctx).filter((d) => d.dish.price <= budget);
+    if (!affordable.length) break;
+    const enough = affordable.filter((d) => d.dish.energy >= missing);
+    const pick = enough.length ? enough[randInt(state.rng, 0, enough.length - 1)] : affordable.reduce((a, b) => (b.dish.energy > a.dish.energy ? b : a));
+    addMeal(ctx, p, pick.stallId, pick.dish);
+    missing -= pick.dish.energy;
+    if (missing <= 0) break;
   }
-  if (pick) serveMeal(ctx, p, pick.stallId, pick.dish);
-  else state.crew.pending = state.crew.pending.filter((x) => x !== p); // nhịn
 }
 
 function depart(ctx: SimContext, group: CrewGroup, kind: BreakKind): void {
