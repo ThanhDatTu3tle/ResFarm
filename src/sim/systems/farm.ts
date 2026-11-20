@@ -13,14 +13,21 @@ import { fail, ok, type CommandResult, type SimContext, type System } from '../t
 /** Lời báo khi làm việc ngoài trời giữa mùa đông. */
 export const FROZEN = 'Mùa đông đất ngoài trời đóng băng, chuồng ao nghỉ — chỉ trồng được trong nhà kính.';
 
+/** Phút cuối cùng nông trại đã chạy trong ngày (kết thúc ngày sớm thì phần còn lại tới 24:00 được bù qua đêm). */
+const lastMinute = new WeakMap<object, number>();
+
 export const farmSystem: System = {
   id: 'farm',
   update(ctx, dt) {
     grow(ctx, dt);
+    lastMinute.set(ctx.state, ctx.state.clock.minute);
   },
   onDayStart(ctx) {
     witherOffSeason(ctx);
-    grow(ctx, ctx.content.balance.nightMinutes);
+    // Qua đêm: nightMinutes + phần ngày hôm qua bị bỏ qua (kết thúc ngày sớm) — để "1 ngày" luôn đủ một ngày nông trại
+    const { closeMinute, nightMinutes } = ctx.content.balance;
+    const last = lastMinute.get(ctx.state);
+    grow(ctx, nightMinutes + (last != null ? Math.max(0, closeMinute - last) : 0));
   },
   commands: {
     'farm/till'(ctx, cmd) {
@@ -203,4 +210,13 @@ function witherOffSeason(ctx: SimContext): void {
     count++;
   }
   if (count) ctx.bus.emit('farm/withered', { count });
+  // Sang mùa Đông: gà mái đẻ, bò sữa hết lứa (nuôi cả năm) — ô trống lại, mùa Xuân nuôi lứa mới
+  if (!isFrozen(ctx, 'pen')) return;
+  let culled = 0;
+  for (const slot of state.farm.slots) {
+    if (!slot.producerId || !content.producers.get(slot.producerId).diesInWinter) continue;
+    clearSlot(ctx, slot);
+    culled++;
+  }
+  if (culled) ctx.bus.emit('farm/culled', { count: culled });
 }

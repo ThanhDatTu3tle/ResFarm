@@ -9,8 +9,9 @@ import { makePet, makeRegular } from '../people';
 import { animateProp, makeProp } from '../props';
 import { activeTables, moodOf } from '../../../sim/systems/customers';
 import { isReserved, needOf } from '../../../sim/systems/service';
-import { animateCreature, animatePerson, LOOKS, makeBush, makeDish, makePerson } from '../models';
+import { adultShape, animateCreature, animatePerson, LOOKS, makeBush, makeDish, makePerson, randomShape } from '../models';
 import { buildSeat, counterExtras, decorateInterior, seatStyle, signText, tableExtras, type InteriorAnimator } from '../cuisine';
+import { buildStreetGround, buildStreetKitchen, standingSign, streetSpots } from '../street';
 import { HOLD_MS, type Area, type Env, type Pick } from '../stage';
 import { Bar3D, bubbleSprite, emojiSprite, G, group, mesh, textSprite, toon, paintSeason } from '../toon';
 import { easeOutBack, wobble } from '../../ease';
@@ -177,6 +178,12 @@ export class RestaurantArea implements Area {
   private firstFrame = true;
   /** Đồ trang trí theo phong cách quán (đèn lồng đung đưa, quạt quay...). */
   private interior: InteriorAnimator;
+  /** Quán ốc vỉa hè (không tường, xe đẩy + bếp nướng dưới sạp dù — xem street.ts). */
+  private street: boolean;
+  /** Quán ốc về đêm tối hơn hẳn (chỉ còn dây đèn vàng, lửa than) — Stage đọc. */
+  nightDark = 0;
+  /** Cập nhật riêng khu bếp vỉa hè (than hồng lập loè). */
+  private streetAnim: InteriorAnimator = () => {};
 
   constructor(private game: Game) {
     const room = (this.room = roomOf(game.ctx));
@@ -192,7 +199,20 @@ export class RestaurantArea implements Area {
     this.rainBox = { min: [-22, 0, this.backZ - 13], max: [22, 14, this.backZ - 0.5] };
 
     this.label = game.content.cuisines.get(game.state.cuisine).name;
-    this.buildRoom();
+    this.root.userData.areaRoot = true;
+    this.street = game.state.cuisine === 'oc';
+    if (this.street) {
+      this.nightDark = 0.78;
+      // Ngoài trời: mưa rơi khắp khu quán (cả bàn ghế), không chỉ ngoài cửa sổ
+      this.rainBox = { min: [-this.halfW - 3, 0, this.backZ - 3], max: [this.halfW + 3, 12, this.frontZ + 3] };
+      buildStreetGround(this.root, this.dims(), this.mats);
+      for (const x of [-this.halfW * 0.5, this.halfW * 0.5]) {
+        const lamp = new THREE.PointLight(0xffc27a, 0, 0, 0);
+        lamp.position.set(x, 3.2, 0.5);
+        this.lamps.push(lamp);
+        this.root.add(lamp);
+      }
+    } else this.buildRoom();
     // Trang trí lễ hội: dây treo dọc hai tường bên, đồ đứng hai bên cửa (chỉ hiện vào ngày lễ)
     {
       const { halfW, backZ, frontZ } = this;
@@ -242,6 +262,10 @@ export class RestaurantArea implements Area {
   dispose(): void {
     for (const off of this.unsub) off();
     this.unsub = [];
+  }
+
+  private dims() {
+    return { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, kitchenZ: this.kitchenZ };
   }
 
   wx(px: number): number {
@@ -375,6 +399,10 @@ export class RestaurantArea implements Area {
     // Gian bếp gọn: tủ lạnh sát vách ngăn, dãy bếp 3.4 m; bếp lên hạng thì thêm bàn sơ chế, nồi hầm, lò nướng bên phải
     const cx = this.kitchenCenter();
     const ktier = this.game.state.restaurant.kitchenTier;
+    if (this.street) {
+      this.buildStreetChefs();
+      return;
+    }
     if (ktier >= 2) {
       const px = cx + 2.45;
       mesh(r, G.box(1.2, 0.95, 0.9), 0xb9c2ca, { p: [px, 0.475, z] });
@@ -409,8 +437,31 @@ export class RestaurantArea implements Area {
     const lo = this.kitchenCenter() - 1.6;
     const hi = this.kitchenCenter() + 1.6 + (ktier >= 2 ? 1.1 : 0);
     staff.forEach((def, i) => {
-      const g = makePerson({ shirt: def.hire ? 0xf6f0e4 : 0xffffff, hair: i % 3 === 2 ? 0x6b4a2f : 0x3a2a1e, skin: i % 2 ? 0xffd9b8 : 0xf2c49b }, 'chef');
+      const g = makePerson({ shirt: def.hire ? 0xf6f0e4 : 0xffffff, hair: i % 3 === 2 ? 0x6b4a2f : 0x3a2a1e, skin: i % 2 ? 0xffd9b8 : 0xf2c49b }, 'chef', { width: [1.2, 0.95, 1.05, 0.9][i % 4] });
       g.position.set(staff.length === 1 ? this.kitchenCenter() : lo + ((i + 0.5) * (hi - lo)) / staff.length, 0, this.kitchenZ - 1.05);
+      g.scale.setScalar(def.speed > 1 ? 1.15 : 1.05);
+      this.root.add(g);
+      const bar = new Bar3D(0.8);
+      bar.group.position.set(0, 1.95, 0);
+      g.add(bar.group);
+      const icon = emojiSprite('🍳', 0.5);
+      icon.position.set(0, 2.3, 0);
+      g.add(icon);
+      this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2 });
+    });
+  }
+
+  /** Quán ốc: sạp dù + xe đẩy (bếp trưởng) + bếp nướng (bếp phó) + bàn sơ chế cho đầu bếp thuê; quầy ra món như quán thường. */
+  private buildStreetChefs(): void {
+    const staff = this.game.state.restaurant.staff.map((s) => this.game.content.staff.get(s.id));
+    this.streetAnim = buildStreetKitchen(this.root, this.dims(), this.mats, staff.length);
+    this.buildPass();
+    this.buildWaiter();
+    const spots = streetSpots(this.dims()).chefs;
+    staff.forEach((def, i) => {
+      const at = spots[i % spots.length];
+      const g = makePerson({ shirt: def.hire ? 0xf6f0e4 : 0xffffff, hair: i % 3 === 2 ? 0x6b4a2f : 0x3a2a1e, skin: i % 2 ? 0xffd9b8 : 0xf2c49b }, 'chef', { width: [1.2, 0.95, 1.05, 0.9][i % 4] });
+      g.position.set(at.x, 0, at.z);
       g.scale.setScalar(def.speed > 1 ? 1.15 : 1.05);
       this.root.add(g);
       const bar = new Bar3D(0.8);
@@ -515,7 +566,7 @@ export class RestaurantArea implements Area {
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) mesh(g, G.cyl(0.06, 0.06, TABLE_TOP - 0.1, 8), mats.base, { p: [sx * (w / 2 - 0.15), (TABLE_TOP - 0.1) / 2, sz * (d / 2 - 0.15)] });
       tableExtras(this.game.state.cuisine, g, TABLE_TOP, w, d);
     }
-    for (const s of seatSpots(t, { x: 0, y: 0 })) {
+    for (const [si, s] of seatSpots(t, { x: 0, y: 0 }).entries()) {
       const cx = s.x / UNIT;
       const cz = s.y / UNIT;
       const chair = group(g, { p: [cx, 0, cz], r: [0, Math.atan2(s.dishX / UNIT - cx, s.dishY / UNIT - cz), 0] });
@@ -523,7 +574,11 @@ export class RestaurantArea implements Area {
         mesh(chair, G.cyl(0.05, 0.07, 0.72, 8), 0x5f6b77, { p: [0, 0.36, 0] });
         mesh(chair, G.cyl(0.26, 0.26, 0.08, 14), mats.seat, { p: [0, 0.74, 0] });
       } else {
-        buildSeat(seatStyle(this.game.state.cuisine), chair, mats);
+        // Quán ốc: ghế nhựa mini xanh / đỏ xen kẽ
+        if (this.street) {
+          buildSeat('plastic', chair, si % 2 ? { ...mats, seat: mats.back } : mats);
+          chair.scale.setScalar(0.88);
+        } else buildSeat(seatStyle(this.game.state.cuisine), chair, mats);
       }
     }
     const pad = mesh(g, G.box(1, 0.03, 1), this.padMat, { p: [0, 0.03, 0], s: [w + 1.3, 1, d + 1.5], cast: false, receive: false });
@@ -711,7 +766,7 @@ export class RestaurantArea implements Area {
       let v = this.helperViews.get(h.id);
       if (!v) {
         const shirts = [0x5fae57, 0xe2703a, 0x9a6bd1, 0x3fb6a8];
-        const g = makePerson({ shirt: shirts[h.look % shirts.length], hair: [0x3a2a1e, 0x1f1a17, 0x6b3f22, 0x2a1f1a][h.look % 4], skin: h.look % 2 ? 0xf2c49b : 0xffd9b8 });
+        const g = makePerson({ shirt: shirts[h.look % shirts.length], hair: [0x3a2a1e, 0x1f1a17, 0x6b3f22, 0x2a1f1a][h.look % 4], skin: h.look % 2 ? 0xf2c49b : 0xffd9b8 }, 'none', adultShape(h.look * 7 + 3, ['short', 'side', 'pony', 'bob']));
         const rig = g.userData.rig;
         mesh(rig.body, G.box(0.36, 0.34, 0.05), 0xffffff, { p: [0, 0.14, 0.18] }); // tạp dề
         mesh(rig.head, G.box(0.42, 0.06, 0.3), 0xf2b23e, { p: [0, 0.36, 0.06], r: [-0.2, 0, 0] }); // mũ vàng
@@ -1016,6 +1071,16 @@ export class RestaurantArea implements Area {
     const name = this.game.state.profile.name;
     if (this.nameSign?.text === name) return;
     if (this.nameSign) this.root.remove(this.nameSign.g);
+    if (this.street) {
+      // Quán ốc: bảng tên chân đứng bên trái xe đẩy
+      const at = streetSpots(this.dims()).sign;
+      const sign = standingSign(name, this.mats.trim);
+      sign.position.set(at.x, 0, at.z);
+      sign.rotation.y = 0.2;
+      this.root.add(sign);
+      this.nameSign = { text: name, g: sign };
+      return;
+    }
     const g = group(this.root, { p: [-this.halfW + 4 + 3.1 - 0.6, 3.78, this.backZ + 0.04] });
     const w = Math.min(4.6, 1.2 + name.length * 0.2);
     mesh(g, G.box(w + 0.25, 0.7, 0.06), this.mats.trim);
@@ -1041,6 +1106,7 @@ export class RestaurantArea implements Area {
     const { state, content, ctx } = this.game;
     const { parties, orders, staff } = state.restaurant;
     this.interior(env, dt);
+    this.streetAnim(env, dt);
 
     // Màu theo nội thất đang dùng
     const colors = (slot: 'floor' | 'wall' | 'furniture') => content.decor.get(state.decor.equipped[slot]).colors;
@@ -1086,7 +1152,7 @@ export class RestaurantArea implements Area {
     this.updateStains(env);
 
     // Ánh sáng trong nhà
-    for (const lamp of this.lamps) lamp.intensity = 0.25 + env.night * 1.5;
+    for (const lamp of this.lamps) lamp.intensity = this.street ? env.night * 0.5 : 0.25 + env.night * 1.5;
     this.bulbMat.emissiveIntensity = 0.3 + env.night * 1.4;
     this.windowMat.opacity = 0.18 + env.day * 0.15;
 
@@ -1112,7 +1178,7 @@ export class RestaurantArea implements Area {
       // Khói bếp bốc lên từ chảo khi đang nấu
       if ((chef.smoke -= dt) <= 0) {
         chef.smoke = 0.35 + Math.random() * 0.2;
-        this.fx.burst('☁️', new THREE.Vector3(chef.g.position.x + (Math.random() - 0.5) * 0.4, 1.5, this.backZ + 0.6), { count: 1, up: 0.5, spread: 0.12, gravity: -0.6, life: 1.5, size: 0.32 });
+        this.fx.burst('☁️', new THREE.Vector3(chef.g.position.x + (Math.random() - 0.5) * 0.4, 1.5, this.street ? chef.g.position.z + 1.0 : this.backZ + 0.6), { count: 1, up: 0.5, spread: 0.12, gravity: -0.6, life: 1.5, size: 0.32 });
       }
       const recipe = content.recipes.get(order.recipeId);
       if (chef.iconFor !== recipe.icon) {
@@ -1144,7 +1210,9 @@ export class RestaurantArea implements Area {
         let actor = this.actors.get(key);
         if (!actor) {
           const regular = i === 0 && party.regular ? content.regulars.get(party.regular) : null;
-          const g = regular ? makeRegular(regular.style) : makePerson(LOOKS[party.looks[i] % LOOKS.length]);
+          // Khách vãng lai: dáng người (trẻ em đi cùng gia đình, người già, mập gầy) + kiểu tóc cố định theo nhóm và vị trí
+          const walkIn = randomShape(party.id * 10 + i, i, LOOKS[party.looks[i] % LOOKS.length]);
+          const g = regular ? makeRegular(regular.style) : makePerson(walkIn.look!, 'none', walkIn.shape);
           g.userData.pick = { type: 'party', id: String(party.id) } satisfies Pick;
           const [sx, sz] = this.firstFrame ? [tx, tz] : this.door;
           g.position.set(sx, 0, sz);

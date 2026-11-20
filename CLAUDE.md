@@ -18,6 +18,8 @@ Cần Node 20.19+ hoặc 22+.
 | `npm test` | Test lõi mô phỏng (Vitest, chạy trong Node, không cần trình duyệt) |
 | `npm run typecheck` | Kiểm tra kiểu TypeScript |
 | `npm run build` | Typecheck + build production ra `dist` |
+| `http://localhost:5184/lineup.html` | (chỉ bản dev, không build) dàn nhân vật: mọi dáng người × kiểu tóc, cử động, đội quán, khách quen — `src/dev/lineup.ts` |
+| `npm run sotay` | Sinh **Sổ tay** (bảng tra cứu toàn bộ nội dung game, tự tính giây thực / giá vốn / lãi) từ `src/data` ra `notes/so-tay-quan-nha-vuon.html` — xem ở `http://localhost:5184/notes/so-tay-quan-nha-vuon.html` khi đang chạy dev |
 
 Sau mỗi thay đổi: chạy `npm run typecheck` và `npm test`. Ở bản dev, `window.game` là đối tượng `Game` (xem state, gọi `game.dispatch(...)`, `game.tick(phút)` từ console).
 
@@ -25,9 +27,9 @@ Tham số URL để thử nhanh (ghép được với nhau):
 
 | Tham số | Tác dụng |
 | --- | --- |
-| (không có tham số) | Màn hình mở đầu: Chơi tiếp / Ván mới → chọn quán Nhật / Hàn / Việt |
+| (không có tham số) | Màn hình mở đầu: Chơi tiếp / Ván mới → chọn quán Nhật / Hàn / Việt / Ốc |
 | `?fresh` | Bỏ qua màn mở đầu và save, không ghi save (ván tạm) |
-| `?cuisine=jp` | Kèm `?fresh`: phong cách quán của ván tạm (`jp` / `kr` / `vn`, mặc định `vn`) |
+| `?cuisine=jp` | Kèm `?fresh`: phong cách quán của ván tạm (`jp` / `kr` / `vn` / `oc`, mặc định `vn`) |
 | `?play` | Bỏ qua màn mở đầu, vào thẳng ván đang lưu |
 | `?pick=kr` | (chỉ bản dev) mở thẳng bước chọn quán ở màn mở đầu |
 | `?guide=0` | (chỉ bản dev) mở sẵn trang hướng dẫn chơi ở màn mở đầu (số trang đếm từ 0) |
@@ -44,6 +46,7 @@ Tham số URL để thử nhanh (ghép được với nhau):
 | `?rich` | (chỉ bản dev) nhiều tiền + cấp 9, để thử mua sắm |
 | `?edit` | (chỉ bản dev) mở sẵn chế độ sắp xếp bàn |
 | `?ffserve` | (chỉ bản dev) kèm `?ff=150`: lúc tua tự mang menu + ghi món (không bưng) để xem bong bóng màu bàn và món trên quầy line; thêm `&pickup` thì bồi bàn ra quầy lấy món luôn |
+| `?autopay` | (chỉ bản dev) kèm `?ff=`: lúc tua đội tự gọi món, tự trả hoá đơn (xem cảnh buổi tối không bị bảng che) |
 | `?meal` | (chỉ bản dev) mở sẵn bảng gọi món cho đội (kèm `?ff=400` để đội đang ở chợ nghỉ trưa) |
 | `?tutorial` | Kèm `?fresh`: ván tạm có ngày hướng dẫn (ván mới từ màn mở đầu luôn có) |
 | `?tut=market` | (chỉ bản dev) nhảy tới một bước của ngày hướng dẫn: `intro` / `serve` / `hard` / `market` / `cook` / `farm` / `morning` / `lunch` / `done` |
@@ -60,7 +63,8 @@ Lưu ý: vòng lặp chạy bằng `requestAnimationFrame` nên khi tab bị ẩ
 Mọi thời lượng trong `src/data` (nấu món, cây lớn, kiên nhẫn của khách...) tính bằng **phút game**. Chỉ một hằng số nối với thời gian thực: `balance.minutesPerSecond` (hiện 1.5).
 
 - Một ngày = 06:00 → 24:00 = 1080 phút game = **12 phút thực** ở tốc độ x1. Quán mở 2 ca `balance.shifts` (07:00–12:00, ngưng nhận khách 11:00; 15:00–21:00, ngưng nhận khách 20:30 — `lastCall`); đóng cửa (`to`) thì khách chưa gọi món về; tới `kickOut` (12:30 / 21:30) khách đang ăn trả tiền luôn, khách chờ món được mời về (`inSeating` trong customers.ts), rồi cả đội ra chợ ăn. Thời gian ngồi ăn theo số khách `balance.eatTime` (1 người 10–15 s … 5–6 người 45–60 s). Lưu lượng khách mỗi ngày `state.traffic` (`balance.traffic`, tung mỗi sáng — `rollTraffic`; ngày lễ đông hơn). Hết mỗi ca sàn có thêm vết bẩn (`balance.stains`).
-- Quy đổi: `phút game = giây thực × 1.5` — cây muốn lớn trong 5 phút thực thì `growTime: 450`.
+- Quy đổi: `phút game = giây thực × 1.5`.
+- **Nông trại tính theo NGÀY** (giai đoạn 12): `FARM_DAY` (`src/data/farm.ts`) = 1080 + `nightMinutes` (600) = 1680 phút game; `growTime: days(3)` = 3 ngày (gieo giờ nào thì đúng giờ đó 3 ngày sau chín). Kết thúc ngày sớm thì phần ngày bị bỏ qua được bù qua đêm (`lastMinute` trong farm.ts). Tưới một lần ẩm 1 ngày (`balance.farm.waterDuration`). Rau 1–5 ngày, gà 2, heo 5, bò 7, cây ăn quả 8 rồi 1 ngày một lứa, lúa 3, cá / tôm / ốc 5–7 rồi 5 ngày một lứa. `ProducerDef.diesInWinter` (gà mái đẻ, bò sữa): sang mùa Đông hết lứa (`farm/culled`). UI hiện bằng `farmTime()` (format.ts).
 - **Ngoại lệ:** số thứ 6 trong `dish()` (`recipes.ts`) là **độ khó** 8..40 của món; `cookMinutes()` đổi ra phút game sao cho bếp trưởng (tốc độ 1.6) nấu trong **4–10 giây thực**; các mốc phục vụ trong `balance.ts` (kiên nhẫn, tốc độ bồi bàn, thời gian ăn...) đã nhân ~2.1 khi đổi 0.7 → 1.5 để giữ nhịp theo giây thực. Đổi `minutesPerSecond` lần nữa thì nhớ chỉnh hai chỗ này.
 - Danh sách thời gian chi tiết và thực đơn: sửa `cookTime`/`price`/`ingredients` trong `recipes.ts`, `growTime`/`regrowTime`/`yields` trong `farm.ts`, các mốc của khách trong `balance.ts`.
 
@@ -115,7 +119,7 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 | `achievements.ts` | **Sổ thành tựu** (`src/data/achievements.ts`, `state.achievements`): bộ đếm trọn ván `counts` cộng qua `tally()` (gọi trong `bumpQuest`, nên mọi mục tiêu đếm của nhiệm vụ đều được đếm), chỉ số khác đọc state (`achievementValue`); đạt mốc → `done` + `achievement/reached`; `achievement/claim` nhận thưởng (không tính doanh thu). Bảng 🏆 Thành tựu |
 | `tutorial.ts` | **Ngày hướng dẫn** (ngày 1 của ván mới từ màn mở đầu, `state.tutorial`, `Game` option `tutorial`): intro (dừng giờ) → serve (2 nhóm khách dễ) → hard (khách `Party.want` gọi món thiếu nguyên liệu — `pickHardDish` bớt nguyên liệu ít món dùng nhất) → market (dừng giờ tới khi mua đủ) → cook → farm (dừng giờ, `farmChecklist`: gieo rau, lúa mì, thả gà; bác vẫn đi làm) → morning (khách tự do) → lunch (12:00 khách về hết, gọi món cho đội) → done. Dừng giờ = `tutorialFrozen`: `Game.tick` chỉ chạy farmer / gardeners / tutorial; khách lạ không tới trong các bước có kịch bản (`tutorialHoldsGuests`); giờ đứng ở 10:30 tới khi xong (`tutorialClockCap`). Lệnh `tutorial/next`, `tutorial/skip`. UI: `src/ui/coach.ts` (thẻ chỉ dẫn thay chỗ thẻ nhiệm vụ, nút đưa tới khu / sạp cần tới) |
 | `helpers.ts` | Nhân viên phục vụ thuê thêm (`restaurant.helpers`, mỗi bậc hạng quán +1, tối đa 4): `helper/hire`, `helper/fire`, `helper/setJob` (bưng món / menu + ghi món / dọn bàn / lau sàn); nhân viên rảnh tự nhận việc (`pickTask`); đi lại / làm việc dùng chung `stepWorker` trong service.ts |
-| `crew.ts` | **Cả đội** (đầu bếp, bồi bàn, nhân viên thuê, bác nông dân — `crewMembers`): năng lượng tối đa `balance.crew.maxEnergy` (30), mỗi việc tốn (`tire`: nấu 1 món −2, phục vụ / đồng áng −1), cạn thì xỉu (`crew/revive` 100 xu). Giờ nghỉ: hết ca sáng + quán vắng khách thì đội quán ra chợ (`crew.restaurantAway`), 14:00 về; bác nông dân 12:00–13:00 (`crew.farmerAway`); tối sau ca cuối cả đội ra chợ ăn tối. Lúc ở chợ quán / nông trại tạm ngưng (`awayReason` → lời nhắc). Ra chợ thì mỗi người vào `crew.pending`: người chơi gọi món (`crew/order`, bảng `mealHtml` trong hud.ts — tự mở khi đội ra chợ, nút "Gọi món cho đội" dưới đồng hồ, bảng menu trong Tiệm 25caaaaa); quá hạn (giờ về − `crew.eatMinutes`) thì tự chọn (`crew/autoOrder` làm ngay): `autoPick` gọi một hoặc vài món cho tới khi người đó **đầy năng lượng** (còn tiền). Bảng gọi món và hoá đơn đang mở thì game dừng giờ (vòng lặp app.ts). Tổng không vượt tiền đang có (`mealBudget`). Ăn xong vào `crew.bill`; `billDue` = cả đợt ăn xong (tiền ăn của bác nông dân về sớm gộp chung) → người chơi trả một lần bằng `crew/pay` (quên thì sang ngày tự trả). `day/end`: kết thúc ngày sớm sau `crew.endDayAfter` (21:00). Ngủ qua đêm đầy sức |
+| `crew.ts` | **Cả đội** (đầu bếp, bồi bàn, nhân viên thuê, bác nông dân — `crewMembers`): năng lượng tối đa `balance.crew.maxEnergy` (30), mỗi việc tốn (`tire`: nấu 1 món −2, phục vụ / đồng áng −1), cạn thì xỉu (`crew/revive` 100 xu). Giờ nghỉ: hết ca sáng + quán vắng khách thì đội quán ra chợ (`crew.restaurantAway`), 14:00 về; bác nông dân 12:00–13:00 (`crew.farmerAway`); tối sau ca cuối cả đội ra chợ ăn tối. Lúc ở chợ quán / nông trại tạm ngưng (`awayReason` → lời nhắc). Ra chợ thì mỗi người vào `crew.pending`: người chơi gọi món (`crew/order` — gọi được nhiều món, tính cả món đã gọi mà đầy năng lượng (`missingEnergy`) thì người đó xong; `crew/unorder` bỏ món, `crew/confirm` chốt ai đã có món; bảng `mealHtml` trong hud.ts chia 2 cột: người + thanh năng lượng (phần sọc = món đã gọi) | thực đơn — tự mở khi đội ra chợ, nút "Gọi món cho đội" dưới đồng hồ, bảng menu trong Tiệm 25caaaaa); quá hạn (giờ về − `crew.eatMinutes`) thì tự chọn (`crew/autoOrder` làm ngay): `autoPick` gọi một hoặc vài món cho tới khi người đó **đầy năng lượng** (còn tiền). Bảng gọi món và hoá đơn đang mở thì game dừng giờ (vòng lặp app.ts). Tổng không vượt tiền đang có (`mealBudget`). Ăn xong vào `crew.bill`; `billDue` = cả đợt ăn xong (tiền ăn của bác nông dân về sớm gộp chung) → người chơi trả một lần bằng `crew/pay` (quên thì sang ngày tự trả). `day/end`: kết thúc ngày sớm sau `crew.endDayAfter` (21:00). Ngủ qua đêm đầy sức |
 | `home.ts` | Quán của riêng mình: `profile/rename`, `pet/*`, đồ trang trí `prop/*` (mua tự đặt chỗ thoáng, dời, xoay, cất kho, bán lại), bàn mua thêm `table/*`, `layout/rotateTable`, `restaurant/upgrade` (hạng quán) |
 | `regulars.ts` (không phải system) | Khách quen: `pickRegular` (lúc tạo khách), món ruột, `regularTipBonus` / `regularPaid` (tim, quà tặng) — customers.ts gọi |
 | `mills.ts` | Cối chế biến (cối xay gió, nhà xay lúa): nhận lúa bác chở tới (`mill.input`), làm thành phẩm đang chọn vào kho; lệnh `mill/buy`, `mill/setProduct` |
@@ -126,7 +130,7 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 
 `helpers.ts` chứa hàm dùng chung: kho (`stockOf`, `hasAll`, `addItem`...), tiền (`earn`, `spend`), `addXp`, `addReputation`, `modifier` (gộp hệ số từ thời tiết, nâng cấp, nội thất đang dùng, hạng quán, thú cưng và đồ trang trí đang bày — mỗi loại đồ tính 1 lần).
 
-**Phong cách quán** — `GameState.cuisine` (`jp` / `kr` / `vn`) chọn ở màn mở đầu, cố định trong ván. `CuisineDef` ở `src/data/cuisines.ts` (tên, mô tả, món giới thiệu, nguyên liệu khởi đầu). Món thuộc một quán (`RecipeDef.cuisine`), nội thất có thể riêng một quán (`DecorDef.cuisine`, bỏ trống = dùng chung); mỗi quán có đúng 1 nội thất mặc định mỗi slot. Lọc bằng `recipesFor` / `decorFor` / `defaultDecor` (`src/data/index.ts`). Nông trại và chợ dùng chung. Hình riêng từng quán (đồ trang trí, kiểu ghế, đồ trên bàn, mặt tiền) ở `src/ui/three/cuisine.ts`.
+**Phong cách quán** — `GameState.cuisine` (`jp` / `kr` / `vn` / `oc`) chọn ở màn mở đầu, cố định trong ván. **Quán Ốc (`oc`) là quán vỉa hè**: cùng mặt bằng sim (bàn, quầy ra món, chỗ bồi bàn) nhưng hình khác hẳn — `src/ui/three/street.ts` thay `buildRoom` / gian bếp: nền bê tông lát ô ("Sàn nhà" = bê tông → gạch lề đường), dãy nhà phố phía sau, đường phía trước, sạp dù sọc che bếp (màu theo "Sơn tường"), xe đẩy ốc (bếp trưởng), bếp nướng than lập loè (bếp phó), bàn sơ chế cho đầu bếp thuê, bảng tên chân đứng (`standingSign`); không WC / kho. Dây đèn vàng + ô che bàn (cụp, mưa thì bung — `umbrellas` trong cuisine.ts) ở `decorateInterior` / `tableExtras`. Mưa rơi khắp khu quán (`rainBox`). Ban đêm tối hơn quán thường (`Area.nightDark` = 0.78, Stage giảm ánh trời khi đang xem khu này), dây đèn vàng sáng theo đêm + 4 đèn ấm hắt xuống sân. Món: 9 món ốc / sò / tôm; phô mai (`cheese`) chỉ mua ở sạp đồ khô, hành lá (`scallion`) ở Tạp hóa. `CuisineDef` ở `src/data/cuisines.ts` (tên, mô tả, món giới thiệu, nguyên liệu khởi đầu). Món thuộc một quán (`RecipeDef.cuisine`), nội thất có thể riêng một quán (`DecorDef.cuisine`, bỏ trống = dùng chung); mỗi quán có đúng 1 nội thất mặc định mỗi slot. Lọc bằng `recipesFor` / `decorFor` / `defaultDecor` (`src/data/index.ts`). Nông trại và chợ dùng chung. Hình riêng từng quán (đồ trang trí, kiểu ghế, đồ trên bàn, mặt tiền) ở `src/ui/three/cuisine.ts`.
 
 `src/sim/layout.ts` chứa hình học mặt bằng quán: `roomOf` (phòng theo hạng quán), `activeTables` / `tableById` (bàn gốc + bàn mua thêm, bàn xoay trả về w/h đã đổi + `rotated`; **đừng dùng `content.tables.get` cho bàn**), `tablePos`, `seatSpots`, `footprint`, `propRect`, `blockerOf` / `canPlaceTable` / `canPlaceProp` (luật đặt, dùng chung cho lệnh và phần xem trước khi kéo), `findFreeSpot` (chỗ thoáng nhất), `entranceOf` (lối ra vào không đặt đồ).
 
@@ -137,7 +141,10 @@ src/main.ts                hiện màn mở đầu (ui/title.ts) hoặc vào th�
 src/ui/title.ts            màn mở đầu: Chơi tiếp / Ván mới / Hướng dẫn chơi, chọn phong cách quán trên cảnh 3D 3 mặt tiền (renderer riêng)
 src/ui/tutorial.ts         hướng dẫn chơi: các trang `GUIDE` + `guideHtml` (dùng chung cho màn mở đầu và Cài đặt → Hướng dẫn, `ui.guide`)
 src/ui/three/cuisine.ts    hình theo phong cách quán: decorateInterior, tableExtras, counterExtras, buildSeat, makeShopfront
-src/ui/three/people.ts     khách quen (makeRegular: dáng, tóc, phụ kiện theo PersonStyle) + thú cưng (makePet)
+src/ui/three/person.ts     NGƯỜI: makePerson(look, mũ, Shape) — dáng kid/teen/adult/elder, mập gầy (width), cao thấp (height), 10 kiểu tóc (addHair);
+                           randomShape / adultShape (dáng ngẫu nhiên tất định theo seed), bóng mờ dưới chân, viền sáng mềm (rimify → toonRim trong toon.ts),
+                           animatePerson (tư thế được làm mượt, nhún bước, lắc hông, dồn trọng tâm, ngồi nâng hông theo dáng). models.ts re-export tất cả
+src/ui/three/people.ts     khách quen (makeRegular: dáng + tóc qua makePerson, quần/váy, phụ kiện theo PersonStyle) + thú cưng (makePet)
 src/ui/three/props.ts      đồ trang trí đặt tự do (makeProp theo PropDef.model)
 src/ui/three/portraits.ts  chân dung khách quen render từ model 3D (cache data URL)
 src/ui/three/farmkit.ts    model nông trại: cối xay gió, nhà xay lúa, máy cày, bao lúa, kiện rơm, khóm lúa, viền đứt khúc
@@ -188,7 +195,7 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 
 **Nhà kính** — loại ô `gplot` có `SlotTypeDef.building` (nhà trên bản đồ nông trại, cửa = chỗ bác đứng), `batch` (mua theo lô: nhà dài thêm về phía đông), `growMul`. Rau củ trồng được nhờ `ProducerDef.alsoIn` (`fitsSlot`). Hình nhà: `farmkit.makeGreenhouse`, kích thước theo `buildingRect()`; luống bên trong vẽ ở khu riêng `areas/greenhouse.ts` (bấm nhà ở nông trại → `Pick { type: 'building' }` → `setArea`).
 
-**Bấm ô / cối trong cảnh** — `stage.focusOn(x, z)` lướt camera lại gần, `ui.farmFocus` lọc bảng Nông trại; đóng bảng thì `stage.unfocus()`.
+**Bấm ô / cối trong cảnh** — `stage.focusOn(x, z)` lướt camera lại gần, `ui.farmFocus` lọc bảng Nông trại, `ui.selectedSlot` = ô vừa bấm; đóng bảng thì `stage.unfocus()`. Bảng Nông trại **không còn lưới ô**: mỗi loại ô chỉ có dòng tóm tắt (chín / đang lớn / cần tưới / trống) + nút mua thêm; bấm ô trên cảnh thì bảng hiện chi tiết đúng ô đó (đang lớn: tiến độ, còn mấy ngày, tưới, thu, dọn; trống: danh sách giống). Dev: `?tab=farm&focus=field&slot=field-0`. Máy cày đậu cạnh ruộng lúa lúc rảnh (`FarmArea.parked`).
 
 **Trời** — `env.noon` (nắng gắt buổi trưa), `env.wind` = thời tiết + gió theo giờ + cơn gió; khu có `outdoor = true` thì có vệt gió bay (`Stage.updateStreaks`).
 
@@ -196,7 +203,7 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 
 **Thêm nhiệm vụ** — 1 mục trong `src/data/quests.ts` (thêm vào cuối, giữ id cũ; `chapter` = số chương, tên chương ở `questChapters`, thẻ HUD hiện "Chương N: …", bảng nhiệm vụ chia theo chương). Loại mục tiêu mới: thêm vào `QuestGoalKind`, rồi hoặc gọi `bumpQuest` ở chỗ chuyện xảy ra (đếm), hoặc thêm nhánh trong `stateValue` của `systems/quests.ts` (đọc state).
 
-**Bên trong quầy chợ** (`areas/stall.ts`, khu `stall`) — bấm sạp nguyên liệu hoặc Tiệm 25caaaaa ở chợ thì `StallArea.show(id)` + `setArea('stall')` (như nhà kính): sạp nguyên liệu có khay hàng xếp bậc + biển giá hôm nay (bấm khay mua 1/5/10) — sạp có `StallDef.interior: 'tanks'` (hải sản) thay bằng bể nước xếp chữ U, hải sản bơi trong bể (bấm bể để mua), giữa sạp người bán đứng cạnh cân, rổ, xô nước (`StallArea.buildTanks`), mái bạt cao 5 m để thấy bảng hiệu; tiệm có sàn trắng ngà, tường hai bên chạy tới mép trước, biển logo, bảng menu chân đứng gần cửa (tên món + giá hai cột), đèn thả trần sáng lên khi trời tối (`StallArea.addLamps`, sạp nguyên liệu cũng có 2 bóng dưới mái), bàn ghế cho cả đội ngồi ăn (ghế hai bên bàn, đĩa món đặt trên mặt bàn). Khu này không nằm trên thanh chuyển khu (chỉ có nút "‹ Chợ" để ra). Logo tiệm là ảnh `public/shop/tiem-25caaaaa.jpg` (đã cắt bỏ số điện thoại), dùng chung cho biển trên nóc tiệm ngoài chợ (`logoBoard`).
+**Bên trong quầy chợ** (`areas/stall.ts`, khu `stall`) — bấm sạp nguyên liệu hoặc Tiệm 25caaaaa ở chợ thì `StallArea.show(id)` + `setArea('stall')` (như nhà kính): sạp nguyên liệu có khay hàng xếp bậc + biển giá hôm nay (bấm khay mua 1/5/10) — sạp có `StallDef.interior: 'tanks'` (hải sản) thay bằng bể nước (≤ 4 bể: chữ U; 5 bể: 3 bể vách sau + 2 bể chéo), hải sản bơi trong bể (bấm bể để mua); mặt hàng trong `StallDef.baskets` (ốc, sò) bày trong rổ quanh người bán và cái cân (`buildBasket`, bấm rổ để mua) (`StallArea.buildTanks`); sạp `interior: 'butcher'` (thịt) là bàn inox dài, nửa trái có giá treo inox với các tảng thịt (bấm tảng thịt / khay dưới giá để mua), nửa phải thớt gỗ to + dao phay + cân thịt (`buildButcher`), mái bạt cao 5 m để thấy bảng hiệu; tiệm có sàn trắng ngà, tường hai bên chạy tới mép trước, biển logo, bảng menu chân đứng gần cửa (tên món + giá hai cột), đèn thả trần sáng lên khi trời tối (`StallArea.addLamps`, sạp nguyên liệu cũng có 2 bóng dưới mái), bàn ghế cho cả đội ngồi ăn (ghế hai bên bàn, đĩa món đặt trên mặt bàn). Khu này không nằm trên thanh chuyển khu (chỉ có nút "‹ Chợ" để ra). Logo tiệm là ảnh `public/shop/tiem-25caaaaa.jpg` (đã cắt bỏ số điện thoại), dùng chung cho biển trên nóc tiệm ngoài chợ (`logoBoard`).
 
 **Hàng rong / tiệm ăn vặt** (`StallDef.menu`, `items: []`) — không bán nguyên liệu: là chỗ cả đội ra ăn giờ nghỉ (món, giá, năng lượng hồi). Bảng Chợ chỉ hiện thực đơn; cảnh chợ vẽ người trong đội ngồi ăn theo `crew.meals` (`MarketArea.updateEaters`).
 
@@ -208,7 +215,7 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 
 **Vườn cây ăn quả / ô đặt tay** — `SlotTypeDef.layout.spots` (vị trí từng ô + `work` riêng) thay cho lưới khi ô nằm nhiều cụm; `initialPlants` = cây trồng sẵn ở ô khởi đầu. Hình cây: `farmkit.makeFruitTree`.
 
-**Thêm bàn** — 1 mục `TableDef` trong `src/data/restaurant.ts` (x, y là vị trí mặc định; test kiểm tra bố cục mặc định không chồng nhau); đặt `requiresUpgrade` nếu bàn chỉ có sau khi nâng cấp, `fixed` nếu không cho dời. Cảnh quán tự dựng bàn ghế.
+**Thêm bàn** — 1 mục `TableDef` trong `src/data/restaurant.ts` (x, y là vị trí mặc định; test kiểm tra bố cục mặc định không chồng nhau); đặt `requiresUpgrade` nếu bàn chỉ có sau khi nâng cấp, `fixed` nếu không cho dời, `cuisines` nếu bàn chỉ có ở vài phong cách quán (quầy ghế đơn `counter` không có ở quán ốc; quán ốc có thêm bàn đôi `pair_oc`) — `activeTables` lọc theo đó. Cảnh quán tự dựng bàn ghế.
 
 **Nới rộng quán / hạng quán** — hạng quán ở `room.tiers` (`src/data/restaurant.ts`): mỗi hạng một `height` (phòng sâu thêm về phía cửa, khu ăn uống giãn theo — `roomOf`). Lên hạng thì `app.ts` dựng lại `RestaurantArea` (`stage.replaceArea`). Hạng 1 phải bằng `room.height`.
 
@@ -232,7 +239,9 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 
 **Thêm tính năng lớn (system mới)** — thêm trường vào `GameState` + giá trị khởi tạo trong `createInitialState`, tăng `SAVE_VERSION` và viết migration trong `save.ts` (v7 thêm phong cách quán và được chốt là chơi lại từ đầu nên đã xoá migration cũ; v7→v8 thêm cối là mẫu mới nhất), tạo `src/sim/systems/<tên>.ts`, đăng ký vào `defaultSystems`, thêm panel/hình ảnh nếu cần, thêm test.
 
-**Chỉnh cân bằng** — `src/data/balance.ts` và các con số trong file data.
+**Chỉnh cân bằng** — `src/data/balance.ts` và các con số trong file data. Chạy `npm run sotay` để xem lại toàn bộ con số (đã đổi sang giây thực, có giá vốn, lãi mỗi món, lời mỗi vụ, hoà vốn vật nuôi).
+
+**Sổ tay** — `scripts/so-tay.mjs` nạp `src/data` bằng Vite (`ssrLoadModule`), chạy `createContent` (data sai thì dừng), tính số dẫn xuất rồi nhúng JSON vào khuôn `scripts/so-tay.html` (tìm kiếm không dấu, sắp xếp theo cột, lọc món theo quán, liên kết chéo nguyên liệu ↔ món ↔ giống ↔ sạp, sáng / tối). Thêm loại nội dung mới: thêm vào `build()` trong script và một `sec(...)` trong khuôn.
 
 `createContent()` tự kiểm tra tham chiếu chéo khi khởi động (món dùng nguyên liệu không tồn tại, nguyên liệu không có nguồn...) và ném lỗi rõ ràng.
 

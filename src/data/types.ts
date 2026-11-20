@@ -39,7 +39,7 @@ export interface QuestDef {
 }
 
 /** Phong cách quán người chơi chọn lúc bắt đầu ván mới: quyết định thực đơn và nội thất. */
-export type CuisineId = 'jp' | 'kr' | 'vn';
+export type CuisineId = 'jp' | 'kr' | 'vn' | 'oc';
 
 export interface CuisineDef {
   id: CuisineId;
@@ -106,6 +106,8 @@ export interface ProducerDef {
    * Sang mùa không hợp thì cây đang lớn ngoài trời héo. Trong nhà kính trồng quanh năm.
    */
   seasons?: number[];
+  /** Nuôi một lứa cho cả năm: sang mùa Đông thì hết lứa (ô trống lại), mùa Xuân nuôi lứa mới (gà mái đẻ, bò sữa). */
+  diesInWinter?: boolean;
 }
 
 /** Loại ô nông trại và luật mua thêm ô. */
@@ -196,8 +198,10 @@ export interface StallDef {
   items: string[];
   /** Bảng chân đứng nhỏ cạnh sạp (dòng chữ giới thiệu thêm), không có thì thôi. */
   standee?: string;
-  /** Kiểu bày hàng bên trong sạp: 'trays' khay trên quầy gỗ (mặc định), 'tanks' bể nước cho hải sản bơi (người bán đứng giữa). */
-  interior?: 'trays' | 'tanks';
+  /** Kiểu bày hàng bên trong sạp: 'trays' khay trên quầy gỗ (mặc định), 'tanks' bể nước cho hải sản bơi (người bán đứng giữa), 'butcher' bàn inox + giá treo thịt + thớt, cân. */
+  interior?: 'trays' | 'tanks' | 'butcher';
+  /** Sạp bể nước: các mặt hàng này bày trong rổ quanh người bán (còn lại thả trong bể). */
+  baskets?: string[];
   /**
    * Kiểu hàng quán (hình 3D): 'stall' sạp mái bạt trong dãy chợ (mặc định), 'kiosk' tiệm nhỏ trong dãy chợ,
    * 'cart' xe đẩy, 'pole' gánh hàng rong, 'bike' xe đạp bán dạo — ba kiểu sau đứng trên vỉa hè ở `spot`.
@@ -233,6 +237,8 @@ export interface TableDef {
   requiresUpgrade?: string;
   /** Người chơi không dời được bàn này. */
   fixed?: boolean;
+  /** Chỉ có ở các phong cách quán này (bỏ trống = mọi quán). Quán ốc vỉa hè không có quầy ghế đơn trước bếp. */
+  cuisines?: CuisineId[];
   /** Bàn đang xoay 90° (w/h đã đổi chỗ; ghế xếp theo hai cạnh còn lại). Chỉ có ở bàn trả về từ activeTables(). */
   rotated?: boolean;
   /** Bàn mua thêm: loại bàn (TableKindDef) — bán lại được. */
@@ -467,7 +473,7 @@ export interface Balance {
 
 /** Dáng người: trẻ em (nhỏ, đầu to), thiếu niên, người lớn, người già (hơi khom). */
 export type PersonBuild = 'kid' | 'teen' | 'adult' | 'elder';
-export type HairStyle = 'short' | 'spiky' | 'long' | 'pony' | 'twin' | 'bun' | 'bald';
+export type HairStyle = 'short' | 'spiky' | 'long' | 'pony' | 'twin' | 'bun' | 'bald' | 'bob' | 'curly' | 'side';
 /** Phụ kiện. Khách vãng lai không bao giờ có phụ kiện — thấy phụ kiện là biết khách quen. */
 export type Accessory =
   | 'bow'

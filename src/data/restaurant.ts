@@ -27,7 +27,9 @@ export const room: RoomDef = {
 /** x, y là vị trí MẶC ĐỊNH của tâm bàn; người chơi dời bàn thì vị trí mới nằm ở state.restaurant.layout. */
 export const tables: TableDef[] = [
   // Dãy 3 ghế đơn ngay trước bếp cho khách đi một mình — gắn với bếp nên không dời được
-  { id: 'counter', name: 'Quầy trước bếp', seats: 3, shared: true, fixed: true, x: 285, y: 140, w: 210, h: 34 },
+  { id: 'counter', name: 'Quầy trước bếp', seats: 3, shared: true, fixed: true, x: 285, y: 140, w: 210, h: 34, cuisines: ['jp', 'kr', 'vn'] },
+  // Quán ốc vỉa hè: không có quầy ghế đơn, thay bằng một bộ bàn đôi nhựa nữa
+  { id: 'pair_oc', name: 'Bàn đôi vỉa hè', seats: 2, x: 280, y: 370, w: 70, h: 70, cuisines: ['oc'] },
   { id: 'medium', name: 'Bàn bốn', seats: 4, x: 125, y: 300, w: 120, h: 76 },
   { id: 'pair', name: 'Bàn đôi', seats: 2, x: 430, y: 290, w: 70, h: 70 },
   { id: 'pair2', name: 'Bàn đôi góc', seats: 2, x: 120, y: 420, w: 70, h: 70 },

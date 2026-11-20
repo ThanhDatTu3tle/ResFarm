@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { PersonStyle } from '../../data';
-import { makePerson, type Rig } from './models';
+import { makePerson, rimify, type Rig } from './models';
 import { G, group, mesh, toon } from './toon';
 
 /**
@@ -8,18 +8,11 @@ import { G, group, mesh, toon } from './toon';
  * Khách vãng lai chỉ dùng makePerson cơ bản (không phụ kiện), nên phụ kiện là dấu hiệu nhận ra khách quen.
  */
 
-/** Tỉ lệ toàn thân theo dáng người. */
-const BUILD_SCALE: Record<PersonStyle['build'], number> = { kid: 0.74, teen: 0.9, adult: 1.02, elder: 0.96 };
-
 export function makeRegular(style: PersonStyle): THREE.Group {
-  const g = makePerson({ shirt: style.shirt, hair: style.hairColor, skin: style.skin });
+  // Dáng (trẻ em / thiếu niên / người lớn / người già), kiểu tóc: dựng sẵn trong makePerson
+  const g = makePerson({ shirt: style.shirt, hair: style.hairColor, skin: style.skin }, 'none', { build: style.build, hair: style.hair, accent: style.accent });
   const rig = g.userData.rig as Rig;
-  const { head, body } = rig;
-  g.scale.setScalar(BUILD_SCALE[style.build]);
-  // Trẻ em: đầu to hơn nữa cho đáng yêu
-  if (style.build === 'kid') head.scale.setScalar(1.12);
-  // Người già: lưng hơi khom (animatePerson đặt rotation.x của body nên khom bằng group cha)
-  if (style.build === 'elder') g.userData.hunch = 0.16;
+  const { body } = rig;
 
   // Quần / váy: tô lại chân, váy thì thêm vạt váy quanh hông
   for (const leg of [rig.legL, rig.legR]) {
@@ -33,54 +26,9 @@ export function makeRegular(style: PersonStyle): THREE.Group {
   }
   if (style.bottom === 'skirt') mesh(body, G.cone(0.27, 0.26, 12), style.bottomColor, { p: [0, 0.02, 0] });
 
-  hair(head, style);
   for (const a of style.acc) accessory(rig, a, style);
+  rimify(g);
   return g;
-}
-
-/** Kiểu tóc: thay phần tóc mặc định của makePerson (2 mesh màu tóc cuối cùng trên đầu). */
-function hair(head: THREE.Group, style: PersonStyle): void {
-  const c = style.hairColor;
-  // makePerson thêm tóc sau miệng: tìm 2 mesh dùng màu tóc rồi bỏ đi để dựng lại theo kiểu
-  const hairMeshes = head.children.filter((m) => m instanceof THREE.Mesh && (m.material as THREE.MeshToonMaterial).color?.getHex() === c);
-  for (const m of hairMeshes.slice(-2)) head.remove(m);
-  switch (style.hair) {
-    case 'bald':
-      // Hói: chỉ còn viền tóc hai bên và sau gáy
-      for (const side of [-1, 1]) mesh(head, G.sphere(0.09, 10, 8), c, { p: [side * 0.2, 0.2, -0.06], s: [0.6, 1, 1.2] });
-      mesh(head, G.sphere(0.12, 10, 8), c, { p: [0, 0.18, -0.17], s: [1.5, 0.8, 0.6] });
-      break;
-    case 'spiky':
-      mesh(head, G.sphere(0.245), c, { p: [0, 0.26, -0.04], s: [1, 0.8, 1] });
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 2;
-        mesh(head, G.cone(0.07, 0.16, 6), c, { p: [Math.cos(a) * 0.13, 0.43, Math.sin(a) * 0.13 - 0.03], r: [Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5] });
-      }
-      break;
-    case 'long':
-      mesh(head, G.sphere(0.25), c, { p: [0, 0.26, -0.04], s: [1.05, 0.88, 1] });
-      mesh(head, G.box(0.42, 0.42, 0.14), c, { p: [0, 0.06, -0.15] });
-      break;
-    case 'pony':
-      mesh(head, G.sphere(0.25), c, { p: [0, 0.27, -0.04], s: [1, 0.85, 1] });
-      mesh(head, G.sphere(0.06, 8, 6), style.accent, { p: [0, 0.3, -0.26] }); // dây buộc
-      mesh(head, G.capsule(0.07, 0.22), c, { p: [0, 0.14, -0.31], r: [0.35, 0, 0] });
-      break;
-    case 'twin':
-      mesh(head, G.sphere(0.25), c, { p: [0, 0.27, -0.04], s: [1, 0.85, 1] });
-      for (const side of [-1, 1]) {
-        mesh(head, G.sphere(0.05, 8, 6), style.accent, { p: [side * 0.22, 0.28, -0.05] });
-        mesh(head, G.capsule(0.06, 0.16), c, { p: [side * 0.27, 0.15, -0.06], r: [0, 0, side * 0.35] });
-      }
-      break;
-    case 'bun':
-      mesh(head, G.sphere(0.25), c, { p: [0, 0.26, -0.04], s: [1, 0.85, 1] });
-      mesh(head, G.sphere(0.11, 12, 10), c, { p: [0, 0.48, -0.1] });
-      break;
-    default:
-      mesh(head, G.sphere(0.245), c, { p: [0, 0.26, -0.04], s: [1, 0.85, 1] });
-      mesh(head, G.sphere(0.1, 10, 8), c, { p: [0.07, 0.36, 0.15], s: [1.4, 0.6, 0.8] });
-  }
 }
 
 function accessory(rig: Rig, a: PersonStyle['acc'][number], style: PersonStyle): void {

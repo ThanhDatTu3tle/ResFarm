@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sổ tay Quán Nhà Vườn</title>
+<style>
+:root {
+  --bg: #f6f3ec; --panel: #fffdf8; --ink: #2b2a26; --muted: #77736a; --line: #e4ded1;
+  --accent: #2f8f6b; --accent-soft: #dff1e8; --warn: #b5532f; --good: #2f7a3f; --chip: #efe9dc; --hl: #fff2b3;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1c1a; --panel: #242522; --ink: #ebe7dd; --muted: #a29d91; --line: #3a3b36;
+    --accent: #5cc79b; --accent-soft: #23392f; --warn: #e48a66; --good: #7fcf8d; --chip: #30312c; --hl: #4a4320;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1c1a; --panel: #242522; --ink: #ebe7dd; --muted: #a29d91; --line: #3a3b36;
+  --accent: #5cc79b; --accent-soft: #23392f; --warn: #e48a66; --good: #7fcf8d; --chip: #30312c; --hl: #4a4320;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 120px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding: 10px 16px 8px; }
+.top { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; max-width: 1280px; margin: 0 auto; }
+h1 { font-size: 18px; margin: 0; }
+.gen { color: var(--muted); font-size: 12px; }
+#q { flex: 1; min-width: 180px; padding: 7px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-size: 14px; }
+nav { display: flex; gap: 6px; overflow-x: auto; max-width: 1280px; margin: 8px auto 0; padding-bottom: 2px; scrollbar-width: thin; }
+nav a { flex: none; padding: 4px 10px; border-radius: 999px; background: var(--chip); color: var(--ink); text-decoration: none; font-size: 13px; }
+nav a.on { background: var(--accent); color: #fff; }
+main { max-width: 1280px; margin: 0 auto; padding: 8px 16px 60px; }
+section { margin-top: 22px; }
+section > h2 { font-size: 17px; margin: 0 0 4px; }
+h3 { font-size: 14px; margin: 16px 0 6px; color: var(--muted); font-weight: 600; }
+.note { color: var(--muted); font-size: 12.5px; margin: 0 0 8px; }
+.wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { position: sticky; top: 0; background: var(--panel); font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; }
+th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+th[data-dir="asc"]::after { content: " ▲"; font-size: 10px; }
+th[data-dir="desc"]::after { content: " ▼"; font-size: 10px; }
+tr:last-child td { border-bottom: 0; }
+tr:target td, tr.flash td { background: var(--hl); }
+td .ic { font-size: 16px; margin-right: 4px; }
+a.ref { color: var(--accent); text-decoration: none; white-space: nowrap; }
+a.ref:hover { text-decoration: underline; }
+.pos { color: var(--good); } .neg { color: var(--warn); }
+.tag { display: inline-block; padding: 0 6px; margin: 1px 2px 1px 0; border-radius: 6px; background: var(--chip); font-size: 12px; white-space: nowrap; }
+.tag.acc { background: var(--accent-soft); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
+.chips button { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 3px 10px; cursor: pointer; font-size: 13px; }
+.chips button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.card b { display: block; font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 2px; }
+.card .v { font-size: 15px; }
+.hidden { display: none !important; }
+.empty { color: var(--muted); padding: 10px; }
+#theme { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 10px; padding: 6px 10px; cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>📖 Sổ tay Quán Nhà Vườn</h1>
+    <span class="gen" id="gen"></span>
+    <input id="q" type="search" placeholder="Tìm nguyên liệu, món, giống, sạp... (vd: trứng, phở, cấp 3)" autocomplete="off">
+    <button id="theme" title="Đổi sáng / tối">◐</button>
+  </div>
+  <nav id="nav"></nav>
+</header>
+<main id="main"></main>
+<script>
+const DB = /*__DB__*/null;
+
+// ---------- tiện ích ----------
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const by = (arr) => Object.fromEntries(arr.map((x) => [x.id, x]));
+const I = by(DB.items), R = by(DB.recipes), P = by(DB.producers), S = by(DB.stalls), T = by(DB.slotTypes), M = by(DB.mills);
+const U = by(DB.upgrades), PR = by(DB.props), CU = by(DB.cuisines);
+const seasonName = (i) => DB.seasons[i] ? DB.seasons[i].icon + ' ' + DB.seasons[i].name : '?';
+const xu = (n) => (n == null ? '—' : `${Math.round(n).toLocaleString('vi-VN')} xu`);
+const num = (n, d = 1) => (n == null ? '—' : (Math.round(n * 10 ** d) / 10 ** d).toLocaleString('vi-VN'));
+const s = (n) => (n == null ? '—' : `${num(n)} s`);
+const mins = (secs) => (secs == null ? '—' : secs >= 90 ? `${num(secs / 60)} phút` : `${num(secs)} s`);
+const days = (d) => (d == null ? '—' : `${num(d)} ngày`);
+const pct = (x) => `${x >= 1 ? '+' : ''}${Math.round((x - 1) * 100)}%`;
+const signed = (n) => `<span class="${n >= 0 ? 'pos' : 'neg'}">${n >= 0 ? '+' : ''}${Math.round(n).toLocaleString('vi-VN')}</span>`;
+const MOD = { cookSpeed: 'Nấu nhanh', patience: 'Kiên nhẫn', tip: 'Tip', spawnRate: 'Lượng khách', growSpeed: 'Cây lớn nhanh', dishPrice: 'Giá món' };
+const mods = (m) => (m ? Object.entries(m).map(([k, v]) => `<span class="tag acc">${MOD[k] ?? k} ${pct(v)}</span>`).join('') : '');
+const ref = (kind, id, map) => { const x = map[id]; return x ? `<a class="ref" href="#${kind}-${id}" data-go>${x.icon ?? ''} ${esc(x.name)}</a>` : esc(id); };
+const item = (id) => ref('item', id, I);
+const recipe = (id) => ref('recipe', id, R);
+const producer = (id) => ref('prod', id, P);
+const stall = (id) => ref('stall', id, S);
+const stack = (st) => `${item(st.item)}${st.qty !== 1 ? ` ×${st.qty}` : ''}`;
+const reward = (r) => [r.money ? xu(r.money) : '', r.xp ? `${r.xp} XP` : ''].filter(Boolean).join(' · ');
+const cuisineTag = (id) => (id && CU[id] ? `<span class="tag">${CU[id].flag} ${esc(CU[id].country)}</span>` : '<span class="tag">Chung</span>');
+
+/**
+ * Bảng có sắp xếp: cols = [{ h, v(row) → HTML, sort?(row) → số/chuỗi, num? }].
+ * rowId(row) cho phép liên kết #id tới hàng.
+ */
+function table(rows, cols, rowId) {
+  if (!rows.length) return '<div class="wrap"><div class="empty">Chưa có.</div></div>';
+  const head = cols.map((c, i) => `<th data-i="${i}" class="${c.num ? 'num' : ''}">${c.h}</th>`).join('');
+  const body = rows.map((r) => {
+    const cells = cols.map((c) => {
+      const key = c.sort ? c.sort(r) : '';
+      return `<td class="${c.num ? 'num' : ''}" data-k="${esc(key)}">${c.v(r)}</td>`;
+    }).join('');
+    return `<tr${rowId ? ` id="${rowId(r)}"` : ''}>${cells}</tr>`;
+  }).join('');
+  return `<div class="wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+const card = (label, value) => `<div class="card"><b>${label}</b><div class="v">${value}</div></div>`;
+
+// ---------- các mục ----------
+const O = DB.overview;
+const SECTIONS = [];
+const sec = (id, title, html) => SECTIONS.push({ id, title, html });
+
+sec('tong-quan', '⏱️ Tổng quan', () => `
+  <p class="note">Mọi thời lượng ở sổ tay đã đổi sang <b>giây thực ở tốc độ x1</b> (1 giây thực = ${O.mps} phút game).</p>
+  <div class="grid">
+    ${card('Một ngày', `${O.open} → ${O.close} · ${O.dayRealMin} phút thực`)}
+    ${card('Một mùa', `${O.daysPerSeason} ngày · 4 mùa / năm`)}
+    ${card('Vốn đầu', `${xu(O.startMoney)} · uy tín ${O.startReputation}`)}
+    ${O.shifts.map((x, i) => card(`Ca ${i + 1}`, `Mở ${x.from} · ngưng nhận ${x.lastCall} · đóng ${x.to} · khách về hết ${x.kickOut}`)).join('')}
+    ${card('Khách tới', `trung bình mỗi ${s(O.spawnSec)} · lưu lượng ngày thường ×${O.traffic.normal.join('–')}, ngày lễ ×${O.traffic.festival.join('–')}`)}
+    ${card('Giờ đông', O.rushHours.map((r) => `${r.from}–${r.to} ×${r.factor}`).join(' · ') || '—')}
+    ${card('Cỡ nhóm khách (trọng số)', O.partySizeWeights.map((w, i) => (w ? `${i} người: ${w}` : '')).filter(Boolean).join(' · '))}
+    ${card('Thời gian ngồi ăn', O.eatTime.map((e) => `${e.size} người ${num(e.from, 0)}–${num(e.to, 0)} s`).join(' · '))}
+    ${card('Kiên nhẫn của khách', `xếp hàng ${s(O.patience.queue)} · chờ menu ${s(O.patience.menu)} · xem menu ${O.patience.browse.map((x) => num(x)).join('–')} s · chờ ghi món ${s(O.patience.order)} · chờ món ${s(O.patience.food)} (+${s(O.patience.perGuest)}/khách) · món ra quầy mà chưa bưng: tụt 1 bậc tâm trạng mỗi ${s(O.patience.moodStep)}`)}
+    ${card('Tip', `cơ bản ${Math.round(O.service.tipRate * 100)}% · theo tâm trạng 😄 ×${O.service.moodTip.join(' · ×')}`)}
+    ${card('Bồi bàn', `cầm tối đa ${O.service.carryMax} món · lau 1 vết bẩn ${s(O.service.mopSec)} · ${O.service.partyColors} màu bàn`)}
+    ${card('Uy tín', `trả tiền +${O.reputation.paid} (vui +${O.reputation.paidBonus}) · bỏ về ${O.reputation.timeout} · hết món ${O.reputation.noFood}`)}
+    ${card('Vết bẩn', `+${O.stains.perShift} vết / ca, tối đa ${O.stains.max}, mỗi bậc bẩn −${O.stains.patiencePerLevel} kiên nhẫn`)}
+    ${card('XP', `${O.xpPerCoin} XP mỗi xu doanh thu`)}
+    ${card('Năng lượng cả đội', `tối đa ${O.crew.maxEnergy} · nấu 1 món −${O.crew.chefPerDish} · phục vụ −${O.crew.waiterPerTask} · đồng áng −${O.crew.farmerPerTask} · xỉu thì bồi dưỡng ${xu(O.crew.reviveCost)}`)}
+    ${card('Giờ nghỉ', `đội quán về ${O.crew.lunchBack} · bác nông dân ${O.crew.farmerLunch.from}–${O.crew.farmerLunch.to} · ăn ${s(O.crew.eatSec)} · tối ăn ${s(O.crew.dinnerSec)} · nút "Kết thúc ngày" sau ${O.crew.endDayAfter}`)}
+    ${card('Nông trại', `tưới giữ ẩm ${mins(O.farm.waterSec)} · đất khô lớn ×${O.farm.dryGrowth} · bác chạy ${O.farm.farmerSpeed} m/phút game, làm 1 việc ${s(O.farm.farmerWorkSec)}`)}
+    ${card('Chợ', `giá dao động ×${O.market.swing.join('–')} mỗi ngày · nông sản đúng mùa ×${O.market.seasons.inSeasonPrice}, trái mùa ×${O.market.seasons.offSeasonPrice} · món hợp mùa ×${O.market.seasons.dishBonus}`)}
+    ${card('Đơn đặt hàng', `${O.contracts.perDay} đơn / ngày (+1 từ cấp ${O.contracts.extraAtLevel}) · hạn ${O.contracts.due} · thưởng giá gốc ×${O.contracts.rewardMul.join('–')} · bán hàng dư ×${O.contracts.sellRatio}`)}
+    ${card('Sự kiện ngẫu nhiên', `${Math.round(O.events.chance * 100)}% mỗi ngày, từ ngày ${O.events.fromDay}`)}
+    ${card('Khách quen', `${Math.round(O.regulars.chance * 100)}% nhóm mới · tim ở ${O.regulars.heartVisits.join(' / ')} lần ghé · tip +${Math.round(O.regulars.tipPerHeart * 100)}%/tim · tặng quà ở ${O.regulars.giftHearts} tim`)}
+    ${card('Bán lại đồ', `${Math.round(O.resellRate * 100)}% giá mua`)}
+  </div>`);
+
+sec('nguyen-lieu', '🥬 Nguyên liệu', () => `
+  <p class="note">Giá gốc là giá tham chiếu; ở chợ = giá gốc × hệ số sạp × dao động ngày × mùa. "Bán dư" = giá bán lại hàng thừa.</p>
+  ${table(DB.items, [
+    { h: 'Nguyên liệu', v: (i) => `<span class="ic">${i.icon}</span>${esc(i.name)}`, sort: (i) => i.name },
+    { h: 'Nhóm', v: (i) => esc(i.categoryName), sort: (i) => i.categoryName },
+    { h: 'Giá gốc', num: true, v: (i) => (i.infinite ? 'vô hạn' : xu(i.basePrice)), sort: (i) => i.basePrice },
+    { h: 'Bán dư', num: true, v: (i) => xu(i.sellPrice), sort: (i) => i.sellPrice ?? -1 },
+    { h: 'Mua ở', v: (i) => i.stalls.map((x) => `${stall(x.id)} <span class="tag">${xu(x.price)}</span>`).join('<br>') || '—' },
+    { h: 'Làm ra từ', v: (i) => [...i.producers.map(producer), ...i.mills.map((id) => `${M[id].icon} ${esc(M[id].name)}`)].join('<br>') || '—' },
+    { h: 'Dùng trong món', num: true, v: (i) => `<span title="${esc(i.recipes.map((id) => R[id].name).join(', '))}">${i.recipes.length}</span>`, sort: (i) => i.recipes.length },
+  ], (i) => `item-${i.id}`)}`);
+
+sec('mon-an', '🍜 Món ăn', () => {
+  const chips = ['all', ...DB.cuisines.map((c) => c.id)].map((id) => `<button data-cu="${id}" class="${id === 'all' ? 'on' : ''}">${id === 'all' ? 'Tất cả' : `${CU[id].flag} ${esc(CU[id].name)}`}</button>`).join('');
+  return `
+  <p class="note">Thời gian nấu = bếp trưởng chưa nâng cấp. Giá vốn tính theo sạp rẻ nhất (giá gốc × hệ số sạp), món của nông trại tính giá gốc. Lãi/s = (giá − vốn) ÷ thời gian nấu.</p>
+  <div class="chips" id="cuChips">${chips}</div>
+  ${table(DB.recipes, [
+    { h: 'Món', v: (r) => `<span class="ic">${r.icon}</span>${esc(r.name)}`, sort: (r) => r.name },
+    { h: 'Quán', v: (r) => cuisineTag(r.cuisine), sort: (r) => r.cuisine },
+    { h: 'Nguyên liệu', v: (r) => r.ingredients.map(stack).join(', ') },
+    { h: 'Nấu', num: true, v: (r) => s(r.cookSec), sort: (r) => r.cookSec },
+    { h: 'Giá', num: true, v: (r) => xu(r.price), sort: (r) => r.price },
+    { h: 'Vốn', num: true, v: (r) => xu(r.cost), sort: (r) => r.cost },
+    { h: 'Lãi', num: true, v: (r) => signed(r.profit), sort: (r) => r.profit },
+    { h: 'Lãi/s', num: true, v: (r) => num(r.profitPerSec), sort: (r) => r.profitPerSec },
+    { h: 'Mở khoá', num: true, v: (r) => (r.unlock.level <= 1 && !r.unlock.cost ? 'có sẵn' : `cấp ${r.unlock.level} · ${xu(r.unlock.cost)}`), sort: (r) => r.unlock.level * 1e5 + r.unlock.cost },
+    { h: 'Ưa chuộng', num: true, v: (r) => num(r.popularity ?? 1), sort: (r) => r.popularity ?? 1 },
+    { h: 'Hợp mùa', v: (r) => (r.seasons ? `${r.seasons.map(seasonName).join(', ')} <span class="tag">${xu(r.seasonPrice)}</span>` : '—'), sort: (r) => (r.seasons ? r.seasons[0] : 9) },
+  ], (r) => `recipe-${r.id}`)}`;
+});
+
+sec('nong-trai', '🌾 Nông trại', () => `
+  <h3>Giống cây & vật nuôi</h3>
+  <p class="note">Thời gian tính bằng NGÀY nông trại (cả ngày + qua đêm). Lớn = từ lúc gieo tới lúc thu đầu tiên (đất ẩm, chưa nâng cấp, ngoài trời; nhà kính nhanh hơn). Thu lại = mỗi lứa sau của loại thu nhiều lần. Lời vụ đầu = giá gốc sản lượng − giá giống.</p>
+  ${table(DB.producers, [
+    { h: 'Giống / con', v: (p) => `<span class="ic">${p.icon}</span>${esc(p.name)}`, sort: (p) => p.name },
+    { h: 'Ô', v: (p) => [p.slot, ...(p.alsoIn ?? [])].map((t) => `<a class="ref" href="#slot-${t}" data-go>${T[t].icon} ${esc(T[t].name)}</a>`).join('<br>'), sort: (p) => p.slot },
+    { h: 'Giá giống', num: true, v: (p) => xu(p.cost), sort: (p) => p.cost },
+    { h: 'Lớn', num: true, v: (p) => days(p.growDays), sort: (p) => p.growDays },
+    { h: 'Thu lại', num: true, v: (p) => (p.cycles === 1 ? '1 lần' : `${days(p.regrowDays)}${p.cycles === 'infinite' ? (p.diesInWinter ? ' · tới Đông' : ' · mãi') : ` · ${p.cycles} lần`}`), sort: (p) => (p.cycles === 1 ? 0 : p.regrowDays) },
+    { h: 'Sản lượng', v: (p) => p.yields.map(stack).join(', ') },
+    { h: 'Giá trị', num: true, v: (p) => xu(p.yieldValue), sort: (p) => p.yieldValue },
+    { h: 'Lời vụ đầu', num: true, v: (p) => signed(p.firstProfit), sort: (p) => p.firstProfit },
+    { h: 'Hoà vốn', num: true, v: (p) => (p.cycles === 1 || p.firstProfit >= 0 ? '—' : `sau ${Math.ceil(p.cost / p.yieldValue)} lần thu`), sort: (p) => (p.cycles === 1 || p.firstProfit >= 0 ? 0 : Math.ceil(p.cost / p.yieldValue)) },
+    { h: 'Cấp', num: true, v: (p) => p.level, sort: (p) => p.level },
+    { h: 'Mùa gieo', v: (p) => (p.seasons ? p.seasons.map(seasonName).join(', ') : 'quanh năm'), sort: (p) => (p.seasons ? p.seasons[0] : -1) },
+  ], (p) => `prod-${p.id}`)}
+  <h3>Loại ô</h3>
+  ${table(DB.slotTypes, [
+    { h: 'Loại ô', v: (t) => `<span class="ic">${t.icon}</span>${esc(t.name)}`, sort: (t) => t.name },
+    { h: 'Có sẵn / tối đa', num: true, v: (t) => `${t.initial} / ${t.max}${t.batch ? ` (mua lô ${t.batch})` : ''}`, sort: (t) => t.max },
+    { h: 'Giá mua thêm', v: (t) => (t.prices.length ? t.prices.slice(0, 6).map(xu).join(' → ') + (t.prices.length > 6 ? ' …' : '') : '—') },
+    { h: 'Cấp', num: true, v: (t) => t.level, sort: (t) => t.level },
+    { h: 'Chăm', v: (t) => [t.needsTilling && 'cuốc', t.needsWater && 'tưới', t.mill && 'tự động + cối', t.animals && 'vật nuôi', t.growMul && `lớn ×${t.growMul}`].filter(Boolean).map((x) => `<span class="tag">${x}</span>`).join('') },
+    { h: 'Nới rộng', v: (t) => (t.tiers ? t.tiers.map((x, i) => `bậc ${i + 2}: ${xu(x.cost)}, cấp ${x.level}, ×${x.yieldMul}`).join('<br>') : '—') },
+    { h: 'Trồng được', v: (t) => t.producers.map(producer).join(', ') },
+  ], (t) => `slot-${t.id}`)}
+  <h3>Cối chế biến</h3>
+  ${table(DB.mills, [
+    { h: 'Cối', v: (x) => `<span class="ic">${x.icon}</span>${esc(x.name)}` },
+    { h: 'Nhận', v: (x) => item(x.input) },
+    { h: 'Làm ra', v: (x) => x.products.map(item).join(', ') },
+    { h: '1 đơn vị', num: true, v: (x) => s(x.timeSec), sort: (x) => x.timeSec },
+    { h: 'Có sẵn / tối đa', num: true, v: (x) => `${x.initial} / ${x.max}` },
+    { h: 'Giá mua thêm', v: (x) => x.prices.map(xu).join(' → ') || '—' },
+    { h: 'Cấp', num: true, v: (x) => x.level, sort: (x) => x.level },
+  ], (x) => `mill-${x.id}`)}`);
+
+sec('cho', '🏪 Chợ', () => {
+  const goods = DB.stalls.filter((x) => !x.menu);
+  const food = DB.stalls.filter((x) => x.menu);
+  return `
+  <h3>Sạp nguyên liệu</h3>
+  <p class="note">Giá trong ngoặc = giá gốc × hệ số sạp (chưa tính dao động ngày và mùa).</p>
+  ${table(goods, [
+    { h: 'Sạp', v: (x) => `<span class="ic">${x.icon}</span>${esc(x.name)}`, sort: (x) => x.name },
+    { h: 'Hệ số giá', num: true, v: (x) => `×${x.markup}`, sort: (x) => x.markup },
+    { h: 'Kiểu', v: (x) => `<span class="tag">${x.kind ?? 'stall'}</span>${x.interior === 'tanks' ? '<span class="tag">bể nước</span>' : ''}` },
+    { h: 'Bán', v: (x) => x.goods.map((g) => `${item(g.id)} <span class="tag">${xu(g.price)}</span>`).join(' ') },
+  ], (x) => `stall-${x.id}`)}
+  <h3>Hàng rong & tiệm ăn (cho cả đội ăn giờ nghỉ)</h3>
+  ${table(food.flatMap((x) => x.menu.map((d) => ({ ...d, stall: x }))), [
+    { h: 'Món', v: (d) => `<span class="ic">${d.icon}</span>${esc(d.name)}`, sort: (d) => d.name },
+    { h: 'Hàng', v: (d) => `<span id="stall-${d.stall.id}">${d.stall.icon} ${esc(d.stall.name)}</span>`, sort: (d) => d.stall.name },
+    { h: 'Giá', num: true, v: (d) => xu(d.price), sort: (d) => d.price },
+    { h: '⚡ Năng lượng', num: true, v: (d) => `+${d.energy}`, sort: (d) => d.energy },
+    { h: '⚡ / xu', num: true, v: (d) => num(d.energy / d.price, 2), sort: (d) => d.energy / d.price },
+  ])}`;
+});
+
+sec('quan', '🏠 Quán', () => `
+  <h3>Hạng quán</h3>
+  ${table(DB.roomTiers, [
+    { h: 'Hạng', v: (t) => `<span class="ic">${t.icon}</span>${esc(t.name)}`, sort: (t) => t.id },
+    { h: 'Giá', num: true, v: (t) => xu(t.cost), sort: (t) => t.cost },
+    { h: 'Cấp', num: true, v: (t) => t.level, sort: (t) => t.level },
+    { h: 'Mô tả', v: (t) => esc(t.desc) + ' ' + mods(t.modifiers) },
+  ])}
+  <h3>Hạng bếp</h3>
+  <p class="note">Thuê thêm một đầu bếp: ${xu(DB.chefHireCost)}.</p>
+  ${table(DB.kitchenTiers, [
+    { h: 'Bếp', v: (t) => `<span class="ic">${t.icon}</span>${esc(t.name)}`, sort: (t) => t.id },
+    { h: 'Giá', num: true, v: (t) => xu(t.cost), sort: (t) => t.cost },
+    { h: 'Cấp', num: true, v: (t) => t.level, sort: (t) => t.level },
+    { h: 'Đầu bếp', num: true, v: (t) => t.chefs, sort: (t) => t.chefs },
+    { h: 'Chỗ quầy line', num: true, v: (t) => t.passSlots, sort: (t) => t.passSlots },
+    { h: '+ Phục vụ', num: true, v: (t) => t.helpers, sort: (t) => t.helpers },
+    { h: 'Mô tả', v: (t) => esc(t.desc) },
+  ])}
+  <h3>Đầu bếp</h3>
+  ${table(DB.staff, [
+    { h: 'Người', v: (x) => `<span class="ic">${x.icon}</span>${esc(x.name)}` },
+    { h: 'Tốc độ', num: true, v: (x) => `×${x.speed}`, sort: (x) => x.speed },
+    { h: 'Có sẵn', v: (x) => (x.hire ? 'thuê thêm' : 'có sẵn') },
+  ])}
+  <h3>Trang thiết bị (nâng cấp)</h3>
+  ${table(DB.upgrades, [
+    { h: 'Nâng cấp', v: (u) => `<span class="ic">${u.icon}</span>${esc(u.name)}`, sort: (u) => u.name },
+    { h: 'Giá', num: true, v: (u) => xu(u.cost), sort: (u) => u.cost },
+    { h: 'Cấp', num: true, v: (u) => u.level, sort: (u) => u.level },
+    { h: 'Cần trước', v: (u) => (u.requires ? `${U[u.requires].icon} ${esc(U[u.requires].name)}` : '—') },
+    { h: 'Hiệu ứng', v: (u) => mods(u.modifiers) || esc(u.desc) },
+  ], (u) => `upg-${u.id}`)}
+  <h3>Bàn</h3>
+  ${table(DB.tables, [
+    { h: 'Bàn', v: (t) => esc(t.name) },
+    { h: 'Ghế', num: true, v: (t) => t.seats, sort: (t) => t.seats },
+    { h: 'Ghi chú', v: (t) => [t.shared && 'ghế dùng chung', t.fixed && 'cố định', t.requiresUpgrade && `cần ${U[t.requiresUpgrade]?.name ?? t.requiresUpgrade}`].filter(Boolean).map((x) => `<span class="tag">${esc(x)}</span>`).join('') || '—' },
+  ])}
+  <h3>Bàn mua thêm</h3>
+  ${table(DB.tableKinds, [
+    { h: 'Loại bàn', v: (t) => `<span class="ic">${t.icon}</span>${esc(t.name)}` },
+    { h: 'Ghế', num: true, v: (t) => t.seats, sort: (t) => t.seats },
+    { h: 'Giá', num: true, v: (t) => xu(t.cost), sort: (t) => t.cost },
+    { h: 'Cấp', num: true, v: (t) => t.level, sort: (t) => t.level },
+  ])}
+  <h3>Nội thất (sàn, tường, bàn ghế)</h3>
+  ${table(DB.decor, [
+    { h: 'Nội thất', v: (d) => `<span class="ic">${d.icon}</span>${esc(d.name)}`, sort: (d) => d.name },
+    { h: 'Loại', v: (d) => esc(d.slotName), sort: (d) => d.slot },
+    { h: 'Quán', v: (d) => cuisineTag(d.cuisine), sort: (d) => d.cuisine ?? '' },
+    { h: 'Giá', num: true, v: (d) => (d.isDefault ? 'mặc định' : xu(d.cost)), sort: (d) => d.cost },
+    { h: 'Cấp', num: true, v: (d) => d.level, sort: (d) => d.level },
+    { h: 'Hiệu ứng', v: (d) => mods(d.modifiers) || '—' },
+  ])}
+  <h3>Đồ trang trí</h3>
+  ${table(DB.props, [
+    { h: 'Đồ', v: (p) => `<span class="ic">${p.icon}</span>${esc(p.name)}`, sort: (p) => p.name },
+    { h: 'Quán', v: (p) => cuisineTag(p.cuisine), sort: (p) => p.cuisine ?? '' },
+    { h: 'Giá', num: true, v: (p) => (p.giftOnly ? 'quà khách quen' : xu(p.cost)), sort: (p) => (p.giftOnly ? 1e9 : p.cost) },
+    { h: 'Cấp', num: true, v: (p) => p.level, sort: (p) => p.level },
+    { h: 'Hiệu ứng', v: (p) => mods(p.modifiers) || '—' },
+  ], (p) => `prop-${p.id}`)}
+  <h3>Thú cưng</h3>
+  ${table(DB.pets, [
+    { h: 'Thú cưng', v: (p) => `<span class="ic">${p.icon}</span>${esc(p.name)}` },
+    { h: 'Giá', num: true, v: (p) => xu(p.cost), sort: (p) => p.cost },
+    { h: 'Cấp', num: true, v: (p) => p.level, sort: (p) => p.level },
+    { h: 'Hiệu ứng', v: (p) => mods(p.modifiers) || esc(p.desc) },
+  ])}`);
+
+sec('nhan-su', '🧑‍🌾 Nhân sự & nông cụ', () => {
+  const g = DB.gardeners;
+  return `
+  <div class="grid">
+    ${card('Người làm vườn', `thuê ${xu(g.hireCost)} · chỗ mở ở cấp ${g.levels.join(' / ')} · đi ${g.speed} m/phút game · làm 1 việc ${s(g.workSec)}`)}
+    ${card('Tên người làm vườn', esc(g.names.join(', ')))}
+    ${card('Nhân viên phục vụ', `thuê ${xu(DB.helpers.hireCost)} · ${esc(DB.helpers.names.join(', '))}`)}
+  </div>
+  <h3>Việc giao cho người làm vườn</h3>
+  ${table(g.jobs, [
+    { h: 'Việc', v: (j) => `<span class="ic">${j.icon}</span>${esc(j.name)}` },
+    { h: 'Làm gì', v: (j) => esc(j.desc) },
+  ])}
+  <h3>Dụng cụ nông trại</h3>
+  ${table(DB.tools, [
+    { h: 'Dụng cụ', v: (t) => `<span class="ic">${t.icon}</span>${esc(t.name)}` },
+    { h: 'Giá', num: true, v: (t) => xu(t.cost), sort: (t) => t.cost },
+    { h: 'Cấp', num: true, v: (t) => t.level, sort: (t) => t.level },
+    { h: 'Hiệu ứng', v: (t) => esc(t.desc) },
+  ])}`;
+});
+
+sec('khach-quen', '💛 Khách quen', () => table(DB.regulars, [
+  { h: 'Khách', v: (r) => `<span class="ic">${r.icon}</span>${esc(r.name)}`, sort: (r) => r.name },
+  { h: 'Giới thiệu', v: (r) => esc(r.bio) },
+  { h: 'Món ruột', v: (r) => Object.entries(r.favorites).map(([cu, id]) => `${CU[cu]?.flag ?? ''} ${recipe(id)}`).join('<br>') },
+  { h: 'Bắt đầu ghé', num: true, v: (r) => `cấp ${r.unlock.level} · uy tín ${r.unlock.reputation}`, sort: (r) => r.unlock.level * 100 + r.unlock.reputation },
+  { h: 'Quà tặng', v: (r) => ref('prop', r.gift, PR) },
+]));
+
+const GOAL = { serve: 'Phục vụ', happy: 'Khách vui (tip)', harvest: 'Thu hoạch', produce: 'Cối làm ra', unlock: 'Mở món', revenue: 'Doanh thu', reputation: 'Uy tín', contract: 'Giao đơn', level: 'Cấp', tier: 'Hạng quán', kitchen: 'Hạng bếp', gardener: 'Người làm vườn', tool: 'Dụng cụ', day: 'Ngày', recipes: 'Số món đã mở' };
+sec('nhiem-vu', '📜 Nhiệm vụ & thành tựu', () => `
+  <h3>Chuỗi nhiệm vụ (làm lần lượt)</h3>
+  ${table(DB.quests.map((q, i) => ({ ...q, n: i + 1 })), [
+    { h: '#', num: true, v: (q) => q.n, sort: (q) => q.n },
+    { h: 'Chương', v: (q) => `${q.chapter}. ${esc(DB.questChapters[q.chapter - 1] ?? '')}`, sort: (q) => q.chapter },
+    { h: 'Nhiệm vụ', v: (q) => `<span class="ic">${q.icon}</span>${esc(q.title)}`, sort: (q) => q.title },
+    { h: 'Mục tiêu', v: (q) => `${esc(q.desc)} <span class="tag">${GOAL[q.goal.kind] ?? q.goal.kind} ${q.goal.target.toLocaleString('vi-VN')}</span>` },
+    { h: 'Thưởng', num: true, v: (q) => reward(q.reward), sort: (q) => q.reward.money ?? 0 },
+  ])}
+  <h3>Sổ thành tựu</h3>
+  ${table(DB.achievements, [
+    { h: 'Thành tựu', v: (a) => `<span class="ic">${a.icon}</span>${esc(a.name)}`, sort: (a) => a.name },
+    { h: 'Điều kiện', v: (a) => esc(a.desc) },
+    { h: 'Chỉ số', v: (a) => `<span class="tag">${GOAL[a.stat] ?? a.stat}</span>`, sort: (a) => a.stat },
+    { h: 'Mốc', num: true, v: (a) => a.target.toLocaleString('vi-VN'), sort: (a) => a.target },
+    { h: 'Thưởng', num: true, v: (a) => reward(a.reward), sort: (a) => a.reward.money ?? 0 },
+  ])}`);
+
+sec('lich', '🗓️ Mùa, lễ hội, thời tiết, sự kiện', () => `
+  <h3>Mùa</h3>
+  <div class="grid">${DB.seasons.map((x, i) => card(`Mùa ${i + 1}`, `${x.icon} ${esc(x.name)} · ngày ${i * O.daysPerSeason + 1}–${(i + 1) * O.daysPerSeason}${x.frozen ? ' · đất ngoài trời đóng băng' : ''}`)).join('')}</div>
+  <h3>Lễ hội</h3>
+  ${table(DB.festivals, [
+    { h: 'Lễ', v: (f) => `<span class="ic">${f.icon}</span>${esc(f.name)}` },
+    { h: 'Ngày', num: true, v: (f) => `${seasonName(f.season)} ngày ${f.day} (ngày ${f.season * O.daysPerSeason + f.day} của năm)`, sort: (f) => f.season * 100 + f.day },
+    { h: 'Hiệu ứng', v: (f) => mods(f.effects) + (f.gift ? `<span class="tag">lì xì ${xu(f.gift)}</span>` : '') },
+    { h: 'Mô tả', v: (f) => esc(f.desc) },
+  ])}
+  <h3>Thời tiết</h3>
+  ${table(DB.weathers, [
+    { h: 'Trời', v: (w) => `<span class="ic">${w.icon}</span>${esc(w.name)}` },
+    { h: 'Trọng số Xuân · Hạ · Thu · Đông', num: true, v: (w) => (w.seasonWeights ?? [w.weight, w.weight, w.weight, w.weight]).join(' · ') },
+    { h: 'Kéo dài', num: true, v: (w) => `${mins(w.durationSec[0])} – ${mins(w.durationSec[1])}`, sort: (w) => w.durationSec[0] },
+    { h: 'Hiệu ứng', v: (w) => mods(w.effects) + (w.wetsSoil ? '<span class="tag">tự tưới</span>' : '') + (w.dryRate ? `<span class="tag">đất khô ×${w.dryRate}</span>` : '') + (w.damage ? `<span class="tag">dập cây ${Math.round(w.damage * 100)}%</span>` : '') || '—' },
+  ])}
+  <h3>Sự kiện ngẫu nhiên</h3>
+  ${table(DB.events, [
+    { h: 'Sự kiện', v: (e) => `<span class="ic">${e.icon}</span>${esc(e.name)}` },
+    { h: 'Trọng số', num: true, v: (e) => e.weight, sort: (e) => e.weight },
+    { h: 'Kéo dài', num: true, v: (e) => (e.duration ? mins(e.duration / O.mps) : '—') },
+    { h: 'Hiệu ứng / thưởng phạt', v: (e) => mods(e.effects) + (e.reward ? `<span class="tag">thưởng ${xu(e.reward.money)}, uy tín +${e.reward.rep}</span>` : '') + (e.penalty ? `<span class="tag">phạt ${xu(e.penalty.money)}${e.penalty.max ? ` × tối đa ${e.penalty.max}` : ''}, uy tín −${e.penalty.rep}</span>` : '') },
+    { h: 'Lời báo', v: (e) => esc(e.start) },
+  ])}`);
+
+// ---------- dựng trang ----------
+$('#gen').textContent = `Sinh từ src/data lúc ${new Date(DB.generated).toLocaleString('vi-VN')}`;
+$('#nav').innerHTML = SECTIONS.map((x) => `<a href="#${x.id}">${x.title}</a>`).join('');
+$('#main').innerHTML = SECTIONS.map((x) => `<section id="${x.id}"><h2>${x.title}</h2>${x.html()}</section>`).join('');
+
+// Sắp xếp theo cột
+document.addEventListener('click', (e) => {
+  const th = e.target.closest('th');
+  if (!th) return;
+  const tbody = th.closest('table').tBodies[0];
+  const i = +th.dataset.i;
+  const dir = th.dataset.dir === 'asc' ? 'desc' : 'asc';
+  th.parentElement.querySelectorAll('th').forEach((x) => delete x.dataset.dir);
+  th.dataset.dir = dir;
+  const key = (tr) => { const td = tr.cells[i]; return td.dataset.k !== '' ? td.dataset.k : td.textContent.trim(); };
+  const rows = [...tbody.rows];
+  rows.sort((a, b) => {
+    const x = key(a), y = key(b), nx = Number(x), ny = Number(y);
+    const c = !isNaN(nx) && !isNaN(ny) && x !== '' && y !== '' ? nx - ny : x.localeCompare(y, 'vi');
+    return dir === 'asc' ? c : -c;
+  });
+  rows.forEach((r) => tbody.appendChild(r));
+});
+
+// Lọc món theo quán
+let cuisine = 'all';
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-cu]');
+  if (!b) return;
+  cuisine = b.dataset.cu;
+  b.parentElement.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+  applyFilter();
+});
+
+// Tìm kiếm: ẩn hàng không khớp, ẩn bảng / mục trống
+const norm = (t) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+document.querySelectorAll('tbody tr').forEach((tr) => (tr.dataset.t = norm(tr.textContent)));
+function applyFilter() {
+  const words = norm($('#q').value.trim()).split(/\s+/).filter(Boolean);
+  for (const tr of document.querySelectorAll('tbody tr')) {
+    const inCu = cuisine === 'all' || !tr.id.startsWith('recipe-') || R[tr.id.slice(7)].cuisine === cuisine;
+    tr.classList.toggle('hidden', !inCu || !words.every((w) => tr.dataset.t.includes(w)));
+  }
+  for (const sec of document.querySelectorAll('section')) {
+    let any = false;
+    for (const wrap of sec.querySelectorAll('.wrap')) {
+      const rows = wrap.querySelectorAll('tbody tr');
+      const vis = [...rows].some((r) => !r.classList.contains('hidden'));
+      const h3 = wrap.previousElementSibling?.matches('.note') ? wrap.previousElementSibling.previousElementSibling : wrap.previousElementSibling;
+      const show = !words.length || vis;
+      wrap.classList.toggle('hidden', !show);
+      if (h3?.tagName === 'H3') h3.classList.toggle('hidden', !show);
+      any ||= vis;
+    }
+    sec.querySelectorAll('.grid').forEach((g) => g.classList.toggle('hidden', !!words.length));
+    sec.classList.toggle('hidden', !!words.length && !any);
+  }
+}
+$('#q').addEventListener('input', applyFilter);
+
+// Bấm liên kết chéo khi đang lọc: bỏ lọc rồi nhảy tới hàng
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-go]');
+  if (!a) return;
+  if ($('#q').value || cuisine !== 'all') {
+    $('#q').value = '';
+    cuisine = 'all';
+    document.querySelectorAll('#cuChips button').forEach((x) => x.classList.toggle('on', x.dataset.cu === 'all'));
+    applyFilter();
+  }
+  const row = document.getElementById(a.getAttribute('href').slice(1));
+  if (row) { row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 1600); }
+});
+
+// Mục đang xem trên thanh điều hướng
+const io = new IntersectionObserver((es) => {
+  for (const x of es) if (x.isIntersecting) document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + x.target.id));
+}, { rootMargin: '-130px 0px -60% 0px' });
+document.querySelectorAll('section').forEach((x) => io.observe(x));
+
+// Sáng / tối
+try { const t = localStorage.getItem('sotay-theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+$('#theme').addEventListener('click', () => {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('sotay-theme', document.documentElement.dataset.theme); } catch {}
+});
+</script>
+</body>
+</html>

@@ -2844,3 +2844,162 @@ button.service-card.pass-hint {
     left: 8px;
   }
 }
+
+/* ---------- Giai đoạn 12: bảng gọi món 2 cột (người 4/12 · thực đơn 8/12) ---------- */
+.meal-dialog {
+  width: min(960px, 96vw);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.meal-note {
+  margin: 0;
+}
+.meal-cols {
+  display: grid;
+  grid-template-columns: 4fr 8fr;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+}
+.meal-people {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 2px;
+}
+.meal-person {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  text-align: left;
+  background: var(--card);
+  border: 2px solid var(--line, #eadfca);
+  font: inherit;
+  color: inherit;
+}
+button.meal-person {
+  cursor: pointer;
+}
+button.meal-person.on {
+  color: var(--text);
+  border-color: var(--accent);
+  background: #fff3e6;
+  box-shadow: 0 3px 0 var(--accent-dark);
+}
+.meal-person.done {
+  opacity: 0.85;
+  background: #f2f9ec;
+  border-color: #cfe8bf;
+}
+.mp-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+.mp-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+.mp-main b {
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mp-main small {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mp-num {
+  font-weight: 700;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.mp-num small {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 11px;
+}
+.ebar {
+  position: relative;
+  display: block;
+  height: 9px;
+  border-radius: 999px;
+  background: #ece3d3;
+  overflow: hidden;
+}
+.ebar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  transition: width 0.45s cubic-bezier(0.34, 1.3, 0.64, 1), left 0.45s ease;
+}
+.ebar .now {
+  background: linear-gradient(90deg, #f6b73c, #f2d046);
+  border-radius: 999px 0 0 999px;
+}
+.ebar .add {
+  background: repeating-linear-gradient(135deg, #7cc96a 0 5px, #9bd98a 5px 10px);
+}
+.meal-right {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.meal-menus {
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 4px;
+}
+.meal-for {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 0 0 4px;
+}
+.meal-picked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.meal-menu {
+  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+}
+button.meal-dish {
+  padding: 5px 8px 5px 6px;
+}
+button.meal-dish b {
+  font-size: 12.5px;
+}
+.meal-empty {
+  margin: auto;
+  text-align: center;
+}
+.meal-dialog .dialog-foot {
+  position: static;
+}
+@media (max-height: 540px) {
+  .meal-dialog {
+    padding: 10px 12px;
+  }
+  .meal-person {
+    padding: 5px 8px;
+    gap: 6px;
+  }
+  .mp-icon {
+    font-size: 19px;
+  }
+}

@@ -6,7 +6,7 @@ import { gardenerOn, isAutoSlot, queuedKinds } from '../../sim/systems/farmer';
 import { canPlantNow, isFrozen, seasonNames, seasonOf } from '../../sim/calendar';
 import { millPrice, millsOfType } from '../../sim/systems/mills';
 import { bar, cmd, esc, ui } from '../dom';
-import { coins, duration } from '../format';
+import { coins, duration, farmTime } from '../format';
 import type { Panel, UiState } from './types';
 
 function yieldsText(game: Game, slot: FarmSlot, def: ProducerDef): string {
@@ -15,51 +15,21 @@ function yieldsText(game: Game, slot: FarmSlot, def: ProducerDef): string {
     .join(' ');
 }
 
-function slotCard(game: Game, slot: FarmSlot, uiState: UiState): string {
-  const { content, state, ctx } = game;
-  const type = content.slotTypes.get(slot.type);
-  const selected = uiState.selectedSlot === slot.id ? 'selected' : '';
-  const wet = type.needsWater && slot.wet > 0 ? 'wet' : '';
-  const tier = slot.tier > 1 ? `<span class="tier">Bậc ${slot.tier}</span>` : '';
-  // Ô đã giao việc cho bác nông dân: hiện dấu và không cho bấm lại việc đó
-  const queued: FarmerTaskKind[] = queuedKinds(ctx, slot.id).filter((k) => k !== 'visit');
-  const helper = gardenerOn(ctx, slot.id);
-  if (helper) queued.push(helper.task!.kind);
-  const coming = queued.length ? `<span class="coming" title="${helper ? `${esc(helper.name)} đang lo` : 'Bác nông dân đang tới'}">${helper ? '👩‍🌾' : '🧑‍🌾'}</span>` : '';
-
-  if (!slot.producerId) {
-    if (type.needsTilling && !slot.tilled && !queued.length) {
-      return `<div class="slot hard ${selected}" data-key="${slot.id}"${cmd({ type: 'farmer/do', kind: 'till', slotId: slot.id })}>
-        <span class="big">⛏️</span><b>Cuốc đất</b></div>`;
-    }
-    if (queued.length) {
-      return `<div class="slot hard ${selected}" data-key="${slot.id}"${ui(`slot:${slot.id}`)}>${coming}<span class="big">🧑‍🌾</span><b>Bác đang tới</b></div>`;
-    }
-    const last = slot.lastProducerId ? content.producers.get(slot.lastProducerId) : null;
-    const replant = last && canPlantNow(ctx, last, slot.type)
-      ? `<button class="mini"${cmd({ type: 'farmer/do', kind: 'plant', slotId: slot.id, producerId: last.id })}${state.money >= last.cost ? '' : ' disabled'} title="Trồng/nuôi lại ${esc(last.name)}">↻ ${last.icon}</button>`
-      : '';
-    return `<div class="slot empty ${wet} ${selected}" data-key="${slot.id}"${ui(`slot:${slot.id}`)}>${tier}<span class="muted">${type.needsTilling ? 'Sẵn sàng gieo' : 'Trống'}</span>${replant}</div>`;
-  }
-
-  const def = content.producers.get(slot.producerId);
-  if (slot.stage === 'ready') {
-    return `<div class="slot ready ${selected}" data-key="${slot.id}"${queued.length ? ui(`slot:${slot.id}`) : cmd({ type: 'farmer/do', kind: 'harvest', slotId: slot.id })}>
-      ${tier}${coming}<span class="big">${def.icon}</span><b>Thu ${yieldsText(game, slot, def)}</b></div>`;
-  }
-  const total = cycleTime(def, slot);
-  const water = queued.length
-    ? '<span class="muted">Bác đang tới</span>'
-    : needsWatering(ctx, slot)
-    ? `<button class="mini water"${cmd({ type: 'farmer/do', kind: 'water', slotId: slot.id })}>💧 Tưới</button>`
-    : `<span class="muted">${duration(total - slot.progress)}</span>`;
-  return `<div class="slot ${wet} ${selected}" data-key="${slot.id}"${ui(`slot:${slot.id}`)}>
-    ${tier}${coming}<span class="big">${def.icon}</span>${bar(slot.progress / total, 'green')}${water}</div>`;
+/** Số thứ tự ô trong loại của nó (1, 2, 3...) để người chơi biết đang xem ô nào. */
+function slotLabel(game: Game, slot: FarmSlot): string {
+  const type = game.content.slotTypes.get(slot.type);
+  const list = slotsOfType(game.ctx, slot.type);
+  return list.length > 1 ? `${type.name} số ${list.indexOf(slot) + 1}` : type.name;
 }
 
+/** Chi tiết ô đang chọn (bấm ô trên cảnh 3D): đang lớn → tiến độ, tưới, dọn; trống → chọn giống để gieo / nuôi. */
 function slotDetail(game: Game, slot: FarmSlot): string {
   const { content, state, ctx } = game;
   const type = content.slotTypes.get(slot.type);
+  const queued: FarmerTaskKind[] = queuedKinds(ctx, slot.id).filter((k) => k !== 'visit');
+  const helper = gardenerOn(ctx, slot.id);
+  const coming = queued.length || helper ? `<span class="muted">${helper ? `👩‍🌾 ${esc(helper.name)} đang lo` : '🧑‍🌾 Bác đang tới làm'}</span>` : '';
+  const head = `<div class="row slot-head"><b class="grow">${type.icon} ${esc(slotLabel(game, slot))}${slot.tier > 1 ? ` · bậc ${slot.tier}` : ''}</b>${coming}</div>`;
 
   // Nới rộng ô (vd ao cá)
   const next = nextTier(ctx, slot);
@@ -73,14 +43,22 @@ function slotDetail(game: Game, slot: FarmSlot): string {
     const def = content.producers.get(slot.producerId);
     const repeat = isAutoSlot(ctx, slot)
       ? `thu bằng máy cày, tự gieo lại và chở tới ${esc(content.mills.get(type.mill!).name.toLowerCase())}`
-      : def.cycles === 1 ? 'thu 1 lần' : `thu nhiều lần, mỗi ${duration(def.regrowTime ?? def.growTime)}`;
-    const moisture = type.needsWater ? ` · ${slot.wet > 0 ? `đất ẩm thêm ${duration(slot.wet)}` : 'đất khô, cây lớn chậm'}` : '';
-    return `<div class="card"><div class="row"><span class="big">${def.icon}</span>
-      <div class="grow"><b>${esc(def.name)}</b><div class="muted">Cho ${yieldsText(game, slot, def)} · ${repeat}${moisture}</div></div>
-      <button class="danger"${cmd({ type: 'farmer/do', kind: 'clear', slotId: slot.id })}>Dọn ô</button></div>${upgrade}</div>`;
+      : def.cycles === 1 ? 'thu 1 lần' : `thu nhiều lần, ${farmTime(def.regrowTime ?? def.growTime)} một lứa`;
+    const moisture = type.needsWater ? ` · ${slot.wet > 0 ? `đất ẩm thêm ${farmTime(slot.wet)}` : 'đất khô, cây lớn chậm'}` : '';
+    const total = cycleTime(def, slot);
+    const frozen = isFrozen(ctx, slot.type);
+    const status =
+      slot.stage === 'ready'
+        ? `<div class="row"><span class="grow">✅ Đã chín — thu được ${yieldsText(game, slot, def)}</span><button class="primary"${cmd({ type: 'farmer/do', kind: 'harvest', slotId: slot.id })}${queued.includes('harvest') ? ' disabled' : ''}>Thu hoạch</button></div>`
+        : `<div class="row"><div class="grow">${bar(slot.progress / total, 'green')}<div class="muted">${frozen ? '❄️ Đang nghỉ đông' : `còn ${farmTime(total - slot.progress)}`}</div></div>${
+            needsWatering(ctx, slot) && !frozen ? `<button class="water"${cmd({ type: 'farmer/do', kind: 'water', slotId: slot.id })}${queued.includes('water') ? ' disabled' : ''}>💧 Tưới</button>` : ''
+          }</div>`;
+    return `<div class="card">${head}<div class="row"><span class="big">${def.icon}</span>
+      <div class="grow"><b>${esc(def.name)}</b><div class="muted">Cho ${yieldsText(game, slot, def)} · ${repeat}${moisture}${def.diesInWinter ? ' · hết lứa khi sang mùa Đông' : ''}</div></div>
+      <button class="danger"${cmd({ type: 'farmer/do', kind: 'clear', slotId: slot.id })}>Dọn ô</button></div>${status}${upgrade}</div>`;
   }
   if (type.needsTilling && !slot.tilled) {
-    return `<div class="card"><div class="row"><span class="big">⛏️</span>
+    return `<div class="card">${head}<div class="row"><span class="big">⛏️</span>
       <div class="grow"><b>Đất chưa tơi xốp</b><div class="muted">Cuốc đất rồi mới gieo hạt được.</div></div>
       <button${cmd({ type: 'farmer/do', kind: 'till', slotId: slot.id })}>Cuốc đất</button></div></div>`;
   }
@@ -101,11 +79,12 @@ function slotDetail(game: Game, slot: FarmSlot): string {
         : `<button${cmd({ type: 'farmer/do', kind: 'plant', slotId: slot.id, producerId: p.id })}${levelOk && state.money >= p.cost ? '' : ' disabled'}>${levelOk ? coins(p.cost) : `🔒 Cấp ${p.level}`}</button>`;
       return `<div class="row${inSeason ? '' : ' off-season'}" data-key="${p.id}"><span class="big">${p.icon}</span>
         <div class="grow"><b>${esc(p.name)}</b> ${seasonTag}
-          <div class="muted">${duration(p.growTime)} → ${yieldsText(game, slot, p)}${p.cycles === 1 ? '' : ` mỗi ${duration(p.regrowTime ?? p.growTime)}`}</div></div>
+          <div class="muted">${farmTime(p.growTime)} → ${yieldsText(game, slot, p)}${p.cycles === 1 ? '' : `, rồi ${farmTime(p.regrowTime ?? p.growTime)} một lứa`}${p.diesInWinter ? ' · tới mùa Đông hết lứa' : ''}</div></div>
         ${btn}</div>`;
     })
     .join('');
-  return `<div class="card"><b>Chọn thứ để trồng / nuôi</b>${options}${upgrade}</div>`;
+  // Giống gieo lần trước lên đầu danh sách (trồng lại nhanh)
+  return `<div class="card">${head}<b>Chọn thứ để trồng / nuôi</b>${options}${upgrade}</div>`;
 }
 
 /** Một loại cối: danh sách cối (thành phẩm đang làm, hàng chờ xay) + nút mua thêm. */
@@ -154,8 +133,15 @@ function slotSection(game: Game, type: SlotTypeDef, uiState: UiState): string {
   const note = type.building
     ? '<p class="muted">Trong nhà kính: không cần cuốc, có tưới nhỏ giọt, cây lớn nhanh hơn 30%. Bấm vào nhà kính trên nông trại để vào trong.</p>'
     : type.mill ? `<p class="muted">Bấm thu hoạch là xong: bác lái máy cày thu, tự gieo lại và chở lúa tới ${esc(game.content.mills.get(type.mill).name.toLowerCase())}.</p>` : '';
-  return `<div class="row"><h3 class="grow">${type.icon} ${esc(type.name)} (${slots.length}/${type.max})</h3>${buy}</div>${note}
-    <div class="slots">${slots.map((s) => slotCard(game, s, uiState)).join('')}</div>${detail}`;
+  // Không còn lưới ô: người chơi bấm thẳng ô trên cảnh 3D (bảng tự hiện chi tiết ô đó). Ở đây chỉ tóm tắt số ô.
+  const n = (f: (s: FarmSlot) => boolean) => slots.filter(f).length;
+  const ready = n((s) => !!s.producerId && s.stage === 'ready');
+  const growing = n((s) => !!s.producerId && s.stage === 'growing');
+  const dry = n((s) => !!s.producerId && s.stage === 'growing' && needsWatering(ctx, s) && !isFrozen(ctx, s.type));
+  const empty = n((s) => !s.producerId);
+  const sum = [ready && `✅ ${ready} chín`, growing && `🌱 ${growing} đang lớn`, dry && `💧 ${dry} cần tưới`, empty && `${empty} ô trống`].filter(Boolean).join(' · ');
+  return `<div class="row"><h3 class="grow">${type.icon} ${esc(type.name)} (${slots.length}/${type.max})</h3>${buy}</div>${detail}
+    <p class="muted slot-sum">${sum || 'Chưa có ô nào'}</p>${note}`;
 }
 
 export const farmPanel: Panel = {
@@ -188,7 +174,7 @@ export const farmPanel: Panel = {
     const winter = seasonOf(ctx).frozen
       ? '<p class="winter-note">❄️ Mùa đông: đất ngoài trời đóng băng, chuồng và ao nghỉ — cây ngoài trời ngừng lớn tới mùa Xuân. Nhà kính vẫn trồng bình thường.</p>'
       : '';
-    return `${winter}${focusBar}${focus ? '' : '<p class="muted">Ruộng: cuốc đất → gieo → tưới (trời mưa khỏi tưới) → thu. Ruộng lúa thu tự động bằng máy cày. Qua đêm nông trại và cối vẫn chạy.</p>'}
+    return `${winter}${focusBar}${focus ? '' : '<p class="muted">👆 Bấm thẳng vào ô trên nông trại để cuốc, gieo, tưới, thu. Cây lớn tính bằng ngày (qua đêm vẫn lớn); tưới một lần ẩm cả ngày, trời mưa khỏi tưới. Ruộng lúa thu tự động bằng máy cày.</p>'}
       <div class="row farmer-status">${farmer}<button class="mini"${ui('drawer:farmhands')}>🧰 Nhà nông${state.farm.gardeners.length ? ` · ${state.farm.gardeners.length} 👩‍🌾` : ''}</button></div>
       <div class="row"><span class="grow"></span>
         <button${cmd({ type: 'farmer/doAll', kind: 'water' })}${anyDry ? '' : ' disabled'}>💧 Tưới hết</button>

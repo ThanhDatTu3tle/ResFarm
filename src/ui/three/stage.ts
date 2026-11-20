@@ -69,6 +69,8 @@ export interface Area {
   rainBox: { min: V3; max: V3 };
   /** Khu ngoài trời: có vệt gió bay ngang khi trời gió. */
   outdoor?: boolean;
+  /** Ban đêm tối thêm bao nhiêu (0..1) khi đang xem khu này — quán vỉa hè về đêm chỉ còn đèn vàng, lửa than. */
+  nightDark?: number;
   /** Đồng bộ hình ảnh với game.state. dt: giây thực; speed: tốc độ game. */
   update(env: Env, dt: number, speed: number): void;
 }
@@ -510,6 +512,10 @@ export class Stage {
     this.hemi.intensity = 0.6 + (0.9 + 0.8 * env.noon) * env.day * (1 - 0.35 * env.dim);
     this.hemi.color.copy(SUN_NIGHT).lerp(new THREE.Color(0xffffff), env.day);
     this.sun.intensity = 0.5 + (1.15 + 1.9 * env.noon) * env.day * (1 - 0.6 * env.dim);
+    // Khu tối hơn về đêm (quán ốc vỉa hè): giảm ánh trời, để đèn trong khu tự chiếu sáng
+    const dark = (this.current.nightDark ?? 0) * env.night;
+    this.hemi.intensity *= 1 - dark;
+    this.sun.intensity *= 1 - dark * 0.9;
     this.sun.color.copy(SUN_NIGHT).lerp(SUN_DAY, env.day).lerp(SKY_DUSK, dusk * 0.5 + (1 - env.noon) * env.day * 0.3);
     // Ánh nắng theo mùa: Hạ vàng cam, Thu cam đậm, Đông trắng lạnh
     const [sunTint, sunK] = SEASON_SUN[env.season];

@@ -95,6 +95,17 @@ export const recipes: RecipeDef[] = [
   dish('kr', 'samgyeopsal', 'Ba chỉ nướng', '🥓', 'pork:2 cabbage', 30, 66, 4, 550),
   dish('kr', 'pajeon', 'Bánh xèo hải sản pajeon', '🥞', 'flour squid shrimp egg', 30, 80, 5, 900),
   dish('kr', 'galbijjim', 'Sườn bò om galbi-jjim', '🍖', 'beef:2 carrot potato soy_sauce', 40, 98, 5, 1100),
+
+  // ---------- 🐚 Quán Ốc (vỉa hè) ----------
+  dish('oc', 'tom_nuong', 'Tôm nướng', '🍤', 'shrimp:3 chili salt', 14, 44, 1, 0),
+  dish('oc', 'ngheu_hap_thai', 'Nghêu hấp thái', '🍲', 'ngheu:4 chili water', 16, 48, 1, 0),
+  dish('oc', 'hau_nuong_mo_hanh', 'Hàu nướng mỡ hành', '🦪', 'hau:3 scallion oil', 15, 58, 1, 0),
+  dish('oc', 'mi_xao_oc_mong_tay', 'Mì xào ốc móng tay', '🍝', 'wheat_noodle oc_mong_tay:2 cabbage oil', 22, 46, 2, 150),
+  dish('oc', 'oc_bu_nhoi_thit', 'Ốc bươu nhồi thịt', '🐌', 'oc_bu:3 pork onion', 30, 60, 2, 200),
+  dish('oc', 'so_diep_nuong_mo_hanh', 'Sò điệp nướng mỡ hành', '🐚', 'so_diep:3 scallion oil', 18, 66, 2, 250),
+  dish('oc', 'hau_nuong_pho_mai', 'Hàu nướng phô mai', '🧀', 'hau:3 cheese', 20, 66, 3, 300),
+  dish('oc', 'so_diep_nuong_pho_mai', 'Sò điệp nướng phô mai', '🧀', 'so_diep:3 cheese', 22, 74, 3, 350),
+  dish('oc', 'oc_huong_sot_pho_mai', 'Ốc hương sốt phô mai', '🐚', 'oc_huong:3 cheese milk', 28, 78, 4, 500),
 ];
 
 /**
@@ -117,5 +128,10 @@ const SEASONAL: Record<string, number[]> = {
   hwachae: [1], kr_fried_chicken: [1],
   samgyeopsal: [2], bulgogi: [2], galbijjim: [2],
   kimchi_stew: [3], sundubu: [3], ramyeon: [3],
+  // Quán Ốc
+  so_diep_nuong_mo_hanh: [0], mi_xao_oc_mong_tay: [0],
+  tom_nuong: [1], ngheu_hap_thai: [1], hau_nuong_mo_hanh: [1],
+  oc_bu_nhoi_thit: [2], so_diep_nuong_pho_mai: [2],
+  hau_nuong_pho_mai: [3], oc_huong_sot_pho_mai: [3],
 };
 for (const r of recipes) if (SEASONAL[r.id]) r.seasons = SEASONAL[r.id];
