@@ -9,6 +9,8 @@ import type { Game } from '../sim/game';
 import { xpForLevel } from '../sim/helpers';
 import { cmd, esc, ui as uiAttr } from './dom';
 import { currentQuest } from '../sim/systems/quests';
+import { questChapters } from '../data/quests';
+import { mealCoachTip } from './coach';
 import { acceptingGuests, inShift } from '../sim/systems/customers';
 import { billDue, billTotal, crewMembers, mealBudget } from '../sim/systems/crew';
 import { priceOf } from '../sim/systems/market';
@@ -53,6 +55,7 @@ function dayDial(minute: number): string {
 
 /** Thẻ nhiệm vụ hệ thống dưới tiền / uy tín: nhiệm vụ đang làm + tiến độ; xong thì nút "Nhận thưởng". */
 function questCard(game: Game): string {
+  if (game.state.tutorial) return ''; // ngày hướng dẫn: thẻ chỉ dẫn nằm ở chỗ này
   const def = currentQuest(game.ctx);
   const total = game.content.quests.length;
   const q = game.state.quests;
@@ -61,6 +64,7 @@ function questCard(game: Game): string {
   const pct = Math.round((q.progress / def.goal.target) * 100);
   const reward = [def.reward.money ? coins(def.reward.money) : '', def.reward.xp ? `${def.reward.xp} XP` : ''].filter(Boolean).join(' · ');
   return `<div class="quest${q.done ? ' done' : ''}" data-key="quest"${uiAttr('quest')} title="Bấm để xem chi tiết nhiệm vụ">
+    <div class="quest-chapter">Chương ${def.chapter}: ${esc(questChapters[def.chapter - 1] ?? '')}</div>
     <div class="quest-head"><span class="quest-icon">${def.icon}</span><b>${esc(def.title)}</b><em>${q.index + 1}/${total}</em></div>
     <div class="quest-desc">${esc(def.desc)}</div>
     ${
@@ -145,7 +149,7 @@ export function moneyText(amount: number): string {
 }
 
 /** Bảng mở bằng nút tròn dọc bên phải dưới bánh răng (chỉ icon); các bảng còn lại nằm ở thanh dưới. */
-export const SIDE_PANELS = ['farm', 'restaurant', 'market', 'crew', 'shop'];
+export const SIDE_PANELS = ['farm', 'farmhands', 'restaurant', 'market', 'crew', 'shop', 'achievements'];
 
 function sideButtons(game: Game, ui: UiState): string {
   return SIDE_PANELS.map((id) => panels.find((p) => p.id === id)!)
@@ -156,7 +160,7 @@ function sideButtons(game: Game, ui: UiState): string {
     .join('');
 }
 
-/** Tổng kết mùa / năm ở màn hết ngày cuối mùa (ngày 28) — doanh thu, chi, lãi, khách. */
+/** Tổng kết mùa / năm ở màn hết ngày cuối mùa (ngày 14) — doanh thu, chi, lãi, khách. */
 export function periodSummaryHtml(game: Game): string {
   const { state } = game;
   const day = state.clock.day;
@@ -282,7 +286,7 @@ export function questHtml(game: Game, ui: UiState): string {
   const reward = (r: { money?: number; xp?: number }) => [r.money ? coins(r.money) : '', r.xp ? `${r.xp} XP` : ''].filter(Boolean).join(' · ');
   const current = def
     ? `<div class="quest-detail${q.done ? ' done' : ''}">
-        <div class="row"><span class="big">${def.icon}</span><div class="grow"><b>${esc(def.title)}</b><div class="muted">Nhiệm vụ ${q.index + 1}/${content.quests.length}</div></div></div>
+        <div class="row"><span class="big">${def.icon}</span><div class="grow"><b>${esc(def.title)}</b><div class="muted">Chương ${def.chapter}: ${esc(questChapters[def.chapter - 1] ?? '')} · nhiệm vụ ${q.index + 1}/${content.quests.length}</div></div></div>
         <p>${esc(def.desc)}</p>
         <div class="quest-bar big"><i style="width:${Math.round((q.progress / def.goal.target) * 100)}%"></i><span>${def.goal.kind === 'reputation' ? q.progress.toFixed(1) : Math.floor(q.progress)} / ${def.goal.target}</span></div>
         <div class="reward">🎁 Phần thưởng: <b>${reward(def.reward)}</b> <span class="muted">(không tính vào doanh thu ngày)</span></div>
@@ -292,7 +296,8 @@ export function questHtml(game: Game, ui: UiState): string {
   const list = content.quests
     .map((x, i) => {
       const st = i < q.index ? 'done' : i === q.index ? 'now' : 'next';
-      return `<li class="${st}"><span>${st === 'done' ? '✅' : x.icon}</span><div class="grow"><b>${esc(x.title)}</b><small>${esc(x.desc)}</small></div><em>${reward(x.reward)}</em></li>`;
+      const head = i === 0 || content.quests[i - 1].chapter !== x.chapter ? `<li class="chapter">📜 Chương ${x.chapter}: ${esc(questChapters[x.chapter - 1] ?? '')}</li>` : '';
+      return `${head}<li class="${st}"><span>${st === 'done' ? '✅' : x.icon}</span><div class="grow"><b>${esc(x.title)}</b><small>${esc(x.desc)}</small></div><em>${reward(x.reward)}</em></li>`;
     })
     .join('');
   return `<div class="backdrop" data-key="questdlg"${uiAttr('quest:close')}>
@@ -361,6 +366,7 @@ export function mealHtml(game: Game, ui: UiState): string {
   return `<div class="backdrop" data-key="meal"${uiAttr('meal:close')}>
     <div class="dialog meal-dialog" role="dialog" aria-label="Gọi món cho cả đội"${uiAttr('noop')}>
       <div class="dialog-head"><h2>🍜 Gọi món cho cả đội</h2><button class="x-close"${uiAttr('meal:close')} aria-label="Đóng">✕</button></div>
+      ${mealCoachTip(game)}
       <p class="muted">${
         pending.length
           ? `Chọn người rồi bấm món. Chưa chọn trước <b>${clockText(deadline!)}</b> thì mọi người tự chọn. Còn ${coins(budget)} cho bữa này.`

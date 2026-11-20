@@ -20,10 +20,16 @@ import { kitchenSystem } from './systems/kitchen';
 import { marketSystem } from './systems/market';
 import { progressionSystem } from './systems/progression';
 import { weatherSystem } from './systems/weather';
+import { tutorialFrozen, tutorialSystem } from './systems/tutorial';
+import { gardenerSystem } from './systems/gardeners';
+import { achievementSystem } from './systems/achievements';
 import { fail, ok, type Command, type CommandHandlers, type CommandResult, type SimContext, type SimEvents, type System } from './types';
 
 /** Thứ tự ở đây là thứ tự update mỗi bước. System mới thêm vào mảng này. */
-export const defaultSystems: System[] = [clockSystem, crewSystem, weatherSystem, festivalSystem, eventSystem, contractSystem, customerSystem, kitchenSystem, serviceSystem, farmSystem, farmerSystem, millSystem, marketSystem, progressionSystem, decorSystem, questSystem, homeSystem, helperSystem];
+export const defaultSystems: System[] = [clockSystem, crewSystem, weatherSystem, festivalSystem, eventSystem, contractSystem, customerSystem, kitchenSystem, serviceSystem, farmSystem, farmerSystem, millSystem, marketSystem, progressionSystem, decorSystem, questSystem, homeSystem, helperSystem, gardenerSystem, achievementSystem, tutorialSystem];
+
+/** System vẫn chạy khi ngày hướng dẫn dừng giờ (để bác nông dân đi gieo trồng theo hướng dẫn). */
+const FROZEN_OK = new Set(['farmer', 'gardeners', 'tutorial']);
 
 /** Bước mô phỏng tối đa (phút game) — giữ kết quả ổn định khi tua nhanh. */
 const MAX_STEP = 1;
@@ -43,11 +49,12 @@ export class Game {
 
   constructor(
     readonly content: Content,
-    options: { state?: GameState; seed?: number; cuisine?: CuisineId } = {},
+    options: { state?: GameState; seed?: number; cuisine?: CuisineId; tutorial?: boolean } = {},
     private systems: System[] = defaultSystems,
   ) {
     this.state = options.state ?? createInitialState(content, options.seed ?? Date.now(), options.cuisine);
     this.ctx = { state: this.state, content, bus: this.bus };
+    if (!options.state && options.tutorial) this.state.tutorial = { step: 'intro', recipe: null, item: null, served: 0 };
     for (const sys of systems) Object.assign(this.handlers, sys.commands);
     this.handlers['day/next'] = () => this.nextDay();
     if (!options.state) for (const sys of systems) sys.init?.(this.ctx);
@@ -59,7 +66,9 @@ export class Game {
     while (remaining > 0 && this.state.clock.phase !== 'summary') {
       const dt = Math.min(MAX_STEP, remaining);
       remaining -= dt;
-      for (const sys of this.systems) sys.update?.(this.ctx, dt);
+      // Ngày hướng dẫn đang dừng giờ: chỉ cho người đi lại ở nông trại (bác, người làm vườn) chạy tiếp
+      const frozen = tutorialFrozen(this.ctx);
+      for (const sys of this.systems) if (!frozen || FROZEN_OK.has(sys.id)) sys.update?.(this.ctx, dt);
     }
   }
 

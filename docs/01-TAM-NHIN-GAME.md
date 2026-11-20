@@ -153,6 +153,15 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** món dùng trái cây (Đĩa trái cây, Chè chuối, Sandwich trái cây, Trà trái cây hwachae); hàng rong mới bán nguyên liệu có sẵn với giá cao hơn 10%; nhóm 5–6 người chỉ tới khi có bàn đủ chỗ; khay 2 ô dành cho bàn đôi / quầy, 4 ô cho bàn từ 3 ghế; mỗi ca để lại 3 vết bẩn, vết cũ bẩn thêm, mỗi bậc bẩn làm khách kém kiên nhẫn 1.5% (tối đa −20%).
 
+### Giai đoạn 11 — Mùa 2 tuần, người làm vườn, dụng cụ, nhiệm vụ dài + thành tựu (21/11/2026)
+
+- Một năm hơi dài: rút mỗi mùa còn 14 ngày (2 tuần).
+- Đơn mang về và giao tận nơi: ý tưởng hay nhưng chưa cần, ghi lại để làm sau (roadmap).
+- Nông trại có người phụ việc: thuê người làm vườn, giao việc cho từng người; dụng cụ nâng cấp (bình tưới to tưới cả hàng, giày đi nhanh, máy cày nhanh hơn).
+- Nhiệm vụ dài hơi theo chương + sổ thành tựu có huy hiệu.
+
+**AI tự chọn (đổi được):** ngày lễ dời theo mùa 14 ngày (pháo hoa Hạ ngày 10, Trung thu Thu ngày 8, Giáng sinh Đông ngày 12, Tất niên Đông ngày 14); 3 người làm vườn, chỗ mở ở cấp 2 / 4 / 6, phí thuê 350 xu một lần (chưa có lương), không có năng lượng, nghỉ cùng giờ bác nông dân, đi chậm hơn bác (3.0 so với 3.7 m/phút) và làm lâu hơn (1.4 so với 1.1 phút); người làm vườn không đụng ruộng lúa (máy cày vẫn là việc của bác); 4 dụng cụ: liềm bén 300 xu cấp 2 (thu nhanh gấp đôi), bình tưới lớn 380 xu cấp 2, giày vải 450 xu cấp 3 (đi ×1.3), máy cày đời mới 900 xu cấp 4; 22 nhiệm vụ chia 4 chương (thêm 15 nhiệm vụ mới: lên cấp, giao đơn, thuê người làm vườn, sắm dụng cụ, nâng bếp / quán, thu hoạch, qua mùa, tròn năm...); 23 thành tựu (bậc đồng / bạc / vàng cho phục vụ, khách vui, thu hoạch, doanh thu...); bộ đếm thành tựu đếm từ lúc cập nhật (save cũ bắt đầu từ 0).
+
 ### Giai đoạn 9 — Bưng món theo màu bàn (20/11/2026)
 
 - Cơ chế kéo thả vào khay rối: bỏ. Nhân viên vẫn gửi menu, ghi món như cũ; bưng tối đa 2 món.
@@ -186,7 +195,7 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 - Thẻ nhiệm vụ nằm cạnh tiền và sao. Đồng xu luôn màu vàng.
 - 5 nút Nông trại, Quán, Chợ, Nhân viên, Siêu thị thành nút tròn chỉ có icon, xếp dọc dưới nút Cài đặt. Thanh dưới còn Khách quen, Thực đơn, Kho và 2 nút chuyển khu (đổi màu cho dễ phân biệt). Nút ✕ của các bảng to hơn.
 - Đồng hồ viết chữ rõ ràng: Thứ 2 Ngày 1, Mùa Xuân, Mở cửa / Nghỉ trưa / Đóng cửa.
-- Lịch như Stardew Valley: 4 mùa, mỗi mùa 28 ngày. Cuối mùa, cuối năm có tổng kết doanh thu.
+- Lịch như Stardew Valley: 4 mùa, mỗi mùa 28 ngày (giai đoạn 11 rút còn 14). Cuối mùa, cuối năm có tổng kết doanh thu.
 - Thời tiết bốn mùa: Xuân đẹp như cũ, Hạ tông vàng cam, Thu gió mạnh và cam nhiều hơn vàng, Đông tuyết rơi, mọi người quàng khăn. Mùa Đông không trồng trọt và chăn nuôi ngoài trời, sông hồ đóng băng; nhà kính vẫn trồng được.
 
 **AI tự chọn (đổi được):** mùa Đông cây ngoài trời đang trồng dở chỉ ngừng lớn (không chết), sang Xuân lớn tiếp; ruộng tự động không gieo lại giữa mùa Đông; thời tiết mùa Đông có "Tuyết rơi" thay cho mưa; tổng kết hiện ngay trên màn hết ngày 28 (không thêm màn riêng); save cũ bắt đầu đếm doanh thu mùa / năm từ lúc nâng cấp.
@@ -236,7 +245,7 @@ Những chỗ chủ dự án chưa nói rõ, mình chọn phương án đơn gi�
 | Chờ phục vụ | Chờ menu hoặc chờ ghi món ~64 giây thực thì bỏ về; bồi bàn đang tới thì khách không mất kiên nhẫn | `balance.service.menuPatience`, `orderPatience` |
 | Giao món | Hai bàn gọi cùng món thì món ra trước giao bàn nào cũng được (hai đơn đổi chủ); giao bàn không gọi món đó thì báo lỗi | `service.ts` (`service/deliver`) |
 | Bếp quá tải | Chờ món quá `foodPatience` (120 phút game, tăng từ 80 vì giờ có thêm thời gian bưng) thì bỏ về | `balance.foodPatience` |
-| Lịch | Ngày 1 = Thứ Hai mùng 1 Xuân năm 1; mùa 28 ngày; mới dùng để hiển thị | `data/calendar.ts`, `sim/calendar.ts` |
+| Lịch | Ngày 1 = Thứ Hai mùng 1 Xuân năm 1; mùa 14 ngày; mới dùng để hiển thị | `data/calendar.ts`, `sim/calendar.ts` |
 | Uy tín | 0–5 sao, ảnh hưởng lượng khách | `customers.ts`, `balance.reputation` |
 | Cấp độ | XP = nửa doanh thu món; cấp mở khoá món, giống, nội thất | `helpers.ts` (`xpForLevel`), `balance.xpPerCoin` |
 | Giá chợ | Dao động ±20–25% mỗi ngày theo từng mặt hàng | `balance.marketSwing` |

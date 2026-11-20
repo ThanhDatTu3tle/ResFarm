@@ -23,7 +23,7 @@ export interface ItemDef {
 }
 
 /** Loại mục tiêu nhiệm vụ hệ thống (xem src/data/quests.ts). */
-export type QuestGoalKind = 'serve' | 'happy' | 'harvest' | 'produce' | 'unlock' | 'revenue' | 'reputation';
+export type QuestGoalKind = 'serve' | 'happy' | 'harvest' | 'produce' | 'unlock' | 'revenue' | 'reputation' | 'contract' | 'level' | 'tier' | 'kitchen' | 'gardener' | 'tool' | 'day';
 
 /** Một nhiệm vụ hệ thống: làm lần lượt theo thứ tự trong danh sách. */
 export interface QuestDef {
@@ -34,6 +34,8 @@ export interface QuestDef {
   desc: string;
   goal: { kind: QuestGoalKind; target: number };
   reward: { money?: number; xp?: number };
+  /** Chương (1, 2, 3...) — tên chương ở `questChapters` (src/data/quests.ts). */
+  chapter: number;
 }
 
 /** Phong cách quán người chơi chọn lúc bắt đầu ván mới: quyết định thực đơn và nội thất. */
@@ -120,6 +122,8 @@ export interface SlotTypeDef {
   level: number;
   /** Đất phải được cuốc cho tơi xốp trước mỗi lần gieo. */
   needsTilling?: boolean;
+  /** Chuồng / ao: người làm vườn lo bằng việc "Chuồng, ao" (thu xong thả lại con giống cũ). */
+  animals?: boolean;
   /** Cần tưới (hoặc hứng mưa); đất khô thì cây lớn chậm. */
   needsWater?: boolean;
   /** Các bậc nới rộng ô: phần tử i là chi phí/điều kiện để lên bậc i + 2 và hệ số sản lượng ở bậc đó. */
@@ -192,6 +196,8 @@ export interface StallDef {
   items: string[];
   /** Bảng chân đứng nhỏ cạnh sạp (dòng chữ giới thiệu thêm), không có thì thôi. */
   standee?: string;
+  /** Kiểu bày hàng bên trong sạp: 'trays' khay trên quầy gỗ (mặc định), 'tanks' bể nước cho hải sản bơi (người bán đứng giữa). */
+  interior?: 'trays' | 'tanks';
   /**
    * Kiểu hàng quán (hình 3D): 'stall' sạp mái bạt trong dãy chợ (mặc định), 'kiosk' tiệm nhỏ trong dãy chợ,
    * 'cart' xe đẩy, 'pole' gánh hàng rong, 'bike' xe đạp bán dạo — ba kiểu sau đứng trên vỉa hè ở `spot`.
@@ -342,7 +348,10 @@ export interface Balance {
   queuePatience: number;
   foodPatience: number;
   foodPatiencePerGuest: number;
-  eatTime: number;
+  /** Thời gian ngồi ăn [ngắn nhất, dài nhất] theo số khách (phần tử i = nhóm i + 1 người). */
+  eatTime: [number, number][];
+  /** Lưu lượng khách theo ngày: hệ số ngẫu nhiên mỗi sáng (ngày thường / ngày lễ — nhân thêm với hiệu ứng lễ). */
+  traffic: { normal: [number, number]; festival: [number, number] };
   tipRate: number;
   xpPerCoin: number;
   reputation: { paid: number; paidBonus: number; timeout: number; noFood: number };
@@ -352,6 +361,8 @@ export interface Balance {
     waiterSpeed: number;
     /** Bồi bàn cầm tối đa bao nhiêu món một lượt. */
     carryMax: number;
+    /** Phút game đứng lau một vết bẩn. */
+    mopTime: number;
     /** Số màu bàn (bong bóng + món cùng màu) — khớp bảng màu trong UI. */
     partyColors: number;
     /** Khách xem menu mất bao lâu [min, max] (phút game). */
@@ -420,6 +431,8 @@ export interface Balance {
   resellRate: number;
   /** Nhân viên phục vụ thuê thêm: phí thuê, tên lần lượt. */
   helpers: { hireCost: number; names: string[] };
+  /** Người làm vườn: giá thuê, cấp mở từng chỗ (chỗ thứ i mở ở cấp levels[i]), tên, tốc độ (m/phút game), phút làm 1 việc, chỗ đứng chờ. */
+  gardeners: { hireCost: number; levels: number[]; names: string[]; speed: number; workTime: number; homes: { x: number; z: number }[] };
   /**
    * Cả đội (đầu bếp, bồi bàn, nhân viên thuê, bác nông dân): năng lượng tối đa, mỗi việc tốn bao nhiêu, bồi dưỡng khi xỉu;
    * giờ nghỉ: đội quán về lúc lunchBack, bác nông dân ra chợ farmerLunch.from và về farmerLunch.to; tối (sau ca cuối) ra chợ ăn dinnerMinutes phút.
@@ -444,7 +457,8 @@ export interface Balance {
   };
   /** Các ca mở cửa đón khách trong ngày (phút từ 00:00). Ngoài ca: không có khách mới (nghỉ trưa / đêm). */
   /** from: mở cửa · lastCall: ngưng nhận khách mới · to: đóng cửa (khách chưa gọi món thì về, cả đội ra chợ khi quán vắng). */
-  shifts: { from: number; lastCall: number; to: number }[];
+  /** to = giờ đóng cửa (khách chưa gọi món về); kickOut = giờ khách đang ăn / chờ món phải về hết. */
+  shifts: { from: number; lastCall: number; to: number; kickOut: number }[];
   /** Vết bẩn trên sàn: mỗi ca xong thêm perShift vết (vết cũ bẩn thêm 1 bậc), tối đa max; mỗi bậc bẩn bớt patiencePerLevel kiên nhẫn. */
   stains: { perShift: number; max: number; maxLevel: number; patiencePerLevel: number; minPatience: number };
 }

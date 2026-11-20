@@ -29,6 +29,11 @@ interface Prefs {
   sfx: boolean;
 }
 
+/** Âm lượng mặc định: tổng, hiệu ứng, nhạc nền (nhạc trước đây 0.22 — nhỏ quá trên máy tính). */
+const MASTER = 1;
+const SFX = 0.6;
+const MUSIC = 0.5;
+
 export class Sound {
   prefs: Prefs = { music: true, sfx: true };
   private ctx: AudioContext | null = null;
@@ -53,17 +58,29 @@ export class Sound {
   /** Gọi trong sự kiện thao tác của người chơi (pointerdown) để trình duyệt cho phép phát tiếng. */
   unlock(): void {
     if (this.ctx) {
-      if (this.ctx.state === 'suspended') void this.ctx.resume();
+      // iOS / Android có thể tạm dừng (hoặc 'interrupted') khi chuyển app, khoá màn hình: thao tác kế tiếp thì bật lại
+      if (this.ctx.state !== 'running') void this.ctx.resume();
       return;
     }
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctx) return;
     const ctx = (this.ctx = new Ctx());
+    // Âm lượng tổng to hơn; bộ nén chặn vỡ tiếng khi nhiều âm cùng lúc
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -10;
+    comp.ratio.value = 4;
+    comp.connect(ctx.destination);
     this.master = ctx.createGain();
-    this.master.gain.value = 0.8;
-    this.master.connect(ctx.destination);
-    this.sfxBus = this.bus(this.prefs.sfx ? 0.55 : 0);
-    this.musicBus = this.bus(this.prefs.music ? 0.22 : 0);
+    this.master.gain.value = MASTER;
+    this.master.connect(comp);
+    this.sfxBus = this.bus(this.prefs.sfx ? SFX : 0);
+    this.musicBus = this.bus(this.prefs.music ? MUSIC : 0);
+    // iOS Safari chỉ thật sự "mở tiếng" khi có một âm phát ra ngay trong thao tác chạm: phát một mẫu im lặng
+    const silent = ctx.createBufferSource();
+    silent.buffer = ctx.createBuffer(1, 1, 22050);
+    silent.connect(ctx.destination);
+    silent.start(0);
+    void ctx.resume();
 
     // Nhiễu trắng dùng chung (cuốc đất, tưới, mưa)
     this.noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
@@ -89,13 +106,13 @@ export class Sound {
   setMusic(on: boolean): void {
     this.prefs.music = on;
     this.savePrefs();
-    if (this.ctx) this.musicBus.gain.setTargetAtTime(on ? 0.22 : 0, this.ctx.currentTime, 0.3);
+    if (this.ctx) this.musicBus.gain.setTargetAtTime(on ? MUSIC : 0, this.ctx.currentTime, 0.3);
   }
 
   setSfx(on: boolean): void {
     this.prefs.sfx = on;
     this.savePrefs();
-    if (this.ctx) this.sfxBus.gain.setTargetAtTime(on ? 0.55 : 0, this.ctx.currentTime, 0.05);
+    if (this.ctx) this.sfxBus.gain.setTargetAtTime(on ? SFX : 0, this.ctx.currentTime, 0.05);
   }
 
   /** 0..1 — gọi mỗi khung hình với env.rain. */

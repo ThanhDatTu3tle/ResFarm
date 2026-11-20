@@ -1,4 +1,5 @@
 import type { RngState } from '../core/rng';
+import type { GardenerJob } from '../data/farmhands';
 import { defaultDecor, recipesFor, type Content, type CuisineId, type DecorSlot, type ItemStack, type MillType, type SlotType } from '../data';
 
 /**
@@ -26,9 +27,12 @@ export interface GameState {
   /** Nội thất đã mua và món đang dùng ở từng vị trí. */
   decor: { owned: string[]; equipped: Record<DecorSlot, string> };
   restaurant: RestaurantState;
-  farm: { slots: FarmSlot[]; farmer: FarmerState; mills: MillState[] };
+  /** tools: id dụng cụ đã sắm (src/data/farmhands.ts); gardeners: người làm vườn thuê thêm. */
+  farm: { slots: FarmSlot[]; farmer: FarmerState; mills: MillState[]; tools: string[]; gardeners: GardenerState[] };
   /** Nhiệm vụ hệ thống: đang làm nhiệm vụ thứ `index` (content.quests), tiến độ, đã đạt mục tiêu chưa (chờ nhận thưởng). */
   quests: { index: number; progress: number; done: boolean };
+  /** Sổ thành tựu: bộ đếm trọn ván (serve, happy, harvest, produce, contract), thành tựu đã đạt, đã nhận thưởng. */
+  achievements: { counts: Record<string, number>; done: string[]; claimed: string[] };
   /** Khách quen đã từng ghé (id RegularDef -> số lần, ngày ghé gần nhất, đã tặng quà chưa). Chưa ghé lần nào thì không có mục. */
   regulars: Record<string, RegularState>;
   /** Quán của riêng mình: tên quán, thú cưng đang nuôi và các con đã nhận nuôi. */
@@ -42,8 +46,29 @@ export interface GameState {
   contracts: Contract[];
   /** Sự kiện ngẫu nhiên hôm nay (null = không có). */
   event: EventState | null;
+  /** Lưu lượng khách hôm nay (hệ số nhân tốc độ khách tới, tung mỗi sáng — `balance.traffic`). */
+  traffic: number;
+  /** Ngày hướng dẫn (ngày 1 của ván mới chơi từ màn mở đầu); null = không có / đã xong. Xem systems/tutorial.ts. */
+  tutorial: TutorialState | null;
   /** season / year: cộng dồn từ đầu mùa / đầu năm (cộng lúc hết mỗi ngày) — để tổng kết mùa, năm. */
   stats: { today: DayStats; total: DayStats; season: DayStats; year: DayStats };
+}
+
+/**
+ * Các bước của ngày hướng dẫn:
+ * intro (dừng giờ) → serve (bưng món dễ) → hard (khách gọi món thiếu nguyên liệu) → market (dừng giờ: ra chợ mua)
+ * → cook (về quán nấu, bưng) → farm (dừng giờ: trồng rau, lúa mì, nuôi gà) → morning (tự do tới 12:00)
+ * → lunch (khách về hết, cả đội ra chợ ăn trưa) → done (lời chào, bấm xong là hết hướng dẫn).
+ */
+export type TutorialStep = 'intro' | 'serve' | 'hard' | 'market' | 'cook' | 'farm' | 'morning' | 'lunch' | 'done';
+
+export interface TutorialState {
+  step: TutorialStep;
+  /** Món khó khách gọi ở bước hard (thiếu nguyên liệu) và nguyên liệu phải ra chợ mua. */
+  recipe: string | null;
+  item: string | null;
+  /** Số khách đã phục vụ lúc bắt đầu bước hiện tại (để biết khách của bước này trả tiền chưa). */
+  served: number;
 }
 
 /** open: đang đón khách · closing: hết giờ, chờ khách cuối về · summary: tổng kết ngày, sim tạm dừng. */
@@ -88,6 +113,8 @@ export interface Party {
   vip?: string;
   /** Màu của bàn (chỉ số trong bảng màu UI), gán lúc gọi món: bong bóng của khách và món của bàn cùng màu. */
   color?: number;
+  /** Ngày hướng dẫn: món nhóm khách này nhất định gọi (id món) khi đủ nguyên liệu. */
+  want?: string;
 }
 
 /** Một đơn đặt hàng từ khách ngoài (systems/contracts.ts). */
@@ -228,6 +255,8 @@ export interface WaiterState extends Vitals {
   tasks: WaiterTask[];
   /** Các món đang bưng trên khay (id đơn), rỗng = tay không. */
   carrying: number[];
+  /** Phút còn lại của việc cần làm tại chỗ (lau sàn); không có = đang đi / việc làm ngay. */
+  work?: number;
 }
 
 /** Việc giao được cho nhân viên thuê: bưng món, mang menu + ghi món, dọn bàn, lau sàn. */
@@ -309,6 +338,20 @@ export interface FarmerState extends Vitals {
   carry: ItemStack | null;
 }
 
+/** Người làm vườn thuê thêm: tự nhận từng việc một theo `jobs`, đi lối như bác nông dân. Không có năng lượng; nghỉ cùng giờ với bác. */
+export interface GardenerState {
+  id: string;
+  name: string;
+  /** Kiểu áo (chỉ để vẽ). */
+  look: number;
+  x: number;
+  z: number;
+  task: FarmerTask | null;
+  /** Phút còn lại của việc khi đã tới nơi; null = đang đi hoặc rảnh. */
+  work: number | null;
+  jobs: Record<GardenerJob, boolean>;
+}
+
 /** Một cối chế biến ở nông trại. */
 export interface MillState {
   id: string;
@@ -330,7 +373,7 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 16;
+export const SAVE_VERSION = 17;
 
 /** Tên quán mặc định khi tạo ván mới. */
 export const DEFAULT_SHOP_NAME = 'Quán Nhà Vườn';
@@ -398,10 +441,15 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
     farm: {
       slots: content.slotTypes.all().flatMap((t) => Array.from({ length: t.initial }, (_, i) => plantInitial(content, createSlot(t.id, i), i))),
       farmer: { ...b.farmer.home, tasks: [], work: null, carry: null, energy: b.crew.maxEnergy, fainted: false },
+      tools: [],
+      gardeners: [],
       mills: content.mills.all().flatMap((m) => Array.from({ length: m.initial }, (_, i) => createMill(m.id, i, m.products[0]))),
     },
     market: { priceFactor: {} },
     quests: { index: 0, progress: 0, done: false },
+    achievements: { counts: {}, done: [], claimed: [] },
+    traffic: 1,
+    tutorial: null,
     regulars: {},
     profile: { name: DEFAULT_SHOP_NAME, pet: null, pets: [] },
     weather: { id: content.weathers.all()[0].id, minutesLeft: 0 },

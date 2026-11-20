@@ -45,6 +45,32 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [x] **Giao diện:** chừa tai thỏ / góc bo (env(safe-area-inset-*)), chừa góc logo Netlify; bảng nhiệm vụ bấm xem chi tiết.
 - [x] **G10 · Việc mở ra từ đợt 14** (xong ở đợt 16) — cân bằng lại kinh tế theo ngày 12 phút + 2 ca (B1: doanh thu / ngày giảm vì ít khách hơn); trái cây mới có 4 món dùng — thêm món, bán ở chợ; hàng rong chợ mới bán nguyên liệu có sẵn (chưa có món riêng như ly cà phê, bánh tráng); kéo thả khay chưa thử bằng tay trên điện thoại.
 
+## Để dành — ý tưởng đã chốt, chưa làm
+
+- [ ] **Đơn mang về / giao tận nơi** *(chủ dự án: ý hay, để sau)* — thỉnh thoảng khách gọi điện đặt món ("2 phần Phở giao tới khu chợ trước 12:00"); bếp nấu xong đóng hộp ở quầy line, shipper xe máy đi giao; đúng hạn nhận tiền + tip. Tận dụng bếp lúc quán vắng, nối với hệ bếp + quầy line + màu bàn.
+- [ ] **Lương nhân viên** *(để dành từ giai đoạn 7)*.
+
+## Giai đoạn 11 — Mùa 2 tuần, người làm vườn, dụng cụ, nhiệm vụ dài + thành tựu (21/11/2026)
+
+- [x] Mỗi mùa 14 ngày (`DAYS_PER_SEASON`), lễ hội dời ngày cho khớp.
+- [x] Người làm vườn: thuê ở bảng 🧰 Nhà nông (3 chỗ, mở ở cấp 2 / 4 / 6), bật / tắt việc cho từng người (thu hoạch, chuồng + ao, tưới, cuốc + gieo lại); tự làm, đi lối như bác, không giành ô với bác; vẽ trong cảnh nông trại (nón lá, icon việc trên đầu).
+- [x] 4 dụng cụ nông trại: liềm bén, bình tưới lớn (tưới cả hàng), giày vải nhẹ, máy cày đời mới.
+- [x] Chuỗi 22 nhiệm vụ chia 4 chương; loại mục tiêu mới (giao đơn, cấp, hạng quán, hạng bếp, người làm vườn, dụng cụ, ngày).
+- [x] Sổ thành tựu 23 huy hiệu (bảng 🏆), nhận thưởng một lần.
+- [ ] Việc mở ra: lương người làm vườn (cùng đợt lương nhân viên); thành tựu thưởng đồ trang trí; nhiệm vụ hằng ngày.
+
+### Giai đoạn 11b — Nhịp quán + ngày hướng dẫn (21/11/2026)
+
+- [x] Bếp trưởng nấu 4–10 giây thực theo độ khó món.
+- [x] Âm thanh: mở tiếng trên điện thoại (iOS cần chạm), nhạc nền + hiệu ứng to hơn.
+- [x] Người phục vụ đi vòng qua bàn / đồ trang trí (A* trên lưới, cache theo bố cục).
+- [x] Ca sáng ngưng nhận khách 11:00; khách về hết trước 12:30 (sáng) / 21:30 (tối).
+- [x] Thời gian ăn theo số khách; khách đông hơn; lưu lượng khách đổi theo ngày, ngày lễ đông hẳn.
+- [x] Lau sàn có động tác cầm cây lau nhà.
+- [x] Ngày 1 là ngày hướng dẫn có kịch bản (bưng món → ra chợ mua → nông trại → ăn trưa → tự do).
+- [x] Sạp Hải sản Tuyết Nhung: bỏ quầy khay, thay bằng bể nước có hải sản bơi xếp quanh sạp; giữa sạp người bán, cân, rổ, xô nước.
+- [x] Chỉnh sau khi thử: khách chờ ghi món hiện bong bóng 📝 (ghi xong mới hiện mặt cười); thẻ nông trại gọn, nằm bên trái, ô ruộng / ruộng lúa mì / chuồng nhấp nháy + mũi tên; bảng gọi món rộng hơn; dừng giờ khi mở bảng gọi món / hoá đơn; tự chọn món thì ăn tới đầy năng lượng.
+
 ## Giai đoạn 10 — Sửa bên trong Tiệm 25caaaaa (20/11/2026)
 
 - [x] Đèn thả trần trong tiệm (và 2 bóng dưới mái sạp nguyên liệu) sáng lên khi trời tối.

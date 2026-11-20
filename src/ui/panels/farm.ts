@@ -1,8 +1,8 @@
 import { fitsSlot, type MillType, type ProducerDef, type SlotTypeDef } from '../../data';
 import type { Game } from '../../sim/game';
-import type { FarmSlot } from '../../sim/state';
+import type { FarmerTaskKind, FarmSlot } from '../../sim/state';
 import { cycleTime, needsWatering, nextTier, slotPrice, slotsOfType, yieldsOf } from '../../sim/systems/farm';
-import { isAutoSlot, queuedKinds } from '../../sim/systems/farmer';
+import { gardenerOn, isAutoSlot, queuedKinds } from '../../sim/systems/farmer';
 import { canPlantNow, isFrozen, seasonNames, seasonOf } from '../../sim/calendar';
 import { millPrice, millsOfType } from '../../sim/systems/mills';
 import { bar, cmd, esc, ui } from '../dom';
@@ -22,8 +22,10 @@ function slotCard(game: Game, slot: FarmSlot, uiState: UiState): string {
   const wet = type.needsWater && slot.wet > 0 ? 'wet' : '';
   const tier = slot.tier > 1 ? `<span class="tier">Bậc ${slot.tier}</span>` : '';
   // Ô đã giao việc cho bác nông dân: hiện dấu và không cho bấm lại việc đó
-  const queued = queuedKinds(ctx, slot.id).filter((k) => k !== 'visit');
-  const coming = queued.length ? '<span class="coming" title="Bác nông dân đang tới">🧑‍🌾</span>' : '';
+  const queued: FarmerTaskKind[] = queuedKinds(ctx, slot.id).filter((k) => k !== 'visit');
+  const helper = gardenerOn(ctx, slot.id);
+  if (helper) queued.push(helper.task!.kind);
+  const coming = queued.length ? `<span class="coming" title="${helper ? `${esc(helper.name)} đang lo` : 'Bác nông dân đang tới'}">${helper ? '👩‍🌾' : '🧑‍🌾'}</span>` : '';
 
   if (!slot.producerId) {
     if (type.needsTilling && !slot.tilled && !queued.length) {
@@ -187,7 +189,7 @@ export const farmPanel: Panel = {
       ? '<p class="winter-note">❄️ Mùa đông: đất ngoài trời đóng băng, chuồng và ao nghỉ — cây ngoài trời ngừng lớn tới mùa Xuân. Nhà kính vẫn trồng bình thường.</p>'
       : '';
     return `${winter}${focusBar}${focus ? '' : '<p class="muted">Ruộng: cuốc đất → gieo → tưới (trời mưa khỏi tưới) → thu. Ruộng lúa thu tự động bằng máy cày. Qua đêm nông trại và cối vẫn chạy.</p>'}
-      <div class="row farmer-status">${farmer}</div>
+      <div class="row farmer-status">${farmer}<button class="mini"${ui('drawer:farmhands')}>🧰 Nhà nông${state.farm.gardeners.length ? ` · ${state.farm.gardeners.length} 👩‍🌾` : ''}</button></div>
       <div class="row"><span class="grow"></span>
         <button${cmd({ type: 'farmer/doAll', kind: 'water' })}${anyDry ? '' : ' disabled'}>💧 Tưới hết</button>
         <button${cmd({ type: 'farmer/doAll', kind: 'harvest' })}${anyReady ? '' : ' disabled'}>Thu hoạch hết</button></div>${sections}`;

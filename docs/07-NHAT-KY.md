@@ -4,6 +4,31 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 21/11/2026 (laptop) — Giai đoạn 11b: nhịp quán + ngày hướng dẫn
+
+**Nhánh:** `giai-doan-11` (chung nhánh, chưa commit). **Kết quả:** typecheck sạch, 111 test qua (thêm test chạy trọn ngày hướng dẫn). Đã xem trên localhost: lời chào, thẻ bưng món, thẻ ra chợ, thẻ nông trại (`?fresh&seed=4&tut=market&area=market`...). Chưa thử được trên điện thoại thật (âm thanh iOS) và chưa nhìn tận mắt động tác lau nhà.
+
+1. `recipes.ts`: số thứ 6 = độ khó, `cookMinutes` → 4–10 s với bếp trưởng.
+2. `balance`: `shifts[].kickOut`, `lastCall` sáng 11:00, `eatTime` theo số khách, `traffic`, `spawnInterval` 100 → 72, `service.mopTime`. customers.ts: `inSeating`, `eatMinutes`, `rollTraffic`; `state.traffic`.
+3. `src/sim/pathing.ts` + `stepWorker` dùng điểm rẽ; lau sàn có thời gian (`WaiterState.work`); cây lau nhà + tư thế `mop`.
+4. `audio.ts`: phát mẫu im lặng lúc mở khoá (iOS), nghe touchend / click / keydown, bộ nén, âm lượng MASTER 1 / SFX 0.6 / MUSIC 0.5.
+5. `systems/tutorial.ts` + `ui/coach.ts`, `state.tutorial`, `Party.want`, `Game` option `tutorial`; `?tutorial`, `?tut=`.
+
+---
+
+## 21/11/2026 (laptop) — Giai đoạn 11: mùa 2 tuần, người làm vườn, dụng cụ, nhiệm vụ dài + thành tựu
+
+**Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-11` (tách từ `main` đã gộp giai đoạn 10). **Kết quả:** typecheck sạch, 102 test qua (thêm 11); save v17. Đã xem trên localhost: bảng Nhà nông, 3 người làm vườn đi tưới hàng ruộng hành (`?fresh&rich&seed=2&ff=262&weather=sunny&area=farm&do=[gardener/hire ×3, till + plant field-0..8]`), bảng Thành tựu, thẻ nhiệm vụ có dòng chương.
+
+1. `DAYS_PER_SEASON` 28 → 14; ngày lễ dời; test lịch dùng hằng số thay cho 28.
+2. `src/data/farmhands.ts` (việc người làm vườn, dụng cụ), `balance.gardeners`, `SlotTypeDef.animals` (chuồng, ao).
+3. `systems/gardeners.ts` (thuê, giao việc, tự nhận việc, mua dụng cụ); `farmer.ts`: `perform` export, `hasTool` / `walkSpeed` / `workTimeOf` / `waterRow`, `gardenerOn` chặn bác nhận ô người làm vườn đang lo.
+4. `src/data/achievements.ts` + `systems/achievements.ts` (`tally` gọi trong `bumpQuest`); quests: `chapter`, `questChapters`, 15 nhiệm vụ mới, 7 loại mục tiêu mới; đơn hàng gọi `bumpQuest('contract')`.
+5. UI: panel `farmhands` (🧰 Nhà nông) + `achievements` (🏆), thêm vào cột nút tròn; nút Nhà nông trong bảng Nông trại; ô người làm vườn đang lo có dấu 👩‍🌾; toast thành tựu / dụng cụ; người làm vườn trong `areas/farm.ts` (`updateGardeners`).
+6. Ghi chú để dành: đơn mang về / giao tận nơi (roadmap mục "Để dành").
+
+---
+
 ## 20/11/2026 (laptop) — Giai đoạn 10: sửa bên trong Tiệm 25caaaaa
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-10` (tách từ `giai-doan-9` vì `main` chưa gộp giai đoạn 9). **Kết quả:** typecheck sạch, 91 test qua; đã xem trên localhost lúc 21:35 (`?seed=1&ff=935&stall=snack`): tiệm sáng đèn, hai người trong đội ngồi hai bên bàn, ly matcha trên mặt bàn.

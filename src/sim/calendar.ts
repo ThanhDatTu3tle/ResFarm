@@ -52,7 +52,7 @@ export function festivalOf(day: number): FestivalDef | null {
 }
 
 /** Lễ hội sắp tới trong vòng `within` ngày tới (kể cả hôm nay): lễ + còn mấy ngày. */
-export function nextFestival(day: number, within = 28): { def: FestivalDef; inDays: number } | null {
+export function nextFestival(day: number, within = DAYS_PER_SEASON): { def: FestivalDef; inDays: number } | null {
   for (let i = 0; i <= within; i++) {
     const def = festivalOf(day + i);
     if (def) return { def, inDays: i };

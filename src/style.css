@@ -2193,7 +2193,7 @@ button.meal-call {
   animation: pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .meal-dialog {
-  max-width: 560px;
+  max-width: 880px;
   text-align: left;
 }
 .meal-whos {
@@ -2223,10 +2223,11 @@ span.meal-who.done {
 }
 .meal-menu {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 6px;
 }
 button.meal-dish {
+  min-width: 0;
   display: grid;
   grid-template-columns: auto 1fr;
   column-gap: 8px;
@@ -2241,10 +2242,21 @@ button.meal-dish small {
   color: var(--muted);
   font-size: 11px;
 }
+button.meal-dish b {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
 /* Bảng dài (gọi món, hoá đơn) không vượt màn hình: cuộn bên trong */
-.meal-dialog,
+.meal-dialog {
+  width: min(880px, 96vw);
+}
 .bill-dialog {
   width: min(560px, 94vw);
+}
+.meal-dialog,
+.bill-dialog {
   max-height: calc(100dvh - 24px);
   overflow-y: auto;
   gap: 8px;
@@ -2656,3 +2668,179 @@ button.service-card.pass-hint {
   max-width: 220px;
 }
 
+
+/* ===== Giai đoạn 11: chương nhiệm vụ, sổ thành tựu, bảng Nhà nông ===== */
+.quest-chapter {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent-dark);
+  opacity: 0.85;
+}
+.quest-list li.chapter {
+  display: block;
+  margin-top: 8px;
+  padding: 4px 2px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  background: none;
+  border: none;
+}
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.badge-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 8px;
+  text-align: center;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+}
+.badge-card .badge-icon {
+  font-size: 30px;
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+.badge-card.done .badge-icon {
+  filter: none;
+  opacity: 1;
+}
+.badge-card small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+.badge-card .quest-bar {
+  width: 100%;
+  margin-top: 4px;
+}
+.badge-card.ready {
+  border-color: var(--accent);
+  animation: quest-glow 1.4s ease-in-out infinite;
+}
+.badge-card .pill {
+  margin-top: 4px;
+}
+.row.tool + .row.tool {
+  border-top: 1px dashed var(--line);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+.row.tool.owned .big {
+  filter: drop-shadow(0 0 4px #ffd36b);
+}
+.farmer-status .mini {
+  white-space: nowrap;
+}
+
+/* ===== Ngày hướng dẫn: thẻ chỉ dẫn ===== */
+.coach {
+  position: fixed;
+  top: 8px;
+  left: 196px;
+  width: min(380px, calc(100vw - 300px));
+  z-index: 45;
+  padding: 10px 14px 10px;
+  background: var(--card);
+  border: 3px solid var(--accent);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(59, 42, 30, 0.25);
+  pointer-events: auto;
+}
+.coach-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.coach-head em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.coach-head b {
+  font-size: 15px;
+}
+.coach-pause {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+.coach-body {
+  margin: 6px 0 8px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.coach-body .muted {
+  margin-top: 4px;
+  font-size: 12px;
+}
+.coach-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.coach-list {
+  margin: 6px 0 2px;
+  padding-left: 4px;
+  list-style: none;
+}
+.coach-list li {
+  margin: 3px 0;
+}
+.coach-list li.done {
+  color: var(--green);
+  text-decoration: line-through;
+}
+.coach-modal {
+  z-index: 46;
+}
+.coach-dialog {
+  max-width: 440px;
+}
+.coach-tip {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  background: #fff3d6;
+  border-radius: 10px;
+  font-size: 13px;
+}
+@media (max-height: 540px) {
+  .coach {
+    top: 4px;
+    left: 178px;
+    padding: 6px 10px;
+  }
+  .coach-body {
+    margin: 4px 0 6px;
+    font-size: 12px;
+  }
+}
+/* Bước nông trại: ruộng rau và chuồng nằm bên trái / giữa — thẻ sang bên phải, dưới đồng hồ */
+.coach.right {
+  left: 12px;
+  right: auto;
+  top: 120px;
+  width: min(270px, 40vw);
+}
+.coach.right .coach-body {
+  font-size: 12px;
+}
+@media (max-height: 540px) {
+  .coach.right {
+    top: 92px;
+    left: 8px;
+  }
+}
