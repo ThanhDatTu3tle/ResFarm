@@ -1281,6 +1281,37 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
     expect(state.crew.bill).toEqual([]);
     expect(state.restaurant.staff[0].energy).toBe(content.balance.crew.maxEnergy);
   });
+
+  it('khách tới đều: ngày vắng nhất (uy tín thấp, mưa, lưu lượng thấp) giờ nào trong ca cũng có khách; mở ca chiều có khách ngay', () => {
+    for (const seed of [1, 2, 3]) {
+      const game = new Game(content, { seed });
+      Object.assign(game.state, { reputation: 0.5, traffic: 0.75, weather: { id: 'storm', minutesLeft: 1e9 } });
+      const hours = new Set<number>();
+      let firstAfternoon = Infinity;
+      game.bus.on('party/arrived', () => {
+        const m = game.state.clock.minute;
+        hours.add(Math.floor(m / 60));
+        if (m >= 15 * 60) firstAfternoon = Math.min(firstAfternoon, m);
+      });
+      // Khách không ai phục vụ thì bỏ về, hàng chờ không đầy mãi
+      while (game.state.clock.minute < 20 * 60 + 30 && game.state.clock.phase === 'open') game.tick(1);
+      for (const h of [7, 8, 9, 10, 15, 16, 17, 18, 19]) expect(hours.has(h), `seed ${seed}, ${h}h`).toBe(true);
+      expect(firstAfternoon).toBeLessThan(15 * 60 + 15);
+    }
+  });
+
+  it('ông / bà chủ: chọn lúc tạo ván, tuổi kẹp 25..50, lưu / tải giữ nguyên; save v17 có ông chủ mặc định', () => {
+    const g = new Game(content, { seed: 3, cuisine: 'oc', owner: { gender: 'female', age: 42 } });
+    expect(g.state.owner).toEqual({ gender: 'female', age: 42 });
+    expect(deserialize(serialize(g.state), content)!.owner).toEqual({ gender: 'female', age: 42 });
+    expect(new Game(content, { seed: 3, owner: { gender: 'male', age: 90 } }).state.owner.age).toBe(50);
+    expect(new Game(content, { seed: 3, owner: { gender: 'male', age: 3 } }).state.owner.age).toBe(25);
+    expect(newGame().state.owner).toEqual({ gender: 'male', age: 30 });
+    const old = JSON.parse(serialize(newGame().state));
+    old.version = 17;
+    delete old.owner;
+    expect(deserialize(JSON.stringify(old), content)!.owner).toEqual({ gender: 'male', age: 30 });
+  });
 });
 
 describe('mùa trong năm', () => {

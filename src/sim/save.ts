@@ -4,7 +4,7 @@ import { EventBus } from '../core/events';
 import { canPlaceTable } from './layout';
 import { resolveOverlaps } from './systems/home';
 import type { SimContext } from './types';
-import { createMill, createSlot, plantInitial, DEFAULT_SHOP_NAME, SAVE_VERSION, type GameState } from './state';
+import { cleanOwner, createMill, createSlot, plantInitial, DEFAULT_SHOP_NAME, SAVE_VERSION, type GameState } from './state';
 
 /**
  * Lưu/tải. State là JSON thuần nên lưu = JSON.stringify.
@@ -43,9 +43,9 @@ const migrations: Record<number, (old: any) => any> = {
   }),
   // v11 -> v12: nhân viên phục vụ thuê thêm.
   11: (s) => ({ ...s, restaurant: { ...s.restaurant, helpers: [] }, version: 12 }),
-  // v12 -> v13: năng lượng cho cả đội (bếp, bồi bàn, bác nông dân; tối đa 30), giờ nghỉ ra chợ ăn + hoá đơn; nhân viên thuê bỏ `away`.
+  // v12 -> v13: năng lượng cho cả đội (bếp, bồi bàn, bác nông dân; tối đa 30, nay 40), giờ nghỉ ra chợ ăn + hoá đơn; nhân viên thuê bỏ `away`.
   12: (s) => {
-    const full = { energy: 30, fainted: false };
+    const full = { energy: 40, fainted: false };
     return {
       ...s,
       crew: { restaurantAway: null, farmerAway: null, pending: [], meals: [], bill: [] },
@@ -67,6 +67,8 @@ const migrations: Record<number, (old: any) => any> = {
   15: (s) => ({ ...s, contracts: [], event: null, version: 16 }),
   // v16 -> v17: người làm vườn, dụng cụ nông trại, sổ thành tựu.
   16: (s) => ({ ...s, farm: { ...s.farm, tools: [], gardeners: [] }, achievements: { counts: {}, done: [], claimed: [] }, traffic: 1, tutorial: null, version: 17 }),
+  // v17 -> v18: ông / bà chủ quán (giới tính + tuổi), ván cũ mặc định ông chủ 30 tuổi.
+  17: (s) => ({ ...s, owner: { gender: 'male', age: 30 }, version: 18 }),
 };
 
 export function serialize(state: GameState): string {
@@ -94,6 +96,7 @@ export function deserialize(raw: string | null, content: Content): GameState | n
 function reconcile(state: GameState, content: Content): GameState {
   for (const id of Object.keys(state.inventory)) if (!content.items.has(id)) delete state.inventory[id];
   if (!content.cuisines.has(state.cuisine)) state.cuisine = 'vn';
+  state.owner = cleanOwner(state.owner);
   state.menu.unlocked = state.menu.unlocked.filter((id) => content.recipes.has(id) && content.recipes.get(id).cuisine === state.cuisine);
   state.menu.active = state.menu.active.filter((id) => state.menu.unlocked.includes(id));
   state.upgrades = state.upgrades.filter((id) => content.upgrades.has(id));

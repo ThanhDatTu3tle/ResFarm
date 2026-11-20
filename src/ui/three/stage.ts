@@ -69,10 +69,20 @@ export interface Area {
   rainBox: { min: V3; max: V3 };
   /** Khu ngoài trời: có vệt gió bay ngang khi trời gió. */
   outdoor?: boolean;
+  /** Mái che trong vùng mưa (toạ độ của root, mét): giọt mưa trong khung x/z này không vẽ (`y` = độ cao mái) — quán ốc: sạp dù + mái kéo dài khi mưa. */
+  rainShelter?: RainShelter;
   /** Ban đêm tối thêm bao nhiêu (0..1) khi đang xem khu này — quán vỉa hè về đêm chỉ còn đèn vàng, lửa than. */
   nightDark?: number;
   /** Đồng bộ hình ảnh với game.state. dt: giây thực; speed: tốc độ game. */
   update(env: Env, dt: number, speed: number): void;
+}
+
+export interface RainShelter {
+  x1: number;
+  x2: number;
+  z1: number;
+  z2: number;
+  y: number;
 }
 
 const smooth = (a: number, b: number, x: number) => {
@@ -547,11 +557,18 @@ export class Stage {
       const { min, max } = this.current.rainBox;
       const pos = this.rain.geometry.getAttribute('position') as THREE.BufferAttribute;
       const slant = 0.15 + env.wind * 0.6;
+      const roof = this.current.rainShelter;
       for (let i = 0; i < RAIN_DROPS; i++) {
         const y = (this.rainSeed[i * 3 + 1] = (this.rainSeed[i * 3 + 1] - dt * 1.6 + 1) % 1);
         const px = min[0] + this.rainSeed[i * 3] * (max[0] - min[0]) + (1 - y) * slant * 4;
         const py = min[1] + y * (max[1] - min[1]);
         const pz = min[2] + this.rainSeed[i * 3 + 2] * (max[2] - min[2]);
+        // Trong khung mái che: không vẽ (cả giọt phía trên mái — camera nhìn từ trên xuống sẽ thấy như mưa trong quán)
+        if (roof && px > roof.x1 && px < roof.x2 && pz > roof.z1 && pz < roof.z2) {
+          pos.setXYZ(i * 2, 0, -100, 0);
+          pos.setXYZ(i * 2 + 1, 0, -100, 0);
+          continue;
+        }
         pos.setXYZ(i * 2, px, py, pz);
         pos.setXYZ(i * 2 + 1, px - slant * 0.5, py + 0.55, pz);
       }

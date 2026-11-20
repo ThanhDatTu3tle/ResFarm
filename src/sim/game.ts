@@ -1,6 +1,6 @@
 import { EventBus } from '../core/events';
 import type { Content, CuisineId } from '../data';
-import { createInitialState, emptyStats, type GameState } from './state';
+import { createInitialState, emptyStats, type GameState, type OwnerProfile } from './state';
 import { clockSystem } from './systems/clock';
 import { festivalSystem } from './systems/festival';
 import { eventSystem } from './systems/events';
@@ -49,10 +49,10 @@ export class Game {
 
   constructor(
     readonly content: Content,
-    options: { state?: GameState; seed?: number; cuisine?: CuisineId; tutorial?: boolean } = {},
+    options: { state?: GameState; seed?: number; cuisine?: CuisineId; owner?: OwnerProfile; tutorial?: boolean } = {},
     private systems: System[] = defaultSystems,
   ) {
-    this.state = options.state ?? createInitialState(content, options.seed ?? Date.now(), options.cuisine);
+    this.state = options.state ?? createInitialState(content, options.seed ?? Date.now(), options.cuisine, options.owner);
     this.ctx = { state: this.state, content, bus: this.bus };
     if (!options.state && options.tutorial) this.state.tutorial = { step: 'intro', recipe: null, item: null, served: 0 };
     for (const sys of systems) Object.assign(this.handlers, sys.commands);

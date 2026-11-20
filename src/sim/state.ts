@@ -11,6 +11,8 @@ export interface GameState {
   version: number;
   /** Phong cách quán chọn lúc tạo ván (Nhật / Hàn / Việt): quyết định thực đơn và nội thất. Không đổi trong ván. */
   cuisine: CuisineId;
+  /** Ông / bà chủ quán (người chơi) chọn lúc tạo ván: giới tính + tuổi (25..50) — chỉ đổi hình nhân vật đi dạo. */
+  owner: OwnerProfile;
   rng: RngState;
   /** Bộ đếm sinh id cho party/order. */
   nextId: number;
@@ -373,7 +375,22 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 17;
+export const SAVE_VERSION = 18;
+
+export interface OwnerProfile {
+  gender: 'male' | 'female';
+  /** 25 trẻ trung · 35 chững chạc · 50 hơi có tuổi. */
+  age: number;
+}
+export const OWNER_AGE = { min: 25, max: 50 };
+export const DEFAULT_OWNER: OwnerProfile = { gender: 'male', age: 30 };
+export function cleanOwner(o: Partial<OwnerProfile> | null | undefined): OwnerProfile {
+  const age = Math.round(Number(o?.age));
+  return {
+    gender: o?.gender === 'female' ? 'female' : 'male',
+    age: Number.isFinite(age) ? Math.max(OWNER_AGE.min, Math.min(OWNER_AGE.max, age)) : DEFAULT_OWNER.age,
+  };
+}
 
 /** Tên quán mặc định khi tạo ván mới. */
 export const DEFAULT_SHOP_NAME = 'Quán Nhà Vườn';
@@ -397,7 +414,7 @@ export function createSlot(type: SlotType, index: number): FarmSlot {
   return { id: `${type}-${index}`, type, producerId: null, stage: 'growing', progress: 0, cyclesDone: 0, lastProducerId: null, tilled: false, wet: 0, tier: 1 };
 }
 
-export function createInitialState(content: Content, seed: number, cuisine: CuisineId = 'vn'): GameState {
+export function createInitialState(content: Content, seed: number, cuisine: CuisineId = 'vn', owner: OwnerProfile = DEFAULT_OWNER): GameState {
   const b = content.balance;
   const starters = recipesFor(content, cuisine)
     .filter((r) => r.unlock.level <= 1 && r.unlock.cost === 0)
@@ -409,6 +426,7 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
   return {
     version: SAVE_VERSION,
     cuisine,
+    owner: cleanOwner(owner),
     rng: { s: seed | 0 },
     nextId: 1,
     clock: { day: 1, minute: b.openMinute, phase: 'open' },

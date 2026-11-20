@@ -7,7 +7,7 @@ import { guideHtml } from './tutorial';
 import { coachHtml } from './coach';
 import { billDue } from '../sim/systems/crew';
 import { tutorialJump } from '../sim/systems/tutorial';
-import type { TutorialStep } from '../sim/state';
+import { cleanOwner, type OwnerProfile, type TutorialStep } from '../sim/state';
 import { inShift } from '../sim/systems/customers';
 import { festivals, seasons } from '../data/calendar';
 import { calendarOf } from '../sim/calendar';
@@ -21,7 +21,8 @@ import type { Command } from '../sim/types';
 import { cmd, esc, morph, ui as uiAttr } from './dom';
 import { coins } from './format';
 import { Sound } from './audio';
-import { billHtml, buyHtml, lowStock, mealHtml, moneyText, periodSummaryHtml, tomorrowFestivalHtml, SIDE_PANELS, hudHtml, questHtml, serviceAlerts, serviceHtml, settingsHtml, SPEEDS } from './hud';
+import { calendarHtml } from './calendar';
+import { billHtml, buyHtml, lowStock, mealHtml, moneyText, periodSummaryHtml, renameHtml, tomorrowFestivalHtml, SIDE_PANELS, hudHtml, questHtml, serviceAlerts, serviceHtml, settingsHtml, SPEEDS } from './hud';
 import { memberOf } from '../sim/systems/crew';
 import { farmerBlocked } from '../sim/systems/farmer';
 import { needOf } from '../sim/systems/service';
@@ -47,7 +48,7 @@ const AUTOSAVE_SECONDS = 10;
  * opts.cuisine có giá trị = Ván mới với phong cách quán đó (ghi đè save cũ); không có = chơi tiếp từ save.
  * Màn hình mở đầu (title.ts) gọi hàm này sau khi người chơi chọn.
  */
-export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content?: Content } = {}): void {
+export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?: OwnerProfile; content?: Content } = {}): void {
   const content = opts.content ?? createContent();
 
   // Tham số URL để thử nhanh: ?fresh (bỏ qua save, không ghi save) · ?seed=7 · ?ff=300 (tua 300 phút game)
@@ -60,7 +61,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
   const cuisine = opts.cuisine ?? (paramCuisine && content.cuisines.has(paramCuisine) ? (paramCuisine as CuisineId) : 'vn');
   // Ván mới từ màn mở đầu: ngày 1 là ngày hướng dẫn (ván tạm ?fresh thì chỉ khi có ?tutorial)
   const tutorial = !!opts.cuisine || params.has('tutorial');
-  const game = new Game(content, saved ? { state: saved } : { seed: params.has('seed') ? Number(params.get('seed')) : undefined, cuisine, tutorial });
+  const game = new Game(content, saved ? { state: saved } : { seed: params.has('seed') ? Number(params.get('seed')) : undefined, cuisine, tutorial, owner: opts.owner ?? paramOwner(params) });
   if (import.meta.env.DEV) {
     // ?tut=market — nhảy tới một bước của ngày hướng dẫn (intro / serve / hard / market / cook / farm / morning / lunch / done)
     const tut = params.get('tut');
@@ -112,6 +113,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     <div id="meal"></div>
     <div id="coach"></div>
     <div id="settings"></div>
+    <div id="calendar"></div>
+    <div id="rename"></div>
     <div id="service"></div>
     <div id="buy"></div>
     <div id="guide"></div>
@@ -155,6 +158,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     stallView: null,
     buyItem: null,
     guide: null,
+    calendar: import.meta.env.DEV && params.has('cal') ? 0 : null, // ?cal: mở sẵn cuốn lịch (chỉ bản dev)
+    rename: import.meta.env.DEV && params.has('rename') ? game.state.profile.name : null, // ?rename: mở sẵn hộp đổi tên quán (chỉ bản dev)
   };
   // Chỉ bản dev: ?stall=seafood mở thẳng bên trong một quầy chợ (sạp nguyên liệu / Tiệm 25caaaaa)
   const devStall = import.meta.env.DEV ? params.get('stall') : null;
@@ -455,6 +460,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
 
     morph($('hud'), hudHtml(game, ui, money.value));
     morph($('settings'), settingsHtml(ui, sound.prefs));
+    morph($('calendar'), calendarHtml(game, ui));
+    morph($('rename'), renameHtml(ui));
     morph($('guide'), ui.guide == null ? '' : guideHtml(ui.guide, uiAttr, 'Chơi tiếp'));
     morph($('questdlg'), questHtml(game, ui));
     // Thanh phục vụ: món đang cầm (màu theo bàn) / nhắc quầy line có món
@@ -751,12 +758,22 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     } else if (action === 'farmFocus') ui.farmFocus = arg || null;
     else if (action === 'speed') ui.speed = Number(arg);
     else if (action === 'settings') ui.settings = arg === 'close' ? false : !ui.settings;
+    else if (action === 'calendar') ui.calendar = arg === 'close' ? null : arg === 'open' ? (ui.calendar == null ? 0 : null) : Number(arg) || 0;
     else if (action === 'pickup') {
       if (run({ type: 'service/pickup' })) sound.play('pop');
     }
     else if (action === 'rename') {
-      const name = window.prompt('Đặt tên cho quán (tối đa 24 ký tự):', game.state.profile.name);
-      if (name != null && run({ type: 'profile/rename', name })) toast(`🏮 Biển hiệu mới: ${game.state.profile.name}`, 'good');
+      if (arg === 'close') ui.rename = null;
+      else if (arg === 'ok') submitRename();
+      else {
+        ui.rename = game.state.profile.name;
+        renderDom();
+        // Đặt con trỏ vào ô nhập, chọn sẵn tên cũ để gõ đè
+        const input = root.querySelector<HTMLInputElement>('[data-rename-input]');
+        input?.focus();
+        input?.select();
+        return;
+      }
     } else if (action === 'photo') {
       ui.photo = arg !== 'close';
       if (ui.photo) Object.assign(ui, { drawer: null, settings: false, editLayout: false });
@@ -820,10 +837,23 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     renderDom();
   });
   window.addEventListener('pagehide', save);
+  /** Đổi tên theo ô nhập trong hộp đổi tên; lỗi (trống, quá dài) thì giữ hộp mở để sửa. */
+  function submitRename(): void {
+    const input = root.querySelector<HTMLInputElement>('[data-rename-input]');
+    if (!input) return;
+    if (run({ type: 'profile/rename', name: input.value })) {
+      ui.rename = null;
+      toast(`🏮 Biển hiệu mới: ${game.state.profile.name}`, 'good');
+    }
+  }
+
   // Phím tắt: Esc đóng Cài đặt, Space tạm dừng / chạy tiếp
   let resumeSpeed = 1;
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && ui.guide != null) ui.guide = null;
+    if (ui.rename != null && e.key === 'Enter') submitRename();
+    else if (ui.rename != null && e.key === 'Escape') ui.rename = null;
+    else if (ui.rename != null) return; // đang gõ tên: không bắt phím tắt
+    else if (e.key === 'Escape' && ui.guide != null) ui.guide = null;
     else if (e.key === 'Escape' && ui.mealOpen) ui.mealOpen = false;
     else if (e.key === 'Escape' && ui.buyItem) ui.buyItem = null;
     else if (e.key === 'Escape' && ui.questOpen) ui.questOpen = false;
@@ -831,6 +861,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
       ui.photo = false;
       root.classList.remove('photo-mode');
     } else if (e.key === 'Escape' && ui.settings) ui.settings = false;
+    else if (e.key === 'Escape' && ui.calendar != null) ui.calendar = null;
     else if (e.code === 'Space' && !(e.target instanceof HTMLInputElement)) {
       e.preventDefault();
       if (ui.speed > 0) [resumeSpeed, ui.speed] = [ui.speed, 0];
@@ -848,7 +879,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     // Mở bảng Cài đặt, bảng gọi món cho đội hay hoá đơn ăn uống thì game tạm dừng; đóng lại chạy tiếp ở tốc độ đã chọn
-    const speed = ui.settings || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
+    const speed = ui.settings || ui.calendar != null || ui.rename != null || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
     game.tick(dt * speed * content.balance.minutesPerSecond);
     stage.env.selectedSlot = ui.selectedSlot;
     stage.env.editLayout = ui.editLayout;
@@ -895,4 +926,10 @@ function readSave(): string | null {
   } catch {
     return null;
   }
+}
+
+/** ?owner=f35 (kèm ?fresh): ông chủ (m) / bà chủ (f) + tuổi cho ván tạm. */
+function paramOwner(params: URLSearchParams): OwnerProfile | undefined {
+  const v = params.get('owner');
+  return v ? cleanOwner({ gender: v.startsWith('f') ? 'female' : 'male', age: Number(v.slice(1)) || 30 }) : undefined;
 }

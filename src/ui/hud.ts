@@ -123,6 +123,7 @@ export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
             <b>${weekday.short} <em>Ngày ${cal.dayOfSeason}</em></b>
             <span>Mùa ${esc(season.name)} · Năm ${cal.year}</span>
           </div>
+          <button class="cal-btn"${uiAttr('calendar:open')} title="Lịch: mùa, năm, ngày lễ, sự kiện sắp tới" aria-label="Mở lịch">📅</button>
         </div>
         <div class="clock-row">
           <span class="weather" title="${esc(weather.name)}">${weather.icon}</span>
@@ -138,6 +139,19 @@ export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
         ${sideButtons(game, ui)}
       </div>
     </div>`;
+}
+
+/** Hộp đổi tên quán (ô nhập trong game, không dùng window.prompt). */
+export function renameHtml(ui: UiState): string {
+  if (ui.rename == null) return '';
+  return `<div class="backdrop" data-key="rename"${uiAttr('rename:close')}>
+    <div class="dialog rename" role="dialog" aria-label="Đổi tên quán"${uiAttr('noop')}>
+      <h2>✏️ Đổi tên quán</h2>
+      <input type="text" maxlength="24" value="${esc(ui.rename)}" data-rename-input autocomplete="off" enterkeyhint="done" aria-label="Tên quán">
+      <p class="muted">Tối đa 24 ký tự. Tên hiện trên biển hiệu của quán.</p>
+      <div class="dialog-foot"><button${uiAttr('rename:close')}>Huỷ</button><button class="primary"${uiAttr('rename:ok')}>Đổi tên</button></div>
+    </div>
+  </div>`;
 }
 
 /** Đồng xu vàng vẽ bằng CSS (emoji 🪙 mỗi máy một kiểu, có máy ra màu bạc). */

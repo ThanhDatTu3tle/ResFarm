@@ -3,7 +3,7 @@ import { partyColor } from '../../colors';
 import { passSlots } from '../../../sim/systems/kitchen';
 import type { RoomDef, TableDef } from '../../../data';
 import type { Game } from '../../../sim/game';
-import { canPlaceProp, canPlaceTable, LAYOUT_GRID, placedProps, roomOf, seatSpots, tableById, tablePos, withRotation } from '../../../sim/layout';
+import { blockerOf, canPlaceProp, canPlaceTable, LAYOUT_GRID, placedProps, roomOf, seatSpots, tableById, tablePos, withRotation } from '../../../sim/layout';
 import { heartsOf } from '../../../sim/systems/regulars';
 import { makePet, makeRegular } from '../people';
 import { animateProp, makeProp } from '../props';
@@ -17,6 +17,8 @@ import { Bar3D, bubbleSprite, emojiSprite, G, group, mesh, textSprite, toon, pai
 import { easeOutBack, wobble } from '../../ease';
 import { Particles } from '../fx';
 import { FestiveSet } from '../festive';
+import { nextWaypoint } from '../../../sim/pathing';
+import { OwnerWalker, type Spot } from '../owner';
 
 /**
  * KHU QUÁN — nội thất quán ăn tông ấm, nhìn kiểu "cắt mái".
@@ -121,6 +123,8 @@ export class RestaurantArea implements Area {
   root = new THREE.Group();
   view: Area['view'];
   rainBox: Area['rainBox'];
+  /** Quán ốc: vùng dưới sạp dù / mái kéo dài không có mưa (street.ts cập nhật). */
+  rainShelter?: Area['rainShelter'];
 
   // Kích thước phòng (mét)
   private halfW: number;
@@ -182,6 +186,8 @@ export class RestaurantArea implements Area {
   private street: boolean;
   /** Quán ốc về đêm tối hơn hẳn (chỉ còn dây đèn vàng, lửa than) — Stage đọc. */
   nightDark = 0;
+  /** Ông / bà chủ đi chậm quanh khu ăn quan sát. */
+  private owner: OwnerWalker | null = null;
   /** Cập nhật riêng khu bếp vỉa hè (than hồng lập loè). */
   private streetAnim: InteriorAnimator = () => {};
 
@@ -266,6 +272,29 @@ export class RestaurantArea implements Area {
 
   private dims() {
     return { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, kitchenZ: this.kitchenZ };
+  }
+
+  /** Chỗ đứng ngẫu nhiên trong khu ăn (không vướng bàn ghế, đồ trang trí, lối vào) — toạ độ mét. */
+  private ownerSpot(): Spot {
+    const { ctx } = this.game;
+    const d = roomOf(ctx).dining;
+    for (let i = 0; i < 25; i++) {
+      const x = d.x1 + 20 + Math.random() * (d.x2 - d.x1 - 40);
+      const y = d.y1 + 20 + Math.random() * (d.y2 - d.y1 - 40);
+      if (!blockerOf(ctx, { x1: x - 16, y1: y - 16, x2: x + 16, y2: y + 16 }, '')) return { x: this.wx(x), z: this.wz(y) };
+    }
+    return { x: this.wx((d.x1 + d.x2) / 2), z: this.wz(d.y1 + 20) };
+  }
+
+  private updateOwner(env: Env, dt: number): void {
+    if (!this.owner) {
+      const toRoom = (p: Spot) => ({ x: p.x * UNIT + this.room.width / 2, y: p.z * UNIT + this.room.height / 2 });
+      this.owner = new OwnerWalker(this.game, this.root, this.ownerSpot(), () => this.ownerSpot(), (from, to) => {
+        const w = nextWaypoint(this.game.ctx, toRoom(from), toRoom(to));
+        return { x: this.wx(w.x), z: this.wz(w.y) };
+      }, 0.6, 1.1);
+    }
+    this.owner.update(env.t, dt);
   }
 
   wx(px: number): number {
@@ -454,7 +483,8 @@ export class RestaurantArea implements Area {
   /** Quán ốc: sạp dù + xe đẩy (bếp trưởng) + bếp nướng (bếp phó) + bàn sơ chế cho đầu bếp thuê; quầy ra món như quán thường. */
   private buildStreetChefs(): void {
     const staff = this.game.state.restaurant.staff.map((s) => this.game.content.staff.get(s.id));
-    this.streetAnim = buildStreetKitchen(this.root, this.dims(), this.mats, staff.length);
+    this.rainShelter = { x1: 0, x2: 0, z1: 0, z2: 0, y: 0 };
+    this.streetAnim = buildStreetKitchen(this.root, this.dims(), this.mats, staff.length, this.rainShelter);
     this.buildPass();
     this.buildWaiter();
     const spots = streetSpots(this.dims()).chefs;
@@ -1107,6 +1137,7 @@ export class RestaurantArea implements Area {
     const { parties, orders, staff } = state.restaurant;
     this.interior(env, dt);
     this.streetAnim(env, dt);
+    this.updateOwner(env, dt);
 
     // Màu theo nội thất đang dùng
     const colors = (slot: 'floor' | 'wall' | 'furniture') => content.decor.get(state.decor.equipped[slot]).colors;
@@ -1152,7 +1183,7 @@ export class RestaurantArea implements Area {
     this.updateStains(env);
 
     // Ánh sáng trong nhà
-    for (const lamp of this.lamps) lamp.intensity = this.street ? env.night * 0.5 : 0.25 + env.night * 1.5;
+    for (const lamp of this.lamps) lamp.intensity = this.street ? env.night * 0.8 : 0.25 + env.night * 1.5;
     this.bulbMat.emissiveIntensity = 0.3 + env.night * 1.4;
     this.windowMat.opacity = 0.18 + env.day * 0.15;
 
