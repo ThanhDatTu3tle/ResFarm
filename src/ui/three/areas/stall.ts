@@ -48,6 +48,9 @@ export function logoBoard(parent: THREE.Object3D, p: V3, w: number): THREE.Group
   return g;
 }
 
+/** Số khay tối đa trên quầy trước (2 hàng × 5): nhiều hơn thì bày lên kệ sau, quầy không cao quá che người bán. */
+const FRONT_MAX = 10;
+
 export class StallArea implements Area {
   id = 'stall';
   label = 'Trong quầy';
@@ -124,9 +127,12 @@ export class StallArea implements Area {
     for (let i = 0; i < 10; i++) mesh(g, G.box(1, 0.08, 4.8), i % 2 ? color : 0xffffff, { p: [-4.5 + i, 5.0, -2], r: [0.12, 0, 0], cast: false });
     for (const sx of [-4.85, 4.85]) mesh(g, G.cyl(0.08, 0.08, 5.0, 8), 0x8a5a35, { p: [sx, 2.5, 0.3] });
     this.addLamps([[-2.6, 4.2, -1.8], [2.6, 4.2, -1.8]], 4.9);
-    // Kệ thùng gỗ sau lưng người bán (sạp bể cá: vách sau dành cho bể)
+    // Kệ thùng gỗ sau lưng người bán (sạp bể cá: vách sau dành cho bể). Quầy trước chỉ 2 tầng khay (`FRONT_MAX` món)
+    // để không che người bán; hàng còn lại bày trên tầng trên của kệ sau (cao hơn đầu người bán, nhìn từ camera vẫn thấy)
+    const shelfItems = tanks || def.interior === 'butcher' ? [] : def.items.slice(FRONT_MAX);
     for (let row = 0; row < (tanks ? 0 : 2); row++) {
       mesh(g, G.box(8, 0.08, 0.7), 0x8a5a35, { p: [0, 0.9 + row * 0.9, -3.7] });
+      if (row === 1 && shelfItems.length) continue;
       for (let i = 0; i < 6; i++) mesh(g, G.box(1, 0.5, 0.5), 0xc98b4f, { p: [-3.4 + i * 1.36, 1.2 + row * 0.9, -3.7] });
     }
     const name = signText(def.name, '#3b2a1e', 5.4, 0.7);
@@ -145,12 +151,12 @@ export class StallArea implements Area {
     }
     // Người bán sau quầy
     const vendor = makePerson(LOOKS[(index * 3 + 5) % LOOKS.length], index % 2 ? 'none' : 'straw', adultShape(index * 3 + 5));
-    vendor.position.set(0, 0.3, -2.6);
+    vendor.position.set(0, 0.55, -2.6); // đứng trên bục sau quầy cho khỏi bị khay hàng che
     vendor.scale.setScalar(1.25);
     g.add(vendor);
     this.vendor = vendor;
-    // Quầy gỗ + khay hàng: mỗi nguyên liệu một khay, xếp lưới (tối đa 5 cột)
-    const items = def.items;
+    // Quầy gỗ + khay hàng: mỗi nguyên liệu một khay, xếp lưới (tối đa 5 cột, 2 hàng — dư thì lên kệ sau)
+    const items = def.items.slice(0, FRONT_MAX);
     const cols = Math.min(5, items.length);
     const rows = Math.ceil(items.length / cols);
     const tw = 1.35;
@@ -158,38 +164,48 @@ export class StallArea implements Area {
     const depth = rows * (td + 0.5) + 0.3;
     mesh(g, G.box(cols * (tw + 0.2) + 0.5, 0.9, depth), 0xb07a45, { p: [0, 0.45, -0.6 + depth / 2 - 0.9] });
     mesh(g, G.box(cols * (tw + 0.2) + 0.7, 0.08, depth + 0.2), 0x8a5a35, { p: [0, 0.93, -0.6 + depth / 2 - 0.9] });
-    items.forEach((id, i) => {
+    /** Một khay hàng (bấm để mua): đống biểu tượng + biển giá cắm phía trước. */
+    const addTray = (id: string, i: number, at: V3, w: number, d: number, s = 1) => {
       const item = game.content.items.get(id);
+      const tray = group(g, { p: at });
+      tray.userData.pick = { type: 'goods', id } satisfies Pick;
+      mesh(tray, G.box(w, 0.1, d), 0x6b4a2f);
+      mesh(tray, G.box(w - 0.12, 0.06, d - 0.12), 0xf3e6c8, { p: [0, 0.04, 0] });
+      // Đống hàng: vài biểu tượng chồng lên nhau
+      for (let k = 0; k < 5; k++) {
+        const sp = emojiSprite(item.icon, 0.42 * s);
+        const y = (0.28 + (k > 2 ? 0.18 : 0)) * s;
+        sp.position.set(((k % 3) - 1) * 0.34 * (w / tw), y, (k > 2 ? -0.05 : 0.12 - (k % 2) * 0.12) * (d / td));
+        tray.add(sp);
+        if (k === 4) this.bobbers.push({ obj: sp, y, phase: i * 1.3 });
+      }
+      // Biển giá cắm trước khay
+      const price = priceOf(game.ctx, def.id, id);
+      const factor = game.state.market.priceFactor[id] ?? 1;
+      const tagColor = factor > 1.08 ? '#c0392b' : factor < 0.92 ? '#2f8f3a' : '#3b2a1e';
+      const tag = group(tray, { p: [0, 0.32 * s, d / 2 + 0.02], r: [-0.35, 0, 0] });
+      mesh(tag, G.box(1.18 * s, 0.4 * s, 0.03), 0xffffff);
+      const label = signText(`${item.name} · ${price} xu`, tagColor, 1.1 * s, 0.34 * s);
+      label.position.z = 0.02;
+      tag.add(label);
+      mesh(tray, G.cyl(0.015, 0.015, 0.3 * s, 4), 0x6b4a2f, { p: [0, 0.15 * s, d / 2 + 0.02], cast: false });
+    };
+    items.forEach((id, i) => {
       const c = i % cols;
       const r = Math.floor(i / cols);
       const rowCount = r === rows - 1 ? items.length - r * cols : cols;
       const x = (c - (rowCount - 1) / 2) * (tw + 0.2);
       const z = -1.2 + r * (td + 0.5);
       // Hàng khay phía sau đặt trên bậc cao hơn (như kệ bậc thang) để không bị hàng trước che
-      const lift = (rows - 1 - r) * 0.45;
+      const lift = (rows - 1 - r) * 0.3;
       if (lift > 0) mesh(g, G.box(tw + 0.1, lift, td + 0.1), 0x9a6a3e, { p: [x, 0.97 + lift / 2, z] });
-      const tray = group(g, { p: [x, 0.97 + lift, z] });
-      tray.userData.pick = { type: 'goods', id } satisfies Pick;
-      mesh(tray, G.box(tw, 0.1, td), 0x6b4a2f);
-      mesh(tray, G.box(tw - 0.12, 0.06, td - 0.12), 0xf3e6c8, { p: [0, 0.04, 0] });
-      // Đống hàng: vài biểu tượng chồng lên nhau
-      for (let k = 0; k < 5; k++) {
-        const s = emojiSprite(item.icon, 0.42);
-        const y = 0.28 + (k > 2 ? 0.18 : 0);
-        s.position.set(((k % 3) - 1) * 0.34, y, k > 2 ? -0.05 : 0.12 - (k % 2) * 0.12);
-        tray.add(s);
-        if (k === 4) this.bobbers.push({ obj: s, y, phase: i * 1.3 });
-      }
-      // Biển giá cắm trước khay
-      const price = priceOf(game.ctx, def.id, id);
-      const factor = game.state.market.priceFactor[id] ?? 1;
-      const tagColor = factor > 1.08 ? '#c0392b' : factor < 0.92 ? '#2f8f3a' : '#3b2a1e';
-      const tag = group(tray, { p: [0, 0.32, td / 2 + 0.02], r: [-0.35, 0, 0] });
-      mesh(tag, G.box(1.18, 0.4, 0.03), 0xffffff);
-      const label = signText(`${item.name} · ${price} xu`, tagColor, 1.1, 0.34);
-      label.position.z = 0.02;
-      tag.add(label);
-      mesh(tray, G.cyl(0.015, 0.015, 0.3, 4), 0x6b4a2f, { p: [0, 0.15, td / 2 + 0.02], cast: false });
+      addTray(id, i, [x, 0.97 + lift, z], tw, td);
+    });
+    // Hàng dư bày trên tầng trên của kệ sau, cách đều theo bề ngang kệ
+    const sw = Math.min(1.45, 7.6 / Math.max(1, shelfItems.length));
+    shelfItems.forEach((id, j) => {
+      const x = (j - (shelfItems.length - 1) / 2) * sw;
+      addTray(id, items.length + j, [x, 1.86, -3.65], sw - 0.12, 0.62, 0.95);
     });
     // Khách đứng hai bên quầy (khe giữa quầy và vách), quay vào khay; người đi dạo ngang trước quầy
     const side = Math.min(4.6, (cols * (tw + 0.2) + 0.7) / 2 + 0.45);
