@@ -245,8 +245,8 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
   for (const g of swingers) g.traverse((o) => o instanceof THREE.Mesh && o.material instanceof THREE.MeshToonMaterial && o.material.userData.glowBase != null && glows.push(o.material));
   const phases = swingers.map((_, i) => i * 1.7);
   return (env, dt) => {
-    for (const m of glows) m.emissiveIntensity = (m.userData.glowBase as number) + (m.userData.night ? Math.max(env.dim * 0.6, env.night * 2.2) : env.dim * 0.9);
-    for (const l of nightLights) l.intensity = env.night * 5;
+    for (const m of glows) m.emissiveIntensity = (m.userData.glowBase as number) + (m.userData.night ? Math.max(env.dim * 0.6, env.night * 3) : env.dim * 0.9);
+    for (const l of nightLights) l.intensity = env.night * 8;
     for (const s of spinners) s.rotation.y += dt * 5;
     for (const w of wavers) w.rotation.z = -0.4 + Math.sin(env.t * 4) * 0.45;
     swingers.forEach((s, i) => (s.rotation.z = Math.sin(env.t * 1.3 + phases[i]) * 0.05));

@@ -4,7 +4,7 @@ import { Game } from '../src/sim/game';
 import { modifier } from '../src/sim/helpers';
 import { deserialize, serialize } from '../src/sim/save';
 import { canPlaceTable, tablePos } from '../src/sim/layout';
-import { activeTables, findSeats } from '../src/sim/systems/customers';
+import { activeTables, findSeats, spawnParty } from '../src/sim/systems/customers';
 import { priceOf } from '../src/sim/systems/market';
 import { calendarOf, festivalOf, seasonalPrice } from '../src/sim/calendar';
 import { DAYS_PER_SEASON } from '../src/data/calendar';
@@ -61,6 +61,11 @@ function seatParty(game: Game, tableId: string, size: number, seats: number[] = 
 }
 
 /** Game không có khách tự tới và thời tiết cố định — để dựng tình huống phục vụ bằng tay. */
+/** Một nhóm khách mới tới (cỡ nhóm ngẫu nhiên theo luật), giữ nguyên trong hàng chờ. */
+function spawnPartyFor(game: Game): Party {
+  return spawnParty(game.ctx);
+}
+
 function quietGame(): Game {
   const game = newGame();
   game.state.restaurant.spawnTimer = 1e9;
@@ -156,10 +161,10 @@ describe('nông trại', () => {
       expect(game.dispatch({ type: 'farm/harvest', slotId: 'pond-0' }).ok).toBe(true);
       return (game.state.inventory.fish ?? 0) - before;
     };
-    expect(harvestAfter(fry.growTime + 1)).toBe(15);
+    expect(harvestAfter(fry.growTime + 1)).toBe(fry.yields[0].qty);
     expect(game.state.farm.slots.find((s) => s.id === 'pond-0')?.producerId).toBe('fish_fry');
     expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'pond-0' }).ok).toBe(true);
-    expect(harvestAfter(fry.regrowTime! + 1)).toBe(24);
+    expect(harvestAfter(fry.regrowTime! + 1)).toBe(Math.round(fry.yields[0].qty * 1.6));
     expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'pond-0' }).ok).toBe(true);
     expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'pond-0' }).ok).toBe(false);
     expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'field-0' }).ok).toBe(false);
@@ -185,7 +190,7 @@ describe('nông trại', () => {
     // Ốc, sò nuôi ở ao giống tôm
     for (const id of ['oc_huong_fry', 'oc_mong_tay_fry', 'so_diep_fry', 'ngheu_fry', 'hau_fry', 'oc_bu_fry']) {
       const p = content.producers.get(id);
-      expect([p.slot, p.growTime / day, p.regrowTime! / day, p.yields[0].qty]).toEqual(['pond', 3.5, 3, 15]);
+      expect([p.slot, p.growTime / day, p.regrowTime! / day, p.yields[0].qty]).toEqual(['pond', 3.5, 3, 30]);
     }
   });
 
@@ -230,7 +235,7 @@ describe('nông trại', () => {
     game.dispatch({ type: 'farm/harvest', slotId: 'pen-0' });
     advance(game, hen.regrowTime! + 1);
     game.dispatch({ type: 'farm/harvest', slotId: 'pen-0' });
-    expect(game.state.inventory.egg).toBe(eggs + 6);
+    expect(game.state.inventory.egg).toBe(eggs + 2 * hen.yields[0].qty); // thu 2 lứa
     expect(game.state.farm.slots.find((s) => s.id === 'pen-0')?.producerId).toBe('hen');
   });
 
@@ -551,13 +556,13 @@ describe('bác nông dân', () => {
   it('báo lỗi ngay lúc bấm: đất chưa cuốc, không đủ tiền, việc trùng', () => {
     const game = fresh();
     expect(game.dispatch({ type: 'farmer/do', kind: 'plant', slotId: 'field-0', producerId: 'cabbage' }).ok).toBe(false);
-    game.state.money = 0;
+    game.state.money = -content.balance.debtLimit; // đã nợ tới mức tối đa
     game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-0' });
     const broke = game.dispatch({ type: 'farmer/do', kind: 'plant', slotId: 'field-0', producerId: 'cabbage' });
     expect(broke).toEqual({ ok: false, reason: 'Không đủ tiền.' });
     expect(game.dispatch({ type: 'farmer/do', kind: 'till', slotId: 'field-0' }).ok).toBe(false);
     expect(game.state.farm.farmer.tasks).toHaveLength(1);
-    expect(game.state.money).toBe(0); // chạy thử không được tiêu tiền thật
+    expect(game.state.money).toBe(-content.balance.debtLimit); // chạy thử không được tiêu tiền thật
   });
 
   it('thu hoạch hết: xếp mọi ô chín theo đường ngắn, thu đủ, ô nào đã có việc thì không xếp lại', () => {
@@ -570,7 +575,7 @@ describe('bác nông dân', () => {
     expect(game.state.farm.farmer.tasks.map((t) => t.slotId)).toEqual(['field-8', 'field-2', 'field-0']);
     const before = game.state.inventory.cabbage ?? 0;
     untilIdle(game);
-    expect((game.state.inventory.cabbage ?? 0) - before).toBe(9);
+    expect((game.state.inventory.cabbage ?? 0) - before).toBe(3 * content.producers.get('cabbage').yields[0].qty);
     expect(game.dispatch({ type: 'farmer/doAll', kind: 'harvest' }).ok).toBe(false);
   });
 
@@ -696,7 +701,7 @@ describe('ruộng tự động + cối chế biến', () => {
     expect(game.state.farm.farmer.carry).toBeNull();
     const mill = game.state.farm.mills.find((m) => m.type === 'windmill')!;
     expect(mill.input).toBeGreaterThan(0);
-    game.tick(200);
+    game.tick(400);
     expect(mill.input).toBe(0);
     expect((game.state.inventory.flour ?? 0) - flour0).toBe(content.producers.get('wheat').yields[0].qty);
   });
@@ -860,7 +865,7 @@ describe('khách quen', () => {
     }
   });
 
-  it('món ruột được ưu tiên khi đang bán; đủ 3 tim thì tặng quà (đồ trang trí bày sẵn)', () => {
+  it('món ruột được ưu tiên khi đang bán; đủ 3 tim thì tặng quà (vào kho, tự bày ra)', () => {
     const game = quietGame();
     const party = seatParty(game, 'pair', 1);
     party.regular = 'be_na';
@@ -879,7 +884,11 @@ describe('khách quen', () => {
     expect(fav).toBe(true);
     expect(visited[0].hearts).toBe(3);
     expect(visited[0].gift).toBe('gift_teddy');
-    expect(game.state.restaurant.props.some((p) => p.def === 'gift_teddy' && !p.stored)).toBe(true);
+    // Quà vào kho (cất sẵn), người chơi tự bày ra
+    const gift = game.state.restaurant.props.find((p) => p.def === 'gift_teddy')!;
+    expect(gift.stored).toBe(true);
+    expect(game.dispatch({ type: 'prop/place', uid: gift.uid }).ok).toBe(true);
+    expect(gift.stored).toBe(false);
   });
 });
 
@@ -1056,7 +1065,7 @@ describe('ca làm, khay bưng nhiều món, dọn dẹp (đợt 14)', () => {
     expect(trees.map((s) => s.producerId)).toEqual(['orange_tree', 'apple_tree']);
     trees[0].stage = 'ready';
     expect(game.dispatch({ type: 'farm/harvest', slotId: trees[0].id }).ok).toBe(true);
-    expect(game.state.inventory.orange).toBe(6);
+    expect(game.state.inventory.orange).toBe(content.producers.get('orange_tree').yields[0].qty);
     expect(trees[0].producerId).toBe('orange_tree');
   });
 
@@ -1089,7 +1098,7 @@ describe('nhân viên phục vụ thuê thêm', () => {
     expect(new Set(game.state.restaurant.helpers.map((h) => h.name)).size).toBe(4);
   });
 
-  it('tự nhận việc được giao (mang menu), tốn năng lượng; tắt việc thì không nhận', () => {
+  it('tự nhận việc được giao (mang menu — không tốn sức); tắt việc thì không nhận', () => {
     const game = quietGame();
     Object.assign(game.state, { money: 1e6, level: 20 });
     game.dispatch({ type: 'restaurant/upgrade' });
@@ -1102,7 +1111,7 @@ describe('nhân viên phục vụ thuê thêm', () => {
     game.dispatch({ type: 'helper/setJob', helperId: h.id, job: 'menu', on: true });
     for (let i = 0; i < 40 && party.phase === 'seated'; i++) game.tick(0.5);
     expect(party.phase).toBe('browsing');
-    expect(h.energy).toBe(content.balance.crew.maxEnergy - content.balance.crew.waiterPerTask);
+    expect(h.energy).toBe(content.balance.crew.maxEnergy); // mang menu không tốn sức
   });
 
   it('cạn năng lượng thì xỉu (bỏ việc), bồi dưỡng 100 xu thì tỉnh lại', () => {
@@ -1170,7 +1179,8 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
     const w = game.state.restaurant.waiter;
     w.energy = 1;
     const p1 = seatParty(game, 'pair', 2);
-    game.dispatch({ type: 'service/menu', partyId: p1.id });
+    p1.phase = 'readyToOrder'; // mang menu không tốn sức: cho ghi món (tốn 1) để kiệt sức
+    game.dispatch({ type: 'service/takeOrder', partyId: p1.id });
     for (let i = 0; i < 100 && !w.fainted; i++) game.tick(0.5);
     expect(w.fainted).toBe(true);
     const p2 = seatParty(game, 'pair2', 2);
@@ -1202,6 +1212,7 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
     const b = content.balance.crew;
     game.state.clock.minute = 11 * 60 + 50;
     game.state.restaurant.waiter.energy = 15;
+    game.state.farm.farmer.energy = 20; // bác mệt nên nghỉ trưa (khoẻ trên 75% thì ở lại làm)
     game.tick(15);
     expect(game.state.crew.farmerAway).toBe('lunch');
     expect(game.state.crew.restaurantAway).toBe('lunch');
@@ -1210,7 +1221,7 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
     const r = game.dispatch({ type: 'farmer/do', kind: 'till', slotId: slot.id });
     expect(r.ok).toBe(false);
     expect(!r.ok && r.reason).toMatch(/ăn trưa/);
-    const people = 4; // 2 đầu bếp + bồi bàn + bác nông dân
+    const people = 5; // 2 đầu bếp + bồi bàn + anh shipper + bác nông dân
     expect(game.state.crew.pending).toHaveLength(people);
     // Người chơi chọn Matcha ở Tiệm 25caaaaa cho bồi bàn
     // Bồi bàn còn 15⚡ (tối đa 50): Matcha (+16) chưa đầy nên vẫn đang chọn; gọi thêm Combo gà (+22) là đầy → xong, không gọi thêm được
@@ -1226,21 +1237,149 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
     expect(game.dispatch({ type: 'crew/order', who: 'waiter', stallId: 'snack', dish: 0 }).ok).toBe(false);
     expect(game.dispatch({ type: 'crew/unorder', who: 'waiter' }).ok).toBe(false);
     expect(game.state.crew.meals.filter((l) => l.who === 'waiter').map((l) => l.dish).join()).toMatch(/Matcha.*gà/);
-    // Bác về 13:00 (đã tự chọn món khi quá hạn), nhưng hoá đơn chưa hiện: đợi đội quán ăn xong
-    game.tick(b.farmerLunch.to - game.state.clock.minute + 1);
+    // Bác ăn nhanh (30 phút, quá hạn thì tự chọn món) rồi về nông trại, nhưng hoá đơn chưa hiện: đợi đội quán ăn xong
+    game.tick(12 * 60 + b.eatMinutes - game.state.clock.minute + 1);
     expect(game.state.crew.farmerAway).toBeNull();
-    expect(game.state.crew.pending.map((p) => p.who)).toEqual(['head_chef', 'sous_chef']); // đội quán còn hạn tới 13:30
+    expect(game.state.crew.pending.map((p) => p.who)).toEqual(['head_chef', 'sous_chef', 'shipper']); // đội quán còn hạn tới 13:30
     expect(billDue(game.ctx)).toBe(false);
     expect(game.dispatch({ type: 'crew/pay' }).ok).toBe(false);
     game.tick(b.lunchBack - game.state.clock.minute + 1);
     expect(game.state.crew.restaurantAway).toBeNull();
-    expect(game.state.crew.bill).toHaveLength(people + 1); // bồi bàn ăn 2 món
+    expect(game.state.crew.bill.length).toBeGreaterThanOrEqual(people + 1); // bồi bàn ăn 2 món (bác mệt có thể ăn 2 món)
     expect(billDue(game.ctx)).toBe(true);
     expect(game.state.restaurant.waiter.energy).toBeGreaterThan(5);
     const total = game.state.crew.bill.reduce((s, l) => s + l.price, 0);
     expect(game.dispatch({ type: 'crew/pay' }).ok).toBe(true);
     expect(game.state.money).toBe(1000 - total);
     expect(game.state.crew.bill).toEqual([]);
+  });
+
+  it('nghỉ trưa: bác nông dân dạo chợ chờ đội quán tan ca rồi ăn chung; bác còn khoẻ thì ở lại làm', () => {
+    const b = content.balance.crew;
+    // Quán còn khách sau 12:00: bác ra chợ dạo trước, chưa gọi món
+    const game = quietGame();
+    game.state.money = 1000;
+    game.state.farm.farmer.energy = 10;
+    const guests = seatParty(game, 'pair', 2);
+    guests.phase = 'eating';
+    guests.timer = 1e9;
+    game.state.clock.minute = 11 * 60 + 59;
+    game.tick(2);
+    expect(game.state.crew.farmerAway).toBe('lunch');
+    expect(game.state.crew.farmerWaiting).toBe(true);
+    expect(game.state.crew.pending).toHaveLength(0);
+    // 12:30 khách phải về → đội quán ra chợ: cả đội (cả bác) gọi món chung một lượt
+    game.tick(30);
+    expect(game.state.crew.restaurantAway).toBe('lunch');
+    expect(game.state.crew.pending.map((p) => p.who).sort()).toEqual(['farmer', 'head_chef', 'shipper', 'sous_chef', 'waiter']);
+    expect(game.dispatch({ type: 'crew/autoOrder' }).ok).toBe(true);
+    // Bác ăn 30 phút rồi về nông trại trước, đội quán ở lại tới giờ về
+    game.tick(b.eatMinutes + 1);
+    expect(game.state.crew.farmerAway).toBeNull();
+    expect(game.state.crew.restaurantAway).toBe('lunch');
+    expect(game.state.farm.farmer.energy).toBeGreaterThan(10);
+    // Hoá đơn chung một lượt khi đội quán ăn xong
+    game.tick(b.lunchBack - game.state.clock.minute + 1);
+    expect(game.state.crew.bill.some((l) => l.who === 'farmer')).toBe(true);
+    expect(billDue(game.ctx)).toBe(true);
+
+    // Bác còn trên 75% năng lượng: trưa ở lại làm, không ra chợ
+    const fresh = quietGame();
+    fresh.state.clock.minute = 11 * 60 + 59;
+    fresh.tick(5);
+    expect(fresh.state.crew.farmerAway).toBeNull();
+    expect(fresh.state.crew.pending.some((p) => p.who === 'farmer')).toBe(false);
+    // Tối vẫn ra chợ ăn cùng cả đội
+    fresh.state.clock.minute = 21 * 60;
+    fresh.tick(2);
+    expect(fresh.state.crew.farmerAway).toBe('dinner');
+    expect(fresh.state.crew.pending.some((p) => p.who === 'farmer')).toBe(true);
+  });
+
+  it('nhóm đông: cùng lúc tối đa (số bàn bốn + 1) nhóm 3–4 người', () => {
+    const game = quietGame();
+    const fours = activeTables(game.ctx).filter((t) => !t.shared && t.seats >= 3 && t.seats <= 4).length;
+    let big = 0;
+    for (let i = 0; i < 30; i++) {
+      const p = spawnPartyFor(game);
+      if (p.size > 2) big++;
+    }
+    expect(big).toBeLessThanOrEqual(fours + 1);
+  });
+
+  it('giai đoạn 14: nợ tới 500 xu, quá thì phá sản; ngày đầu không mưa; tự chọn món chia đều; hướng dẫn xong thưởng 500', () => {
+    const b = content.balance;
+    // Được nợ tới -500
+    const g = quietGame();
+    g.state.money = 100;
+    expect(g.dispatch({ type: 'market/buy', stallId: 'produce', itemId: 'cabbage', qty: 100 }).ok).toBe(true);
+    expect(g.state.money).toBeLessThan(0);
+    expect(g.state.money).toBeGreaterThanOrEqual(-b.debtLimit);
+    expect(g.dispatch({ type: 'market/buy', stallId: 'produce', itemId: 'cabbage', qty: 200 }).ok).toBe(false);
+    expect(g.state.bankrupt).toBe(false);
+    // Hoá đơn ăn uống đẩy nợ quá mức → phá sản
+    g.state.money = -b.debtLimit + 5;
+    g.state.crew.bill = [{ who: 'waiter', name: 'x', stallId: 'snack', dish: 'x', icon: 'x', price: 50, energy: 5, until: 0, kind: 'lunch' }];
+    g.dispatch({ type: 'crew/pay' });
+    g.tick(1);
+    expect(g.state.bankrupt).toBe(true);
+    // Ngày đầu không mưa / bão (nhiều seed)
+    for (let seed = 1; seed <= 40; seed++) {
+      const w = content.weathers.get(new Game(content, { seed }).state.weather.id);
+      expect(w.wetsSoil, `seed ${seed}`).toBeFalsy();
+    }
+    // Tự chọn món: ít tiền thì chia đều (ai cũng có món trước khi có người ăn món thứ hai), không âm tiền
+    const m = quietGame();
+    for (const s of m.state.restaurant.staff) s.energy = 2;
+    m.state.restaurant.waiter.energy = 2;
+    m.state.clock.minute = 12 * 60 + 1;
+    m.tick(1);
+    m.state.money = 60;
+    expect(m.dispatch({ type: 'crew/autoOrder' }).ok).toBe(true);
+    const who = new Set(m.state.crew.meals.map((l) => l.who));
+    expect(who.size).toBeGreaterThanOrEqual(3);
+    expect(m.state.crew.meals.reduce((s, l) => s + l.price, 0)).toBeLessThanOrEqual(60);
+    // Hướng dẫn: làm xong thì +500 xu
+    const t = new Game(content, { seed: 2, tutorial: true });
+    const money = t.state.money;
+    t.state.tutorial!.step = 'lunch';
+    Object.assign(t.state.crew, { restaurantAway: 'lunch', pending: [], meals: [], bill: [] });
+    t.tick(0.5);
+    expect(t.state.tutorial!.step).toBe('done');
+    expect(t.state.money).toBe(money + b.tutorialReward);
+  });
+
+  it('save giai đoạn 13 (v19) lên bản mới: quán rộng ra, bàn / đồ dời theo, có shipper, chưa phá sản', () => {
+    const now = newGame();
+    const old = JSON.parse(serialize(now.state));
+    old.version = 19;
+    delete old.bankrupt;
+    delete old.restaurant.shipper;
+    for (const k of ['farmerWaiting', 'farmerBack', 'farmerLunchDay']) delete old.crew[k];
+    old.restaurant.layout = { pair: { x: 430, y: 290 } };
+    old.restaurant.waiter.x = 470;
+    const s = deserialize(JSON.stringify(old), content)!;
+    expect(s).not.toBeNull();
+    expect(s.restaurant.layout.pair.x).toBe(470);
+    expect(s.restaurant.waiter.x).toBe(510);
+    expect(s.restaurant.shipper).toEqual({ energy: content.balance.crew.shipperMaxEnergy, fainted: false, trip: null });
+    expect(s.bankrupt).toBe(false);
+    expect(s.crew.farmerWaiting).toBe(false);
+  });
+
+  it('lên cấp: 3 cấp đầu giữ nhịp cũ, từ cấp 4 chậm hơn; lên sao chậm dần từ 3 sao', async () => {
+    const { xpForLevel, addReputation } = await import('../src/sim/helpers');
+    expect([1, 2, 3].map(xpForLevel)).toEqual([1, 2, 3].map((l) => Math.round(80 * Math.pow(l, 1.6))));
+    expect(xpForLevel(4)).toBeGreaterThan(Math.round(80 * Math.pow(4, 1.6)));
+    const g = quietGame();
+    g.state.reputation = 2;
+    addReputation(g.ctx, 0.1);
+    expect(g.state.reputation).toBeCloseTo(2.1);
+    g.state.reputation = 4.2;
+    addReputation(g.ctx, 0.1);
+    expect(g.state.reputation).toBeCloseTo(4.215);
+    addReputation(g.ctx, -0.1);
+    expect(g.state.reputation).toBeCloseTo(4.115);
   });
 
   it('ít tiền thì món rẻ hoặc nhịn: tổng không vượt số tiền đang có; gọi món quá túi thì báo lỗi', () => {
@@ -1495,6 +1634,9 @@ describe('bếp và quầy line', () => {
     Object.assign(game.state, { money: 99999, level: 9 });
     expect(game.state.restaurant.staff).toHaveLength(2);
     expect(game.dispatch({ type: 'chef/hire' }).ok).toBe(false); // bếp nhỏ: 2 đầu bếp
+    // Nâng bếp cần quán đã lên hạng Tiệm ăn
+    expect(game.dispatch({ type: 'kitchen/upgrade' }).ok).toBe(false);
+    expect(game.dispatch({ type: 'restaurant/upgrade' }).ok).toBe(true);
     const helpersBefore = maxHelpers(game.ctx);
     expect(game.dispatch({ type: 'kitchen/upgrade' }).ok).toBe(true);
     expect(maxHelpers(game.ctx)).toBe(helpersBefore + 1);
@@ -1555,16 +1697,30 @@ describe('đơn đặt hàng, bán hàng dư, sự kiện', () => {
     expect(game.dispatch({ type: 'market/sell', itemId: 'rice', qty: 1 }).ok).toBe(false);
   });
 
-  it('mỗi ngày có đơn hàng; đủ hàng thì giao nhận thưởng, quá hạn thì hết hạn', () => {
+  it('mỗi ngày có đơn hàng; đủ hàng thì anh shipper đi giao (15–40 phút, tốn 5–10 sức), về mới nhận thưởng; quá hạn thì hết hạn', () => {
     const game = quietGame();
     expect(game.state.contracts.length).toBeGreaterThanOrEqual(2);
-    const c = game.state.contracts[0];
-    expect(game.dispatch({ type: 'contract/deliver', contractId: c.id }).ok).toBe(c.items.every((x) => (game.state.inventory[x.item] ?? 0) >= x.qty));
-    for (const x of c.items) game.state.inventory[x.item] = (game.state.inventory[x.item] ?? 0) + x.qty;
+    const [c, c2] = game.state.contracts;
+    for (const x of [...c.items, ...c2.items]) game.state.inventory[x.item] = (game.state.inventory[x.item] ?? 0) + x.qty * 2;
     const money = game.state.money;
-    if (c.status === 'open') expect(game.dispatch({ type: 'contract/deliver', contractId: c.id }).ok).toBe(true);
+    const s = game.state.restaurant.shipper;
+    expect(s.energy).toBe(content.balance.crew.shipperMaxEnergy);
+    expect(game.dispatch({ type: 'contract/deliver', contractId: c.id }).ok).toBe(true);
+    expect(c.status).toBe('shipping');
+    expect(s.trip!.until - game.state.clock.minute).toBeGreaterThanOrEqual(15);
+    expect(s.trip!.until - game.state.clock.minute).toBeLessThanOrEqual(40);
+    expect(content.balance.crew.shipperMaxEnergy - s.energy).toBeGreaterThanOrEqual(5);
+    expect(content.balance.crew.shipperMaxEnergy - s.energy).toBeLessThanOrEqual(10);
+    expect(game.state.money).toBe(money);
+    // Shipper chưa về thì không giao đơn khác được
+    const busy = game.dispatch({ type: 'contract/deliver', contractId: c2.id });
+    expect(busy.ok).toBe(false);
+    expect(!busy.ok && busy.reason).toMatch(/shipper/);
+    game.tick(41);
     expect(c.status).toBe('done');
-    if (game.state.money !== money) expect(game.state.money).toBe(money + c.reward);
+    expect(s.trip).toBeNull();
+    expect(game.state.money).toBe(money + c.reward);
+    expect(game.dispatch({ type: 'contract/deliver', contractId: c2.id }).ok).toBe(true);
     game.state.clock.minute = content.balance.contracts.due + 1;
     game.tick(1);
     expect(game.state.contracts.filter((x) => x.status === 'open')).toHaveLength(0);
@@ -1829,6 +1985,9 @@ describe('chuỗi nhiệm vụ dài + sổ thành tựu', () => {
     expect(c).toBeDefined();
     for (const x of c.items) game.state.inventory[x.item] = (game.state.inventory[x.item] ?? 0) + x.qty;
     expect(game.dispatch({ type: 'contract/deliver', contractId: c.id }).ok).toBe(true);
+    game.state.clock.minute = 8 * 60;
+    game.state.weather = { id: 'cloudy', minutesLeft: 1e9 };
+    game.tick(41); // anh shipper giao xong
     expect(game.state.quests.progress).toBe(1);
     expect(game.state.achievements.counts.contract).toBe(1);
   });

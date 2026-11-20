@@ -14,7 +14,7 @@ const JOBS: [HelperJob, string][] = [
   ['mop', '🧹 Lau sàn'],
 ];
 
-const ROLE: Record<CrewMember['role'], string> = { chef: 'Đầu bếp', waiter: 'Phục vụ', helper: 'Nhân viên phục vụ', farmer: 'Nông trại' };
+const ROLE: Record<CrewMember['role'], string> = { chef: 'Đầu bếp', waiter: 'Phục vụ', helper: 'Nhân viên phục vụ', shipper: 'Giao hàng', farmer: 'Nông trại' };
 
 /**
  * Bảng Nhân viên: cả đội (đầu bếp, bồi bàn, nhân viên thuê, bác nông dân) với thanh năng lượng, đang làm gì / đang ăn gì ở chợ,
@@ -80,6 +80,7 @@ function busy(game: Game, m: CrewMember): boolean {
   const { state } = game;
   if (m.role === 'chef') return state.restaurant.staff.some((s) => s.id === m.who && s.orderId != null);
   if (m.role === 'farmer') return state.farm.farmer.tasks.length > 0;
+  if (m.role === 'shipper') return !!state.restaurant.shipper.trip;
   const w = m.role === 'waiter' ? state.restaurant.waiter : state.restaurant.helpers.find((h) => h.id === m.who);
   return !!w?.tasks.length;
 }

@@ -114,6 +114,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     <div id="coach"></div>
     <div id="settings"></div>
     <div id="calendar"></div>
+    <div id="bankrupt"></div>
     <div id="rename"></div>
     <div id="service"></div>
     <div id="buy"></div>
@@ -160,6 +161,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     guide: null,
     calendar: import.meta.env.DEV && params.has('cal') ? 0 : null, // ?cal: mở sẵn cuốn lịch (chỉ bản dev)
     rename: import.meta.env.DEV && params.has('rename') ? game.state.profile.name : null, // ?rename: mở sẵn hộp đổi tên quán (chỉ bản dev)
+    renameKind: 'shop',
   };
   // Chỉ bản dev: ?stall=seafood mở thẳng bên trong một quầy chợ (sạp nguyên liệu / Tiệm 25caaaaa)
   const devStall = import.meta.env.DEV ? params.get('stall') : null;
@@ -340,6 +342,9 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   game.bus.on('order/ready', checkLowStock);
   game.bus.on('shift/started', checkLowStock);
   // Đơn đặt hàng + sự kiện ngẫu nhiên
+  game.bus.on('shipper/left', (e) => {
+    toast(`🛵 Anh shipper chạy đi giao, về khoảng ${clockText(Math.ceil(e.until / 10) * 10)}.`);
+  });
   game.bus.on('contract/done', (e) => {
     const c = game.state.contracts.find((x) => x.id === e.id);
     toast(`📋 Đã giao đơn cho ${c?.client ?? 'khách'}: +${e.reward} xu`, 'good');
@@ -390,7 +395,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     toast(parts.join(' '), 'regular good', portraitHtml(def, 'toast-pic'), 3600);
     if (e.gift) {
       const gift = content.props.get(e.gift);
-      setTimeout(() => toast(`🎁 ${def.name} tặng quán "${gift.name}"! Xem ở chế độ sắp xếp bàn ghế.`, 'good', portraitHtml(def, 'toast-pic'), 5000), 900);
+      setTimeout(() => toast(`🎁 ${def.name} tặng quán "${gift.name}" — quà đã được chuyển vào kho.`, 'good', portraitHtml(def, 'toast-pic'), 5000), 900);
     }
     if (e.heartUp || e.gift) sound.play('levelup');
   });
@@ -462,6 +467,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     morph($('hud'), hudHtml(game, ui, money.value));
     morph($('settings'), settingsHtml(ui, sound.prefs));
     morph($('calendar'), calendarHtml(game, ui));
+    morph($('bankrupt'), state.bankrupt ? bankruptHtml() : '');
     morph($('rename'), renameHtml(ui));
     morph($('guide'), ui.guide == null ? '' : guideHtml(ui.guide, uiAttr, 'Chơi tiếp'));
     morph($('questdlg'), questHtml(game, ui));
@@ -761,7 +767,16 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     } else if (action === 'farmFocus') ui.farmFocus = arg || null;
     else if (action === 'speed') ui.speed = Number(arg);
     else if (action === 'settings') ui.settings = arg === 'close' ? false : !ui.settings;
-    else if (action === 'calendar') ui.calendar = arg === 'close' ? null : arg === 'open' ? (ui.calendar == null ? 0 : null) : Number(arg) || 0;
+    else if (action === 'restart') {
+      // Phá sản: xoá save, về màn mở đầu chơi ván mới
+      try {
+        localStorage.removeItem(SAVE_KEY);
+      } catch {
+        /* trình duyệt chặn bộ nhớ: bỏ qua */
+      }
+      location.href = location.pathname;
+      return;
+    } else if (action === 'calendar') ui.calendar = arg === 'close' ? null : arg === 'open' ? (ui.calendar == null ? 0 : null) : Number(arg) || 0;
     else if (action === 'pickup') {
       if (run({ type: 'service/pickup' })) sound.play('pop');
     }
@@ -769,7 +784,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       if (arg === 'close') ui.rename = null;
       else if (arg === 'ok') submitRename();
       else {
-        ui.rename = game.state.profile.name;
+        ui.renameKind = arg === 'owner' ? 'owner' : 'shop';
+        ui.rename = ui.renameKind === 'owner' ? game.state.owner.name : game.state.profile.name;
         renderDom();
         // Đặt con trỏ vào ô nhập, chọn sẵn tên cũ để gõ đè
         const input = root.querySelector<HTMLInputElement>('[data-rename-input]');
@@ -840,11 +856,27 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     renderDom();
   });
   window.addEventListener('pagehide', save);
+  /** Màn phá sản: nợ quá mức cho phép, hết ván. */
+  function bankruptHtml(): string {
+    const { state, content } = game;
+    return `<div class="backdrop"><div class="dialog bankrupt" role="dialog" aria-label="Phá sản">
+      <h2>💸 Phá sản rồi!</h2>
+      <p>Quán nợ ${moneyText(-state.money)} xu, quá mức cho phép (${content.balance.debtLimit} xu). Ván này dừng ở đây.</p>
+      <p class="muted">Đã chơi ${state.clock.day} ngày · cấp ${state.level} · phục vụ ${state.stats.total.guestsServed ?? 0} khách.</p>
+      <button class="primary"${uiAttr('restart')}>🌱 Chơi ván mới</button>
+    </div></div>`;
+  }
+
   /** Đổi tên theo ô nhập trong hộp đổi tên; lỗi (trống, quá dài) thì giữ hộp mở để sửa. */
   function submitRename(): void {
     const input = root.querySelector<HTMLInputElement>('[data-rename-input]');
     if (!input) return;
-    if (run({ type: 'profile/rename', name: input.value })) {
+    if (ui.renameKind === 'owner') {
+      if (run({ type: 'profile/renameOwner', name: input.value })) {
+        ui.rename = null;
+        toast(`🙋 Chào ${game.state.owner.name}!`, 'good');
+      }
+    } else if (run({ type: 'profile/rename', name: input.value })) {
       ui.rename = null;
       toast(`🏮 Biển hiệu mới: ${game.state.profile.name}`, 'good');
     }
@@ -882,7 +914,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     // Mở bảng Cài đặt, bảng gọi món cho đội hay hoá đơn ăn uống thì game tạm dừng; đóng lại chạy tiếp ở tốc độ đã chọn
-    const speed = ui.settings || ui.calendar != null || ui.rename != null || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
+    const speed = game.state.bankrupt || ui.settings || ui.calendar != null || ui.rename != null || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
     game.tick(dt * speed * content.balance.minutesPerSecond);
     stage.env.selectedSlot = ui.selectedSlot;
     stage.env.editLayout = ui.editLayout;

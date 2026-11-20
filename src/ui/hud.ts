@@ -1,7 +1,7 @@
 import { seasons, weekdays } from '../data/calendar';
 import { partyColor } from './colors';
 import { defOf } from '../sim/systems/events';
-import { craftableCount } from '../sim/helpers';
+import { canAfford, craftableCount } from '../sim/helpers';
 import type { RecipeDef } from '../data';
 import { calendarOf } from '../sim/calendar';
 import { readyOrders } from '../sim/systems/service';
@@ -18,7 +18,7 @@ import { stockOf } from '../sim/helpers';
 import { clockText, coins } from './format';
 import { panels, type UiState } from './panels';
 import { festivalOf, isSeasonEnd, isYearEnd, nextFestival, seasonPriceFactor } from '../sim/calendar';
-import type { DayStats } from '../sim/state';
+import { OWNER_NAME_MAX, type DayStats } from '../sim/state';
 
 /**
  * HUD trên cảnh 3D: bên trái là tiền + uy tín + huy hiệu cấp, bên phải là "đồng hồ" (vòng ngày đêm, lịch,
@@ -146,11 +146,13 @@ export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
 /** Hộp đổi tên quán (ô nhập trong game, không dùng window.prompt). */
 export function renameHtml(ui: UiState): string {
   if (ui.rename == null) return '';
+  const owner = ui.renameKind === 'owner';
+  const title = owner ? 'Đặt tên chủ quán' : 'Đổi tên quán';
   return `<div class="backdrop" data-key="rename"${uiAttr('rename:close')}>
-    <div class="dialog rename" role="dialog" aria-label="Đổi tên quán"${uiAttr('noop')}>
-      <h2>✏️ Đổi tên quán</h2>
-      <input type="text" maxlength="24" value="${esc(ui.rename)}" data-rename-input autocomplete="off" enterkeyhint="done" aria-label="Tên quán">
-      <p class="muted">Tối đa 24 ký tự. Tên hiện trên biển hiệu của quán.</p>
+    <div class="dialog rename" role="dialog" aria-label="${title}"${uiAttr('noop')}>
+      <h2>✏️ ${title}</h2>
+      <input type="text" maxlength="${owner ? OWNER_NAME_MAX : 24}" value="${esc(ui.rename)}" placeholder="${owner ? 'Tên của bạn' : 'Tên quán'}" data-rename-input autocomplete="off" enterkeyhint="done" aria-label="${title}">
+      <p class="muted">${owner ? `Tối đa ${OWNER_NAME_MAX} ký tự. Tên hiện trên đầu nhân vật của bạn.` : 'Tối đa 24 ký tự. Tên hiện trên biển hiệu của quán.'}</p>
       <div class="dialog-foot"><button${uiAttr('rename:close')}>Huỷ</button><button class="primary"${uiAttr('rename:ok')}>Đổi tên</button></div>
     </div>
   </div>`;
@@ -447,7 +449,7 @@ export function buyHtml(game: Game, ui: UiState): string {
     sf < 1 ? '<span class="good-text">đúng mùa</span>' : sf > 1 ? '<span class="bad-text">trái mùa</span>' : '',
     factor > 1.08 ? '<span class="bad-text">▲ hôm nay đắt</span>' : factor < 0.92 ? '<span class="good-text">▼ hôm nay rẻ</span>' : '',
   ].filter(Boolean).join(' · ');
-  const btns = [1, 5, 10].map((n) => `<button${cmd({ type: 'market/buy', stallId, itemId: item.id, qty: n })}${state.money >= price * n ? '' : ' disabled'}>Mua ${n} · ${coins(price * n)}</button>`).join('');
+  const btns = [1, 5, 10].map((n) => `<button${cmd({ type: 'market/buy', stallId, itemId: item.id, qty: n })}${canAfford(game.ctx, price * n) ? '' : ' disabled'}>Mua ${n} · ${coins(price * n)}</button>`).join('');
   return `<div class="service-card buy-card" data-key="buy-${item.id}">
     <div class="service-head"><b><span class="dish-icon">${item.icon}</span> ${esc(item.name)}</b><button class="x-close"${uiAttr('buy:close')} aria-label="Đóng">✕</button></div>
     <div class="muted">${coins(price)} / 1 ${trend} · trong kho: ${stockOf(ctx, item.id)}</div>

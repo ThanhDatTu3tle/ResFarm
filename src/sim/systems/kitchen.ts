@@ -93,6 +93,8 @@ export const kitchenCommands = {
     const next = ctx.content.balance.kitchen.tiers[r.kitchenTier];
     if (!next) return fail('Bếp đã ở hạng cao nhất.');
     if (ctx.state.level < next.level) return fail(`Cần cấp ${next.level}.`);
+    // Nâng bếp cần quán đã lên hạng Tiệm ăn (hạng 2) trở lên
+    if (r.tier < 2) return fail(`Cần nâng quán lên hạng ${ctx.content.room.tiers[1].name} trước.`);
     if (!spend(ctx, next.cost)) return fail('Không đủ tiền.');
     r.kitchenTier++;
     ctx.bus.emit('kitchen/changed', { tier: r.kitchenTier, chefs: r.staff.length });

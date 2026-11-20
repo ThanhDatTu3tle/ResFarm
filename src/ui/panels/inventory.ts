@@ -14,8 +14,22 @@ export const inventoryPanel: Panel = {
   id: 'inventory',
   label: 'Kho',
   icon: '📦',
+  // Có quà / đồ trang trí đang cất trong kho chưa bày
+  badge(game) {
+    return game.state.restaurant.props.filter((p) => p.stored).length;
+  },
   render(game) {
     const { content, ctx } = game;
+    // Quà khách quen tặng + đồ trang trí đã cất: bày ra quán (tự tìm chỗ trống), rồi kéo tới chỗ muốn ở chế độ sắp xếp
+    const stored = game.state.restaurant.props.filter((p) => p.stored);
+    const gifts = stored.length
+      ? `<h3>🎁 Quà tặng & đồ trang trí cất kho</h3>${stored
+          .map((p) => {
+            const def = content.props.get(p.def);
+            return `<div class="row" data-key="gift-${p.uid}"><span class="big">${def.icon}</span><div class="grow"><b>${esc(def.name)}</b><div class="muted">Bày ra quán rồi dùng ✋ Sắp xếp để kéo tới chỗ muốn đặt.</div></div><button class="mini"${cmd({ type: 'prop/place', uid: p.uid })}>Bày ra quán</button></div>`;
+          })
+          .join('')}`
+      : '';
     const sections = (Object.keys(categoryNames) as ItemCategory[])
       .map((category) => {
         const items = content.items.all().filter((i) => i.category === category);
@@ -41,6 +55,6 @@ export const inventoryPanel: Panel = {
         return `<h3>${categoryNames[category]}</h3>${rows}${chips ? `<div class="chips">${chips}</div>` : ''}`;
       })
       .join('');
-    return `<p class="muted">Kho thừa hàng thì bán lại cho chợ bằng nửa giá gốc (rau đúng mùa rẻ hơn). Có đơn đặt hàng thì giao ở bảng Đơn hàng sẽ lời hơn.</p>${sections}`;
+    return `${gifts}<p class="muted">Kho thừa hàng thì bán lại cho chợ bằng nửa giá gốc (rau đúng mùa rẻ hơn). Có đơn đặt hàng thì giao ở bảng Đơn hàng sẽ lời hơn.</p>${sections}`;
   },
 };

@@ -50,6 +50,17 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [ ] **Đơn mang về / giao tận nơi** *(chủ dự án: ý hay, để sau)* — thỉnh thoảng khách gọi điện đặt món ("2 phần Phở giao tới khu chợ trước 12:00"); bếp nấu xong đóng hộp ở quầy line, shipper xe máy đi giao; đúng hạn nhận tiền + tip. Tận dụng bếp lúc quán vắng, nối với hệ bếp + quầy line + màu bàn.
 - [ ] **Lương nhân viên** *(để dành từ giai đoạn 7)*.
 
+## Giai đoạn 14 — Sửa lỗi sau khi chơi thử 3 ngày (21/11/2026)
+
+- [x] Phục vụ: mang menu + dọn bàn không tốn sức; đi vòng qua cả ghế và khách đang ngồi (`footprint` trong pathing).
+- [x] Thông báo nổi dời sang góc phải dưới đồng hồ. Tên người chơi trên đầu nhân vật (chưa đặt thì không hiện) + đổi tên chủ quán trong game.
+- [x] Sản lượng mọi giống ×2; nguyên liệu khởi đầu ×1.5; Tiệm ăn 1.000 xu; nâng bếp cần hạng Tiệm ăn; ngày đầu không mưa.
+- [x] Nhóm 3–4 người: cùng lúc tối đa số bàn vừa + 1. Bác nông dân dạo chợ chờ đội quán rồi ăn chung, ăn 30 phút rồi về; còn trên 75% sức thì trưa không ăn. "Để mọi người tự chọn" chia đều, không âm tiền.
+- [x] Anh shipper + xe máy trước quán: giao đơn 15–40 phút, tốn 5–10 sức (tối đa 40), về mới nhận thưởng; ăn cùng đội. Badge Đơn hàng = số đơn còn mở.
+- [x] Quà khách quen vào kho (mục Quà tặng ở bảng Kho → Bày ra quán). Quán rộng thêm 80 (540 → 620). Sạp hải sản có viền LED nhấp nháy; Tiệm 25caaaaa có cửa sổ, bàn hồng; quán ốc đêm sáng hơn.
+- [x] Lên cấp chậm từ cấp 4, lên sao chậm từ 3 sao. Được nợ tới 500 xu, quá thì phá sản (màn chơi lại). Hướng dẫn xong thưởng 500 xu. Save v22 (ván cũ chơi tiếp được).
+- [ ] Chưa thử bằng tay trên điện thoại; chưa chạy lại mô phỏng mùa Xuân sau khi đổi nhịp lên cấp / sao và sản lượng ×2.
+
 ## Giai đoạn 13 — Cân bằng nông trại + kinh tế, chủ quán tuỳ biến, HUD gọn (20/11/2026)
 
 - [x] Ao nhanh hơn ~40% (cá 3 ngày, cá hồi 4, tôm / ốc / sò 3.5; lứa sau 3 ngày), 15 con mỗi lứa. Rau lâu lớn thì nhiều trái hơn (mỗi ô lời ~10–12 xu / ngày), lúa mì 14 / lúa nước 15, heo 8, bò thịt 10.

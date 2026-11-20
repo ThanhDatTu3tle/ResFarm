@@ -41,17 +41,27 @@ export function earn(ctx: SimContext, amount: number): void {
 }
 
 /** Trả tiền; false nếu không đủ (không trừ gì). */
+/** Chi được khoản này không (được nợ tới balance.debtLimit). */
+export function canAfford(ctx: SimContext, amount: number): boolean {
+  return ctx.state.money - amount >= -ctx.content.balance.debtLimit;
+}
+
 export function spend(ctx: SimContext, amount: number): boolean {
   const { state } = ctx;
-  if (state.money < amount) return false;
+  if (!canAfford(ctx, amount)) return false;
   state.money -= amount;
   state.stats.today.spent += amount;
   state.stats.total.spent += amount;
   return true;
 }
 
+/**
+ * XP cần để lên cấp kế tiếp. 3 cấp đầu giữ nhịp cũ; từ cấp 4 chậm dần (×1.5 ở cấp 4, ×2.5 ở cấp 6, ×4 ở cấp 9…)
+ * để người chơi có thời gian làm nhiệm vụ hệ thống.
+ */
 export function xpForLevel(level: number): number {
-  return Math.round(80 * Math.pow(level, 1.6));
+  const slow = level > 3 ? 1 + 0.5 * (level - 3) : 1;
+  return Math.round(80 * Math.pow(level, 1.6) * slow);
 }
 
 export function addXp(ctx: SimContext, amount: number): void {
@@ -64,8 +74,13 @@ export function addXp(ctx: SimContext, amount: number): void {
   }
 }
 
+/**
+ * Cộng / trừ uy tín. Lên sao chậm dần: dưới 3 sao giữ nhịp cũ, 3–4 sao còn 35%, trên 4 sao còn 15% (mất uy tín thì giữ nguyên).
+ */
 export function addReputation(ctx: SimContext, delta: number): void {
-  ctx.state.reputation = Math.max(0, Math.min(5, ctx.state.reputation + delta));
+  const rep = ctx.state.reputation;
+  const gain = delta > 0 ? delta * (rep < 3 ? 1 : rep < 4 ? 0.35 : 0.15) : delta;
+  ctx.state.reputation = Math.max(0, Math.min(5, rep + gain));
 }
 
 // ---------- Modifier từ nâng cấp ----------

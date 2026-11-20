@@ -1,6 +1,6 @@
 import { spend } from '../helpers';
 import { activeTables, canPlaceProp, canPlaceTable, findFreeSpot, footprint, LAYOUT_GRID, occupiedSeats, propRect, tableById, withRotation } from '../layout';
-import type { PropState } from '../state';
+import { OWNER_NAME_MAX, type PropState } from '../state';
 import { fail, ok, type SimContext, type System } from '../types';
 
 /**
@@ -19,6 +19,13 @@ export const homeSystem: System = {
       if (!name) return fail('Tên quán không được để trống.');
       if (name.length > 24) return fail('Tên quán tối đa 24 ký tự.');
       ctx.state.profile.name = name;
+      return ok();
+    },
+    'profile/renameOwner'(ctx, cmd) {
+      const name = cmd.name.replace(/\s+/g, ' ').trim();
+      if (!name) return fail('Tên không được để trống.');
+      if (name.length > OWNER_NAME_MAX) return fail(`Tên tối đa ${OWNER_NAME_MAX} ký tự.`);
+      ctx.state.owner.name = name;
       return ok();
     },
     'pet/adopt'(ctx, cmd) {
@@ -163,11 +170,11 @@ export function resale(ctx: SimContext, cost: number): number {
 }
 
 /** Khách quen tặng đồ trang trí: bày vào chỗ trống, hết chỗ thì cất kho. */
+/** Quà khách quen: cất vào kho (mục Quà tặng ở bảng Kho), người chơi tự bày ra rồi kéo tới chỗ muốn đặt. */
 export function givePropGift(ctx: SimContext, propId: string): void {
   const { state, content } = ctx;
   const def = content.props.get(propId);
-  const spot = findFreeSpot(ctx, (x, y) => propRect(def, x, y, 0));
-  state.restaurant.props.push({ uid: `p${state.nextId++}`, def: def.id, x: spot?.x ?? 0, y: spot?.y ?? 0, rot: 0, stored: !spot });
+  state.restaurant.props.push({ uid: `p${state.nextId++}`, def: def.id, x: 0, y: 0, rot: 0, stored: true });
 }
 
 /**

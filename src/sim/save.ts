@@ -71,6 +71,27 @@ const migrations: Record<number, (old: any) => any> = {
   17: (s) => ({ ...s, owner: { gender: 'male', age: 30 }, version: 18 }),
   // v18 -> v19: tên, kiểu tóc, quần áo của chủ quán (cleanOwner điền mặc định).
   18: (s) => ({ ...s, owner: { ...s.owner, name: '', hair: 'auto', outfit: 'auto' }, version: 19 }),
+  // v19 -> v20: bác nông dân dạo chợ chờ đội quán (ăn chung một lượt), ở lại làm nếu còn khoẻ.
+  19: (s) => ({ ...s, crew: { ...s.crew, farmerWaiting: false, farmerBack: null, farmerLunchDay: 0 }, version: 20 }),
+  // v20 -> v21: quán rộng thêm 80 theo bề ngang, mọi toạ độ x trong quán dời sang phải 40 (bàn đã dời, đồ trang trí, vết bẩn, người phục vụ).
+  20: (s) => {
+    const r = s.restaurant;
+    const dx = (o: { x: number }) => ({ ...o, x: o.x + 40 });
+    return {
+      ...s,
+      restaurant: {
+        ...r,
+        layout: Object.fromEntries(Object.entries(r.layout as Record<string, { x: number }>).map(([k, v]) => [k, dx(v)])),
+        props: r.props.map((p: { x: number }) => dx(p)),
+        stains: r.stains.map((p: { x: number }) => dx(p)),
+        waiter: dx(r.waiter),
+        helpers: r.helpers.map((h: { x: number }) => dx(h)),
+      },
+      version: 21,
+    };
+  },
+  // v21 -> v22: anh shipper giao đơn hàng.
+  21: (s) => ({ ...s, bankrupt: false, restaurant: { ...s.restaurant, shipper: { energy: 40, fainted: false, trip: null } }, version: 22 }),
 };
 
 export function serialize(state: GameState): string {

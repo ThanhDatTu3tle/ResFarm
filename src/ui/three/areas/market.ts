@@ -4,7 +4,7 @@ import type { Game } from '../../../sim/game';
 import { crewLook, logoBoard } from './stall';
 import { addUmbrella, adultShape, animatePerson, LOOKS, makeCrate, makeLampPost, makePerson, makeTree, randomShape, UMBRELLA_COLORS } from '../models';
 import { collectSway, sway, type Area, type Env, type Pick } from '../stage';
-import { emojiSprite, G, group, mesh, seeded, toon, type V3, paintSeason } from '../toon';
+import { blinkLeds, emojiSprite, G, group, ledFrame, mesh, seeded, toon, type V3, paintSeason } from '../toon';
 import { signText } from '../cuisine';
 import { FestiveSet } from '../festive';
 import { OwnerWalker, randIn, type Spot } from '../owner';
@@ -46,6 +46,8 @@ export class MarketArea implements Area {
   private walkers: { g: THREE.Group; range: number; speed: number; phase: number }[] = [];
   private vendors: THREE.Group[] = [];
   private flags: THREE.Object3D[] = [];
+  /** Bóng LED nhấp nháy quanh bảng tên sạp hải sản. */
+  private leds: THREE.MeshBasicMaterial[] = [];
   /** Xe trên đường: chạy theo làn, ra khỏi đầu đường thì vòng lại đầu kia. */
   private vehicles: { g: THREE.Group; speed: number; dir: 1 | -1; wheels: THREE.Object3D[]; rider: THREE.Group | null }[] = [];
   /** Tâm từng hàng quán (để camera lướt tới khi bấm). */
@@ -214,6 +216,8 @@ export class MarketArea implements Area {
     const name = signText(def.name, '#3b2a1e', W - 0.9, 0.62);
     name.position.set(0.3, 0, 0.075);
     board.add(name);
+    // Sạp hải sản: viền đèn LED nhấp nháy quanh bảng tên
+    if (def.id === 'seafood') this.leds.push(...ledFrame(board, W + 0.42, 1.07, 0.08));
     // Bảng chân đứng nhỏ cạnh sạp (bảng phấn xanh)
     if (def.standee) {
       const s = group(g, { p: [W / 2 + 0.85, 0, 1.25], r: [0, -0.15, 0], s: 1.5 });
@@ -491,6 +495,7 @@ export class MarketArea implements Area {
     }
     // Người bán: thở, chớp mắt, thỉnh thoảng vẫy tay mời khách
     this.vendors.forEach((v, i) => animatePerson(v, env.t, { wave: Math.max(0, Math.min(1, (Math.sin(env.t * 0.45 + i * 2.1) - 0.85) * 8)) }));
+    blinkLeds(this.leds, env.t);
     for (const f of this.flags) f.rotation.z = Math.sin(env.t * (2 + env.wind * 5) + f.userData.phase) * (0.1 + env.wind * 0.5);
     sway(this.swayNodes, env);
 

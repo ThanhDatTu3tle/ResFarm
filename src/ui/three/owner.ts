@@ -3,7 +3,6 @@ import type { Game } from '../../sim/game';
 import { animatePerson } from './models';
 import { makeOwner } from './people';
 import { emojiSprite, textSprite } from './toon';
-import { ownerName } from '../../sim/state';
 
 /**
  * ÔNG / BÀ CHỦ QUÁN đi dạo trong một khu (quán, chợ, nông trại): chọn chỗ ngẫu nhiên → đi chậm tới → đứng ngó quanh
@@ -50,7 +49,9 @@ export class OwnerWalker {
   }
 
   private makeLabel(): THREE.Sprite {
-    const s = textSprite(ownerName(this.game.state.owner), '#8a3a2a', 0.55 * this.scale);
+    const name = this.game.state.owner.name;
+    const s = textSprite(name || ' ', '#8a3a2a', 0.55 * this.scale);
+    s.visible = !!name;
     this.parent.add(s);
     return s;
   }

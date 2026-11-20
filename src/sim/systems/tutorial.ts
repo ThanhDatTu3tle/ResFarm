@@ -92,6 +92,8 @@ export const tutorialSystem: System = {
 };
 
 function go(ctx: SimContext, t: TutorialState, step: TutorialStep): void {
+  // Làm hết các bước hướng dẫn: thưởng (không tính vào doanh thu)
+  if (step === 'done' && t.step !== 'done') ctx.state.money += ctx.content.balance.tutorialReward;
   t.step = step;
   t.served = ctx.state.stats.today.guestsServed;
   if (step === 'hard' && !t.recipe) pickHardDish(ctx, t);

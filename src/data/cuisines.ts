@@ -14,7 +14,7 @@ export const cuisines: CuisineDef[] = [
     blurb: 'Rèm noren, đèn lồng giấy, quầy sushi gỗ — sushi, cơm cuộn, mì ramen.',
     showcase: ['sushi_salmon', 'maki', 'ramen'],
     accent: '#d9534a',
-    startInventory: [{ item: 'egg', qty: 30 }, { item: 'seaweed', qty: 24 }, { item: 'tofu', qty: 12 }],
+    startInventory: [{ item: 'egg', qty: 45 }, { item: 'seaweed', qty: 36 }, { item: 'tofu', qty: 18 }],
   },
   {
     id: 'kr',
@@ -24,7 +24,7 @@ export const cuisines: CuisineDef[] = [
     blurb: 'Bàn nướng có ống hút khói, biển đèn neon — tokbokki, gà rán, kimbap.',
     showcase: ['tteokbokki', 'kr_fried_chicken', 'kimbap'],
     accent: '#3f6fd2',
-    startInventory: [{ item: 'egg', qty: 30 }, { item: 'cabbage', qty: 24 }, { item: 'seaweed', qty: 16 }, { item: 'carrot', qty: 12 }, { item: 'chili', qty: 12 }],
+    startInventory: [{ item: 'egg', qty: 45 }, { item: 'cabbage', qty: 36 }, { item: 'seaweed', qty: 24 }, { item: 'carrot', qty: 18 }, { item: 'chili', qty: 18 }],
   },
   {
     id: 'vn',
@@ -34,7 +34,7 @@ export const cuisines: CuisineDef[] = [
     blurb: 'Đèn lồng Hội An, quạt trần, ghế nhựa đỏ — cơm gia đình, phở, bún bò, cơm tấm.',
     showcase: ['pho', 'bun_bo', 'com_tam'],
     accent: '#e2a028',
-    startInventory: [{ item: 'egg', qty: 30 }, { item: 'cabbage', qty: 24 }, { item: 'tomato', qty: 24 }],
+    startInventory: [{ item: 'egg', qty: 45 }, { item: 'cabbage', qty: 36 }, { item: 'tomato', qty: 36 }],
   },
   {
     id: 'oc',
@@ -44,6 +44,6 @@ export const cuisines: CuisineDef[] = [
     blurb: 'Xe đẩy ốc và bếp nướng than dưới sạp dù, ghế nhựa xanh đỏ, dây đèn vàng — hàu nướng, nghêu hấp, ốc hương.',
     showcase: ['hau_nuong_mo_hanh', 'ngheu_hap_thai', 'oc_huong_sot_pho_mai'],
     accent: '#e2703a',
-    startInventory: [{ item: 'ngheu', qty: 24 }, { item: 'shrimp', qty: 18 }, { item: 'hau', qty: 18 }, { item: 'scallion', qty: 16 }, { item: 'chili', qty: 12 }],
+    startInventory: [{ item: 'ngheu', qty: 36 }, { item: 'shrimp', qty: 27 }, { item: 'hau', qty: 27 }, { item: 'scallion', qty: 24 }, { item: 'chili', qty: 18 }],
   },
 ];

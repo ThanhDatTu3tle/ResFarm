@@ -11,6 +11,8 @@ export interface GameState {
   version: number;
   /** Phong cách quán chọn lúc tạo ván (Nhật / Hàn / Việt): quyết định thực đơn và nội thất. Không đổi trong ván. */
   cuisine: CuisineId;
+  /** Nợ quá balance.debtLimit: phá sản, hết ván (game dừng, mời chơi lại). */
+  bankrupt: boolean;
   /** Ông / bà chủ quán (người chơi) chọn lúc tạo ván: giới tính + tuổi (25..50) — chỉ đổi hình nhân vật đi dạo. */
   owner: OwnerProfile;
   rng: RngState;
@@ -127,7 +129,14 @@ export interface Contract {
   items: ItemStack[];
   reward: number;
   xp: number;
-  status: 'open' | 'done' | 'expired';
+  /** 'shipping' = anh shipper đang chở đi giao (đủ hàng đã lấy khỏi kho, thưởng nhận khi giao xong). */
+  status: 'open' | 'shipping' | 'done' | 'expired';
+}
+
+/** Anh shipper (giao đơn hàng bằng xe máy): bao ăn ở cùng đội quán, mỗi chuyến tốn sức. */
+export interface ShipperState extends Vitals {
+  /** Đang đi giao: đơn nào, giờ về (phút trong ngày). null = đang ở quán. */
+  trip: { contractId: number; until: number } | null;
 }
 
 /** Sự kiện ngẫu nhiên hôm nay (systems/events.ts). */
@@ -235,6 +244,12 @@ export interface CrewState {
   meals: MealLine[];
   /** Hoá đơn chờ người chơi thanh toán (hiện khi mọi người ăn xong). */
   bill: MealLine[];
+  /** Bác nông dân đang dạo chợ chờ đội quán tan ca để ăn chung (chưa gọi món). */
+  farmerWaiting: boolean;
+  /** Giờ bác ăn xong về nông trại (bác ăn nhanh, về trước đội quán); null = chưa ăn. */
+  farmerBack: number | null;
+  /** Ngày đã quyết định giờ nghỉ trưa của bác (đi hay ở lại làm vì còn khoẻ) — mỗi ngày một lần. */
+  farmerLunchDay: number;
 }
 
 /** Việc của bồi bàn, làm lần lượt theo thứ tự người chơi giao. */
@@ -295,6 +310,8 @@ export interface RestaurantState {
   stains: { id: number; x: number; y: number; level: number }[];
   /** Bồi bàn — do người chơi điều khiển bằng cách bấm vào khách / quầy ra món. */
   waiter: WaiterState;
+  /** Anh shipper giao đơn hàng (giai đoạn 14). */
+  shipper: ShipperState;
   /** Nhân viên phục vụ thuê thêm (mỗi bậc hạng quán thêm 1 chỗ). */
   helpers: HelperState[];
 }
@@ -375,7 +392,7 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 19;
+export const SAVE_VERSION = 22;
 
 export interface OwnerProfile {
   gender: 'male' | 'female';
@@ -471,6 +488,7 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
     version: SAVE_VERSION,
     cuisine,
     owner: cleanOwner(owner),
+    bankrupt: false,
     rng: { s: seed | 0 },
     nextId: 1,
     clock: { day: 1, minute: b.openMinute, phase: 'open' },
@@ -496,6 +514,7 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
       props: [],
       tier: 1,
       waiter: { ...content.room.waiterHome, tasks: [], carrying: [], energy: b.crew.maxEnergy, fainted: false },
+      shipper: { energy: b.crew.shipperMaxEnergy, fainted: false, trip: null },
       helpers: [],
       dirty: {},
       stains: [],
@@ -515,7 +534,7 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
     regulars: {},
     profile: { name: DEFAULT_SHOP_NAME, pet: null, pets: [] },
     weather: { id: content.weathers.all()[0].id, minutesLeft: 0 },
-    crew: { restaurantAway: null, farmerAway: null, pending: [], meals: [], bill: [] },
+    crew: { restaurantAway: null, farmerAway: null, pending: [], meals: [], bill: [], farmerWaiting: false, farmerBack: null, farmerLunchDay: 0 },
     contracts: [],
     event: null,
     stats: { today: emptyStats(), total: emptyStats(), season: emptyStats(), year: emptyStats() },
