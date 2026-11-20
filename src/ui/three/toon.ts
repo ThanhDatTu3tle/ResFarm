@@ -20,6 +20,32 @@ export function toon(color: number, opts?: THREE.MeshToonMaterialParameters): TH
   return m;
 }
 
+const rimCache = new Map<number, THREE.MeshToonMaterial>();
+
+/**
+ * Vật liệu toon có VIỀN SÁNG MỀM (rim light): phần mép vật thể (nơi bề mặt quay ngang so với camera) hắt sáng ấm nhẹ,
+ * giúp nhân vật tách khỏi nền mà không cần nét viền cứng. Dùng cho người (xem `rimify` trong person.ts). Có cache theo màu.
+ */
+export function toonRim(color: number): THREE.MeshToonMaterial {
+  let m = rimCache.get(color);
+  if (m) return m;
+  m = new THREE.MeshToonMaterial({ color, gradientMap });
+  m.userData.rim = true;
+  m.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <opaque_fragment>',
+      `{
+        float rimF = 1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
+        outgoingLight += vec3(1.0, 0.94, 0.82) * smoothstep(0.55, 1.0, rimF) * 0.22;
+      }
+      #include <opaque_fragment>`,
+    );
+  };
+  m.customProgramCacheKey = () => 'toon-rim';
+  rimCache.set(color, m);
+  return m;
+}
+
 const geoCache = new Map<string, THREE.BufferGeometry>();
 function cached<T extends THREE.BufferGeometry>(key: string, make: () => T): T {
   let g = geoCache.get(key) as T | undefined;

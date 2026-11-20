@@ -4,6 +4,20 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 22/11/2026 (laptop) — Giai đoạn 12: Sổ tay tự sinh
+
+**Nhánh:** `giai-doan-12` (chưa commit). Giai đoạn 11 đã merge vào `main`.
+
+1. `scripts/so-tay.mjs` + khuôn `scripts/so-tay.html`, lệnh `npm run sotay`. Sổ tay cũ viết tay (dừng ở giai đoạn 6) thay bằng bản sinh từ data nên không còn lệch số. Đã xem trên localhost: không lỗi console, các mục hiện đủ.
+2. Chủ dự án chọn: Sổ tay tự sinh từ data; đồ hoạ cần tinh chỉnh là **nhân vật và HUD**. Đã cập nhật artifact Sổ tay trên claude.ai (cùng link).
+3. Nhân vật gọt lại bằng code theo yêu cầu (không cần ngón tay / chân; cao thấp, mập gầy, trẻ em thấp; thêm tóc; giữ mắt mũi miệng; bóng đổ, viền mềm, cử động tự nhiên): `src/ui/three/person.ts` (tách khỏi models.ts), `toonRim` trong toon.ts, `HairStyle` thêm `bob` / `curly` / `side`. Không đổi sim / save. Sửa luôn tay phải trước đây nghiêng vào trong thân. Xem ở `lineup.html` và trong quán / chợ.
+7. Quán Ốc (`CuisineId 'oc'`): data (cuisines, 9 món, `cheese`, `scallion`, nội thất `floor_street` / `floor_gach_do` / `floor_gach_hoa` / `wall_oc_*` / `furn_oc`, món ruột khách quen), `src/ui/three/street.ts`, nhánh `oc` trong cuisine.ts, màn mở đầu 4 quán. AI tự chọn: công thức + giá 9 món (lãi ~14–24 xu/phần), 3 món khởi đầu (tôm nướng, nghêu hấp thái, hàu nướng mỡ hành), "Sơn tường" của quán ốc = màu sạp dù, ô che bàn chỉ bung khi mưa (trời khô cụp lại cho dễ nhìn khách).
+6. Chợ: trái cây bán ở Tạp hóa cậu Ba (mùa Đông vườn nghỉ vẫn có); sạp hải sản thêm 6 loại ốc / sò (`StallDef.baskets`), sạp thịt `interior: 'butcher'`.
+5. Nông trại theo yêu cầu: bỏ lưới ô ở bảng, thời gian tính bằng ngày (`FARM_DAY`), `diesInWinter`, ao thu nhiều lứa, 6 loại ốc / sò, máy cày đậu. AI tự chọn: rau 1 cải · 2 dưa leo · 3 cà chua, cà rốt · 4 ớt, khoai tây · 5 hành tây; gà mái đẻ / bò sữa ra trứng / sữa mỗi ngày; cây ăn quả hái xong 1 ngày ra lứa sau; tưới giữ ẩm 1 ngày; sản lượng rau / thịt giữ như cũ.
+4. Bảng gọi món 2 cột theo yêu cầu (`crew/unorder`, `crew/confirm`, `missingEnergy`). Badge "Powered by Netlify" che nút: tắt trong cấu hình project trên Netlify (chủ dự án tự làm).
+
+---
+
 ## 21/11/2026 (laptop) — Giai đoạn 11b: nhịp quán + ngày hướng dẫn
 
 **Nhánh:** `giai-doan-11` (chung nhánh, chưa commit). **Kết quả:** typecheck sạch, 111 test qua (thêm test chạy trọn ngày hướng dẫn). Đã xem trên localhost: lời chào, thẻ bưng món, thẻ ra chợ, thẻ nông trại (`?fresh&seed=4&tut=market&area=market`...). Chưa thử được trên điện thoại thật (âm thanh iOS) và chưa nhìn tận mắt động tác lau nhà.

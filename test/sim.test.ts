@@ -8,8 +8,9 @@ import { activeTables, findSeats } from '../src/sim/systems/customers';
 import { priceOf } from '../src/sim/systems/market';
 import { calendarOf, festivalOf, seasonalPrice } from '../src/sim/calendar';
 import { DAYS_PER_SEASON } from '../src/data/calendar';
+import { FARM_DAY } from '../src/data/farm';
 import { autoServeCommands } from '../src/sim/systems/service';
-import { billDue } from '../src/sim/systems/crew';
+import { billDue, missingEnergy } from '../src/sim/systems/crew';
 import { maxHelpers } from '../src/sim/systems/helpers';
 import { sellPrice } from '../src/sim/systems/contracts';
 import { buildingRect, nextWaypoint, slotCenter, slotScale, workSpot } from '../src/sim/systems/farmer';
@@ -34,6 +35,24 @@ function runDay(game: Game, waiter = true): void {
   expect(game.state.clock.phase).toBe('summary');
 }
 
+/**
+ * Cho thời gian trôi `minutes` phút nông trại, qua nhiều ngày nếu cần (hết ngày thì sang ngày mới — qua đêm nông trại
+ * được cộng `nightMinutes`). Cây / con lớn tính bằng ngày nên test nông trại dùng hàm này thay cho tick.
+ */
+function advance(game: Game, minutes: number): void {
+  let left = minutes;
+  for (let i = 0; i < 100000 && left > 0; i++) {
+    if (game.state.clock.phase === 'summary') {
+      game.dispatch({ type: 'day/next' });
+      left -= content.balance.nightMinutes;
+      continue;
+    }
+    const step = Math.min(left, 30);
+    game.tick(step);
+    left -= step;
+  }
+}
+
 /** Đặt sẵn 1 nhóm khách đã ngồi ở bàn `tableId` (bỏ qua xếp hàng). */
 function seatParty(game: Game, tableId: string, size: number, seats: number[] = Array.from({ length: size }, (_, i) => i)): Party {
   const party: Party = { id: game.state.nextId++, size, phase: 'seated', tableId, seats, patience: 999, patienceMax: 999, timer: 0, orderIds: [], looks: seats.map(() => 0), called: false, wait: 0, regular: null };
@@ -51,10 +70,17 @@ function quietGame(): Game {
 }
 
 describe('nội dung', () => {
-  it('hợp lệ; quán khởi đầu có quầy 3 ghế đơn + 1 bàn bốn + 2 bàn đôi', () => {
-    const start = content.tables.all().filter((t) => !t.requiresUpgrade);
+  it('hợp lệ; quán khởi đầu có quầy 3 ghế đơn + 1 bàn bốn + 2 bàn đôi (quán ốc: 3 bàn đôi, không có quầy)', () => {
+    const start = activeTables(newGame().ctx);
     expect(start.map((t) => t.seats).sort()).toEqual([2, 2, 3, 4]);
     expect(start.filter((t) => t.shared)).toHaveLength(1);
+    const oc = new Game(content, { seed: 1, cuisine: 'oc' });
+    const street = activeTables(oc.ctx);
+    expect(street.map((t) => t.seats).sort()).toEqual([2, 2, 2, 4]);
+    expect(street.some((t) => t.shared)).toBe(false);
+    for (const t of street) expect(canPlaceTable(oc.ctx, t.id, tablePos(oc.ctx, t).x, tablePos(oc.ctx, t).y), t.id).toBeNull();
+    // Khách đi một mình ở quán ốc ngồi bàn đôi
+    expect(findSeats(oc.ctx, 1)?.tableId).toMatch(/pair/);
   });
 });
 
@@ -93,7 +119,7 @@ describe('nông trại', () => {
     expect(game.dispatch({ type: 'farm/water', slotId: 'field-0' }).ok).toBe(true);
     expect(game.dispatch({ type: 'farm/water', slotId: 'field-0' }).ok).toBe(false); // còn ẩm
     expect(game.dispatch({ type: 'farm/harvest', slotId: 'field-0' }).ok).toBe(false);
-    game.tick(content.producers.get('cabbage').growTime + 1);
+    advance(game, content.producers.get('cabbage').growTime + 1);
     expect(game.dispatch({ type: 'farm/harvest', slotId: 'field-0' }).ok).toBe(true);
     expect(game.state.inventory.cabbage).toBeGreaterThanOrEqual(before + 3 - 24); // khách có thể đã ăn bớt
     expect(game.state.farm.slots[0].producerId).toBeNull();
@@ -122,23 +148,73 @@ describe('nông trại', () => {
     game.state.money = 5000;
     game.state.level = 5;
     const fry = content.producers.get('fish_fry');
-    const harvestOnce = () => {
+    // Thả cá giống một lần: lớn 5 ngày thu 15 con, sau đó cứ 5 ngày thu một lứa (không phải thả lại)
+    expect(game.dispatch({ type: 'farm/plant', slotId: 'pond-0', producerId: 'fish_fry' }).ok).toBe(true);
+    const harvestAfter = (minutes: number) => {
       const before = game.state.inventory.fish ?? 0;
-      expect(game.dispatch({ type: 'farm/plant', slotId: 'pond-0', producerId: 'fish_fry' }).ok).toBe(true);
-      // Cá lớn lâu hơn phần còn lại của ngày nên phải cho qua ngày mới (sim dừng ở màn tổng kết).
-      for (let i = 0; i < fry.growTime + 1; i++) {
-        game.tick(1);
-        if (game.state.clock.phase === 'summary') game.dispatch({ type: 'day/next' });
-      }
+      advance(game, minutes);
       expect(game.dispatch({ type: 'farm/harvest', slotId: 'pond-0' }).ok).toBe(true);
       return (game.state.inventory.fish ?? 0) - before;
     };
-    expect(harvestOnce()).toBe(5);
+    expect(harvestAfter(fry.growTime + 1)).toBe(15);
+    expect(game.state.farm.slots.find((s) => s.id === 'pond-0')?.producerId).toBe('fish_fry');
     expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'pond-0' }).ok).toBe(true);
-    expect(harvestOnce()).toBe(8);
+    expect(harvestAfter(fry.regrowTime! + 1)).toBe(24);
     expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'pond-0' }).ok).toBe(true);
     expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'pond-0' }).ok).toBe(false);
     expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'field-0' }).ok).toBe(false);
+  });
+
+  it('thời gian lớn tính bằng ngày: rau cải 1 ngày, hành tây 5 ngày, heo 5, bò 7; cây ăn quả 8 ngày rồi 1 ngày một lứa', () => {
+    const day = FARM_DAY;
+    const days = (id: string) => content.producers.get(id).growTime / day;
+    expect(days('cabbage')).toBe(1);
+    expect(days('onion')).toBe(5);
+    expect(days('hen')).toBe(2);
+    expect(days('pig')).toBe(5);
+    expect(days('cattle')).toBe(7);
+    expect(days('dairy_cow')).toBe(7);
+    expect(days('orange_tree')).toBe(8);
+    expect(content.producers.get('orange_tree').regrowTime).toBe(day);
+    expect(days('wheat')).toBe(3);
+    const crops = content.producers.all().filter((p) => p.slot === 'field');
+    expect(crops.every((p) => p.growTime >= day && p.growTime <= 5 * day)).toBe(true);
+    // Ốc, sò nuôi ở ao giống tôm
+    for (const id of ['oc_huong_fry', 'oc_mong_tay_fry', 'so_diep_fry', 'ngheu_fry', 'hau_fry', 'oc_bu_fry']) {
+      const p = content.producers.get(id);
+      expect([p.slot, p.growTime / day, p.regrowTime! / day, p.yields[0].qty]).toEqual(['pond', 6, 5, 10]);
+    }
+  });
+
+  it('kết thúc ngày sớm vẫn đủ 1 ngày nông trại: rau cải gieo sáng nay, sáng mai thu được', () => {
+    const game = quietGame();
+    game.state.money = 1000;
+    game.state.clock.minute = 7 * 60;
+    game.dispatch({ type: 'farm/till', slotId: 'field-0' });
+    game.dispatch({ type: 'farm/plant', slotId: 'field-0', producerId: 'cabbage' });
+    game.state.farm.slots[0].wet = 1e6;
+    game.tick(21 * 60 - 7 * 60);
+    expect(game.dispatch({ type: 'day/end' }).ok).toBe(true);
+    for (let i = 0; i < 200 && game.state.clock.phase !== 'summary'; i++) game.tick(1);
+    expect(game.dispatch({ type: 'day/next' }).ok).toBe(true);
+    game.tick(60 + 1); // tới 07:01 sáng hôm sau
+    expect(game.state.farm.slots[0].stage).toBe('ready');
+  });
+
+  it('sang mùa Đông gà mái đẻ, bò sữa hết lứa; gà thịt / heo vẫn còn (ngừng lớn)', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 5000, level: 5 });
+    game.state.clock.day = 3 * DAYS_PER_SEASON; // ngày cuối mùa Thu
+    expect(game.dispatch({ type: 'farm/plant', slotId: 'pen-0', producerId: 'hen' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farm/plant', slotId: 'pen-1', producerId: 'pig' }).ok).toBe(true);
+    let culled = 0;
+    game.bus.on('farm/culled', (e) => (culled = e.count));
+    runDay(game, false);
+    game.dispatch({ type: 'day/next' });
+    const pen = (id: string) => game.state.farm.slots.find((s) => s.id === id)!;
+    expect(pen('pen-0').producerId).toBeNull();
+    expect(pen('pen-1').producerId).toBe('pig');
+    expect(culled).toBe(1);
   });
 
   it('vật nuôi cho sản phẩm nhiều lần', () => {
@@ -147,9 +223,9 @@ describe('nông trại', () => {
     game.state.menu.active = []; // không bán gì để kho không bị trừ
     const eggs = game.state.inventory.egg;
     expect(game.dispatch({ type: 'farm/plant', slotId: 'pen-0', producerId: 'hen' }).ok).toBe(true);
-    game.tick(hen.growTime + 1);
+    advance(game, hen.growTime + 1);
     game.dispatch({ type: 'farm/harvest', slotId: 'pen-0' });
-    game.tick(hen.regrowTime! + 1);
+    advance(game, hen.regrowTime! + 1);
     game.dispatch({ type: 'farm/harvest', slotId: 'pen-0' });
     expect(game.state.inventory.egg).toBe(eggs + 6);
     expect(game.state.farm.slots.find((s) => s.id === 'pen-0')?.producerId).toBe('hen');
@@ -548,8 +624,8 @@ describe('bác nông dân đi theo lối', () => {
   });
 });
 
-describe('phong cách quán (Nhật / Hàn / Việt)', () => {
-  for (const cuisine of ['jp', 'kr', 'vn'] as const) {
+describe('phong cách quán (Nhật / Hàn / Việt / Ốc)', () => {
+  for (const cuisine of ['jp', 'kr', 'vn', 'oc'] as const) {
     it(`quán ${cuisine}: chỉ có món của quán mình, nội thất riêng, nấu được món khởi đầu và chạy trọn ngày`, () => {
       const game = new Game(content, { seed: 11, cuisine });
       const { state } = game;
@@ -706,7 +782,7 @@ describe('nhà kính', () => {
     expect(game.dispatch({ type: 'farm/plant', slotId: field.id, producerId: 'tomato' }).ok).toBe(true);
     expect(game.dispatch({ type: 'farm/plant', slotId: plots()[1].id, producerId: 'hen' }).ok).toBe(false);
     field.wet = 1e6;
-    game.tick(200);
+    advance(game, content.producers.get('tomato').growTime / 1.3 + 60);
     expect(gp.stage).toBe('ready');
     expect(field.stage).toBe('growing');
     // Bác nông dân vào cửa nhà kính để làm việc
@@ -910,7 +986,7 @@ describe('ca làm, khay bưng nhiều món, dọn dẹp (đợt 14)', () => {
     game.tick(15 * 60 - 6 * 60 + 1); // tới 15:01
     expect(events).toEqual(['start0', 'end0', 'start1']);
     expect(arrivals.length).toBeGreaterThan(0);
-    expect(arrivals.every((m) => m >= 7 * 60 && m < 12 * 60 + 1)).toBe(true);
+    expect(arrivals.every((m) => (m >= 7 * 60 && m < 12 * 60 + 1) || m >= 15 * 60)).toBe(true);
     expect(game.state.restaurant.stains.length).toBe(content.balance.stains.perShift);
   });
 
@@ -1122,9 +1198,19 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
     const people = 4; // 2 đầu bếp + bồi bàn + bác nông dân
     expect(game.state.crew.pending).toHaveLength(people);
     // Người chơi chọn Matcha ở Tiệm 25caaaaa cho bồi bàn
+    // Bồi bàn còn 5⚡: Matcha (+16) chưa đầy nên vẫn đang chọn; gọi thêm Combo gà (+22) là đầy → xong, không gọi thêm được
     expect(game.dispatch({ type: 'crew/order', who: 'waiter', stallId: 'snack', dish: 0 }).ok).toBe(true);
+    expect(game.state.crew.pending.some((p) => p.who === 'waiter')).toBe(true);
+    expect(missingEnergy(game.ctx, 'waiter')).toBe(b.maxEnergy - 5 - 16);
+    // Bỏ món vừa gọi rồi gọi lại
+    expect(game.dispatch({ type: 'crew/unorder', who: 'waiter' }).ok).toBe(true);
+    expect(game.state.crew.meals.some((l) => l.who === 'waiter')).toBe(false);
+    expect(game.dispatch({ type: 'crew/order', who: 'waiter', stallId: 'snack', dish: 0 }).ok).toBe(true);
+    expect(game.dispatch({ type: 'crew/order', who: 'waiter', stallId: 'snack', dish: 2 }).ok).toBe(true);
+    expect(game.state.crew.pending.some((p) => p.who === 'waiter')).toBe(false);
     expect(game.dispatch({ type: 'crew/order', who: 'waiter', stallId: 'snack', dish: 0 }).ok).toBe(false);
-    expect(game.state.crew.meals.find((l) => l.who === 'waiter')?.dish).toMatch(/Matcha/);
+    expect(game.dispatch({ type: 'crew/unorder', who: 'waiter' }).ok).toBe(false);
+    expect(game.state.crew.meals.filter((l) => l.who === 'waiter').map((l) => l.dish).join()).toMatch(/Matcha.*gà/);
     // Bác về 13:00 (đã tự chọn món khi quá hạn), nhưng hoá đơn chưa hiện: đợi đội quán ăn xong
     game.tick(b.farmerLunch.to - game.state.clock.minute + 1);
     expect(game.state.crew.farmerAway).toBeNull();
@@ -1133,7 +1219,7 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
     expect(game.dispatch({ type: 'crew/pay' }).ok).toBe(false);
     game.tick(b.lunchBack - game.state.clock.minute + 1);
     expect(game.state.crew.restaurantAway).toBeNull();
-    expect(game.state.crew.bill).toHaveLength(people);
+    expect(game.state.crew.bill).toHaveLength(people + 1); // bồi bàn ăn 2 món
     expect(billDue(game.ctx)).toBe(true);
     expect(game.state.restaurant.waiter.energy).toBeGreaterThan(5);
     const total = game.state.crew.bill.reduce((s, l) => s + l.price, 0);

@@ -45,7 +45,7 @@ export function roomOf(ctx: SimContext): RoomDef {
 export function activeTables(ctx: SimContext): TableDef[] {
   const { state, content } = ctx;
   const r = state.restaurant;
-  const base = content.tables.all().filter((t) => !t.requiresUpgrade || state.upgrades.includes(t.requiresUpgrade));
+  const base = content.tables.all().filter((t) => (!t.requiresUpgrade || state.upgrades.includes(t.requiresUpgrade)) && (!t.cuisines || t.cuisines.includes(state.cuisine)));
   const extra = r.extraTables.map((e) => extraTableDef(ctx, e.id, e.kind));
   return [...base, ...extra].map((t) => withRotation(t, !!r.layout[t.id]?.rot));
 }

@@ -11,7 +11,7 @@ import { cycleTime, needsWatering, nextTier, yieldsOf } from '../../../sim/syste
 import { easeOutBack, wobble } from '../../ease';
 import { Particles } from '../fx';
 import { makeFruitTree } from '../farmkit';
-import { animateCreature, animatePerson, cropStageOf, LOOKS, makeAnimals, makeBush, makeCrop, makeFence, makeLampPost, makePerson, makeTree, type CropStage } from '../models';
+import { adultShape, animateCreature, animatePerson, cropStageOf, FARMER_SHAPE, LOOKS, makeAnimals, makeBush, makeCrop, makeFence, makeLampPost, makePerson, makeTree, type CropStage } from '../models';
 import { collectSway, sway, type Area, type Env, type Pick } from '../stage';
 import { Bar3D, emojiSprite, G, group, mesh, seeded, toon, type V3, paintSeason } from '../toon';
 
@@ -119,6 +119,8 @@ export class FarmArea implements Area {
   private expand = group(this.root);
   private expandKey = '';
   private tractor = makeTractor();
+  /** Máy cày đậu cạnh ruộng lúa lúc rảnh (bác lái đi thì ẩn, chỉ còn chiếc đang chạy). */
+  private parked = makeTractor();
   /** Người làm vườn (state.farm.gardeners): hình theo id, tạo / xoá theo state. */
   private gardeners = new Map<string, { g: THREE.Group; prev: THREE.Vector2; walk: number; icon: THREE.Sprite | null; iconKind: FarmerTaskKind | null }>();
   private bulbs: THREE.MeshToonMaterial[] = [];
@@ -215,7 +217,7 @@ export class FarmArea implements Area {
     }
 
     // Bác nông dân — vị trí cập nhật mỗi khung hình theo state.farm.farmer
-    const farmer = (this.farmer = makePerson(LOOKS[2], 'straw'));
+    const farmer = (this.farmer = makePerson(LOOKS[2], 'straw', FARMER_SHAPE));
     const home = this.game.state.farm.farmer;
     farmer.position.set(home.x, 0, home.z);
     this.farmerPrev.set(home.x, home.z);
@@ -224,6 +226,10 @@ export class FarmArea implements Area {
     // Máy cày: hiện dưới bác khi thu / gieo ruộng lúa và lúc chở lúa tới cối
     this.tractor.g.visible = false;
     r.add(this.tractor.g);
+    // Chỗ đậu: bãi cỏ phía nam ruộng lúa mì (dưới chỗ mở rộng ruộng thứ hai), mũi hướng ra đường đất
+    this.parked.g.position.set(-1.6, 0, 23.3);
+    this.parked.g.rotation.y = Math.PI / 2;
+    r.add(this.parked.g);
   }
 
   /**
@@ -654,7 +660,10 @@ export class FarmArea implements Area {
     const g = this.farmer;
     // Bác ra chợ ăn: vắng mặt; kiệt sức: nằm nghiêng giữa đồng
     g.visible = !state.crew.farmerAway;
-    if (!g.visible) this.tractor.g.visible = false;
+    if (!g.visible) {
+      this.tractor.g.visible = false;
+      this.parked.g.visible = true;
+    }
     if (f.fainted || !g.visible) {
       g.position.set(f.x, f.fainted ? 0.2 : 0, f.z);
       g.rotation.z += ((f.fainted ? Math.PI / 2 : 0) - g.rotation.z) * Math.min(1, dt * 6);
@@ -674,6 +683,7 @@ export class FarmArea implements Area {
     const driving = !!task && (task.kind === 'haul' || (!!taskSlot && isAutoSlot(ctx, taskSlot) && (task.kind === 'harvest' || task.kind === 'plant')));
     const tr = this.tractor;
     tr.g.visible = driving;
+    this.parked.g.visible = !driving;
     if (driving) {
       tr.g.position.set(f.x, 0, f.z);
       tr.g.rotation.y = g.rotation.y;
@@ -727,7 +737,7 @@ export class FarmArea implements Area {
     for (const gs of list) {
       let v = this.gardeners.get(gs.id);
       if (!v) {
-        const g = makePerson(GARDENER_LOOKS[gs.look % GARDENER_LOOKS.length], 'straw');
+        const g = makePerson(GARDENER_LOOKS[gs.look % GARDENER_LOOKS.length], 'straw', adultShape(gs.look * 11 + 1));
         g.scale.setScalar(1.05);
         g.position.set(gs.x, 0, gs.z);
         this.root.add(g);

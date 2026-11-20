@@ -3,13 +3,15 @@ import type { StallDef } from '../../../data';
 import type { Game } from '../../../sim/game';
 import { priceOf } from '../../../sim/systems/market';
 import { signText } from '../cuisine';
-import { animatePerson, LOOKS, makePerson } from '../models';
+import { adultShape, animatePerson, FARMER_SHAPE, LOOKS, makePerson } from '../models';
 import type { Area, Env, Pick } from '../stage';
 import { emojiSprite, G, group, mesh, paintSeason, type V3 } from '../toon';
 
 /**
  * KHU BÊN TRONG QUẦY CHỢ (bấm sạp ở chợ thì camera "đi vào" đây, giống nhà kính ở nông trại).
- *  - Sạp hải sản (`StallDef.interior: 'tanks'`): bể nước xếp chữ U, hải sản bơi trong bể (bấm bể → mua), giữa sạp người bán + cân, rổ, xô nước.
+ *  - Sạp hải sản (`StallDef.interior: 'tanks'`): bể nước xếp chữ U, hải sản bơi trong bể (bấm bể → mua); giữa sạp người bán + cân;
+ *    ốc, sò (`StallDef.baskets`) bày trong rổ quanh người bán và cái cân (bấm rổ → mua); xô nước.
+ *  - Sạp thịt (`'butcher'`): bàn inox dài; nửa trái có giá treo các tảng thịt (bấm tảng thịt → mua), nửa phải thớt to + cân thịt.
  *  - Sạp nguyên liệu: quầy gỗ bày các khay hàng, mỗi khay một nguyên liệu với biển giá hôm nay; bấm khay → Pick 'goods'
  *    (app.ts mở bảng mua nhỏ). Người bán đứng sau quầy.
  *  - Tiệm 25caaaaa: phòng hồng, quầy pha chế có biển logo, bảng menu (bảng chân đứng gần cửa; bấm → Pick 'menuboard', mở bảng gọi món
@@ -127,8 +129,12 @@ export class StallArea implements Area {
       this.buildTanks(def, index);
       return;
     }
+    if (def.interior === 'butcher') {
+      this.buildButcher(def, index);
+      return;
+    }
     // Người bán sau quầy
-    const vendor = makePerson(LOOKS[(index * 3 + 5) % LOOKS.length], index % 2 ? 'none' : 'straw');
+    const vendor = makePerson(LOOKS[(index * 3 + 5) % LOOKS.length], index % 2 ? 'none' : 'straw', adultShape(index * 3 + 5));
     vendor.position.set(0, 0.3, -2.6);
     vendor.scale.setScalar(1.25);
     g.add(vendor);
@@ -235,22 +241,33 @@ export class StallArea implements Area {
    */
   private buildTanks(def: StallDef, index: number): void {
     const g = this.content;
-    const items = def.items;
-    const spots: { p: V3; r: number }[] = [
-      { p: [-1.45, 0, -3.35], r: 0 },
-      { p: [1.45, 0, -3.35], r: 0 },
-      { p: [-3.55, 0, -1.0], r: 0.75 },
-      { p: [3.55, 0, -1.0], r: -0.75 },
-      { p: [-3.55, 0, 1.4], r: 1.2 },
-      { p: [3.55, 0, 1.4], r: -1.2 },
-    ];
+    const basketIds = def.baskets ?? [];
+    const items = def.items.filter((id) => !basketIds.includes(id));
+    // 4 bể trở xuống: 2 bể vách sau + 2 bể chéo hai bên; 5 bể: 3 bể vách sau + 2 bể chéo (bể thứ 3 vào giữa vách sau)
+    const spots: { p: V3; r: number }[] =
+      items.length >= 5
+        ? [
+            { p: [-2.5, 0, -3.35], r: 0 },
+            { p: [2.5, 0, -3.35], r: 0 },
+            { p: [-3.95, 0, -0.35], r: 0.85 },
+            { p: [3.95, 0, -0.35], r: -0.85 },
+            { p: [0, 0, -3.35], r: 0 },
+            { p: [-3.55, 0, 1.4], r: 1.2 },
+          ]
+        : [
+            { p: [-1.45, 0, -3.35], r: 0 },
+            { p: [1.45, 0, -3.35], r: 0 },
+            { p: [-3.55, 0, -1.0], r: 0.75 },
+            { p: [3.55, 0, -1.0], r: -0.75 },
+          ];
     items.forEach((id, i) => {
       const s = spots[i % spots.length];
       this.buildTank(id, s.p, s.r, i * 0.37);
     });
     // Người bán đứng giữa sạp, ủng cao su + tạp dề
-    const vendor = makePerson(LOOKS[(index * 3 + 5) % LOOKS.length], 'none');
-    vendor.position.set(-0.3, 0, -1.3);
+    const vendor = makePerson(LOOKS[(index * 3 + 5) % LOOKS.length], 'none', { ...adultShape(index * 3 + 5), width: 1.25, hair: 'bun' });
+    // Có bể giữa vách sau (5 bể) thì người bán đứng lệch trái cho khỏi che biển giá bể giữa
+    vendor.position.set(items.length >= 5 ? -1.15 : -0.3, 0, -1.3);
     vendor.scale.setScalar(1.25);
     mesh(vendor, G.box(0.42, 0.5, 0.05), 0x3f6f8f, { p: [0, 0.55, 0.19], cast: false }); // tạp dề
     g.add(vendor);
@@ -265,20 +282,14 @@ export class StallArea implements Area {
     const onScale = emojiSprite('🦐', 0.3);
     onScale.position.set(0, 0.88, 0);
     scale.add(onScale);
-    // Rổ hải sản dưới đất
-    const baskets: [number, number, string][] = [[-1.4, -0.4, '🦀'], [1.6, 0.1, '🐚'], [-0.6, 0.4, '🦪']];
-    for (const [x, z, icon] of baskets) {
-      const b = group(g, { p: [x, 0, z] });
-      mesh(b, G.cyl(0.36, 0.26, 0.26, 12), 0xc99a52, { p: [0, 0.13, 0] });
-      mesh(b, G.torus(0.35, 0.03, 4, 14), 0xa77a3a, { p: [0, 0.26, 0], r: [Math.PI / 2, 0, 0], cast: false });
-      for (let k = 0; k < 3; k++) {
-        const s = emojiSprite(icon, 0.26);
-        s.position.set((k - 1) * 0.15, 0.32 + (k === 1 ? 0.06 : 0), (k % 2) * 0.06);
-        b.add(s);
-      }
-    }
+    // Rổ ốc, sò quanh người bán và cái cân: vòng cung phía trước, mỗi rổ một loại có biển giá (bấm rổ → mua)
+    const ring: [number, number][] = [[-1.9, -0.2], [-1.15, 0.85], [0.2, 1.15], [1.55, 0.85], [2.2, -0.2], [-2.4, 1.2], [2.8, 1.0]];
+    basketIds.forEach((id, i) => {
+      const [x, z] = ring[i % ring.length];
+      this.buildBasket(id, [x, 0, z], i);
+    });
     // Xô nước (xanh, đỏ) + gáo
-    const buckets: [number, number, number][] = [[0.4, 0.5, 0x3d8fd1], [2.2, -1.9, 0xd9534f]];
+    const buckets: [number, number, number][] = [[-2.6, -1.9, 0x3d8fd1], [2.2, -1.9, 0xd9534f]];
     for (const [x, z, color] of buckets) {
       const b = group(g, { p: [x, 0, z] });
       mesh(b, G.cyl(0.24, 0.19, 0.42, 12), color, { p: [0, 0.21, 0] });
@@ -287,7 +298,136 @@ export class StallArea implements Area {
     }
     mesh(g, G.cyl(0.07, 0.06, 0.08, 8), 0xf2c14e, { p: [2.32, 0.44, -1.85], cast: false }); // gáo
     // Vũng nước nhỏ trên sàn
-    mesh(g, G.cyl(0.5, 0.5, 0.01, 16), WATER, { p: [0.9, 0.06, 0.3], s: [1, 1, 0.6], cast: false, receive: false });
+    mesh(g, G.cyl(0.5, 0.5, 0.01, 16), WATER, { p: [0.3, 0.06, -0.2], s: [1, 1, 0.6], cast: false, receive: false });
+  }
+
+  /** Biển giá nhỏ (chữ đổi màu theo giá hôm nay) gắn vào `parent`. */
+  private priceTag(parent: THREE.Object3D, id: string, p: V3, w: number, tilt = -0.35): void {
+    const { game } = this;
+    const item = game.content.items.get(id);
+    const price = priceOf(game.ctx, this.stallId!, id);
+    const factor = game.state.market.priceFactor[id] ?? 1;
+    const color = factor > 1.08 ? '#c0392b' : factor < 0.92 ? '#2f8f3a' : '#3b2a1e';
+    const tag = group(parent, { p, r: [tilt, 0, 0] });
+    mesh(tag, G.box(w + 0.08, 0.3, 0.03), 0xffffff);
+    const label = signText(`${item.name} · ${price} xu`, color, w, 0.26);
+    label.position.z = 0.02;
+    tag.add(label);
+  }
+
+  /** Rổ tre đựng ốc / sò dưới đất, đầy hàng, biển giá cắm trước rổ; bấm → mua (Pick 'goods'). */
+  private buildBasket(id: string, p: V3, i: number): void {
+    const item = this.game.content.items.get(id);
+    const b = group(this.content, { p });
+    b.userData.pick = { type: 'goods', id } satisfies Pick;
+    mesh(b, G.cyl(0.42, 0.3, 0.3, 14), 0xc99a52, { p: [0, 0.15, 0] });
+    for (let k = 0; k < 3; k++) mesh(b, G.torus(0.33 + k * 0.04, 0.012, 3, 16), 0xa77a3a, { p: [0, 0.06 + k * 0.1, 0], r: [Math.PI / 2, 0, 0], cast: false }); // nan đan
+    mesh(b, G.torus(0.42, 0.035, 4, 16), 0xa77a3a, { p: [0, 0.3, 0], r: [Math.PI / 2, 0, 0], cast: false });
+    mesh(b, G.cyl(0.39, 0.39, 0.04, 14), 0x7a5a3a, { p: [0, 0.27, 0], cast: false }); // đáy hàng
+    for (let k = 0; k < 6; k++) {
+      const s = emojiSprite(item.icon, 0.24);
+      const a = (k / 6) * Math.PI * 2 + i;
+      const r = k === 5 ? 0 : 0.18;
+      s.position.set(Math.cos(a) * r, 0.36 + (k === 5 ? 0.08 : 0), Math.sin(a) * r * 0.7);
+      b.add(s);
+      if (k === 5) this.bobbers.push({ obj: s, y: 0.44, phase: i * 1.1 });
+    }
+    this.priceTag(b, id, [0, 0.14, 0.47], 1.3, -0.25);
+  }
+
+  /** Một tảng thịt treo móc: bò đỏ sẫm vân mỡ, heo hồng có lớp mỡ + da, gà nguyên con vàng nhạt. */
+  private meatSlab(parent: THREE.Object3D, id: string, x: number, k: number): void {
+    const hang = group(parent, { p: [x, 0, 0] });
+    mesh(hang, G.torus(0.05, 0.012, 4, 10, Math.PI * 1.4), 0x9aa3a8, { p: [0, -0.05, 0], r: [0, Math.PI / 2, 0], cast: false }); // móc
+    mesh(hang, G.cyl(0.01, 0.01, 0.16, 4), 0x9aa3a8, { p: [0, -0.16, 0], cast: false });
+    const body = group(hang, { p: [0, -0.24, 0], r: [0, 0, (k % 2 ? 1 : -1) * 0.04] });
+    if (id === 'beef') {
+      mesh(body, G.box(0.32, 0.62, 0.2), 0xa8333a, { p: [0, -0.31, 0] });
+      mesh(body, G.box(0.33, 0.06, 0.21), 0xf3e2d0, { p: [0, -0.18, 0], cast: false }); // vân mỡ
+      mesh(body, G.box(0.33, 0.04, 0.21), 0xf3e2d0, { p: [0, -0.42, 0], cast: false });
+      mesh(body, G.sphere(0.06, 8, 6), 0xf6f0e4, { p: [0, -0.62, 0.02] }); // đầu xương
+    } else if (id === 'pork') {
+      mesh(body, G.box(0.36, 0.5, 0.18), 0xf0a1a1, { p: [0, -0.25, 0] });
+      mesh(body, G.box(0.37, 0.5, 0.05), 0xfbe6d6, { p: [0, -0.25, 0.1], cast: false }); // lớp mỡ
+      mesh(body, G.box(0.37, 0.5, 0.02), 0xf2c49b, { p: [0, -0.25, 0.13], cast: false }); // da
+    } else {
+      mesh(body, G.sphere(0.18, 12, 10), 0xf6d8a8, { p: [0, -0.24, 0], s: [1, 1.3, 0.9] });
+      for (const s of [-1, 1]) mesh(body, G.capsule(0.05, 0.14), 0xf6d8a8, { p: [s * 0.1, -0.02, 0.02], r: [0, 0, s * 0.3] }); // đùi gà treo ngược
+      mesh(body, G.sphere(0.07, 8, 6), 0xf6d8a8, { p: [0, -0.5, 0.02] });
+    }
+  }
+
+  /**
+   * Sạp thịt: bàn inox dài; nửa bên trái có giá treo inox với các tảng thịt (mỗi loại một cụm, bấm → mua, biển giá trên mép bàn);
+   * nửa bên phải là cái thớt gỗ to (có dao phay, vài miếng thịt đang chặt) và cái cân thịt. Người bán đứng sau thớt.
+   */
+  private buildButcher(def: StallDef, index: number): void {
+    const g = this.content;
+    const STEEL = 0xc8d0d5;
+    const L = 7.2;
+    const D = 1.2;
+    const H = 0.95;
+    const z0 = -1.4;
+    // Bàn inox: mặt bàn, viền, chân, kệ dưới
+    mesh(g, G.box(L, 0.06, D), STEEL, { p: [0, H, z0] });
+    mesh(g, G.box(L, 0.12, 0.04), 0xaab4ba, { p: [0, H - 0.06, z0 + D / 2] });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) mesh(g, G.cyl(0.035, 0.035, H, 6), 0xaab4ba, { p: [sx * (L / 2 - 0.15), H / 2, z0 + sz * (D / 2 - 0.12)] });
+    mesh(g, G.box(L - 0.3, 0.04, D - 0.25), 0xb6bfc5, { p: [0, 0.25, z0] }); // kệ dưới
+    for (let i = 0; i < 4; i++) mesh(g, G.box(0.5, 0.3, 0.4), 0xffffff, { p: [-2.8 + i * 1.6, 0.42, z0], cast: false }); // thùng xốp đá dưới kệ
+
+    // Giá treo: từ mép trái tới giữa bàn
+    const x1 = -L / 2 + 0.2;
+    const x2 = -0.1;
+    const top = 2.55;
+    for (const x of [x1, x2]) mesh(g, G.cyl(0.04, 0.04, top - H, 8), STEEL, { p: [x, H + (top - H) / 2, z0 - 0.3] });
+    mesh(g, G.cyl(0.035, 0.035, x2 - x1, 8), STEEL, { p: [(x1 + x2) / 2, top, z0 - 0.3], r: [0, 0, Math.PI / 2] });
+    const items = def.items;
+    const span = (x2 - x1) / items.length;
+    items.forEach((id, i) => {
+      const cx = x1 + span * (i + 0.5);
+      const cluster = group(g, { p: [cx, top, z0 - 0.3] });
+      cluster.userData.pick = { type: 'goods', id } satisfies Pick;
+      for (let k = 0; k < 2; k++) this.meatSlab(cluster, id, (k - 0.5) * 0.42, k + i);
+      // Vài miếng bày trên mặt bàn dưới giá + biển giá ở mép bàn
+      const tray = group(g, { p: [cx, H + 0.03, z0 + 0.15] });
+      tray.userData.pick = { type: 'goods', id } satisfies Pick;
+      mesh(tray, G.box(0.9, 0.04, 0.55), 0xeef2f4);
+      const icon = this.game.content.items.get(id).icon;
+      for (let k = 0; k < 3; k++) {
+        const s = emojiSprite(icon, 0.3);
+        s.position.set((k - 1) * 0.26, 0.16, (k % 2) * 0.08);
+        tray.add(s);
+      }
+      this.priceTag(g, id, [cx, H - 0.08, z0 + D / 2 + 0.05], 1.0, 0);
+    });
+
+    // Nửa bên phải: thớt gỗ to + dao phay + miếng thịt đang chặt
+    const board = group(g, { p: [1.3, H + 0.03, z0] });
+    mesh(board, G.cyl(0.58, 0.6, 0.2, 20), 0xb98a55, { p: [0, 0.1, 0] });
+    mesh(board, G.cyl(0.5, 0.5, 0.005, 20), 0xa77a45, { p: [0, 0.205, 0], cast: false }); // vân gỗ
+    mesh(board, G.box(0.4, 0.1, 0.28), 0xa8333a, { p: [-0.1, 0.26, 0.05], r: [0, 0.4, 0] });
+    mesh(board, G.box(0.18, 0.08, 0.2), 0xf0a1a1, { p: [0.25, 0.25, -0.18], r: [0, -0.3, 0] });
+    const knife = group(board, { p: [0.18, 0.32, 0.12], r: [0, -0.5, 0.25] });
+    mesh(knife, G.box(0.34, 0.16, 0.015), 0xdfe6ea); // lưỡi dao phay
+    mesh(knife, G.box(0.2, 0.05, 0.04), 0x3a2a1e, { p: [0.26, -0.03, 0] }); // cán
+
+    // Cân thịt: đế, mặt đồng hồ, đĩa cân có miếng thịt
+    const sc = group(g, { p: [2.75, H + 0.03, z0 - 0.05] });
+    mesh(sc, G.box(0.5, 0.18, 0.42), 0xe2574c, { p: [0, 0.09, 0] });
+    mesh(sc, G.cyl(0.16, 0.16, 0.05, 16), 0xffffff, { p: [0, 0.32, 0.2], r: [Math.PI / 2 - 0.35, 0, 0], cast: false });
+    mesh(sc, G.box(0.012, 0.11, 0.012), 0xc0392b, { p: [0.02, 0.34, 0.235], r: [-0.35, 0, -0.6], cast: false });
+    mesh(sc, G.box(0.1, 0.2, 0.08), 0xe2574c, { p: [0, 0.24, 0.16] });
+    mesh(sc, G.cyl(0.25, 0.22, 0.04, 16), 0xb9c2c8, { p: [0, 0.2, -0.05] });
+    mesh(sc, G.box(0.22, 0.08, 0.16), 0xa8333a, { p: [0, 0.26, -0.05], r: [0, 0.3, 0] });
+
+    // Người bán đứng sau thớt, tạp dề trắng dính chút đỏ
+    const vendor = makePerson(LOOKS[(index * 3 + 5) % LOOKS.length], 'none', { ...adultShape(index * 3 + 5), width: 1.2, hair: 'bun' });
+    vendor.position.set(1.3, 0, z0 - 1.1);
+    vendor.scale.setScalar(1.25);
+    mesh(vendor, G.box(0.42, 0.5, 0.05), 0xffffff, { p: [0, 0.55, 0.19], cast: false });
+    mesh(vendor, G.sphere(0.04, 6, 5), 0xc0392b, { p: [0.08, 0.6, 0.22], cast: false });
+    g.add(vendor);
+    this.vendor = vendor;
   }
 
   /** Tiệm 25caaaaa: phòng hồng, quầy pha chế có biển logo, bảng menu, bàn ghế cho cả đội ngồi ăn. */
@@ -436,13 +576,13 @@ export class StallArea implements Area {
 /** Model người trong đội theo vai (đầu bếp mũ trắng, bồi bàn mũ đỏ, nhân viên thuê mũ vàng, bác nông dân nón lá). */
 export function crewLook(game: Game, who: string): THREE.Group {
   const { state, content } = game;
-  if (who === 'farmer') return makePerson(LOOKS[2], 'straw');
+  if (who === 'farmer') return makePerson(LOOKS[2], 'straw', FARMER_SHAPE);
   if (content.staff.has(who)) {
     const i = content.staff.all().findIndex((s) => s.id === who);
-    return makePerson({ shirt: 0xffffff, hair: 0x3a2a1e, skin: i % 2 ? 0xffd9b8 : 0xf2c49b }, 'chef');
+    return makePerson({ shirt: 0xffffff, hair: 0x3a2a1e, skin: i % 2 ? 0xffd9b8 : 0xf2c49b }, 'chef', { width: [1.2, 0.95, 1.05, 0.9][i % 4] });
   }
   const h = state.restaurant.helpers.find((x) => x.id === who);
-  const p = makePerson(h ? { shirt: [0x5fae57, 0xe2703a, 0x9a6bd1, 0x3fb6a8][h.look % 4], hair: 0x3a2a1e, skin: 0xffd9b8 } : { shirt: 0x3f8fd2, hair: 0x2a1f1a, skin: 0xffd9b8 });
+  const p = makePerson(h ? { shirt: [0x5fae57, 0xe2703a, 0x9a6bd1, 0x3fb6a8][h.look % 4], hair: [0x3a2a1e, 0x1f1a17, 0x6b3f22, 0x2a1f1a][h.look % 4], skin: h.look % 2 ? 0xf2c49b : 0xffd9b8 } : { shirt: 0x3f8fd2, hair: 0x2a1f1a, skin: 0xffd9b8 }, 'none', h ? adultShape(h.look * 7 + 3, ['short', 'side', 'pony', 'bob']) : {});
   mesh(p.userData.rig.head, G.box(0.42, 0.06, 0.3), h ? 0xf2b23e : 0xe2574c, { p: [0, 0.36, 0.06], r: [-0.2, 0, 0] }); // mũ lưỡi trai
   return p;
 }

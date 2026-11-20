@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { StallDef } from '../../../data';
 import type { Game } from '../../../sim/game';
 import { crewLook, logoBoard } from './stall';
-import { addUmbrella, animatePerson, LOOKS, makeCrate, makeLampPost, makePerson, makeTree, UMBRELLA_COLORS } from '../models';
+import { addUmbrella, adultShape, animatePerson, LOOKS, makeCrate, makeLampPost, makePerson, makeTree, randomShape, UMBRELLA_COLORS } from '../models';
 import { collectSway, sway, type Area, type Env, type Pick } from '../stage';
 import { emojiSprite, G, group, mesh, seeded, toon, type V3, paintSeason } from '../toon';
 import { signText } from '../cuisine';
@@ -150,7 +150,7 @@ export class MarketArea implements Area {
     const kinds: ['car' | 'truck' | 'scooter', number][] = [['car', 0xe2574c], ['scooter', 0x4a9bd8], ['car', 0xf2c94c], ['scooter', 0xe2703a], ['truck', 0x3f8fd2], ['scooter', 0x5fae57], ['car', 0xf3f3f3], ['scooter', 0x9a6bd1]];
     kinds.forEach(([kind, color], i) => {
       const dir: 1 | -1 = i % 2 ? -1 : 1;
-      const rider = kind === 'scooter' ? makePerson(LOOKS[(i * 5 + 2) % LOOKS.length]) : null;
+      const rider = kind === 'scooter' ? makePerson(LOOKS[(i * 5 + 2) % LOOKS.length], 'none', adultShape(i * 5 + 2)) : null;
       const g = kind === 'car' ? makeCar(color) : kind === 'truck' ? makeTruck(color) : makeScooter(color, rider!);
       // Mỗi làn 4 xe cách đều nhau (cùng tốc độ nên giữ nguyên khoảng cách)
       g.position.set(-ROAD_HALF + (Math.floor(i / 2) + 0.25 + (i % 2) * 0.5) * (ROAD_HALF / 2), 0, LANES[i % 2 ? 1 : 0] + (kind === 'scooter' ? (rnd() - 0.5) * 0.8 : 0));
@@ -163,7 +163,8 @@ export class MarketArea implements Area {
 
     // Người đi chợ qua lại trên vỉa hè rộng
     for (let i = 0; i < 7; i++) {
-      const g = makePerson(LOOKS[(i * 3 + 1) % LOOKS.length]);
+      const walker = randomShape(900 + i, i % 3, LOOKS[(i * 3 + 1) % LOOKS.length]);
+      const g = makePerson(walker.look!, 'none', walker.shape);
       addUmbrella(g, UMBRELLA_COLORS[i % UMBRELLA_COLORS.length]); // trời mưa thì bung dù
       g.position.z = 2.2 + i * 1.05;
       r.add(g);
@@ -246,7 +247,7 @@ export class MarketArea implements Area {
     });
 
     // Người bán
-    const vendor = makePerson(LOOKS[(index * 2 + 4) % LOOKS.length], 'straw');
+    const vendor = makePerson(LOOKS[(index * 2 + 4) % LOOKS.length], 'straw', adultShape(index * 2 + 4));
     vendor.position.set(0, 0, -1.3);
     vendor.scale.setScalar(1.25);
     g.add(vendor);
@@ -326,7 +327,7 @@ export class MarketArea implements Area {
     mesh(cup, G.cyl(0.03, 0.03, 0.5, 6), 0xf28cb1, { p: [0.08, 1.05, 0], r: [0, 0, -0.2] });
     this.nameBoard(g, def, W - 0.4, [0, 3.12, 0.75], color); // trên mép mái hiên cho khỏi bị che
     this.showItems(game, g, def, 0.96, W - 1.2, 1.0, index);
-    const vendor = makePerson(LOOKS[(index * 3 + 1) % LOOKS.length]);
+    const vendor = makePerson(LOOKS[(index * 3 + 1) % LOOKS.length], 'none', adultShape(index * 3 + 1));
     vendor.position.set(0, 0, 0.2);
     vendor.scale.setScalar(1.2);
     g.add(vendor);
@@ -387,7 +388,7 @@ export class MarketArea implements Area {
       g.add(steam);
       vendorAt = [-0.4, 0, -0.75];
     }
-    const vendor = makePerson(LOOKS[(index * 3 + 5) % LOOKS.length], hat);
+    const vendor = makePerson(LOOKS[(index * 3 + 5) % LOOKS.length], hat, adultShape(index * 3 + 5));
     addUmbrella(vendor, UMBRELLA_COLORS[(index + 3) % UMBRELLA_COLORS.length]); // hàng rong đứng ngoài vỉa hè
     vendor.position.set(...vendorAt);
     vendor.scale.setScalar(1.15);

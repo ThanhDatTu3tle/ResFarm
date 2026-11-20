@@ -50,6 +50,17 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [ ] **Đơn mang về / giao tận nơi** *(chủ dự án: ý hay, để sau)* — thỉnh thoảng khách gọi điện đặt món ("2 phần Phở giao tới khu chợ trước 12:00"); bếp nấu xong đóng hộp ở quầy line, shipper xe máy đi giao; đúng hạn nhận tiền + tip. Tận dụng bếp lúc quán vắng, nối với hệ bếp + quầy line + màu bàn.
 - [ ] **Lương nhân viên** *(để dành từ giai đoạn 7)*.
 
+## Giai đoạn 12 — Sổ tay tự sinh, tinh chỉnh đồ hoạ nhân vật + HUD (22/11/2026)
+
+- [x] Sổ tay (cơ sở dữ liệu tra cứu) tự sinh từ `src/data`: `npm run sotay` → `notes/so-tay-quan-nha-vuon.html`. Đủ mọi nội dung: nguyên liệu, món (giá vốn, lãi, lãi/giây), giống + vật nuôi (lời vụ đầu, hoà vốn), loại ô, cối, sạp + hàng rong, hạng quán / bếp, đầu bếp, nâng cấp, bàn, nội thất, đồ trang trí, thú cưng, người làm vườn, dụng cụ, khách quen, nhiệm vụ, thành tựu, mùa, lễ hội, thời tiết, sự kiện. Bản viết tay cũ giữ ở `notes/so-tay-cu-giai-doan-6.html`.
+- [x] Nhân vật gọt lại bằng code (`src/ui/three/person.ts`): trẻ em / thiếu niên / người lớn / người già, mập gầy, cao thấp; 10 kiểu tóc (thêm tóc mai, gáy, bob, xoăn, rẽ ngôi); khách vãng lai và người đi chợ mỗi người một dáng + tóc (nhóm 3–4 người hay có trẻ em, người già tóc bạc); bác nông dân đậm người, đầu bếp mập gầy khác nhau; bóng mờ dưới chân; viền sáng mềm; cử động mượt (chuyển tư thế từ từ, nhún bước, lắc hông, ngoái nhìn, dồn trọng tâm). Trang xem thử `lineup.html` (chỉ bản dev).
+- [x] Bảng gọi món cho đội chia 2 cột (người + thanh năng lượng 4/12, thực đơn 8/12): bấm món là thanh đầy dần, đầy thì tự sang người kế; bỏ món đã gọi; "Xong" chốt ai đã có món; "Để mọi người tự chọn" như cũ (chỉ gọi thêm phần còn thiếu).
+- [x] Nông trại: bảng bên phải bỏ lưới ô (bấm thẳng ô trên cảnh là ra giống / chi tiết ô); thời gian lớn tính bằng ngày (rau 1–5 ngày theo tỉ lệ ngoài đời, gà 2, heo 5, bò 7, cây ăn quả 8 + 1 ngày một lứa, lúa 3, cá 5 / cá hồi 7 / tôm 6 rồi 5 ngày một lứa); gà mái đẻ + bò sữa hết lứa khi sang Đông; cá, tôm thả một lần thu nhiều lứa (×15 / ×10); thêm 6 loại ốc, sò nuôi ở ao; máy cày đậu cạnh ruộng lúa; tưới một lần ẩm cả ngày.
+- [x] Chợ bán đủ mọi thứ quanh năm (trái mùa chỉ đắt hơn): thêm trái cây vào Tạp hóa cậu Ba; sạp Hải sản Tuyết Nhung bán thêm 6 loại ốc / sò (ốc hương trong bể, còn lại trong rổ quanh người bán); sạp thịt cô Bủm làm lại: bàn inox, giá treo thịt, thớt + cân.
+- [x] Quán thứ 4 — **Quán Ốc** vỉa hè: xe đẩy (bếp trưởng) + bếp nướng than (bếp phó) + quầy line dưới sạp dù lớn, bàn ghế nhựa mini xanh đỏ có ô (mưa thì bung), không có quầy ghế đơn trước bếp (thay bằng 1 bàn đôi nữa), nền bê tông → gạch lề đường, bảng tên chân đứng, dây đèn vàng; không WC / kho. 9 món: tôm nướng, nghêu hấp thái, hàu nướng mỡ hành / phô mai, mì xào ốc móng tay, ốc bươu nhồi thịt, sò điệp nướng mỡ hành / phô mai, ốc hương sốt phô mai. Phô mai mua ở sạp đồ khô.
+- [ ] Việc mở ra: cân bằng lại sản lượng nông trại (giờ một ngày thu ít hơn trước nhiều); nhiệm vụ / thành tựu thu hoạch có thể cần hạ mốc.
+- [ ] HUD (chờ chủ dự án chỉ chỗ cần sửa). Nếu muốn đẹp hơn nữa: thử 1 nhân vật glTF (D6).
+
 ## Giai đoạn 11 — Mùa 2 tuần, người làm vườn, dụng cụ, nhiệm vụ dài + thành tựu (21/11/2026)
 
 - [x] Mỗi mùa 14 ngày (`DAYS_PER_SEASON`), lễ hội dời ngày cho khớp.

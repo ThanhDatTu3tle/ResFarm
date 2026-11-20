@@ -6,7 +6,7 @@ import { buildingRect, currentWork } from '../../../sim/systems/farmer';
 import { easeOutBack, wobble } from '../../ease';
 import { dashedRect, makeGreenhouse } from '../farmkit';
 import { Particles } from '../fx';
-import { animatePerson, cropStageOf, LOOKS, makeCrop, makePerson, type CropStage } from '../models';
+import { animatePerson, cropStageOf, FARMER_SHAPE, LOOKS, makeCrop, makePerson, type CropStage } from '../models';
 import type { Area, Env, Pick } from '../stage';
 import { Bar3D, emojiSprite, G, group, mesh, paintSeason, type V3 } from '../toon';
 
@@ -45,7 +45,7 @@ export class GreenhouseArea implements Area {
   private beds = new Map<string, BedView>();
   private house: { length: number; g: THREE.Group; fans: THREE.Object3D[] } | null = null;
   private expand = group(this.root);
-  private farmer = makePerson(LOOKS[2], 'straw');
+  private farmer = makePerson(LOOKS[2], 'straw', FARMER_SHAPE);
   private fx = new Particles(this.root);
   private ringMat = new THREE.MeshBasicMaterial({ color: 0xffd23e });
   /** Gọi khi một luống vừa thu hoạch (app.ts cho sản phẩm bay về nút Kho) / vừa gieo, chín (âm thanh). */

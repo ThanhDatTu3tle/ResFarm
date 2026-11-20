@@ -116,6 +116,31 @@ function ceilingFan(parent: THREE.Object3D, x: number, y: number, z: number): TH
   return blades;
 }
 
+/**
+ * Ô che bàn của quán ốc: cụp lại lúc trời khô, bung ra khi mưa (decorateInterior cập nhật).
+ * Bàn dựng lại / bán đi thì ô cũ tự bị bỏ (không còn gắn vào cảnh).
+ */
+const umbrellas = new Set<{ open: THREE.Object3D; closed: THREE.Object3D; k: number }>();
+
+function attached(o: THREE.Object3D): boolean {
+  let p: THREE.Object3D | null = o;
+  while (p.parent) p = p.parent;
+  return p.type === 'Scene' || !!p.userData.areaRoot;
+}
+
+/** Dây đèn võng giữa hai điểm, bóng vàng cách đều; trả về vật liệu bóng (sáng khi tối). */
+function stringLights(r: THREE.Object3D, a: [number, number, number], b: [number, number, number], bulbMat: THREE.Material, sag = 0.35): void {
+  const n = Math.max(3, Math.round(Math.hypot(b[0] - a[0], b[2] - a[2]) / 0.55));
+  const pts: THREE.Vector3[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    pts.push(new THREE.Vector3(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t - Math.sin(t * Math.PI) * sag, a[2] + (b[2] - a[2]) * t));
+  }
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x6b6f78, transparent: true, opacity: 0.6 }));
+  r.add(line);
+  for (let i = 1; i < n; i++) mesh(r, G.sphere(0.075, 8, 6), bulbMat, { p: [pts[i].x, pts[i].y - 0.08, pts[i].z], cast: false });
+}
+
 export interface InteriorDims {
   halfW: number;
   backZ: number;
@@ -135,13 +160,41 @@ export type InteriorAnimator = (env: Env, dt: number) => void;
  */
 export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: InteriorDims): InteriorAnimator {
   const glows: THREE.MeshToonMaterial[] = [];
+  const nightLights: THREE.PointLight[] = [];
   const spinners: THREE.Object3D[] = [];
   const wavers: THREE.Object3D[] = [];
   const swingers: THREE.Object3D[] = [];
   const back = d.backZ + 0.02;
   const kc = d.kitchenX1 + 3.1; // tâm dãy bếp (khớp RestaurantArea.kitchenCenter)
 
-  if (cuisine === 'jp') {
+  if (cuisine === 'oc') {
+    // Cột đèn bốn góc + dây đèn vàng giăng quanh và chéo qua khu bàn; hai chậu cây ở góc trước
+    const bulb = glowMat(0xffd27a, 0.15);
+    bulb.userData.night = true; // sáng theo đêm (không chỉ theo trời âm u)
+    glows.push(bulb);
+    const x = d.halfW + 0.15;
+    const zb = d.kitchenZ + 0.6;
+    const zf = d.frontZ + 0.2;
+    for (const px of [-x, x]) for (const pz of [zb, zf]) mesh(r, G.cyl(0.05, 0.06, 3.7, 8), 0x5a5f66, { p: [px, 1.85, pz] });
+    const h = 3.6;
+    stringLights(r, [-x, h, zb], [-x, h, zf], bulb);
+    stringLights(r, [x, h, zb], [x, h, zf], bulb);
+    stringLights(r, [-x, h, zf], [x, h, zf], bulb, 0.45);
+    stringLights(r, [-x, h, (zb + zf) / 2], [x, h, (zb + zf) / 2], bulb, 0.5);
+    // Ánh đèn vàng hắt xuống sân: vài nguồn sáng ấm dưới dây đèn, chỉ bật khi trời tối
+    for (const px of [-d.halfW * 0.55, d.halfW * 0.55]) {
+      for (const pz of [zb + (zf - zb) * 0.3, zb + (zf - zb) * 0.8]) {
+        const l = new THREE.PointLight(0xffc56b, 0, 7.5, 1.4);
+        l.position.set(px, 3.0, pz);
+        r.add(l);
+        nightLights.push(l);
+      }
+    }
+    for (const [px, pz] of [[-d.halfW + 0.5, d.frontZ - 0.5], [d.halfW - 0.5, d.frontZ - 0.5]]) {
+      mesh(r, G.cyl(0.3, 0.24, 0.45), 0x8a8f99, { p: [px, 0.22, pz] });
+      makeBush(r, { p: [px, 0.4, pz], s: 1 }, 0x4f9e4a);
+    }
+  } else if (cuisine === 'jp') {
     // Rèm noren trước gian bếp, đèn lồng đỏ treo trần, mèo thần tài, thẻ gỗ ghi món trên tường, bonsai ở góc
     noren(r, (d.kitchenX1 + d.halfW) / 2, 3.55, d.kitchenZ + 0.1, d.halfW - d.kitchenX1 - 0.3, 4);
     for (const x of [-d.halfW * 0.55, 0, d.halfW * 0.55]) swingers.push(chochin(r, x, 3.7, 1, 1.0)); // treo cao, không che khách
@@ -204,7 +257,22 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
   for (const g of swingers) g.traverse((o) => o instanceof THREE.Mesh && o.material instanceof THREE.MeshToonMaterial && o.material.userData.glowBase != null && glows.push(o.material));
   const phases = swingers.map((_, i) => i * 1.7);
   return (env, dt) => {
-    for (const m of glows) m.emissiveIntensity = (m.userData.glowBase as number) + env.dim * 0.9;
+    for (const m of glows) m.emissiveIntensity = (m.userData.glowBase as number) + (m.userData.night ? Math.max(env.dim * 0.6, env.night * 2.2) : env.dim * 0.9);
+    for (const l of nightLights) l.intensity = env.night * 1.3;
+    // Ô che bàn (quán ốc): mưa thì bung, tạnh thì cụp
+    if (cuisine === 'oc') {
+      const want = env.rain > 0.2 ? 1 : 0;
+      for (const u of umbrellas) {
+        if (!attached(u.open)) {
+          umbrellas.delete(u);
+          continue;
+        }
+        u.k += (want - u.k) * Math.min(1, dt * 3);
+        u.open.visible = u.k > 0.04;
+        u.open.scale.set(Math.max(0.05, u.k), 0.4 + 0.6 * u.k, Math.max(0.05, u.k));
+        u.closed.visible = u.k < 0.5;
+      }
+    }
     for (const s of spinners) s.rotation.y += dt * 5;
     for (const w of wavers) w.rotation.z = -0.4 + Math.sin(env.t * 4) * 0.45;
     swingers.forEach((s, i) => (s.rotation.z = Math.sin(env.t * 1.3 + phases[i]) * 0.05));
@@ -214,15 +282,32 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
 /** Kiểu ghế: ghế tựa (Nhật), ghế đẩu tròn inox (Hàn), ghế nhựa thấp (Việt). */
 export type SeatStyle = 'chair' | 'stool' | 'plastic';
 export function seatStyle(cuisine: CuisineId): SeatStyle {
-  return cuisine === 'kr' ? 'stool' : cuisine === 'vn' ? 'plastic' : 'chair';
+  return cuisine === 'kr' ? 'stool' : cuisine === 'vn' || cuisine === 'oc' ? 'plastic' : 'chair';
 }
 
 /**
  * Đồ trên bàn (bàn thường, không phải quầy): Nhật — chai nước tương + ống đũa; Hàn — bếp nướng giữa bàn + ống hút khói
  * treo trên + chai soju; Việt — ống đũa + lọ tương ớt + hộp giấy. Gốc toạ độ ở tâm bàn, mặt bàn ở `top`.
  */
+let umbrellaColor = 0;
 export function tableExtras(cuisine: CuisineId, g: THREE.Object3D, top: number, w: number, d: number): void {
-  if (cuisine === 'kr') {
+  if (cuisine === 'oc') {
+    // Chén nước chấm, lọ ớt, hộp giấy; ô che giữa bàn (cụp, mưa thì bung — decorateInterior)
+    mesh(g, G.cyl(0.07, 0.05, 0.05, 10), 0xffffff, { p: [-0.18, top + 0.03, 0.05] });
+    mesh(g, G.cyl(0.04, 0.04, 0.02, 10), 0x7cc35c, { p: [-0.18, top + 0.06, 0.05], cast: false }); // muối tiêu chanh
+    mesh(g, G.cyl(0.035, 0.04, 0.14, 8), 0xd9433a, { p: [0.18, top + 0.07, -0.05] });
+    mesh(g, G.box(0.14, 0.08, 0.1), 0xffffff, { p: [0.05, top + 0.04, -0.15] });
+    const colors = [0xe2473c, 0x3f7fd2, 0xf2b23e, 0x3f9f6a];
+    const c = colors[umbrellaColor++ % colors.length];
+    mesh(g, G.cyl(0.025, 0.025, 2.4, 6), 0xdfe5ea, { p: [0, top + 1.2 - 0.3, 0] });
+    const closed = group(g, { p: [0, top + 2.0, 0] });
+    mesh(closed, G.cone(0.13, 0.9, 8), c, { r: [Math.PI, 0, 0] });
+    const open = group(g, { p: [0, top + 2.35, 0] });
+    mesh(open, G.cone(1.05, 0.4, 12), c, { cast: false });
+    for (let i = 0; i < 6; i++) mesh(open, G.box(0.03, 0.02, 1.2), 0xffffff, { p: [Math.sin((i * Math.PI) / 3) * 0.6, -0.2, Math.cos((i * Math.PI) / 3) * 0.6], r: [0, (i * Math.PI) / 3, 0], cast: false });
+    open.visible = false;
+    umbrellas.add({ open, closed, k: 0 });
+  } else if (cuisine === 'kr') {
     mesh(g, G.cyl(0.26, 0.26, 0.06, 18), 0x2a2d35, { p: [0, top + 0.03, 0] });
     mesh(g, G.torus(0.22, 0.012, 4, 20), 0x8a8f99, { p: [0, top + 0.07, 0], r: [Math.PI / 2, 0, 0], cast: false });
     // Ống hút khói bạc treo từ trần xuống
@@ -245,7 +330,14 @@ export function tableExtras(cuisine: CuisineId, g: THREE.Object3D, top: number, 
 
 /** Đồ trên quầy dài: Nhật — tủ kính sushi; Hàn — khay kimchi; Việt — rổ rau thơm. Quầy chạy dọc x, sâu d. */
 export function counterExtras(cuisine: CuisineId, g: THREE.Object3D, top: number, w: number, d: number): void {
-  if (cuisine === 'jp') {
+  if (cuisine === 'oc') {
+    // Bàn dài nhựa: rổ rau thơm, chai tương ớt, chén muối tiêu chanh
+    for (const x of [-w * 0.3, w * 0.3]) {
+      mesh(g, G.cyl(0.15, 0.11, 0.07, 12), 0x3f8fd2, { p: [x, top + 0.04, -d / 2 + 0.1] });
+      mesh(g, G.ico(0.09, 0), 0x5fae57, { p: [x, top + 0.1, -d / 2 + 0.1], s: [1.3, 0.6, 1.3] });
+      mesh(g, G.cyl(0.035, 0.04, 0.14, 8), 0xd9433a, { p: [x + 0.3, top + 0.07, -d / 2 + 0.1] });
+    }
+  } else if (cuisine === 'jp') {
     const z = -d / 2 + 0.05;
     mesh(g, G.box(w * 0.8, 0.24, 0.26), toon(0xdff3ff, { transparent: true, opacity: 0.4 }), { p: [0, top + 0.12, z], cast: false });
     for (let i = 0; i < 8; i++) mesh(g, G.box(0.14, 0.04, 0.08), i % 2 ? 0xf28c5a : 0xf6f1e4, { p: [-w * 0.35 + i * (w * 0.7 / 7), top + 0.03, z], cast: false });
@@ -284,7 +376,7 @@ export function buildSeat(style: SeatStyle, chair: THREE.Object3D, mats: { seat:
 
 /** Người đứng trước quán vẫy chào (chủ quán), để màn chọn có sức sống. Trả về group để animatePerson. */
 export function shopkeeper(cuisine: CuisineId): THREE.Group {
-  const look = cuisine === 'jp' ? { shirt: 0x2f3f75, hair: 0x1f1a17, skin: 0xffd9b8 } : cuisine === 'kr' ? { shirt: 0xff7ab8, hair: 0x3a2a1e, skin: 0xffe1c7 } : { shirt: 0xf2b23e, hair: 0x1f1a17, skin: 0xf2c49b };
+  const look = cuisine === 'jp' ? { shirt: 0x2f3f75, hair: 0x1f1a17, skin: 0xffd9b8 } : cuisine === 'kr' ? { shirt: 0xff7ab8, hair: 0x3a2a1e, skin: 0xffe1c7 } : cuisine === 'oc' ? { shirt: 0x3fb6a8, hair: 0x3a2a1e, skin: 0xf2c49b } : { shirt: 0xf2b23e, hair: 0x1f1a17, skin: 0xf2c49b };
   return makePerson(look, cuisine === 'vn' ? 'straw' : 'none');
 }
 
@@ -300,7 +392,60 @@ export function makeShopfront(cuisine: CuisineId): { g: THREE.Group; glows: THRE
   const H = 3.2;
   mesh(g, G.box(W + 1, 0.2, D + 1.6), 0xcfc6b5, { p: [0, 0.1, -D / 2 + 0.6] }); // nền / vỉa hè
 
-  if (cuisine === 'jp') {
+  if (cuisine === 'oc') {
+    // Quán ốc vỉa hè: sạp dù sọc đỏ trắng che xe đẩy + bếp nướng, bảng chân đứng, bàn nhựa xanh ghế đỏ có ô, dây đèn vàng
+    mesh(g, G.box(W + 1, 0.04, D + 1.6), 0xaeaca6, { p: [0, 0.22, -D / 2 + 0.6], cast: false }); // nền bê tông
+    for (const x of [-2.6, 2.6]) for (const z of [-3.2, -0.4]) mesh(g, G.cyl(0.05, 0.05, 3.3, 8), 0x8a8f99, { p: [x, 0.2 + 1.65, z] });
+    for (let i = 0; i < 10; i++) mesh(g, G.box(0.6, 0.06, 3.6), i % 2 ? 0xfaf3e6 : 0xe2473c, { p: [-2.7 + (i + 0.5) * 0.54, 3.55, -1.8], r: [-0.08, 0, 0] });
+    // Xe đẩy + tủ kính
+    const cart = group(g, { p: [-0.9, 0.2, -1.9] });
+    mesh(cart, G.box(1.9, 0.75, 0.85), 0xc8d0d5, { p: [0, 0.62, 0] });
+    for (const sx of [-1, 1]) mesh(cart, G.cyl(0.22, 0.22, 0.08, 14), 0x2a2d35, { p: [sx * 0.65, 0.22, 0.45], r: [Math.PI / 2, 0, 0] });
+    const panel = group(cart, { p: [0, 0.62, 0.44] });
+    mesh(panel, G.box(1.6, 0.48, 0.02), 0xd9433a);
+    const w = signText('ỐC · SÒ · HÀU', '#ffe7a3', 1.5, 0.38);
+    w.position.z = 0.02;
+    panel.add(w);
+    mesh(cart, G.box(1.8, 0.42, 0.65), toon(0xdff3ff, { transparent: true, opacity: 0.35 }), { p: [0, 1.24, -0.05], cast: false });
+    for (const [i, icon] of ['🐚', '🦪', '🦐'].entries()) {
+      const sp = emojiSprite(icon, 0.3);
+      sp.position.set(-0.55 + i * 0.55, 1.2, -0.05);
+      cart.add(sp);
+    }
+    // Bếp nướng có than hồng
+    const grill = group(g, { p: [1.4, 0.2, -1.9] });
+    mesh(grill, G.box(1.2, 0.3, 0.6), 0x3b3f46, { p: [0, 0.85, 0] });
+    for (const sx of [-1, 1]) mesh(grill, G.box(0.06, 0.72, 0.5), 0x3b3f46, { p: [sx * 0.5, 0.36, 0] });
+    const coal = glowMat(0xff7a2a, 1.2);
+    glows.push(coal);
+    mesh(grill, G.box(1.1, 0.05, 0.5), coal, { p: [0, 1.02, 0], cast: false });
+    const oyster = emojiSprite('🦪', 0.3);
+    oyster.position.set(0, 1.2, 0);
+    grill.add(oyster);
+    // Bảng chân đứng bên trái xe
+    const board = group(g, { p: [-2.9, 0.2, 0.5], r: [0, 0.25, 0] });
+    for (const sx of [-1, 1]) mesh(board, G.box(0.06, 1.5, 0.06), 0x6b4a2f, { p: [sx * 0.6, 0.75, 0] });
+    mesh(board, G.box(1.4, 0.85, 0.05), 0x2f3a33, { p: [0, 1.1, 0.05] });
+    const t = signText('QUÁN ỐC', '#ffe7a3', 1.25, 0.5);
+    t.position.set(0, 1.12, 0.09);
+    board.add(t);
+    // Bàn nhựa xanh + ghế đỏ + ô
+    const table = group(g, { p: [1.6, 0.2, 1.3] });
+    mesh(table, G.box(0.8, 0.05, 0.6), 0x3f8fd2, { p: [0, 0.48, 0] });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) mesh(table, G.box(0.05, 0.46, 0.05), 0x2f6fb0, { p: [sx * 0.35, 0.23, sz * 0.25] });
+    mesh(table, G.cyl(0.02, 0.02, 2.2, 6), 0xdfe5ea, { p: [0, 1.4, 0] });
+    mesh(table, G.cone(1.0, 0.4, 12), 0x3f7fd2, { p: [0, 2.5, 0] });
+    for (const [sx, sz] of [[-0.7, 0], [0.7, 0], [0, 0.6]]) {
+      const stool = group(table, { p: [sx, 0, sz] });
+      buildSeat('plastic', stool, { seat: toon(0xd93a32), back: toon(0xd93a32), base: toon(0xd93a32) });
+      stool.scale.setScalar(0.7);
+    }
+    // Dây đèn vàng từ cột sạp ra cột đèn trước
+    const bulb = glowMat(0xffd27a, 0.6);
+    glows.push(bulb);
+    mesh(g, G.cyl(0.04, 0.05, 3.2, 8), 0x5a5f66, { p: [3.1, 1.8, 1.8] });
+    stringLights(g, [-2.6, 3.4, -0.4], [3.1, 3.3, 1.8], bulb, 0.4);
+  } else if (cuisine === 'jp') {
     // Nhà gỗ tối, mái ngói xám hai lớp, cửa lùa shoji, rèm noren, đèn lồng đỏ, biển gỗ
     mesh(g, G.box(W, H, D), 0x5a3a26, { p: [0, 0.2 + H / 2, -D / 2] });
     for (const x of [-W / 2 + 0.1, W / 2 - 0.1, -1.2, 1.2]) mesh(g, G.box(0.18, H, 0.12), 0x3b2a1e, { p: [x, 0.2 + H / 2, 0.04] });

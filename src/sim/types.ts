@@ -81,6 +81,10 @@ export type Command =
   | { type: 'crew/pay' }
   | { type: 'crew/order'; who: string; stallId: string; dish: number }
   | { type: 'crew/autoOrder' }
+  /** Bỏ một món đã gọi của người đang chọn (index trong các món của người đó; bỏ trống = món gọi sau cùng). */
+  | { type: 'crew/unorder'; who: string; index?: number }
+  /** Chốt bữa cho những ai đã gọi ít nhất một món. */
+  | { type: 'crew/confirm' }
   | { type: 'day/end' }
   | { type: 'day/next' };
 
@@ -160,6 +164,8 @@ export interface SimEvents {
   'festival/started': { id: string; gift: number };
   /** Đầu mùa: số ô cây trái mùa ngoài trời vừa héo. */
   'farm/withered': { count: number };
+  /** Sang mùa Đông: gà mái đẻ, bò sữa hết lứa. */
+  'farm/culled': { count: number };
   /** Bão vừa quét qua: số ô rau / lúa bị dập (mất nửa tiến độ). */
   'farm/storm': { damaged: number };
   'day/ended': { day: number; stats: DayStats };

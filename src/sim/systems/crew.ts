@@ -101,10 +101,23 @@ export function mealBudget(ctx: SimContext): number {
   return ctx.state.money - billTotal(ctx) - c.meals.reduce((s, l) => s + l.price, 0);
 }
 
-/** Gọi món cho một người đang chờ: ăn trong crew.eatMinutes (không quá giờ về). */
+/** Năng lượng các món người này đã gọi trong bữa đang ăn (chưa cộng vào thanh). */
+export function orderedEnergy(ctx: SimContext, who: string): number {
+  return ctx.state.crew.meals.filter((l) => l.who === who).reduce((s, l) => s + l.energy, 0);
+}
+
+/** Năng lượng còn thiếu cho đầy thanh, đã tính các món đã gọi (≤ 0 = đã đủ). */
+export function missingEnergy(ctx: SimContext, who: string): number {
+  return ctx.content.balance.crew.maxEnergy - (memberOf(ctx, who)?.vitals.energy ?? 0) - orderedEnergy(ctx, who);
+}
+
+/**
+ * Người chơi gọi thêm một món cho người đang chờ: ăn trong crew.eatMinutes (không quá giờ về).
+ * Gọi được nhiều món; tính cả món đã gọi mà đầy thanh năng lượng thì người đó xong (rời hàng chờ).
+ */
 function serveMeal(ctx: SimContext, p: PendingMeal, stallId: string, dish: StaffDishDef): void {
-  ctx.state.crew.pending = ctx.state.crew.pending.filter((x) => x !== p);
   addMeal(ctx, p, stallId, dish);
+  if (missingEnergy(ctx, p.who) <= 0) ctx.state.crew.pending = ctx.state.crew.pending.filter((x) => x !== p);
 }
 
 /** Thêm một món vào bữa đang ăn của người này (một người có thể ăn vài món khi tự chọn). */
@@ -119,11 +132,13 @@ function addMeal(ctx: SimContext, p: PendingMeal, stallId: string, dish: StaffDi
  * Đang đầy sức thì vẫn ăn một món cho bữa đó. Không đủ tiền món nào thì nhịn.
  */
 function autoPick(ctx: SimContext, p: PendingMeal): void {
-  const { state, content } = ctx;
+  const { state } = ctx;
   const c = state.crew;
   c.pending = c.pending.filter((x) => x !== p);
-  const m = memberOf(ctx, p.who);
-  let missing = content.balance.crew.maxEnergy - (m?.vitals.energy ?? 0);
+  // Tính cả món người chơi đã gọi dở cho người này: chỉ gọi thêm phần còn thiếu
+  let missing = missingEnergy(ctx, p.who);
+  const hadMeal = c.meals.some((l) => l.who === p.who);
+  if (hadMeal && missing <= 0) return;
   for (let n = 0; n < 4; n++) {
     const budget = mealBudget(ctx);
     const affordable = vendorDishes(ctx).filter((d) => d.dish.price <= budget);
@@ -251,13 +266,30 @@ export const crewSystem: System = {
     'crew/order'(ctx, cmd) {
       const c = ctx.state.crew;
       const p = c.pending.find((x) => x.who === cmd.who);
-      if (!p) return fail('Người này đã có món rồi.');
+      if (!p) return fail('Người này đã gọi đủ món rồi.');
       const stall = ctx.content.stalls.has(cmd.stallId) ? ctx.content.stalls.get(cmd.stallId) : null;
       const dish = stall?.menu?.[cmd.dish];
       if (!dish) return fail('Hàng này không có món đó.');
       if (dish.price > mealBudget(ctx)) return fail('Không đủ tiền cho món này — chọn món rẻ hơn nhé.');
       serveMeal(ctx, p, cmd.stallId, dish);
       return ok();
+    },
+    'crew/unorder'(ctx, cmd) {
+      // Bỏ món vừa gọi (chỉ khi người đó còn đang chọn món, chưa xác nhận xong)
+      const c = ctx.state.crew;
+      if (!c.pending.some((x) => x.who === cmd.who)) return fail('Người này đã chọn xong món rồi.');
+      const mine = c.meals.filter((l) => l.who === cmd.who);
+      const line = mine[cmd.index ?? mine.length - 1];
+      if (!line) return fail('Người này chưa gọi món nào.');
+      c.meals = c.meals.filter((l) => l !== line);
+      return ok();
+    },
+    'crew/confirm'(ctx) {
+      // "Xong": ai đã gọi ít nhất một món thì chốt bữa (rời hàng chờ); ai chưa gọi thì vẫn chờ, quá hạn tự chọn
+      const c = ctx.state.crew;
+      const before = c.pending.length;
+      c.pending = c.pending.filter((p) => !c.meals.some((l) => l.who === p.who));
+      return before === c.pending.length && before ? fail('Chưa ai được gọi món — chọn món hoặc để mọi người tự chọn nhé.') : ok();
     },
     'crew/autoOrder'(ctx) {
       if (!ctx.state.crew.pending.length) return fail('Mọi người đã có món rồi.');

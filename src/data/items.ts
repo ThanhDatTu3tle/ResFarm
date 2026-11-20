@@ -32,6 +32,15 @@ export const items: ItemDef[] = [
   { id: 'shrimp', name: 'Tôm', icon: '🦐', category: 'seafood', basePrice: 9 },
   { id: 'squid', name: 'Mực', icon: '🦑', category: 'seafood', basePrice: 13 },
   { id: 'salmon', name: 'Cá hồi', icon: '🐠', category: 'seafood', basePrice: 18 },
+  // Ốc, sò nuôi ở ao (giai đoạn 12) — chưa có món nào dùng, bán dư hoặc giao đơn hàng
+  { id: 'oc_huong', name: 'Ốc hương', icon: '🐚', category: 'seafood', basePrice: 14 },
+  { id: 'oc_mong_tay', name: 'Ốc móng tay', icon: '🐚', category: 'seafood', basePrice: 11 },
+  { id: 'so_diep', name: 'Sò điệp', icon: '🐚', category: 'seafood', basePrice: 15 },
+  { id: 'ngheu', name: 'Nghêu', icon: '🦪', category: 'seafood', basePrice: 8 },
+  { id: 'hau', name: 'Hàu', icon: '🦪', category: 'seafood', basePrice: 13 },
+  { id: 'oc_bu', name: 'Ốc bươu', icon: '🐌', category: 'seafood', basePrice: 8 },
+  // Rau gia vị cho quán ốc (mỡ hành)
+  { id: 'scallion', name: 'Hành lá', icon: '🌱', category: 'vegetable', basePrice: 2 },
 
   // Trứng sữa
   { id: 'egg', name: 'Trứng', icon: '🥚', category: 'dairy', basePrice: 4 },
@@ -46,6 +55,7 @@ export const items: ItemDef[] = [
   { id: 'seaweed', name: 'Rong biển', icon: '🌿', category: 'dry', basePrice: 3 },
   { id: 'flour', name: 'Bột mì', icon: '🫓', category: 'dry', basePrice: 2 },
   { id: 'bread', name: 'Bánh mì', icon: '🥖', category: 'dry', basePrice: 4 },
+  { id: 'cheese', name: 'Phô mai', icon: '🧀', category: 'dry', basePrice: 8 }, // chỉ mua ở chợ, không tự làm được
 
   // Nông sản thô — chỉ để chở tới cối chế biến (không bán ngoài chợ)
   // Trái cây (vườn cây ăn quả)

@@ -12,7 +12,7 @@ import { currentQuest } from '../sim/systems/quests';
 import { questChapters } from '../data/quests';
 import { mealCoachTip } from './coach';
 import { acceptingGuests, inShift } from '../sim/systems/customers';
-import { billDue, billTotal, crewMembers, mealBudget } from '../sim/systems/crew';
+import { billDue, billTotal, crewMembers, mealBudget, missingEnergy, orderedEnergy } from '../sim/systems/crew';
 import { priceOf } from '../sim/systems/market';
 import { stockOf } from '../sim/helpers';
 import { clockText, coins } from './format';
@@ -335,49 +335,82 @@ export function billHtml(game: Game): string {
 }
 
 /**
- * Bảng gọi món cho cả đội ở chợ: chọn người (chip), rồi bấm món ở hàng rong / Tiệm 25caaaaa.
+ * Bảng gọi món cho cả đội ở chợ, chia 2 cột:
+ *  - trái (4/12): mọi người trong đợt nghỉ — biểu tượng, tên, thanh năng lượng (phần đặc = đang có, phần sọc = món đã gọi);
+ *  - phải (8/12): thực đơn hàng rong / Tiệm 25caaaaa cho người đang chọn. Bấm món là gọi thêm, thanh đầy dần;
+ *    đầy thanh thì người đó xong, tự chuyển sang người kế tiếp. Món đã gọi bấm ✕ để bỏ.
  * `ui.mealStall` = chỉ hiện thực đơn một hàng (mở từ bảng menu trong tiệm). Quá hạn chưa chọn thì mọi người tự chọn.
  */
 export function mealHtml(game: Game, ui: UiState): string {
   const { state, content, ctx } = game;
   const c = state.crew;
   if (!ui.mealOpen) return '';
+  const max = content.balance.crew.maxEnergy;
   const pending = c.pending;
-  if (!pending.some((p) => p.who === ui.mealWho)) ui.mealWho = pending[0]?.who ?? null;
-  const icons = new Map(crewMembers(ctx).map((m) => [m.who, m.icon]));
-  const chips = [
-    ...pending.map((p) => `<button class="meal-who${p.who === ui.mealWho ? ' on' : ''}" data-key="p-${p.who}"${uiAttr(`mealWho:${p.who}`)}><span>${icons.get(p.who) ?? '🙂'}</span>${esc(p.name)}</button>`),
-    ...c.meals.map((l) => `<span class="meal-who done" data-key="m-${l.who}" title="${esc(l.dish)}"><span>${l.icon}</span>${esc(l.name)}</span>`),
-  ].join('');
+  const isPending = (who: string) => pending.some((p) => p.who === who);
+  if (!isPending(ui.mealWho ?? '')) ui.mealWho = pending[0]?.who ?? null;
+  // Người trong đợt nghỉ này: đang chờ gọi món hoặc đang ăn
+  const people = crewMembers(ctx).filter((m) => isPending(m.who) || c.meals.some((l) => l.who === m.who));
   const budget = mealBudget(ctx);
+
+  const rows = people
+    .map((m) => {
+      const ordered = orderedEnergy(ctx, m.who);
+      const now = Math.min(max, m.vitals.energy);
+      const add = Math.max(0, Math.min(max - now, ordered));
+      const open = isPending(m.who);
+      const missing = missingEnergy(ctx, m.who);
+      const hasMeal = c.meals.some((l) => l.who === m.who);
+      const status = !open ? '✓ Đã chọn xong' : hasMeal ? `Còn thiếu ${missing} ⚡` : missing <= 0 ? 'Đầy sức · gọi 1 món' : `Thiếu ${missing} ⚡`;
+      const inner = `<span class="mp-icon">${m.icon}</span>
+        <span class="mp-main"><b>${esc(m.name)}</b><small>${status}</small>
+          <span class="ebar"><i class="now" style="width:${(now / max) * 100}%"></i><i class="add" style="left:${(now / max) * 100}%;width:${(add / max) * 100}%"></i></span>
+        </span>
+        <span class="mp-num">${Math.round(now + add)}<small>/${max}</small></span>`;
+      return open
+        ? `<button class="meal-person${m.who === ui.mealWho ? ' on' : ''}" data-key="mp-${m.who}"${uiAttr(`mealWho:${m.who}`)}>${inner}</button>`
+        : `<div class="meal-person done" data-key="mp-${m.who}">${inner}</div>`;
+    })
+    .join('');
+
+  const who = people.find((m) => m.who === ui.mealWho);
+  const mine = who ? c.meals.filter((l) => l.who === who.who) : [];
   const vendors = content.stalls.all().filter((s) => s.menu?.length && (!ui.mealStall || s.id === ui.mealStall));
   const menus = vendors
     .map(
       (s) => `<h3 data-key="v-${s.id}">${s.icon} ${esc(s.name)}</h3><div class="meal-menu">${s
         .menu!.map(
           (d, i) =>
-            `<button class="meal-dish" data-key="${s.id}-${i}"${cmd({ type: 'crew/order', who: ui.mealWho ?? '', stallId: s.id, dish: i })}${ui.mealWho && d.price <= budget ? '' : ' disabled'}><span class="big">${d.icon}</span><b>${esc(d.name)}</b><small>+${d.energy} ⚡ · ${coins(d.price)}</small></button>`,
+            `<button class="meal-dish" data-key="${s.id}-${i}"${cmd({ type: 'crew/order', who: ui.mealWho ?? '', stallId: s.id, dish: i })}${who && d.price <= budget ? '' : ' disabled'}><span class="big">${d.icon}</span><b>${esc(d.name)}</b><small>+${d.energy} ⚡ · ${coins(d.price)}</small></button>`,
         )
         .join('')}</div>`,
     )
     .join('');
+  const right = who
+    ? `<div class="meal-for" data-key="for-${who.who}"><span>Đang chọn cho <b>${who.icon} ${esc(who.name)}</b></span>
+        ${mine.length ? `<span class="meal-picked">${mine.map((l, i) => `<button class="mini" data-key="pk-${i}"${cmd({ type: 'crew/unorder', who: who.who, index: i })} title="Bỏ món này">${l.icon} ${esc(l.dish)} ✕</button>`).join('')}</span>` : ''}
+      </div>
+      <div class="meal-menus">${menus}</div>
+      ${ui.mealStall ? `<button class="mini"${uiAttr('mealStall:')}>Xem cả hàng rong khác</button>` : ''}`
+    : `<p class="muted meal-empty">${pending.length ? 'Chọn một người bên trái để gọi món.' : 'Mọi người đã có món, đang ăn ngon lành. 😋'}</p>`;
+
   const deadline = pending.length ? Math.min(...pending.map((p) => p.deadline)) : null;
-  const who = pending.find((p) => p.who === ui.mealWho);
   return `<div class="backdrop" data-key="meal"${uiAttr('meal:close')}>
     <div class="dialog meal-dialog" role="dialog" aria-label="Gọi món cho cả đội"${uiAttr('noop')}>
       <div class="dialog-head"><h2>🍜 Gọi món cho cả đội</h2><button class="x-close"${uiAttr('meal:close')} aria-label="Đóng">✕</button></div>
       ${mealCoachTip(game)}
-      <p class="muted">${
+      <p class="muted meal-note">${
         pending.length
-          ? `Chọn người rồi bấm món. Chưa chọn trước <b>${clockText(deadline!)}</b> thì mọi người tự chọn. Còn ${coins(budget)} cho bữa này.`
-          : 'Mọi người đã có món, đang ăn ngon lành.'
+          ? `Chọn người rồi bấm món cho tới khi thanh ⚡ đầy. Chưa chọn trước <b>${clockText(deadline!)}</b> thì mọi người tự chọn. Còn ${coins(budget)} cho bữa này.`
+          : 'Mọi người đã chọn xong món.'
       }</p>
-      <div class="meal-whos">${chips}</div>
-      ${who ? `<p class="meal-for">Đang chọn cho <b>${esc(who.name)}</b>:</p>${menus}` : ''}
-      ${ui.mealStall && pending.length ? `<button class="mini"${uiAttr('mealStall:')}>Xem cả hàng rong khác</button>` : ''}
+      <div class="meal-cols">
+        <div class="meal-people">${rows}</div>
+        <div class="meal-right">${right}</div>
+      </div>
       <div class="dialog-foot">
         ${pending.length ? `<button${cmd({ type: 'crew/autoOrder' })}>🎲 Để mọi người tự chọn</button>` : ''}
-        <button class="primary"${uiAttr('meal:close')}>Xong</button>
+        <button class="primary"${uiAttr('meal:done')}>Xong</button>
       </div>
     </div>
   </div>`;

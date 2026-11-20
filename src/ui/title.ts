@@ -14,8 +14,8 @@ import { G, group, mesh, seeded } from './three/toon';
  * Cảnh 3D ở đây dùng renderer riêng và được huỷ hết trước khi game chạy (onStart).
  */
 
-const SHOP_X: Record<CuisineId, number> = { jp: -8, kr: 0, vn: 8 };
-const ORDER: CuisineId[] = ['jp', 'kr', 'vn'];
+const SHOP_X: Record<CuisineId, number> = { jp: -12, kr: -4, vn: 4, oc: 12 };
+const ORDER: CuisineId[] = ['jp', 'kr', 'vn', 'oc'];
 
 type Step = 'menu' | 'pick' | 'confirm';
 
@@ -24,6 +24,8 @@ const FLAGS: Record<CuisineId, string> = {
   jp: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#fff"/><circle cx="15" cy="10" r="6" fill="#bc002d"/></svg>',
   kr: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#fff"/><path d="M10 10a5 5 0 0 1 10 0z" fill="#cd2e3a"/><path d="M10 10a5 5 0 0 0 10 0z" fill="#0047a0"/><g stroke="#000" stroke-width="1.2"><path d="M3 4l3-2M4 5.5l3-2M5 7l3-2M22 2l3 2M21 3.5l3 2M20 5l3 2M3 16l3 2M4 14.5l3 2M5 13l3 2M22 18l3-2M21 16.5l3-2M20 15l3-2"/></g></svg>',
   vn: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#da251d"/><path d="M15 4l1.76 5.4h5.68l-4.6 3.34 1.76 5.4L15 14.8l-4.6 3.34 1.76-5.4-4.6-3.34h5.68z" fill="#ff0"/></svg>',
+  // Quán ốc: không phải cờ nước — huy hiệu vỏ ốc trên nền dù sọc
+  oc: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#faf3e6"/><path d="M0 0h5v20H0zM10 0h5v20h-5zM20 0h5v20h-5z" fill="#e2473c"/><circle cx="15" cy="10" r="7" fill="#fff6e0" stroke="#c9762c" stroke-width="1.4"/><path d="M15 4.5a5.5 5.5 0 0 1 0 11a3.6 3.6 0 0 1 0-7.2a2 2 0 0 1 0 4" fill="none" stroke="#c9762c" stroke-width="1.3"/></svg>',
 };
 
 export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: boolean; onStart: (cuisine: CuisineId | null) => void }): void {
@@ -117,7 +119,7 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
     } else {
       uiEl.innerHTML = `<div class="pick-head"><button class="mini" data-title="back" aria-label="Quay lại">←</button><h2>Chọn phong cách quán</h2></div>
         <div class="cuisine-cards">${ORDER.map(card).join('')}</div>
-        <div class="pick-foot"><span class="muted">Nông trại và chợ dùng chung cho cả 3 quán.</span>
+        <div class="pick-foot"><span class="muted">Nông trại và chợ dùng chung cho cả 4 quán.</span>
           <button class="primary big" data-title="start" style="--accent:${c.accent}"><span class="flag">${FLAGS[focus]}</span> Mở ${esc(c.name)}</button></div>
         ${step === 'confirm' ? `<div class="backdrop"><div class="dialog"><h2>Bắt đầu ván mới?</h2>
           <p>Ván đang chơi trên trình duyệt này sẽ bị <b>xoá</b> và không lấy lại được.</p>
@@ -192,7 +194,7 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
     const t = clock.elapsedTime;
     // Menu: nhìn cả phố, đung đưa nhẹ. Chọn quán: lại gần quán đang chọn, hơi lệch lên để chừa chỗ cho thẻ phía dưới
     const narrow = camera.aspect < 1.2;
-    const target = step === 'menu' ? new THREE.Vector3(Math.sin(t * 0.15) * 2, 7, narrow ? 30 : 22) : new THREE.Vector3(SHOP_X[focus], 4.6, narrow ? 17 : 13.5);
+    const target = step === 'menu' ? new THREE.Vector3(Math.sin(t * 0.15) * 1.5, 8.5, narrow ? 44 : 34) : new THREE.Vector3(SHOP_X[focus], 4.6, narrow ? 17 : 13.5);
     const look = step === 'menu' ? new THREE.Vector3(0, 2.4, 0) : new THREE.Vector3(SHOP_X[focus], 1.2, 0);
     camPos.lerp(target, Math.min(1, dt * 2.5));
     camLook.lerp(look, Math.min(1, dt * 3));

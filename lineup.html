@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dàn nhân vật</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #f3ead8; font-family: system-ui, sans-serif; }
+      canvas { display: block; width: 100%; height: 100%; }
+      #note { position: fixed; left: 12px; top: 10px; background: #fffdf8cc; border-radius: 10px; padding: 6px 12px; font-size: 13px; color: #3a2a1e; }
+    </style>
+  </head>
+  <body>
+    <div id="note">Dàn nhân vật (chỉ bản dev) — kéo để xoay, lăn chuột để zoom · hàng trước: trẻ em · thiếu niên · người lớn · người già · đội quán</div>
+    <canvas id="c"></canvas>
+    <script type="module" src="/src/dev/lineup.ts"></script>
+  </body>
+</html>

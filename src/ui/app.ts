@@ -89,6 +89,13 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
       game.tick(1);
     }
     if (params.has('pickup') && game.dispatch({ type: 'service/pickup' }).ok) for (let i = 0; i < 30 && game.state.restaurant.waiter.tasks.length; i++) game.tick(0.5);
+  } else if (import.meta.env.DEV && params.has('autopay')) {
+    // Chỉ bản dev: ?ff=780&autopay tua tới tối mà không bị bảng gọi món / hoá đơn của đội che (tự chọn món, tự trả tiền)
+    for (let m = 0; m < (Number(params.get('ff')) || 0); m++) {
+      if (game.state.crew.pending.length) game.dispatch({ type: 'crew/autoOrder' });
+      game.tick(1);
+      if (billDue(game.ctx)) game.dispatch({ type: 'crew/pay' });
+    }
   } else game.tick(Number(params.get('ff')) || 0);
 
   root.innerHTML = `
@@ -132,7 +139,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     area: areas.find((a) => a.id === params.get('area'))?.id ?? 'restaurant',
     drawer: panels.find((p) => p.id === params.get('tab'))?.id ?? null,
     speed: params.has('speed') && SPEEDS.includes(Number(params.get('speed'))) ? Number(params.get('speed')) : 1,
-    selectedSlot: null,
+    // Chỉ bản dev: ?slot=field-0 (kèm ?focus=field&tab=farm) chọn sẵn một ô như vừa bấm ô đó trên cảnh
+    selectedSlot: import.meta.env.DEV ? params.get('slot') : null,
     selectedStall: null,
     editLayout: import.meta.env.DEV && params.has('edit'),
     settings: false,
@@ -300,6 +308,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
     toast(`${f.icon} Hôm nay là ${f.name}! ${f.desc}${e.gift ? ` Nhận ${e.gift} xu tiền mừng.` : ''}`, 'good', '', 5200);
     sound.play('levelup');
   });
+  game.bus.on('farm/culled', (e) => toast(`🐔 Sang mùa Đông: ${e.count} chuồng gà mái / bò sữa đã hết lứa của năm. Mùa Xuân nuôi lứa mới nhé.`, 'bad', '', 5200));
   game.bus.on('farm/withered', (e) => toast(`🥀 Sang mùa mới: ${e.count} ô rau / lúa trái mùa ngoài trời đã héo. Xem bảng Nông trại để gieo giống hợp mùa.`, 'bad', '', 5200));
   game.bus.on('farm/storm', (e) => toast(`🌀 Bão quét qua nông trại: ${e.damaged} ô rau / lúa bị dập, chậm lớn hơn.`, 'bad', '', 4200));
   game.bus.on('day/started', () => {
@@ -775,8 +784,13 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; content
       ui.guide = arg === 'close' ? null : Number(arg) || 0;
     }
     else if (action === 'meal') {
-      ui.mealOpen = arg !== 'close';
-      if (arg !== 'close') ui.mealStall = null;
+      // "Xong": chốt bữa cho ai đã gọi ít nhất một món (ai chưa gọi thì quá hạn tự chọn) rồi đóng bảng
+      if (arg === 'done') {
+        const c = game.state.crew;
+        if (c.pending.some((p) => c.meals.some((l) => l.who === p.who))) run({ type: 'crew/confirm' });
+      }
+      ui.mealOpen = arg !== 'close' && arg !== 'done';
+      if (ui.mealOpen) ui.mealStall = null;
     } else if (action === 'mealWho') ui.mealWho = arg || null;
     else if (action === 'mealStall') ui.mealStall = arg || null;
     else if (action === 'buy') ui.buyItem = arg === 'close' ? null : arg;

@@ -50,7 +50,7 @@ export const balance: Balance = {
     moodTip: [1, 0.6, 0.25, 0],
   },
   farmer: { home: { x: 1.25, z: 5.4 }, lanes: [1.25], speed: 3.7, workTime: 1.1 }, // chạy ~5.6 m/giây thực, làm mỗi việc ~0.7 giây
-  farm: { waterDuration: 300, dryGrowth: 0.35 },
+  farm: { waterDuration: 1680, dryGrowth: 0.35 }, // tưới một lần giữ ẩm 1 ngày nông trại (1080 + nightMinutes)
   marketSwing: [0.8, 1.25],
   kitchen: {
     tiers: [
