@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { signText } from './cuisine';
-import type { Env } from './stage';
+import type { Env, RainShelter } from './stage';
 import { emojiSprite, G, group, mesh, toon } from './toon';
 
 /**
@@ -10,7 +10,8 @@ import { emojiSprite, G, group, mesh, toon } from './toon';
  *  - sạp dù lớn che khu bếp (màu sọc theo "Sơn tường"), mái cao để nhìn rõ bên trong;
  *  - xe đẩy ốc (bếp trưởng), bếp nướng than có ánh lửa (bếp phó), bàn sơ chế cho đầu bếp thuê thêm;
  *  - bảng tên chân đứng bên trái xe đẩy (RestaurantArea.updateNameSign).
- * Dây đèn vàng và ô che bàn (mở khi mưa) ở cuisine.ts (decorateInterior / tableExtras).
+ *  - mưa thì mái sạp kéo dài ra che hết sân (bạt hơi trong).
+ * Dây đèn vàng ở cuisine.ts (decorateInterior).
  */
 
 export interface StreetDims {
@@ -87,7 +88,7 @@ export function buildStreetGround(r: THREE.Object3D, d: StreetDims, mats: Street
 }
 
 /** Sạp dù che bếp, xe đẩy ốc, bếp nướng than, bàn sơ chế (theo số đầu bếp). Trả về hàm cập nhật (lửa than lập loè). */
-export function buildStreetKitchen(r: THREE.Object3D, d: StreetDims, mats: StreetMats, chefs: number): (env: Env, dt: number) => void {
+export function buildStreetKitchen(r: THREE.Object3D, d: StreetDims, mats: StreetMats, chefs: number, shelter: RainShelter): (env: Env, dt: number) => void {
   const s = streetSpots(d);
   const STEEL = 0xc8d0d5;
 
@@ -107,6 +108,28 @@ export function buildStreetKitchen(r: THREE.Object3D, d: StreetDims, mats: Stree
   for (let i = 0; i < stripes * 2; i++) {
     mesh(r, G.cyl(0.2, 0.2, 0.04, 10, ), i % 2 ? mats.trim : mats.wall, { p: [x1 - 0.3 + (i + 0.5) * (sw / 2), top - 0.12, z2 + 0.42], r: [Math.PI / 2, 0, 0], s: [0.65, 1, 1], cast: false });
   }
+
+  // ---- Mái kéo dài: mưa thì bạt sọc trượt ra từ mép sạp dù tới hết sân (tựa lên cột dây đèn), tạnh thì cuốn lại.
+  // Bạt hơi trong để vẫn nhìn thấy khách và bàn bên dưới.
+  const awnStart = z2 + 0.4;
+  const awnLen = d.frontZ + 0.5 - awnStart;
+  const awnA = toon(0xffffff, { transparent: true, opacity: 0.26 });
+  const awnB = toon(0xffffff, { transparent: true, opacity: 0.26 });
+  for (const m of [awnA, awnB]) m.depthWrite = false;
+  const awning = group(r, { p: [0, top + 0.02, awnStart] });
+  const tilt = Math.atan2(0.3, awnLen); // dốc nhẹ ra phía trước để thoát nước
+  awning.rotation.x = tilt;
+  for (let i = 0; i < stripes; i++) {
+    mesh(awning, G.box(sw, 0.04, awnLen), i % 2 ? awnB : awnA, { p: [x1 - 0.3 + (i + 0.5) * sw, 0, awnLen / 2], cast: false, receive: false });
+  }
+  for (let i = 0; i < stripes * 2; i++) {
+    mesh(awning, G.cyl(0.2, 0.2, 0.04, 10), i % 2 ? awnB : awnA, { p: [x1 - 0.3 + (i + 0.5) * (sw / 2), -0.16, awnLen], r: [Math.PI / 2, 0, 0], s: [0.65, 1, 1], cast: false, receive: false });
+  }
+  awning.visible = false;
+  let awnK = 0;
+  // Vùng không có mưa: sạp dù (luôn che) + phần mái đang kéo ra
+  Object.assign(shelter, { x1: x1 - 0.3, x2: x2 + 0.3, z1: z1 - 0.5, z2: z2 + 0.4, y: top - 0.1 });
+  let awnT = -1;
 
   // ---- Xe đẩy ốc (bếp trưởng): thân inox, bánh xe, tủ kính trên có ốc / sò, tấm bảng đỏ chữ "ỐC", tay đẩy
   const cart = group(r, { p: [s.cart.x, 0, s.cart.z] });
@@ -179,7 +202,18 @@ export function buildStreetKitchen(r: THREE.Object3D, d: StreetDims, mats: Stree
     const flick = 0.75 + Math.sin(env.t * 11) * 0.12 + Math.sin(env.t * 23 + 1.3) * 0.08;
     coals.color.setRGB(1, 0.42 + flick * 0.12, 0.12);
     fire.intensity = (0.6 + env.night * 2.2) * flick;
+    // Mái kéo dài theo mưa
+    // Theo giờ thực env.t (không theo dt: khung hình thưa vẫn kéo đủ), ~1.5 s là bung hết
+    const step = awnT < 0 ? 1 : Math.min(1, Math.max(0, env.t - awnT) * 2.5);
+    awnT = env.t;
+    awnK += ((env.rain > 0.2 ? 1 : 0) - awnK) * step;
     void dt;
+    awning.visible = awnK > 0.02;
+    awning.scale.z = Math.max(0.02, awnK);
+    // Mái kéo ra thì phía trước quán (vỉa hè, lòng đường) cũng không mưa: chỉ mưa hai bên trái / phải
+    shelter.z2 = Math.max(z2 + 0.4, awnStart + (d.frontZ + 4 - awnStart) * awnK);
+    awnA.color.copy((mats.wall as THREE.MeshToonMaterial).color);
+    awnB.color.copy((mats.trim as THREE.MeshToonMaterial).color);
   };
 }
 

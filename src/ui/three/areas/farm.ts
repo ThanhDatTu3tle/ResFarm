@@ -4,7 +4,8 @@ import type { Game } from '../../../sim/game';
 import type { FarmerTaskKind, FarmSlot } from '../../../sim/state';
 import type { MillType } from '../../../data';
 import { farmChecklist } from '../../../sim/systems/tutorial';
-import { buildingRect, currentWork, isAutoSlot, slotCenter, slotCenterAt, slotScale } from '../../../sim/systems/farmer';
+import { buildingRect, currentWork, isAutoSlot, nextWaypoint, slotCenter, slotCenterAt, slotScale, workSpot } from '../../../sim/systems/farmer';
+import { OwnerWalker, type Spot } from '../owner';
 import { millCenter, millCenterAt } from '../../../sim/systems/mills';
 import { dashedOutline, dashedRect, fillSacks, makeGreenhouse, grainField, hayBale, makeRiceMill, makeTractor, makeWindmill, outlineSlab, pondOutline, strawLitter } from '../farmkit';
 import { cycleTime, needsWatering, nextTier, yieldsOf } from '../../../sim/systems/farm';
@@ -777,9 +778,28 @@ export class FarmArea implements Area {
     }
   }
 
+  /** Ông / bà chủ đi lòng vòng theo lối của bác nông dân, dừng trước một ô ngắm cây / con vật. */
+  private owner: OwnerWalker | null = null;
+
+  private ownerSpot(): Spot {
+    const { ctx, state, content } = this.game;
+    const slots = state.farm.slots.filter((s) => !content.slotTypes.get(s.type).building);
+    if (!slots.length || Math.random() < 0.15) return { ...content.balance.farmer.home };
+    const slot = slots[Math.floor(Math.random() * slots.length)];
+    const w = workSpot(ctx, slot);
+    const c = slotCenter(ctx, slot);
+    // Đứng lệch khỏi chỗ bác làm một chút cho khỏi đứng chồng lên nhau
+    return { x: w.x + (Math.random() - 0.5) * 0.6, z: w.z, face: Math.atan2(c.x - w.x, c.z - w.z) };
+  }
+
   update(env: Env, dt: number): void {
     const { state, content, ctx } = this.game;
     const counts: Partial<Record<SlotType, number>> = {};
+    if (!this.owner) {
+      const home = content.balance.farmer.home;
+      this.owner = new OwnerWalker(this.game, this.root, { x: home.x + 0.8, z: home.z }, () => this.ownerSpot(), (from, to) => nextWaypoint(from, to, content.balance.farmer.lanes), 0.8, 1.0).withMarker(1.1);
+    }
+    this.owner.update(env.t, dt);
 
     for (const slot of state.farm.slots) {
       if (content.slotTypes.get(slot.type).building) continue; // luống trong nhà kính: vẽ ở khu bên trong

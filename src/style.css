@@ -263,6 +263,202 @@ h3 {
   white-space: nowrap;
 }
 
+/* Hộp đổi tên quán */
+.dialog.rename {
+  gap: 10px;
+  border: 3px solid var(--wood);
+  box-shadow: 0 4px 0 var(--wood-dark);
+  animation: pop-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.dialog.rename h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.dialog.rename p {
+  margin: 0;
+  font-size: 12px;
+}
+.dialog.rename input {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 17px;
+  text-align: center;
+  border-radius: 12px;
+  border: 2px solid var(--wood);
+  background: #fffdf8;
+  color: var(--text);
+}
+.dialog.rename input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* Nút cuốn lịch trên đồng hồ */
+button.cal-btn {
+  align-self: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 10px;
+  flex: none;
+}
+
+/* Cuốn lịch */
+.dialog.calendar {
+  gap: 8px;
+  width: min(480px, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  text-align: left;
+  border: 3px solid var(--wood);
+  box-shadow: 0 4px 0 var(--wood-dark);
+  animation: pop-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.dialog.calendar h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.dialog.calendar h3 {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.cal-today {
+  margin: 0;
+  font-size: 13px;
+}
+.cal-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.cal-season {
+  padding: 6px 4px;
+  font-size: 13px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+}
+.cal-season.now {
+  border-color: var(--accent);
+}
+.cal-season.on {
+  background: #fff3d6;
+  color: var(--text);
+  box-shadow: inset 0 0 0 2px var(--wood);
+}
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 16px;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.cal-wd {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.cal-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-height: 52px;
+  padding: 4px 2px;
+  border-radius: 10px;
+  background: #fffdf8;
+  border: 2px solid var(--line);
+  overflow: hidden;
+}
+.cal-day b {
+  font-size: 15px;
+}
+.cal-day .cal-ico {
+  font-size: 16px;
+  line-height: 1;
+}
+.cal-day em {
+  max-width: 100%;
+  font-size: 9px;
+  font-style: normal;
+  line-height: 1.1;
+  text-align: center;
+  color: var(--accent-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-day.past {
+  opacity: 0.45;
+}
+.cal-day.fest {
+  background: #fff1e0;
+  border-color: #f2b23e;
+}
+.cal-day.end {
+  border-style: dashed;
+}
+.cal-day.today {
+  border-color: var(--accent);
+  background: #ffe9d6;
+  box-shadow: 0 0 0 2px var(--accent);
+  opacity: 1;
+}
+.cal-note {
+  margin: 0;
+  font-size: 12px;
+}
+.cal-next {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cal-next li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #fffdf8;
+  border: 2px solid var(--line);
+}
+.cal-next .cal-ico {
+  font-size: 22px;
+}
+.cal-next li > span:nth-child(2) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.cal-next small {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.cal-next em {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  white-space: nowrap;
+}
+
 .clock-row {
   display: flex;
   align-items: center;
@@ -1295,9 +1491,73 @@ button.side .badge {
 }
 
 .title-ui.step-pick,
+.title-ui.step-owner,
 .title-ui.step-confirm {
   justify-content: space-between;
 }
+
+/* Chọn ông / bà chủ: thẻ bên trái, người xem trước đứng bên phải trong cảnh 3D */
+.owner-card {
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(340px, 100%);
+  margin-left: max(0px, calc((100% - 980px) / 2));
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 250, 241, 0.95);
+  box-shadow: 0 4px 0 rgba(59, 42, 30, 0.18);
+}
+.owner-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.owner-gender {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.owner-gender button {
+  padding: 10px 8px;
+  font-size: 16px;
+  border-radius: 12px;
+  border: 3px solid transparent;
+}
+.owner-gender button.on {
+  border-color: var(--accent);
+  background: #fff3e6;
+  color: var(--text);
+}
+.owner-age {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.owner-age em {
+  color: var(--muted);
+}
+.owner-age input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.owner-age-marks {
+  position: relative;
+  height: 16px;
+  margin: 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.owner-age-marks i {
+  position: absolute;
+  font-style: normal;
+  transform: translateX(-50%);
+}
+/* Mốc tuổi trên thanh 25..50: 25 ở đầu, 35 ở 40%, 50 ở cuối */
+.owner-age-marks i:nth-child(1) { left: 0; }
+.owner-age-marks i:nth-child(2) { left: 40%; }
+.owner-age-marks i:nth-child(3) { left: 100%; }
 
 .cuisine-cards {
   display: flex;

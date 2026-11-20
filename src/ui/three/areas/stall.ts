@@ -3,8 +3,9 @@ import type { StallDef } from '../../../data';
 import type { Game } from '../../../sim/game';
 import { priceOf } from '../../../sim/systems/market';
 import { signText } from '../cuisine';
-import { adultShape, animatePerson, FARMER_SHAPE, LOOKS, makePerson } from '../models';
+import { adultShape, animatePerson, FARMER_SHAPE, LOOKS, makePerson, randomShape } from '../models';
 import type { Area, Env, Pick } from '../stage';
+import { OwnerWalker } from '../owner';
 import { emojiSprite, G, group, mesh, paintSeason, type V3 } from '../toon';
 
 /**
@@ -67,6 +68,10 @@ export class StallArea implements Area {
   private bubbles: { obj: THREE.Object3D; y0: number; h: number; phase: number }[] = [];
   /** Ghế đẩu trong tiệm: vị trí ghế + tâm bàn (để đặt đĩa món lên mặt bàn trước mặt người ngồi). */
   private seats: { p: V3; table: [number, number] }[] = [];
+  /** Khách mua hàng đứng trước sạp (2-3 người): đứng ngó hàng, thỉnh thoảng cúi chọn; một người đi dạo qua lại. */
+  private shoppers: { obj: THREE.Group; x: number; z: number; range: number; speed: number; phase: number; face: number }[] = [];
+  /** Ông / bà chủ: bước vào sạp rồi đứng chọn hàng (chỗ đứng đầu tiên của addShoppers). */
+  private owner: OwnerWalker | null = null;
   /** Đèn trong quầy / tiệm: sáng dần khi trời tối. */
   private lamps: { light: THREE.PointLight; bulb: THREE.MeshBasicMaterial }[] = [];
 
@@ -92,6 +97,8 @@ export class StallArea implements Area {
     this.bubbles = [];
     this.seats = [];
     this.lamps = [];
+    this.shoppers = [];
+    this.owner = null;
     this.vendor = null;
     this.day = this.game.state.clock.day;
     const { content } = this.game;
@@ -125,12 +132,15 @@ export class StallArea implements Area {
     const name = signText(def.name, '#3b2a1e', 5.4, 0.7);
     name.position.set(0, 3.15, -4.1);
     g.add(name);
+    // Khách mua hàng: chỗ đứng theo kiểu sạp (không che khay / biển giá từ góc nhìn mặc định)
     if (tanks) {
       this.buildTanks(def, index);
+      this.addShoppers(index, [[-2.7, 0.2, -1.7], [2.65, -0.45, 1.9]], [-0.1, 0.3, 0.5]);
       return;
     }
     if (def.interior === 'butcher') {
       this.buildButcher(def, index);
+      this.addShoppers(index, [[-4.1, 0.9, Math.PI - 0.5], [3.2, 0.9, Math.PI - 0.2]], [1.9, 1.9, 1.0]);
       return;
     }
     // Người bán sau quầy
@@ -181,6 +191,10 @@ export class StallArea implements Area {
       tag.add(label);
       mesh(tray, G.cyl(0.015, 0.015, 0.3, 4), 0x6b4a2f, { p: [0, 0.15, td / 2 + 0.02], cast: false });
     });
+    // Khách đứng hai bên quầy (khe giữa quầy và vách), quay vào khay; người đi dạo ngang trước quầy
+    const side = Math.min(4.6, (cols * (tw + 0.2) + 0.7) / 2 + 0.45);
+    const front = -1.5 + depth;
+    this.addShoppers(index, [[-side, Math.min(1.2, front - 0.6), Math.PI / 2 + 0.3], [side, Math.min(0.4, front - 1.2), -Math.PI / 2 - 0.3]], [0.3, front + 0.9, 1.8]);
   }
 
   /** Bể kính: khung, nước xanh trong, cát + rong dưới đáy, bọt khí, hải sản bơi; biển giá trước bể. Bấm bể → mua (Pick 'goods'). */
@@ -498,6 +512,52 @@ export class StallArea implements Area {
     }
   }
 
+  /**
+   * Khách mua hàng (2-3 người): `spots` = chỗ đứng chọn hàng [x, z, hướng quay], `walker` = người đi dạo qua lại [x, z, quãng].
+   * Người đi dạo có hay không và dáng người đổi theo sạp + ngày (có thể có trẻ em đi theo).
+   */
+  private addShoppers(index: number, spots: [number, number, number][], walker: [number, number, number]): void {
+    const seed = index * 97 + this.day * 13;
+    // Chỗ đầu tiên dành cho ông / bà chủ: đi từ ngoài vào (phía camera) rồi đứng quay vào hàng
+    const [mine, ...rest] = spots;
+    const [ox, oz, face] = mine;
+    this.owner = new OwnerWalker(this.game, this.content, { x: ox + 0.4, z: oz + 3.2 }, () => ({ x: ox, z: oz, face }), undefined, 1.0, 1.2);
+    this.owner.stay = true;
+    this.owner.goTo({ x: ox, z: oz, face });
+    // Khách khác: chỗ còn lại + người đi dạo (ngày chẵn / lẻ)
+    const all = [...rest, walker];
+    all.forEach(([x, z, k], i) => {
+      const walks = i >= rest.length;
+      const base = LOOKS[(seed + i * 5) % LOOKS.length];
+      const { shape, look } = randomShape(seed + i * 7, i, base);
+      const p = makePerson(look ?? base, 'none', shape);
+      p.scale.setScalar(1.2);
+      p.position.set(x, 0, z);
+      if (!walks && (seed + i) % 2 === 0) mesh(p, G.cyl(0.16, 0.12, 0.22, 10), 0xc99a52, { p: [0.32, 0.25, 0.05] }); // giỏ đi chợ
+      this.content.add(p);
+      this.shoppers.push({ obj: p, x, z, range: walks ? k : 0, speed: 0.35, phase: i * 2.1 + seed, face: walks ? Math.PI : k });
+    });
+  }
+
+  private updateShoppers(env: Env): void {
+    for (const s of this.shoppers) {
+      if (s.range > 0) {
+        // Đi qua lại chậm, dừng ở hai đầu để ngó hàng
+        const a = env.t * s.speed + s.phase;
+        const u = Math.sin(a);
+        const moving = Math.abs(Math.cos(a)) > 0.35;
+        s.obj.position.x = s.x + u * s.range;
+        s.obj.rotation.y = moving ? (Math.cos(a) > 0 ? Math.PI / 2 : -Math.PI / 2) : s.face;
+        animatePerson(s.obj, env.t, { walk: moving ? 1 : 0 });
+      } else {
+        // Thỉnh thoảng cúi xuống chọn hàng / quay sang nhìn sạp bên
+        const k = Math.sin(env.t * 0.4 + s.phase);
+        s.obj.rotation.y = s.face + Math.sin(env.t * 0.23 + s.phase) * 0.25;
+        animatePerson(s.obj, env.t, { reach: k > 0.75 ? 0.35 : 0 });
+      }
+    }
+  }
+
   /** Người trong đội đang ăn ở tiệm (crew.meals): ngồi ghế đẩu, quay vào bàn, món ăn hiện trên đầu. */
   private updateEaters(env: Env): void {
     const meals = this.stallId ? this.game.state.crew.meals.filter((l) => l.stallId === this.stallId) : [];
@@ -547,7 +607,7 @@ export class StallArea implements Area {
     }
   }
 
-  update(env: Env): void {
+  update(env: Env, dt = 0.016): void {
     // Đèn trong tiệm: luôn hơi sáng, trời tối thì sáng hẳn
     for (const l of this.lamps) {
       l.light.intensity = (0.12 + env.night * 1.1) / Math.max(1, this.lamps.length / 2);
@@ -570,6 +630,9 @@ export class StallArea implements Area {
     }
     for (const b of this.bubbles) b.obj.position.y = b.y0 + ((env.t * 0.45 + b.phase) % 1) * b.h;
     this.updateEaters(env);
+    this.updateShoppers(env);
+    // Ông / bà chủ: tới nơi thì thỉnh thoảng cúi chọn hàng
+    this.owner?.update(env.t, dt, { reach: Math.sin(env.t * 0.35 + 1) > 0.8 ? 0.35 : 0 });
   }
 }
 

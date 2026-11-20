@@ -347,6 +347,10 @@ export interface Balance {
   startReputation: number;
   /** Khoảng cách trung bình giữa hai lượt khách (phút) ở uy tín trung bình. */
   spawnInterval: number;
+  /** Khoảng cách tối đa giữa hai nhóm khách (phút game) — giờ nào trong ca cũng có khách. */
+  spawnMaxGap: number;
+  /** Mở ca được bao nhiêu phút game thì nhóm khách đầu tiên tới. */
+  firstGuest: number;
   maxQueue: number;
   rushHours: { from: number; to: number; factor: number }[];
   /** Trọng số cỡ nhóm khách, chỉ số mảng = số người. */
@@ -503,6 +507,8 @@ export interface PersonStyle {
   acc: Accessory[];
   /** Màu phụ kiện chính (nơ, khăn, túi...). */
   accent: number;
+  /** Bề ngang thân (0.85 gầy … 1.3 mập), bỏ trống = chuẩn. */
+  width?: number;
 }
 
 export interface RegularDef {

@@ -43,7 +43,10 @@ export const customerSystem: System = {
       }
     }
 
-    if (state.clock.phase === 'open' && acceptingGuests(ctx) && !tutorialHoldsGuests(ctx)) {
+    if (state.clock.phase === 'open' && !acceptingGuests(ctx)) {
+      // Ngoài giờ nhận khách (nghỉ trưa, sau giờ chót): mở ca lại là có khách ngay, không phải chờ hết lượt cũ
+      r.spawnTimer = b.firstGuest;
+    } else if (state.clock.phase === 'open' && !tutorialHoldsGuests(ctx)) {
       r.spawnTimer -= dt;
       if (r.spawnTimer <= 0) {
         r.spawnTimer = nextSpawnDelay(ctx);
@@ -174,7 +177,9 @@ function nextSpawnDelay(ctx: SimContext): number {
   const b = content.balance;
   const repFactor = 0.5 + (state.reputation / 5) * 1.2;
   const rush = b.rushHours.find((h) => state.clock.minute >= h.from && state.clock.minute < h.to)?.factor ?? 1;
-  return (b.spawnInterval * randRange(state.rng, 0.5, 1.5)) / (repFactor * rush * state.traffic * modifier(ctx, 'spawnRate'));
+  const delay = (b.spawnInterval * randRange(state.rng, 0.6, 1.4)) / (repFactor * rush * state.traffic * modifier(ctx, 'spawnRate'));
+  // Ngày vắng (uy tín thấp, mưa, lưu lượng thấp) vẫn không để quá `spawnMaxGap` phút không có ai
+  return Math.min(delay, b.spawnMaxGap * randRange(state.rng, 0.7, 1));
 }
 
 /** Thêm một nhóm khách vào hàng chờ. `opts`: nhóm đặc biệt của sự kiện (vd nhà phê bình đi một mình). */

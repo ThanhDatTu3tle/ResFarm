@@ -116,18 +116,6 @@ function ceilingFan(parent: THREE.Object3D, x: number, y: number, z: number): TH
   return blades;
 }
 
-/**
- * Ô che bàn của quán ốc: cụp lại lúc trời khô, bung ra khi mưa (decorateInterior cập nhật).
- * Bàn dựng lại / bán đi thì ô cũ tự bị bỏ (không còn gắn vào cảnh).
- */
-const umbrellas = new Set<{ open: THREE.Object3D; closed: THREE.Object3D; k: number }>();
-
-function attached(o: THREE.Object3D): boolean {
-  let p: THREE.Object3D | null = o;
-  while (p.parent) p = p.parent;
-  return p.type === 'Scene' || !!p.userData.areaRoot;
-}
-
 /** Dây đèn võng giữa hai điểm, bóng vàng cách đều; trả về vật liệu bóng (sáng khi tối). */
 function stringLights(r: THREE.Object3D, a: [number, number, number], b: [number, number, number], bulbMat: THREE.Material, sag = 0.35): void {
   const n = Math.max(3, Math.round(Math.hypot(b[0] - a[0], b[2] - a[2]) / 0.55));
@@ -181,10 +169,10 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
     stringLights(r, [x, h, zb], [x, h, zf], bulb);
     stringLights(r, [-x, h, zf], [x, h, zf], bulb, 0.45);
     stringLights(r, [-x, h, (zb + zf) / 2], [x, h, (zb + zf) / 2], bulb, 0.5);
-    // Ánh đèn vàng hắt xuống sân: vài nguồn sáng ấm dưới dây đèn, chỉ bật khi trời tối
-    for (const px of [-d.halfW * 0.55, d.halfW * 0.55]) {
+    // Ánh đèn vàng hắt xuống sân (rực như đèn nông trại): 3 x 2 nguồn sáng ấm dưới dây đèn, chỉ bật khi trời tối
+    for (const px of [-d.halfW * 0.6, 0, d.halfW * 0.6]) {
       for (const pz of [zb + (zf - zb) * 0.3, zb + (zf - zb) * 0.8]) {
-        const l = new THREE.PointLight(0xffc56b, 0, 7.5, 1.4);
+        const l = new THREE.PointLight(0xffb85a, 0, 9, 1.6);
         l.position.set(px, 3.0, pz);
         r.add(l);
         nightLights.push(l);
@@ -258,21 +246,7 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
   const phases = swingers.map((_, i) => i * 1.7);
   return (env, dt) => {
     for (const m of glows) m.emissiveIntensity = (m.userData.glowBase as number) + (m.userData.night ? Math.max(env.dim * 0.6, env.night * 2.2) : env.dim * 0.9);
-    for (const l of nightLights) l.intensity = env.night * 1.3;
-    // Ô che bàn (quán ốc): mưa thì bung, tạnh thì cụp
-    if (cuisine === 'oc') {
-      const want = env.rain > 0.2 ? 1 : 0;
-      for (const u of umbrellas) {
-        if (!attached(u.open)) {
-          umbrellas.delete(u);
-          continue;
-        }
-        u.k += (want - u.k) * Math.min(1, dt * 3);
-        u.open.visible = u.k > 0.04;
-        u.open.scale.set(Math.max(0.05, u.k), 0.4 + 0.6 * u.k, Math.max(0.05, u.k));
-        u.closed.visible = u.k < 0.5;
-      }
-    }
+    for (const l of nightLights) l.intensity = env.night * 5;
     for (const s of spinners) s.rotation.y += dt * 5;
     for (const w of wavers) w.rotation.z = -0.4 + Math.sin(env.t * 4) * 0.45;
     swingers.forEach((s, i) => (s.rotation.z = Math.sin(env.t * 1.3 + phases[i]) * 0.05));
@@ -289,24 +263,13 @@ export function seatStyle(cuisine: CuisineId): SeatStyle {
  * Đồ trên bàn (bàn thường, không phải quầy): Nhật — chai nước tương + ống đũa; Hàn — bếp nướng giữa bàn + ống hút khói
  * treo trên + chai soju; Việt — ống đũa + lọ tương ớt + hộp giấy. Gốc toạ độ ở tâm bàn, mặt bàn ở `top`.
  */
-let umbrellaColor = 0;
 export function tableExtras(cuisine: CuisineId, g: THREE.Object3D, top: number, w: number, d: number): void {
   if (cuisine === 'oc') {
-    // Chén nước chấm, lọ ớt, hộp giấy; ô che giữa bàn (cụp, mưa thì bung — decorateInterior)
+    // Chén nước chấm, lọ ớt, hộp giấy (mưa thì mái sạp bếp kéo dài ra che cả sân — street.ts)
     mesh(g, G.cyl(0.07, 0.05, 0.05, 10), 0xffffff, { p: [-0.18, top + 0.03, 0.05] });
     mesh(g, G.cyl(0.04, 0.04, 0.02, 10), 0x7cc35c, { p: [-0.18, top + 0.06, 0.05], cast: false }); // muối tiêu chanh
     mesh(g, G.cyl(0.035, 0.04, 0.14, 8), 0xd9433a, { p: [0.18, top + 0.07, -0.05] });
     mesh(g, G.box(0.14, 0.08, 0.1), 0xffffff, { p: [0.05, top + 0.04, -0.15] });
-    const colors = [0xe2473c, 0x3f7fd2, 0xf2b23e, 0x3f9f6a];
-    const c = colors[umbrellaColor++ % colors.length];
-    mesh(g, G.cyl(0.025, 0.025, 2.4, 6), 0xdfe5ea, { p: [0, top + 1.2 - 0.3, 0] });
-    const closed = group(g, { p: [0, top + 2.0, 0] });
-    mesh(closed, G.cone(0.13, 0.9, 8), c, { r: [Math.PI, 0, 0] });
-    const open = group(g, { p: [0, top + 2.35, 0] });
-    mesh(open, G.cone(1.05, 0.4, 12), c, { cast: false });
-    for (let i = 0; i < 6; i++) mesh(open, G.box(0.03, 0.02, 1.2), 0xffffff, { p: [Math.sin((i * Math.PI) / 3) * 0.6, -0.2, Math.cos((i * Math.PI) / 3) * 0.6], r: [0, (i * Math.PI) / 3, 0], cast: false });
-    open.visible = false;
-    umbrellas.add({ open, closed, k: 0 });
   } else if (cuisine === 'kr') {
     mesh(g, G.cyl(0.26, 0.26, 0.06, 18), 0x2a2d35, { p: [0, top + 0.03, 0] });
     mesh(g, G.torus(0.22, 0.012, 4, 20), 0x8a8f99, { p: [0, top + 0.07, 0], r: [Math.PI / 2, 0, 0], cast: false });

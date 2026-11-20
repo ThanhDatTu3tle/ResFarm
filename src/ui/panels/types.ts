@@ -35,6 +35,11 @@ export interface UiState {
   buyItem: string | null;
   /** Đang mở hướng dẫn chơi (số trang), null = đóng. */
   guide: number | null;
+  /** Cuốn lịch (nút 📅 trên đồng hồ): số mùa lệch so với mùa hiện tại đang xem, null = đóng. Mở lịch thì game tạm dừng. */
+  calendar: number | null;
+  /** Hộp đổi tên quán đang mở (giữ tên lúc mở làm giá trị ban đầu), null = đóng. Thay cho window.prompt (điện thoại / app cài lên
+   *  màn hình chính / trình duyệt trong Zalo, Messenger hay chặn hộp prompt nên bấm không thấy gì). */
+  rename: string | null;
 }
 
 /**

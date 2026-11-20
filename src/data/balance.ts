@@ -12,11 +12,15 @@ export const balance: Balance = {
   // Nguyên liệu khởi đầu: theo từng phong cách quán (CuisineDef.startInventory trong cuisines.ts)
 
   // Các mốc phục vụ dưới đây đã nhân ~2.1 khi đổi minutesPerSecond 0.7 → 1.5 để giữ nhịp theo giây thực như cũ
-  spawnInterval: 72, // ~48 giây thực một nhóm (trước khi nhân uy tín, giờ cao điểm, lưu lượng ngày)
+  spawnInterval: 52, // ~35 giây thực một nhóm (trước khi nhân uy tín, giờ cao điểm, lưu lượng ngày)
+  // Khoảng cách tối đa giữa hai nhóm khách (phút game, ~27 giây thực): giờ nào trong ca cũng có khách dù vắng; đầu ca khách tới sau `firstGuest`
+  spawnMaxGap: 40,
+  firstGuest: 6,
   maxQueue: 5,
   rushHours: [
     { from: 11 * 60, to: 12 * 60, factor: 1.6 },
     { from: 18 * 60, to: 20 * 60, factor: 1.6 },
+    { from: 15 * 60, to: 17 * 60, factor: 1.2 }, // khách đi chơi chiều ghé quán
   ],
   partySizeWeights: [0, 35, 35, 12, 12, 3, 3], // nhóm 5–6 người chỉ vừa khi đã mua bàn dài; không có thì bớt còn 4
 
@@ -73,7 +77,7 @@ export const balance: Balance = {
   // Mỗi người 30 năng lượng; ngủ qua đêm đầy lại. Nghỉ trưa: quán đóng 12:00, cả đội ra chợ (đội quán 14:00 về,
   // bác nông dân 13:00 về). Tối: quán đóng 21:00, cả đội ra chợ ăn tối. Người chơi chọn món cho từng người; quá hạn thì tự chọn.
   crew: {
-    maxEnergy: 30,
+    maxEnergy: 40,
     chefPerDish: 2,
     waiterPerTask: 1,
     farmerPerTask: 1,

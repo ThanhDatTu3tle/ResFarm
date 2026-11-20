@@ -7,6 +7,7 @@ import { collectSway, sway, type Area, type Env, type Pick } from '../stage';
 import { emojiSprite, G, group, mesh, seeded, toon, type V3, paintSeason } from '../toon';
 import { signText } from '../cuisine';
 import { FestiveSet } from '../festive';
+import { OwnerWalker, randIn, type Spot } from '../owner';
 import { makeCar, makeScooter, makeTruck, setVehicleLights } from '../farmkit';
 
 /**
@@ -52,12 +53,24 @@ export class MarketArea implements Area {
   /** Ghế đẩu nhựa ở mấy bộ bàn trước Tiệm 25caaaaa: người trong đội ăn ở tiệm thì ngồi đây. */
   private kioskSeats: { x: number; z: number; face: number }[] = [];
   private kioskId: string | null = null;
+  /** Ông / bà chủ đi dạo dọc vỉa hè, ghé ngó từng sạp. */
+  private owner: OwnerWalker | null = null;
   /** Hơi nóng bốc lên từ nồi hủ tiếu / ly cà phê. */
   private steams: THREE.Sprite[] = [];
 
   /** Tâm hàng quán `id` (mét, toạ độ khu chợ) — app.ts lướt camera tới đây khi bấm sạp. */
   stallCenter(id: string): { x: number; z: number } | null {
     return this.centers.get(id) ?? null;
+  }
+
+  /** Chỗ ông / bà chủ đi tới: hơn nửa số lần là trước một sạp (quay vào sạp), còn lại là một chỗ trên vỉa hè. */
+  private ownerSpot(): Spot {
+    const rows = this.game.content.stalls.all().filter((d) => !d.spot);
+    if (Math.random() < 0.6 && rows.length) {
+      const c = this.centers.get(rows[Math.floor(Math.random() * rows.length)].id)!;
+      return { x: c.x + (Math.random() - 0.5) * 1.6, z: 2.2 + Math.random() * 0.4, face: Math.PI };
+    }
+    return randIn(-14, 14, 2.4, 5.2);
   }
 
   constructor(private game: Game) {
@@ -453,6 +466,8 @@ export class MarketArea implements Area {
       paintSeason(this.root, env.season);
     }
     this.updateEaters(env);
+    this.owner ??= new OwnerWalker(this.game, this.root, { x: 0, z: 3.5 }, () => this.ownerSpot(), undefined, 0.75, 1.15).withMarker(0.9);
+    this.owner.update(env.t, dt);
     for (const s of this.steams) {
       s.position.y = (s.userData.y0 ??= s.position.y) + ((env.t * 0.6) % 0.5);
       s.material.opacity = 1 - ((env.t * 0.6) % 0.5) * 1.6;

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { PersonStyle } from '../../data';
+import type { OwnerProfile } from '../../sim/state';
 import { makePerson, rimify, type Rig } from './models';
 import { G, group, mesh, toon } from './toon';
 
@@ -10,7 +11,7 @@ import { G, group, mesh, toon } from './toon';
 
 export function makeRegular(style: PersonStyle): THREE.Group {
   // Dáng (trẻ em / thiếu niên / người lớn / người già), kiểu tóc: dựng sẵn trong makePerson
-  const g = makePerson({ shirt: style.shirt, hair: style.hairColor, skin: style.skin }, 'none', { build: style.build, hair: style.hair, accent: style.accent });
+  const g = makePerson({ shirt: style.shirt, hair: style.hairColor, skin: style.skin }, 'none', { build: style.build, hair: style.hair, accent: style.accent, width: style.width });
   const rig = g.userData.rig as Rig;
   const { body } = rig;
 
@@ -90,6 +91,44 @@ function accessory(rig: Rig, a: PersonStyle['acc'][number], style: PersonStyle):
       break;
     }
   }
+}
+
+// ---------- Ông / bà chủ quán ----------
+
+const mixHex = (a: number, b: number, k: number) => {
+  const c = new THREE.Color(a).lerp(new THREE.Color(b), Math.max(0, Math.min(1, k)));
+  return c.getHex();
+};
+
+/**
+ * Ông / bà chủ quán theo giới tính + tuổi (25..50): 25 trẻ trung (tóc tạo kiểu, dáng thon), 35 chững chạc,
+ * 50 hơi có tuổi (tóc muối tiêu, người đậm hơn, kính lão, ông chủ để ria). Đồ đứng chủ: ông áo gi-lê sẫm, bà áo
+ * kiểu + váy; huy hiệu vàng trên ngực để nhận ra giữa khách.
+ */
+export function makeOwner(o: OwnerProfile): THREE.Group {
+  const k = (o.age - 25) / 25; // 0 trẻ … 1 có tuổi
+  const female = o.gender === 'female';
+  const hairColor = mixHex(female ? 0x3a2418 : 0x221a16, 0xb9b4ae, (k - 0.45) * 1.3);
+  const hair = female ? (o.age < 31 ? 'pony' : o.age < 42 ? 'bob' : 'bun') : o.age < 31 ? 'spiky' : o.age < 42 ? 'side' : 'short';
+  const acc: PersonStyle['acc'] = [];
+  if (o.age >= 44) acc.push('readingGlasses');
+  if (!female && o.age >= 40) acc.push('mustache');
+  if (!female) acc.push('jacket');
+  const g = makeRegular({
+    build: 'adult',
+    hair,
+    hairColor,
+    skin: 0xf6cfa8,
+    shirt: female ? 0xd9566b : 0xf4f1ea,
+    bottom: female ? 'skirt' : 'pants',
+    bottomColor: female ? 0x3b3f63 : 0x34384a,
+    acc,
+    accent: female ? 0xf2b23e : 0x2f4f6f,
+    width: 0.95 + k * 0.22,
+  });
+  const rig = g.userData.rig as Rig;
+  mesh(rig.body, G.cyl(0.045, 0.045, 0.02, 10), 0xf2c14e, { p: [0.1, 0.36, 0.215], r: [Math.PI / 2, 0, 0], cast: false }); // huy hiệu chủ quán
+  return g;
 }
 
 // ---------- Thú cưng ----------
