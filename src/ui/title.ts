@@ -82,8 +82,10 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
     holder.add(g);
     g.traverse((o) => (o.userData.pickCuisine = id));
     const keeper = shopkeeper(id);
-    keeper.position.set(-1.2, 0.2, 1.4);
-    keeper.rotation.y = 0.2;
+    // Quán Việt có bàn inox bên trái cửa: chủ quán đứng bên phải cho khỏi xuyên qua bàn
+    const right = id === 'vn';
+    keeper.position.set(right ? 1.3 : -1.2, 0.2, 1.4);
+    keeper.rotation.y = right ? -0.2 : 0.2;
     holder.add(keeper);
     return { id, holder, g, glows, keeper, focusAt: -99 };
   });

@@ -55,9 +55,10 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [x] Màn chọn quán: nút "👀 Xem trước" → vào xem bên trong quán đang chọn (ván tạm, không lưu, quán tự chạy có khách), thanh trên cùng "← Chọn quán khác" / "✔ Chọn quán này".
 - [x] Xem trước chỉ chiếu lại một đoạn ~1,5 giờ ca sáng rồi tua về đầu (không bao giờ tới giờ cả đội ra chợ / bảng gọi món).
 - [x] Mặt bằng riêng theo quán (`room.variants`, `TableDef.byCuisine`):
-  - Quán Nhật: quầy bếp chữ L ở góc trái-sau (cạnh ngắn 2 ghế đơn quay ra cửa, cạnh dài 2 quầy đôi tách nhau bằng vách gỗ), quầy line giữa tường sau trước cửa sổ cạnh kho, bàn bốn đặt dọc sát tường phải; quán xoay mặt hẹp ra đường, sâu vào trong; WC + kho góc phải cuối quán; khung gỗ treo đèn lồng giấy + thẻ gỗ ghi món kiểu izakaya.
+  - Quán Nhật: quầy bếp chữ L ở góc trái-sau (cạnh ngắn 2 ghế đơn quay ra cửa, cạnh dài 2 quầy đôi tách nhau bằng vách gỗ), quầy line giữa tường sau trước cửa sổ cạnh kho, bàn bốn kê sát tường phải giữa 2 cửa sổ (2 ghế phía trong + 2 ghế đầu bàn); quán xoay mặt hẹp ra đường, sâu vào trong; WC + kho góc phải cuối quán; khung gỗ treo đèn lồng giấy + thẻ gỗ ghi món kiểu izakaya.
   - Quán Việt: bếp phở sát cửa bên trái dài nửa quán (tủ kính có biển tên quán người chơi đặt, nồi nước dùng), bỏ quầy ghế đơn, khởi đầu 2 bàn đơn + 2 bàn đôi + bàn bốn; WC + kho góc trái cuối quán.
 - [x] Gợi ý phục vụ ("Quầy line có món…", "Bấm bàn cùng màu để giao") chỉ hiện lần đầu; thẻ nhiệm vụ rộng theo phần thưởng; thông báo khách quen sang góc trái, 1 dòng; khách đi vào ghế xong mới hiện bong bóng menu.
+- [x] Khách và thú cưng đi vòng qua bàn ghế / quầy (pathing như nhân viên, lùi ra sau ghế trước khi đi); bấm tag nguyên liệu ở bảng Đơn hàng hiện nguyên liệu kiếm ở đâu (chợ / trồng / nuôi / chế biến).
   - Quán Hàn, quán ốc giữ nguyên. Save v25 (ván Nhật / Việt cũ: bàn gốc về chỗ mặc định mới).
 
 ## Giai đoạn 15 — Trước cửa quán, nhân viên giữ bàn, công an khu vực (21/11/2026)

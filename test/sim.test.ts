@@ -109,8 +109,12 @@ describe('nội dung', () => {
       expect(roomOf(jp.ctx).walls!.some((w) => stand.x > w.x1 && stand.x < w.x2 && stand.y > w.y1 && stand.y < w.y2)).toBe(false);
     }
     const medium = jt.find((t) => t.id === 'medium')!;
-    expect(medium.rotated).toBe(true); // bàn bốn đặt dọc sát tường phải
-    expect(canPlaceTable(jp.ctx, 'medium', tablePos(jp.ctx, medium).x, tablePos(jp.ctx, medium).y)).toBeNull();
+    // Bàn bốn kê sát tường phải: không ghế nào nằm giữa bàn và tường; 2 ghế phía trong + 2 ghế ở 2 đầu bàn
+    const mSeats = seatSpots(medium, tablePos(jp.ctx, medium));
+    expect(mSeats.every((s) => s.x <= medium.x)).toBe(true);
+    expect(mSeats.filter((s) => s.x < medium.x - medium.w / 2)).toHaveLength(2);
+    expect(medium.x + medium.w / 2).toBeGreaterThan(roomOf(jp.ctx).dining.x2 - 10);
+    expect(findSeats(jp.ctx, 4)?.tableId).toBe('medium');
     expect(roomOf(jp.ctx).passStand!.x).toBeGreaterThan(192); // quầy line ra giữa tường sau, ngoài quầy chữ L
     expect(canPlaceTable(jp.ctx, 'medium', 100, 200)).not.toBeNull(); // trong gian bếp
     const vn = new Game(content, { seed: 1, cuisine: 'vn' });

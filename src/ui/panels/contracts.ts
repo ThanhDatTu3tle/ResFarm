@@ -1,7 +1,8 @@
 import type { Game } from '../../sim/game';
 import { stockOf } from '../../sim/helpers';
 import { openContracts, shipperBlocked } from '../../sim/systems/contracts';
-import { cmd, esc } from '../dom';
+import { cmd, esc, ui as uiAttr } from '../dom';
+import { itemSources } from '../sources';
 import { clockText, coins } from '../format';
 import type { Panel } from './types';
 
@@ -9,6 +10,12 @@ import type { Panel } from './types';
  * Bảng Đơn hàng: các đơn đặt hàng hôm nay từ khách ngoài. Đủ hàng trong kho thì bấm "Giao hàng" nhận thưởng;
  * hạn giao là `balance.contracts.due`. Sáng mai có đơn mới.
  */
+function itemTipHtml(game: Game, itemId: string): string {
+  const item = game.content.items.get(itemId);
+  const { lines, summary } = itemSources(game.content, itemId);
+  return `<div class="item-tip"><b>${item.icon} ${esc(item.name)}</b> — ${esc(summary)}${lines.length ? `<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}</div>`;
+}
+
 export const contractsPanel: Panel = {
   id: 'contracts',
   label: 'Đơn hàng',
@@ -17,7 +24,7 @@ export const contractsPanel: Panel = {
   badge(game) {
     return openContracts(game.ctx);
   },
-  render(game: Game) {
+  render(game: Game, ui) {
     const { state, content, ctx } = game;
     const due = content.balance.contracts.due;
     const blocked = shipperBlocked(ctx);
@@ -33,9 +40,13 @@ export const contractsPanel: Panel = {
           .map((x) => {
             const item = content.items.get(x.item);
             const have = stockOf(ctx, x.item);
-            return `<span class="chip ${c.status !== 'open' || have >= x.qty ? '' : 'bad'}" title="${esc(item.name)}">${item.icon} ${esc(item.name)} <b>${c.status === 'open' ? `${Math.min(have, x.qty)}/` : ''}${x.qty}</b></span>`;
+            const key = `${c.id}:${x.item}`;
+            return `<button class="chip item-chip ${c.status !== 'open' || have >= x.qty ? '' : 'bad'}${ui.itemTip === key ? ' on' : ''}" title="Bấm để xem ${esc(item.name)} kiếm ở đâu"${uiAttr(`itemTip:${key}`)}>${item.icon} ${esc(item.name)} <b>${c.status === 'open' ? `${Math.min(have, x.qty)}/` : ''}${x.qty}</b></button>`;
           })
           .join('');
+        // Tooltip: nguyên liệu đang chọn kiếm ở đâu (chợ / trồng / nuôi / chế biến)
+        const tipItem = ui.itemTip?.startsWith(`${c.id}:`) ? ui.itemTip.slice(String(c.id).length + 1) : null;
+        const tip = tipItem && content.items.has(tipItem) ? itemTipHtml(game, tipItem) : '';
         const ready = c.items.every((x) => stockOf(ctx, x.item) >= x.qty);
         const action =
           c.status === 'done'
@@ -49,7 +60,7 @@ export const contractsPanel: Panel = {
           <div class="row"><span class="big">${c.icon}</span>
             <div class="grow"><b>${esc(c.client)}</b><div class="muted">Thưởng ${coins(c.reward)} · ${c.xp} XP</div></div>
             ${action}</div>
-          <div class="chips">${items}</div>
+          <div class="chips">${items}</div>${tip}
         </div>`;
       })
       .join('');

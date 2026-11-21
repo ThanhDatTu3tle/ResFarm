@@ -11,6 +11,7 @@ AI tự chọn: xem trước bằng cách tải lại trang với `?preview=` (v
 Sau góp ý: xem trước chỉ chiếu lại 90 phút game (chụp state lúc vào, hết đoạn thì gán lại + dựng lại khu quán, chớp trắng nhẹ) — không còn hiện bảng gọi món cho đội.
 Mặt bằng riêng quán Nhật (quầy chữ L) và quán Việt (bếp sát cửa): `RoomDef.plan / passStand / walls / variants` + `TableDef.byCuisine / bar`; giữ id bàn cũ (`pair`, `pair2` của quán Nhật thành 2 quầy đôi gắn cố định) để save cũ không vỡ. `walls` = khối bếp: không đặt bàn, người phục vụ đi vòng (pathing). Quán Nhật dùng chung bậc hạng quán (cộng phần chênh so với hạng 1) — hạng cao quán vẫn nới cả sâu lẫn ngang, quầy chữ L giữ nguyên (không thêm ghế quầy như quán Hàn).
 Góp ý UX: gợi ý phục vụ chỉ hiện lần đầu (cờ trong localStorage `quan-nha-vuon:hints`, màn xem trước không tính); toast khách quen vào `#toasts-left`; bong bóng 📖 chờ cả nhóm tới ghế trong cảnh (sim cũng nới thời gian đi vào ghế ×1.3 + 0.8 phút).
+Khách / thú cưng trong cảnh đi theo `nextWaypoint` (RestaurantArea.pathStep, tính lại 4 lần/giây); khách tới chỗ đứng sau ghế (`Actor.out`) trước khi ngồi và lùi ra đó trước khi về — đo 250 mẫu khách đang đi ở quán Việt + Nhật: 0 lần xuyên bàn. Tooltip nguồn nguyên liệu: `src/ui/sources.ts` (`itemSources`).
 
 ---
 

@@ -245,6 +245,11 @@ export interface TableDef {
   kind?: string;
   /** Bàn xoay 90° sẵn khi chưa được người chơi xoay / dời (bàn bốn quán Nhật đặt dọc sát tường). */
   rot?: boolean;
+  /**
+   * Bàn kê sát tường phía Đông (bàn bốn quán Nhật): bàn dọc, 2 ghế cạnh dài phía trong quán + 1 ghế mỗi đầu bàn, gắn cố định;
+   * quán nới rộng / sâu thêm thì bàn đi theo tường (giữa 2 cửa sổ tường phải).
+   */
+  wall?: 'east';
   /** Bàn kiểu quầy cao, ghế xếp một hàng ở cạnh phía Đông (quầy chữ L của quán Nhật). */
   bar?: 'east';
   /** Ghi đè theo phong cách quán (vị trí, số ghế, kiểu quầy...) — id giữ nguyên để save cũ không vỡ. */

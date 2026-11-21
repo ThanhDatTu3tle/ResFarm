@@ -795,6 +795,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       ui.drawer = ui.drawer === arg || !arg ? null : arg;
       if (ui.drawer === 'farm') ui.farmFocus = null; // mở từ nút: xem cả nông trại
     } else if (action === 'farmFocus') ui.farmFocus = arg || null;
+    else if (action === 'itemTip') ui.itemTip = ui.itemTip === arg ? null : arg;
     else if (action === 'speed') ui.speed = Number(arg);
     else if (action === 'settings') ui.settings = arg === 'close' ? false : !ui.settings;
     else if (action === 'preview') {
