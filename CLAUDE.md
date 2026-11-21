@@ -34,7 +34,9 @@ Tham số URL để thử nhanh (ghép được với nhau):
 | `?fresh` | Bỏ qua màn mở đầu và save, không ghi save (ván tạm) |
 | `?cuisine=jp` | Kèm `?fresh`: phong cách quán của ván tạm (`jp` / `kr` / `vn` / `oc`, mặc định `vn`) |
 | `?play` | Bỏ qua màn mở đầu, vào thẳng ván đang lưu |
-| `?pick=kr` | (chỉ bản dev) mở thẳng bước chọn quán ở màn mở đầu |
+| `?pick=kr` | Mở thẳng bước chọn quán ở màn mở đầu (nút "← Chọn quán khác" của màn xem trước dùng) |
+| `?preview=oc` | Xem trước quán (nút "👀 Xem trước" ở bước chọn quán): ván tạm không lưu, tua tới giữa ca sáng, quán tự chạy (`previewAuto` trong app.ts: tự phục vụ, đội tự gọi món / trả tiền), ẩn HUD; thanh trên cùng "← Chọn quán khác" / "✔ Chọn quán này" |
+| `?choose=oc` | Mở thẳng bước chọn ông / bà chủ với quán đó (nút "✔ Chọn quán này" của màn xem trước dùng) |
 | `?guide=0` | (chỉ bản dev) mở sẵn trang hướng dẫn chơi ở màn mở đầu (số trang đếm từ 0) |
 | `?focus=pen` | (chỉ bản dev) bảng Nông trại chỉ hiện một loại ô / cối (kèm `?tab=farm`) |
 | `?seed=7` | Seed cho game mới |
@@ -145,7 +147,8 @@ vòng lặp: game.tick(dt) ──► từng system.update() sửa GameState     
 
 ```
 src/main.ts                hiện màn mở đầu (ui/title.ts) hoặc vào thẳng game (?fresh / ?play)
-src/ui/title.ts            màn mở đầu: Chơi tiếp / Ván mới / Hướng dẫn chơi, chọn phong cách quán trên cảnh 3D 3 mặt tiền (renderer riêng)
+src/ui/title.ts            màn mở đầu: Chơi tiếp / Ván mới / Hướng dẫn chơi, chọn phong cách quán trên cảnh 3D 4 mặt tiền (renderer riêng),
+                           nút "👀 Xem trước" mở quán đang chọn dạng ván tạm (?preview=, xem bảng tham số URL)
 src/ui/tutorial.ts         hướng dẫn chơi: các trang `GUIDE` + `guideHtml` (dùng chung cho màn mở đầu và Cài đặt → Hướng dẫn, `ui.guide`)
 src/ui/three/cuisine.ts    hình theo phong cách quán: decorateInterior, tableExtras, counterExtras, buildSeat, makeShopfront
 src/ui/three/person.ts     NGƯỜI: makePerson(look, mũ, Shape) — dáng kid/teen/adult/elder, mập gầy (width), cao thấp (height), 10 kiểu tóc (addHair);
@@ -233,6 +236,8 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 **Vườn cây ăn quả / ô đặt tay** — `SlotTypeDef.layout.spots` (vị trí từng ô + `work` riêng) thay cho lưới khi ô nằm nhiều cụm; `initialPlants` = cây trồng sẵn ở ô khởi đầu. Hình cây: `farmkit.makeFruitTree`.
 
 **Thêm bàn** — 1 mục `TableDef` trong `src/data/restaurant.ts` (x, y là vị trí mặc định; test kiểm tra bố cục mặc định không chồng nhau); đặt `requiresUpgrade` nếu bàn chỉ có sau khi nâng cấp, `fixed` nếu không cho dời, `cuisines` nếu bàn chỉ có ở vài phong cách quán (quầy ghế đơn `counter` không có ở quán ốc; quán ốc có thêm bàn đôi `pair_oc`) — `activeTables` lọc theo đó. Cảnh quán tự dựng bàn ghế.
+
+**Mặt bằng riêng theo quán** — `room.variants[cuisine]` ghi đè kích thước / `dining` / `pass` / `waiterHome` (lấy bằng `roomFor(content, cuisine)` hoặc `roomOf(ctx)`); `plan` chọn kiểu dựng gian bếp ở `areas/restaurant.ts` ('back' bếp tường sau, 'L' quầy chữ L quán Nhật — `buildKitchenL`, 'front' bếp sát cửa quán Việt — `buildKitchenFront`); `walls` = khối bếp (không đặt bàn, pathing đi vòng); `passStand` = chỗ bồi bàn đứng lấy món. Bàn khác nhau theo quán: `TableDef.byCuisine` (giữ id để save cũ không vỡ), `bar: 'east'` = khúc quầy dọc ghế quay sang phía Đông.
 
 **Nới rộng quán / hạng quán** — hạng quán ở `room.tiers` (`src/data/restaurant.ts`): mỗi hạng một `height` (phòng sâu thêm về phía cửa, khu ăn uống giãn theo — `roomOf`) và `width` (nới về phía Đông: mép phải khu ăn, quầy ra món `pass`, `waiterHome` dời theo — luôn lấy từ `roomOf(ctx)`, đừng dùng `content.room.pass`; quầy ghế đơn `counter` thêm 1 ghế mỗi 60 đơn vị — `withCounterSeats`; cảnh quán kéo dài dãy bếp `kitchenExtra`). Lên hạng thì `app.ts` dựng lại `RestaurantArea` (`stage.replaceArea`). Hạng 1 phải bằng `room.height`.
 

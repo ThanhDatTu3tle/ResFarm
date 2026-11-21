@@ -212,13 +212,48 @@ export function serviceAlerts(game: Game): number {
  * Thanh phục vụ phía dưới khu quán: món bồi bàn đang cầm (mỗi món một màu = màu bàn đã gọi), đang ra quầy lấy món,
  * hoặc nhắc "quầy line có món" (bấm để đi lấy).
  */
+/**
+ * Gợi ý phục vụ (giai đoạn 16): "Quầy line có món — bấm quầy để bưng" và "Bấm bàn cùng màu để giao" chỉ hiện những lần đầu —
+ * bưng món lần đầu thì thôi nhắc quầy line, giao xong lượt đầu thì thôi nhắc giao. Lưu theo máy (localStorage), không nằm trong save.
+ */
+const HINTS_KEY = 'quan-nha-vuon:hints';
+let hints: Record<string, boolean> | null = null;
+let carryHintShown = false;
+function hintSeen(id: string): boolean {
+  if (!hints) {
+    try {
+      hints = JSON.parse(localStorage.getItem(HINTS_KEY) ?? '{}') as Record<string, boolean>;
+    } catch {
+      hints = {};
+    }
+  }
+  return !!hints[id];
+}
+function markHint(id: string): void {
+  if (hintSeen(id) || document.getElementById('app')?.classList.contains('previewing')) return; // màn xem trước không tính
+  hints![id] = true;
+  try {
+    localStorage.setItem(HINTS_KEY, JSON.stringify(hints));
+  } catch {
+    /* chặn lưu trữ: lần sau vẫn nhắc, không sao */
+  }
+}
+
 export function serviceHtml(game: Game): string {
   const { state, content, ctx } = game;
   const r = state.restaurant;
   const w = r.waiter;
   const max = content.balance.service.carryMax;
   const carried = w.carrying.map((id) => r.orders.find((o) => o.id === id)).filter((o): o is NonNullable<typeof o> => !!o);
+  if (carried.length) markHint('pass');
+  else if (carryHintShown) {
+    carryHintShown = false;
+    markHint('carry');
+  }
+  if (carried.length && hintSeen('carry')) return '';
+  if (!carried.length && hintSeen('pass')) return '';
   if (carried.length) {
+    carryHintShown = true;
     const chips = carried
       .map((o) => {
         const party = r.parties.find((p) => p.id === o.partyId);

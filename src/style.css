@@ -1139,6 +1139,82 @@ button.water {
   flex: 1 1 180px;
 }
 
+/* Xem trước quán (màn chọn quán): ẩn HUD / ngăn kéo / thanh dưới, chỉ còn cảnh 3D + thanh xem trước */
+#app.previewing #hud,
+#app.previewing #tools,
+#app.previewing #areabar,
+#app.previewing #drawer,
+#app.previewing #coach,
+#app.previewing #toasts,
+#app.previewing #toasts-left,
+#app.previewing #service {
+  display: none !important;
+}
+#preview-bar {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 12px 10px 16px;
+  border-radius: 16px;
+  background: var(--panel, #fffaf1);
+  border: 3px solid var(--accent, #e2703a);
+  box-shadow: 0 6px 20px rgba(60, 40, 20, 0.25);
+}
+/* Tua về đầu đoạn chiếu lại: chớp trắng nhẹ */
+#preview-fade {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  pointer-events: none;
+  background: #fffaf1;
+  opacity: 0;
+}
+#preview-fade.on {
+  animation: pv-fade 0.9s ease-out;
+}
+@keyframes pv-fade {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+#preview-bar .pv-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+#preview-bar .pv-text span {
+  font-size: 12px;
+  opacity: 0.7;
+}
+#preview-bar .pv-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+#preview-bar .pv-actions .primary {
+  background: var(--accent, #e2703a);
+  border-color: var(--accent, #e2703a);
+}
+@media (max-width: 720px), (max-height: 540px) {
+  #preview-bar {
+    top: 6px;
+    padding: 6px 8px 6px 10px;
+    gap: 8px;
+  }
+  #preview-bar .pv-text span {
+    display: none;
+  }
+}
+
 #toasts {
   position: fixed;
   top: var(--toast-top, 168px);
@@ -3389,5 +3465,58 @@ button.meal-dish b {
   }
   .mp-icon {
     font-size: 19px;
+  }
+}
+
+/* ---------- Giai đoạn 16: thẻ nhiệm vụ đủ chỗ cho phần thưởng, thông báo khách quen bên trái ---------- */
+.hud-top > .quest {
+  width: auto;
+  min-width: 230px;
+  max-width: 340px;
+}
+button.quest-claim {
+  white-space: nowrap;
+}
+#toasts-left {
+  position: fixed;
+  top: var(--toast-left-top, 150px);
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  max-width: min(520px, 60vw);
+  z-index: 20;
+  pointer-events: none;
+}
+#toasts-left .toast {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  padding: 4px 12px 4px 4px;
+}
+#toasts-left .toast > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#toasts-left .toast-pic {
+  width: 32px;
+  height: 32px;
+}
+@media (max-height: 540px) {
+  :root {
+    --toast-left-top: 82px;
+  }
+  .hud-top > .quest {
+    min-width: 190px;
+  }
+  #toasts-left .toast {
+    font-size: 10.5px;
+  }
+  #toasts-left .toast-pic {
+    width: 26px;
+    height: 26px;
   }
 }

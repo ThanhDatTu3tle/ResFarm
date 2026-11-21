@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { partyColor } from '../../colors';
 import { passSlots } from '../../../sim/systems/kitchen';
-import type { RoomDef, TableDef } from '../../../data';
+import type { RoomDef, StaffDef, TableDef } from '../../../data';
 import type { Game } from '../../../sim/game';
 import { blockerOf, canPlaceProp, canPlaceTable, LAYOUT_GRID, nearestPlaceable, placedProps, roomOf, seatSpots, tableById, tablePos, withRotation } from '../../../sim/layout';
 import { heartsOf } from '../../../sim/systems/regulars';
@@ -23,7 +23,7 @@ import { makeScooter } from '../farmkit';
 import { nextWaypoint } from '../../../sim/pathing';
 import { OwnerWalker, type Spot } from '../owner';
 import { Curbside } from '../curbside';
-import { buildEquipment, type EquipView } from '../equipment';
+import { buildEquipment, type EquipDims, type EquipView } from '../equipment';
 
 /**
  * KHU QUÁN — nội thất quán ăn tông ấm, nhìn kiểu "cắt mái".
@@ -146,6 +146,12 @@ export class RestaurantArea implements Area {
   private kitchenX1: number;
   private door: [number, number];
   private queueZ: number;
+  /** Kiểu mặt bằng (room.plan): bếp tường sau / quầy chữ L (quán Nhật) / bếp sát cửa (quán Việt). */
+  private plan: 'back' | 'L' | 'front';
+  /** Biển tên quán trên tủ kính quán Việt. */
+  private frontSign: { board: THREE.Group; w: number; text: string; mesh: THREE.Mesh | null } | null = null;
+  /** Giữa hai cửa WC / kho (treo chữ Phúc ở quán Việt). */
+  private corridorX = 0;
 
   // Vật liệu riêng của quán để đổi màu theo nội thất đang dùng
   private mats = {
@@ -174,8 +180,8 @@ export class RestaurantArea implements Area {
   private passXY: [number, number][] = passSlotsXY(6);
   private passBell!: THREE.Sprite;
   private waiter!: { g: THREE.Group; ring: THREE.Mesh; hand: THREE.Group; handKey: string; lastX: number; lastZ: number };
-  /** smoke: giây còn lại tới lần phả khói bếp kế tiếp. */
-  private chefs: { g: THREE.Group; icon: THREE.Sprite; iconFor: string; bar: Bar3D; smoke: number }[] = [];
+  /** smoke: giây còn lại tới lần phả khói bếp kế tiếp; yaw: hướng đứng; puff: chỗ khói bốc (mặc định: sát tường sau). */
+  private chefs: { g: THREE.Group; icon: THREE.Sprite; iconFor: string; bar: Bar3D; smoke: number; yaw: number; puff?: [number, number] }[] = [];
   private fx = new Particles(this.root);
   private tables = new Map<string, TableView>();
   private drag: { kind: 'table' | 'prop'; id: string; x: number; y: number } | null = null;
@@ -214,6 +220,7 @@ export class RestaurantArea implements Area {
 
   constructor(private game: Game) {
     const room = (this.room = roomOf(game.ctx));
+    this.plan = room.plan ?? 'back';
     this.halfW = room.width / 2 / UNIT + 0.4;
     this.backZ = this.wz(0) - 0.7;
     this.frontZ = this.wz(room.height) + 0.4;
@@ -259,7 +266,18 @@ export class RestaurantArea implements Area {
     }
     this.buildKitchen();
     this.curb = new Curbside(this.root, { halfW: this.halfW, frontZ: this.frontZ, backZ: this.backZ, door: this.door, hasRoad: this.street });
-    this.interior = decorateInterior(game.state.cuisine, this.root, { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, kitchenZ: this.kitchenZ, kitchenX1: this.kitchenX1, kitchenExtra: this.kitchenExtra, wallH: WALL_H });
+    this.interior = decorateInterior(game.state.cuisine, this.root, {
+      halfW: this.halfW,
+      backZ: this.backZ,
+      frontZ: this.frontZ,
+      kitchenZ: this.kitchenZ,
+      kitchenX1: this.kitchenX1,
+      kitchenExtra: this.kitchenExtra,
+      wallH: WALL_H,
+      kitchenCenter: this.plan === 'L' ? this.wx(76) : undefined,
+      corridorX: this.corridorX,
+      lcounter: this.plan === 'L' ? { x: this.wx(170), zBack: this.backZ + 0.1, zCorner: this.wz(340), xStart: -this.halfW } : undefined,
+    });
 
     this.unsub.push(game.bus.on('party/left', (e) => {
       let anchor: THREE.Vector3 | null = null;
@@ -408,11 +426,13 @@ export class RestaurantArea implements Area {
     mesh(r, G.box(70, 0.2, 60), 0xb9d48a, { p: [0, -0.25, 0], cast: false });
     mesh(r, G.box(halfW * 2, 0.2, depth), mats.floorA, { p: [0, -0.1, (frontZ + backZ) / 2], cast: false });
     const planks = Math.round(halfW * 2);
+    // Ván sàn hai tông: quán bếp tường sau thì từ mép bếp ra cửa, quán khác lát suốt (gian bếp lát gạch đè lên)
+    const plankZ = this.plan === 'back' ? kitchenZ : backZ;
     for (let i = 1; i < planks; i += 2) {
-      mesh(r, G.box(1, 0.02, 1), mats.floorB, { p: [-halfW + ((i + 0.5) * halfW * 2) / planks, 0.005, (frontZ + kitchenZ) / 2], s: [(halfW * 2) / planks, 1, frontZ - kitchenZ], cast: false });
+      mesh(r, G.box(1, 0.02, 1), mats.floorB, { p: [-halfW + ((i + 0.5) * halfW * 2) / planks, 0.005, (frontZ + plankZ) / 2], s: [(halfW * 2) / planks, 1, frontZ - plankZ], cast: false });
     }
-    const kx1 = this.kitchenX1;
-    mesh(r, G.box(1, 0.03, 1), 0xefe6d6, { p: [(kx1 + halfW) / 2, 0.01, (kitchenZ + backZ) / 2], s: [halfW - kx1, 1, kitchenZ - backZ], cast: false });
+    const kf = this.kitchenFloor();
+    mesh(r, G.box(1, 0.03, 1), 0xefe6d6, { p: [(kf[0] + kf[1]) / 2, 0.01, (kf[2] + kf[3]) / 2], s: [kf[1] - kf[0], 1, kf[3] - kf[2]], cast: false });
 
     // Tường sau: chân tường + mảng tường chừa 2 ô cửa sổ
     const backSeg = (x1: number, x2: number, y1: number, y2: number, mat = mats.wall) =>
@@ -420,7 +440,7 @@ export class RestaurantArea implements Area {
     backSeg(-halfW, halfW, 0, 1.3, mats.trim);
     backSeg(-halfW, halfW, 3.3, WALL_H);
     // Chỉ còn cửa sổ bên phải (sau bếp); bên trái là lối đi có cửa WC và cửa kho
-    const winX = halfW - 2;
+    const winX = this.plan === 'L' ? this.wx(255) : halfW - 2;
     backSeg(-halfW, winX - 1.2, 1.3, 3.3);
     backSeg(winX + 1.2, halfW, 1.3, 3.3);
     this.buildWindow(winX, 2.3, backZ - 0.15, 0);
@@ -446,7 +466,16 @@ export class RestaurantArea implements Area {
     for (const side of [-1, 1]) mesh(r, G.box(halfW - 1.3, 0.5, 0.3), mats.trim, { p: [side * (halfW + 1.3) / 2, 0.25, frontZ + 0.15] });
 
     // Bảng thực đơn phấn trên tường sau (quán Việt; quán Nhật treo thẻ gỗ, quán Hàn treo biển neon — xem cuisine.ts)
-    if (this.game.state.cuisine === 'vn') {
+    if (this.game.state.cuisine === 'vn' && this.plan === 'front') {
+      // Bếp sát cửa: bảng thực đơn treo tường trái, trên gian bếp
+      const k1 = this.wz(this.room.height - 240);
+      const b = group(r, { p: [-halfW + 0.03, 2.75, (k1 + frontZ) / 2 - 0.4], r: [0, Math.PI / 2, 0] });
+      mesh(b, G.box(2.3, 1.2, 0.05), mats.trim);
+      mesh(b, G.box(2.1, 1, 0.08), 0x2f5d50, { p: [0, 0, 0.03] });
+      const menu = emojiSprite('📋', 0.7);
+      menu.position.set(0, 0, 0.2);
+      b.add(menu);
+    } else if (this.game.state.cuisine === 'vn') {
       const mx = this.kitchenCenter() - 0.6;
       mesh(r, G.box(2.3, 1.2, 0.05), mats.trim, { p: [mx, 2.75, backZ + 0.02] });
       mesh(r, G.box(2.1, 1, 0.08), 0x2f5d50, { p: [mx, 2.75, backZ + 0.05] });
@@ -456,7 +485,8 @@ export class RestaurantArea implements Area {
     }
 
     // Chậu cây ở hai góc trong (góc ngoài để đồ trang trí theo quán), thảm chùi chân
-    for (const [x, z] of [[-halfW + 0.7, kitchenZ + 0.8], [halfW - 0.7, kitchenZ + 0.8]]) {
+    const pots = this.plan === 'L' ? [[halfW - 0.7, this.wz(100)]] : this.plan === 'front' ? [[halfW - 0.7, kitchenZ + 0.8]] : [[-halfW + 0.7, kitchenZ + 0.8], [halfW - 0.7, kitchenZ + 0.8]];
+    for (const [x, z] of pots) {
       mesh(r, G.cyl(0.35, 0.28, 0.5), 0xc8623e, { p: [x, 0.25, z] });
       makeBush(r, { p: [x, 0.45, z], s: 1.1 }, 0x4f9e4a);
     }
@@ -475,11 +505,17 @@ export class RestaurantArea implements Area {
   private buildCorridor(): void {
     const r = this.root;
     const { halfW, backZ, kitchenZ, kitchenX1, mats } = this;
-    mesh(r, G.box(0.16, 2.2, kitchenZ - backZ), mats.wall, { p: [kitchenX1, 1.1, (backZ + kitchenZ) / 2] });
-    mesh(r, G.box(0.2, 0.1, kitchenZ - backZ + 0.04), mats.trim, { p: [kitchenX1, 2.25, (backZ + kitchenZ) / 2] });
+    // Bếp tường sau: vách ngăn thấp giữa lối đi và gian bếp; quán Nhật: WC + kho ở góc phải cuối quán; quán Việt: góc trái cuối quán
+    let doorX: [number, number] = [-halfW + 1.1, kitchenX1 - 1.15];
+    if (this.plan === 'back') {
+      mesh(r, G.box(0.16, 2.2, kitchenZ - backZ), mats.wall, { p: [kitchenX1, 1.1, (backZ + kitchenZ) / 2] });
+      mesh(r, G.box(0.2, 0.1, kitchenZ - backZ + 0.04), mats.trim, { p: [kitchenX1, 2.25, (backZ + kitchenZ) / 2] });
+    } else if (this.plan === 'L') doorX = [halfW - 0.95, halfW - 2.15];
+    else doorX = [-halfW + 1.1, -halfW + 2.4];
+    this.corridorX = (doorX[0] + doorX[1]) / 2;
     const doors: [number, string, number, string][] = [
-      [-halfW + 1.1, 'WC', 0x6fa8c9, '🚻'],
-      [kitchenX1 - 1.15, 'KHO', 0xb9733f, '📦'],
+      [doorX[0], 'WC', 0x6fa8c9, '🚻'],
+      [doorX[1], 'KHO', 0xb9733f, '📦'],
     ];
     for (const [x, text, color, icon] of doors) {
       const d = group(r, { p: [x, 0, backZ + 0.03] });
@@ -497,7 +533,7 @@ export class RestaurantArea implements Area {
       ic.position.set(0, 3.05, 0.2);
       d.add(ic);
     }
-    mesh(r, G.box(2.6, 0.03, 0.9), 0x6f8f6a, { p: [(-halfW + kitchenX1) / 2, 0.02, backZ + 0.8], cast: false }); // thảm lối đi
+    mesh(r, G.box(2.6, 0.03, 0.9), 0x6f8f6a, { p: [this.corridorX, 0.02, backZ + 0.8], cast: false }); // thảm lối đi
   }
 
   private buildWindow(x: number, y: number, z: number, rotY: number): void {
@@ -524,6 +560,8 @@ export class RestaurantArea implements Area {
       this.buildStreetChefs();
       return;
     }
+    if (this.plan === 'L') return this.buildKitchenL();
+    if (this.plan === 'front') return this.buildKitchenFront();
     // Dãy bếp dài thêm theo phần quán nới về phía Đông; bàn sơ chế / lò nướng đứng nối đuôi bên phải
     const ext = this.kitchenExtra;
     if (ktier >= 2) {
@@ -577,7 +615,166 @@ export class RestaurantArea implements Area {
       const icon = emojiSprite('🍳', 0.5);
       icon.position.set(0, 2.3, 0);
       g.add(icon);
-      this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2 });
+      this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2, yaw: 0 });
+    });
+  }
+
+  /** Gian bếp lát gạch [x1, x2, z1, z2] (mét) theo mặt bằng. */
+  private kitchenFloor(): [number, number, number, number] {
+    if (this.plan === 'L') return [-this.halfW, this.wx(152), this.backZ, this.wz(322)];
+    if (this.plan === 'front') return [-this.halfW, this.wx(168), this.wz(this.room.height - 240), this.frontZ];
+    return [this.kitchenX1, this.halfW, this.backZ, this.kitchenZ];
+  }
+
+  /** Đầu bếp đứng ở (x, z) quay mặt theo yaw; khói bốc lên ở puff khi đang nấu. */
+  private addChef(def: StaffDef, i: number, x: number, z: number, yaw: number, puff: [number, number]): void {
+    const g = makePerson({ shirt: def.hire ? 0xf6f0e4 : 0xffffff, hair: i % 3 === 2 ? 0x6b4a2f : 0x3a2a1e, skin: i % 2 ? 0xffd9b8 : 0xf2c49b }, 'chef', { width: [1.2, 0.95, 1.05, 0.9][i % 4] });
+    g.position.set(x, 0, z);
+    g.rotation.y = yaw;
+    g.scale.setScalar(def.speed > 1 ? 1.15 : 1.05);
+    this.root.add(g);
+    const bar = new Bar3D(0.8);
+    bar.group.position.set(0, 1.95, 0);
+    g.add(bar.group);
+    const icon = emojiSprite('🍳', 0.5);
+    icon.position.set(0, 2.3, 0);
+    g.add(icon);
+    this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2, yaw, puff });
+  }
+
+  /** Bếp + chảo trên mặt bàn bếp ở (x, z) — đầu bếp đứng trước nó. */
+  private burner(x: number, z: number, top: number, color = 0x3b3f46): void {
+    mesh(this.root, G.cyl(0.24, 0.22, 0.06, 12), 0x2a2d35, { p: [x, top + 0.03, z] });
+    mesh(this.root, G.cyl(0.3, 0.24, 0.1, 14), color, { p: [x, top + 0.11, z] });
+  }
+
+  /**
+   * QUÁN NHẬT — quầy bếp chữ L ở góc trái-sau (kiểu izakaya): cạnh dài dọc tường trái (quầy ra món sát tường sau + 2 quầy đôi),
+   * cạnh ngắn quay ra cửa (2 ghế đơn). Đầu bếp đứng trong lòng chữ L quay mặt ra quầy; tủ lạnh, kệ rượu sake dọc tường trái.
+   * Khúc quầy ra món và hai quầy đôi / quầy ghế đơn do buildPass / buildTable dựng; ở đây dựng phần quầy nối giữa chúng.
+   */
+  private buildKitchenL(): void {
+    const r = this.root;
+    const { halfW, backZ, mats } = this;
+    const X = (px: number) => this.wx(px);
+    const Z = (pz: number) => this.wz(pz);
+    const ktier = this.game.state.restaurant.kitchenTier;
+    const cw = 36 / UNIT;
+    const counter = (z1: number, z2: number) => {
+      if (z2 - z1 < 0.05) return;
+      mesh(r, G.box(cw, COUNTER_TOP - 0.08, z2 - z1), mats.base, { p: [X(170), (COUNTER_TOP - 0.08) / 2, (z1 + z2) / 2] });
+      mesh(r, G.box(cw + 0.25, 0.08, z2 - z1), mats.top, { p: [X(170), COUNTER_TOP - 0.04, (z1 + z2) / 2] });
+    };
+    // Phần quầy nối: sau quầy ra món → quầy đôi đầu, quầy đôi trong → góc chữ L
+    // Đầu quầy sát tường sau → quầy đôi đầu; khúc ngăn giữa 2 quầy đôi (không ghế, vách gỗ + chậu cây); góc chữ L
+    counter(backZ + 0.1, Z(70));
+    counter(Z(160), Z(200));
+    counter(Z(290), Z(358));
+    const gapZ = Z(180);
+    mesh(r, G.box(cw + 0.3, 0.9, 0.08), 0x8a5a35, { p: [X(170), COUNTER_TOP + 0.45, gapZ - 0.18] }); // vách gỗ ngăn 2 quầy
+    mesh(r, G.box(cw + 0.3, 0.9, 0.08), 0x8a5a35, { p: [X(170), COUNTER_TOP + 0.45, gapZ + 0.18] });
+    mesh(r, G.cyl(0.14, 0.11, 0.2, 10), 0x3b3f46, { p: [X(170), COUNTER_TOP + 0.1, gapZ] });
+    makeBush(r, { p: [X(170), COUNTER_TOP + 0.25, gapZ], s: 0.6 }, 0x4f9e4a);
+    // Bàn bếp trong lòng chữ L (thấp hơn mặt quầy), bếp + chảo trước mỗi đầu bếp
+    const ix = X(136);
+    const top = 0.92;
+    mesh(r, G.box(0.42, top, Z(322) - backZ - 0.1), 0xb9c2ca, { p: [ix, top / 2, (backZ + 0.1 + Z(322)) / 2] });
+    mesh(r, G.box(0.48, 0.05, Z(322) - backZ - 0.1), 0x5f6b77, { p: [ix, top, (backZ + 0.1 + Z(322)) / 2] });
+    // Tủ lạnh góc trong, kệ thấp + kệ rượu sake dọc tường trái
+    mesh(r, G.box(0.85, 2.2, 1), 0xe9eef2, { p: [-halfW + 0.45, 1.1, backZ + 0.65] });
+    mesh(r, G.box(0.06, 0.6, 0.06), 0x9aa6b2, { p: [-halfW + 0.9, 1.5, backZ + 0.95] });
+    const shelfZ1 = backZ + 1.3;
+    const shelfZ2 = Z(310);
+    mesh(r, G.box(0.55, 0.9, shelfZ2 - shelfZ1), 0x9aa6b2, { p: [-halfW + 0.3, 0.45, (shelfZ1 + shelfZ2) / 2] });
+    mesh(r, G.box(0.6, 0.05, shelfZ2 - shelfZ1), 0x5f6b77, { p: [-halfW + 0.3, 0.92, (shelfZ1 + shelfZ2) / 2] });
+    mesh(r, G.box(0.3, 0.05, shelfZ2 - shelfZ1), 0x8a5a35, { p: [-halfW + 0.15, 1.75, (shelfZ1 + shelfZ2) / 2] });
+    const bottles = [0x3f7a4a, 0xf3efe0, 0x2a5d8a, 0x8a4a2a];
+    for (let i = 0, n = Math.floor((shelfZ2 - shelfZ1) / 0.22); i < n; i++) mesh(r, G.cyl(0.045, 0.055, 0.32, 8), bottles[i % 4], { p: [-halfW + 0.15, 1.94, shelfZ1 + 0.12 + i * 0.22] });
+    // Nồi cơm, thùng gỗ ủ cơm sushi trên kệ thấp; bếp lên hạng: nồi hầm dashi, bếp nướng than robata
+    mesh(r, G.cyl(0.22, 0.2, 0.3, 14), 0xf3efe0, { p: [-halfW + 0.3, 1.1, shelfZ1 + 0.5] });
+    mesh(r, G.cyl(0.26, 0.26, 0.14, 16), 0xc8955a, { p: [-halfW + 0.3, 1.02, shelfZ1 + 1.2] });
+    if (ktier >= 2) mesh(r, G.cyl(0.22, 0.2, 0.36, 12), 0xcfd6dc, { p: [-halfW + 0.3, 1.13, shelfZ2 - 0.5] });
+    if (ktier >= 3) {
+      const gz = (shelfZ1 + shelfZ2) / 2 + 0.3;
+      mesh(r, G.box(0.5, 0.18, 0.9), 0x3b3f46, { p: [-halfW + 0.3, 1.04, gz] });
+      mesh(r, G.box(0.42, 0.03, 0.8), new THREE.MeshBasicMaterial({ color: 0xff8a3a }), { p: [-halfW + 0.3, 1.14, gz], cast: false });
+    }
+    this.buildPass();
+    this.buildWaiter();
+    // Đầu bếp đứng giữa kệ tường và bàn bếp, quay mặt ra quầy (hướng Đông)
+    const staff = this.game.state.restaurant.staff.map((s) => this.game.content.staff.get(s.id));
+    const lo = backZ + 1.2;
+    const hi = Z(300);
+    staff.forEach((def, i) => {
+      const z = staff.length === 1 ? (lo + hi) / 2 : lo + ((i + 0.5) * (hi - lo)) / staff.length;
+      this.burner(ix, z, top);
+      this.addChef(def, i, X(98), z, Math.PI / 2, [ix, z]);
+    });
+  }
+
+  /**
+   * QUÁN VIỆT — bếp nấu ngay cửa bên trái, dài nửa quán (kiểu quán phở): tủ kính bánh phở nhìn ra đường,
+   * bàn bếp inox với nồi nước dùng to bốc khói, đầu bếp đứng sát tường trái quay mặt vào quán.
+   * Quầy ra món ở đầu trong của bếp (bồi bàn đứng phía sau lấy món); xa hơn là lối đi vào WC + kho.
+   */
+  private buildKitchenFront(): void {
+    const r = this.root;
+    const { halfW, frontZ } = this;
+    const X = (px: number) => this.wx(px);
+    const k1 = this.wz(this.room.height - 240);
+    const ktier = this.game.state.restaurant.kitchenTier;
+    // Bàn bếp inox dọc theo bếp (mặt quay vào quán)
+    const sx = X(140);
+    const top = 0.9;
+    const z1 = k1 + 0.35;
+    const z2 = frontZ - 0.95;
+    mesh(r, G.box(0.75, top, z2 - z1), 0xb9c2ca, { p: [sx, top / 2, (z1 + z2) / 2] });
+    mesh(r, G.box(0.85, 0.05, z2 - z1 + 0.1), 0x5f6b77, { p: [sx, top, (z1 + z2) / 2] });
+    mesh(r, G.box(0.04, 0.12, z2 - z1), 0xd9433a, { p: [sx + 0.38, top - 0.2, (z1 + z2) / 2], cast: false }); // viền đỏ
+    // Nồi nước dùng to (nồi phở) + chồng bát, rổ rau thơm, chai nước mắm
+    const pot = (z: number, s = 1) => {
+      mesh(r, G.cyl(0.34 * s, 0.3 * s, 0.62 * s, 16), 0xcfd6dc, { p: [sx, top + 0.31 * s, z] });
+      mesh(r, G.cyl(0.36 * s, 0.36 * s, 0.05, 16), 0x9aa6b2, { p: [sx, top + 0.63 * s, z] });
+      mesh(r, G.sphere(0.05, 8, 6), 0x3b3f46, { p: [sx, top + 0.68 * s, z] });
+    };
+    pot(z2 - 0.45, 1.1);
+    if (ktier >= 2) pot(z2 - 1.3, 0.9);
+    for (let k = 0; k < 4; k++) mesh(r, G.cyl(0.16, 0.11, 0.07, 12), 0xf6f1e4, { p: [sx + 0.12, top + 0.06 + k * 0.07, z1 + 0.35] }); // chồng bát
+    mesh(r, G.cyl(0.2, 0.15, 0.1, 12), 0xc9a066, { p: [sx, top + 0.06, z1 + 0.85] });
+    mesh(r, G.ico(0.13, 0), 0x5fae57, { p: [sx, top + 0.14, z1 + 0.85], s: [1.3, 0.6, 1.3] });
+    for (const [dz, c] of [[0, 0x8a4a2a], [0.12, 0xd9433a]] as const) mesh(r, G.cyl(0.04, 0.045, 0.2, 8), c, { p: [sx + 0.25, top + 0.1, z1 + 1.15 + dz] });
+    if (ktier >= 3) {
+      // Bếp than nướng chả (bún chả) cạnh tủ kính
+      const gz = z2 - 2.1;
+      mesh(r, G.box(0.6, 0.22, 0.5), 0x3b3f46, { p: [sx, top + 0.11, gz] });
+      mesh(r, G.box(0.5, 0.03, 0.4), new THREE.MeshBasicMaterial({ color: 0xff8a3a }), { p: [sx, top + 0.23, gz], cast: false });
+    }
+    // Kệ thấp sát tường trái (gia vị, bánh phở, thùng đá)
+    mesh(r, G.box(0.5, 0.85, z2 - z1), 0x9a6b44, { p: [-halfW + 0.27, 0.43, (z1 + z2) / 2] });
+    for (let i = 0, n = Math.floor((z2 - z1) / 0.35); i < n; i++) mesh(r, G.box(0.22, 0.2, 0.22), [0xf3efe0, 0xd9b56a, 0xe2703a][i % 3], { p: [-halfW + 0.25, 0.96, z1 + 0.2 + i * 0.35] });
+    // Tủ kính bánh phở ở mặt tiền, chữ PHỞ đỏ quay ra đường
+    const cab = group(r, { p: [(-halfW + X(168)) / 2, 0, frontZ - 0.45] });
+    const cwid = X(168) + halfW - 0.2;
+    mesh(cab, G.box(cwid, 0.85, 0.6), 0x9a6b44, { p: [0, 0.43, 0] });
+    mesh(cab, G.box(cwid, 0.6, 0.55), new THREE.MeshBasicMaterial({ color: 0xdff3ff, transparent: true, opacity: 0.35 }), { p: [0, 1.16, 0], cast: false });
+    for (const fx of [-cwid / 2, cwid / 2]) mesh(cab, G.box(0.05, 0.62, 0.58), 0xd9b56a, { p: [fx, 1.16, 0] });
+    mesh(cab, G.box(cwid + 0.04, 0.05, 0.6), 0xd9b56a, { p: [0, 1.47, 0] });
+    for (let i = 0; i < 5; i++) mesh(cab, G.box(0.36, 0.06, 0.3), i % 2 ? 0xf6f1e4 : 0xf1e2c0, { p: [-cwid / 2 + 0.35 + (i * (cwid - 0.7)) / 4, 0.92, 0], cast: false }); // bánh phở
+    mesh(cab, G.box(0.25, 0.12, 0.2), 0xb5553c, { p: [cwid / 2 - 0.4, 0.95, 0.05], cast: false }); // thịt bò
+    const board = group(cab, { p: [0, 1.85, 0.05] });
+    mesh(board, G.box(Math.min(2.4, cwid), 0.55, 0.05), 0xd9433a);
+    this.frontSign = { board, w: Math.min(2.2, cwid - 0.2), text: '', mesh: null };
+    this.updateFrontSign();
+    for (const bx of [-0.9, 0.9]) mesh(cab, G.cyl(0.02, 0.02, 0.4, 6), 0xd9b56a, { p: [bx * Math.min(1, cwid / 2.4), 1.65, 0.05] });
+    this.buildPass();
+    this.buildWaiter();
+    // Đầu bếp đứng giữa kệ tường và bàn bếp, quay mặt vào quán; khói bốc từ nồi trước mặt
+    const staff = this.game.state.restaurant.staff.map((s) => this.game.content.staff.get(s.id));
+    const lo = z1 + 0.5;
+    const hi = z2 - 0.2;
+    staff.forEach((def, i) => {
+      const z = staff.length === 1 ? z2 - 0.45 : lo + ((i + 0.5) * (hi - lo)) / staff.length;
+      this.addChef(def, i, X(62), z, Math.PI / 2, [sx, z]);
     });
   }
 
@@ -601,7 +798,7 @@ export class RestaurantArea implements Area {
       const icon = emojiSprite('🍳', 0.5);
       icon.position.set(0, 2.3, 0);
       g.add(icon);
-      this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2 });
+      this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2, yaw: 0 });
     });
   }
 
@@ -611,7 +808,12 @@ export class RestaurantArea implements Area {
     // Quầy line dài theo sức chứa của hạng bếp (6 đĩa = 1.7 m); dài thêm về phía trái, mép phải giữ nguyên
     this.passXY = passSlotsXY(passSlots(this.game.ctx));
     const w = 0.5 * (this.passXY.length / 2) + 0.2;
-    const g = group(this.root, { p: [this.wx(pass.x) - (w - 1.7) / 2, 0, this.wz(pass.y)] });
+    // Quán Nhật: quầy ra món là khúc đầu cạnh dài quầy chữ L (sát tường sau, mặt quay sang phải);
+    // quán Việt: đầu trong của bếp sát cửa (mặt quay vào trong, bồi bàn đứng phía sau lấy món)
+    let at: [number, number, number] = [this.wx(pass.x) - (w - 1.7) / 2, this.wz(pass.y), 0];
+    if (this.plan === 'L') at = [this.wx(pass.x), this.wz(pass.y), 0];
+    else if (this.plan === 'front') at = [-this.halfW + 0.45 + w / 2, this.wz(pass.y), Math.PI];
+    const g = group(this.root, { p: [at[0], 0, at[1]], r: [0, at[2], 0] });
     g.userData.pick = { type: 'pass', id: 'pass' } satisfies Pick;
     mesh(g, G.box(w, PASS_TOP - 0.06, 0.8), 0x9aa6b2, { p: [0, (PASS_TOP - 0.06) / 2, 0] });
     mesh(g, G.box(w + 0.15, 0.06, 0.95), 0xdfe5ea, { p: [0, PASS_TOP - 0.03, 0] });
@@ -687,10 +889,13 @@ export class RestaurantArea implements Area {
     g.userData.pick = { type: 'table', id: t.id } satisfies Pick;
     const w = t.w / UNIT;
     const d = t.h / UNIT;
-    if (t.shared) {
-      mesh(g, G.box(w, COUNTER_TOP - 0.08, d), mats.base, { p: [0, (COUNTER_TOP - 0.08) / 2, 0] });
-      mesh(g, G.box(w + 0.2, 0.08, d + 0.25), mats.top, { p: [0, COUNTER_TOP - 0.04, 0] });
-      counterExtras(this.game.state.cuisine, g, COUNTER_TOP, w, d);
+    if (t.shared || t.bar) {
+      // Quầy dọc (quầy chữ L quán Nhật): dựng như quầy ngang rồi xoay để mặt khách quay sang phía Đông
+      const body = t.bar ? group(g, { r: [0, Math.PI / 2, 0] }) : g;
+      const [bw, bd] = t.bar ? [d, w] : [w, d];
+      mesh(body, G.box(bw, COUNTER_TOP - 0.08, bd), mats.base, { p: [0, (COUNTER_TOP - 0.08) / 2, 0] });
+      mesh(body, G.box(bw + (t.bar ? 0 : 0.2), 0.08, bd + 0.25), mats.top, { p: [0, COUNTER_TOP - 0.04, 0] });
+      counterExtras(this.game.state.cuisine, body, COUNTER_TOP, bw, bd);
     } else {
       mesh(g, G.box(w, 0.1, d), mats.top, { p: [0, TABLE_TOP - 0.05, 0] });
       mesh(g, G.box(w - 0.15, 0.06, d - 0.15), mats.base, { p: [0, TABLE_TOP - 0.13, 0] });
@@ -701,7 +906,7 @@ export class RestaurantArea implements Area {
       const cx = s.x / UNIT;
       const cz = s.y / UNIT;
       const chair = group(g, { p: [cx, 0, cz], r: [0, Math.atan2(s.dishX / UNIT - cx, s.dishY / UNIT - cz), 0] });
-      if (t.shared) {
+      if (t.shared || t.bar) {
         mesh(chair, G.cyl(0.05, 0.07, 0.72, 8), 0x5f6b77, { p: [0, 0.36, 0] });
         mesh(chair, G.cyl(0.26, 0.26, 0.08, 14), mats.seat, { p: [0, 0.74, 0] });
       } else {
@@ -722,11 +927,12 @@ export class RestaurantArea implements Area {
   // ---------- Phục vụ ----------
 
   /** Dựng lại bong bóng khi nội dung đổi; bong bóng chờ người chơi bấm thì nhún nhảy cho dễ thấy. */
-  private updateBubbles(fx: PartyFx, party: import('../../../sim/state').Party, env: Env): void {
+  private updateBubbles(fx: PartyFx, party: import('../../../sim/state').Party, env: Env, arrived: boolean): void {
     const { ctx, state, content } = this.game;
     const need = needOf(party);
     let main = '';
-    if (party.phase === 'seated') main = '📖';
+    // Khách đang đi vào chỗ: ngồi xuống rồi mới giơ tay xin menu
+    if (party.phase === 'seated') main = arrived && !(party.walking ?? 0) ? '📖' : '';
     else if (party.phase === 'browsing') main = '💭';
     else if (party.phase === 'readyToOrder') main = '📝'; // chọn xong, chờ ghi món (ghi xong mới hiện mặt cười / tâm trạng)
     else if (party.phase === 'waitingFood') main = MOOD_FACES[moodOf(ctx, party)];
@@ -990,7 +1196,7 @@ export class RestaurantArea implements Area {
       if (!g) {
         g = group(this.root);
         g.userData.pick = { type: 'table', id: tableId } satisfies Pick;
-        const top = (table.shared ? COUNTER_TOP : TABLE_TOP) + 0.02;
+        const top = (table.shared || table.bar ? COUNTER_TOP : TABLE_TOP) + 0.02;
         for (const i of seats) {
           const s = spots[i];
           if (!s) continue;
@@ -1216,6 +1422,18 @@ export class RestaurantArea implements Area {
   }
 
   /** Biển tên quán treo trên tường sau (dựng lại khi đổi tên). */
+  /** Biển trên tủ kính quán Việt: tên quán người chơi đặt (đổi tên thì vẽ lại). */
+  private updateFrontSign(): void {
+    const s = this.frontSign;
+    const name = this.game.state.profile.name.toUpperCase();
+    if (!s || s.text === name) return;
+    if (s.mesh) s.board.remove(s.mesh);
+    s.mesh = signText(name, '#fff4dc', s.w, 0.45);
+    s.mesh.position.z = 0.04;
+    s.board.add(s.mesh);
+    s.text = name;
+  }
+
   private updateNameSign(env: Env): void {
     // Có Biển hiệu đèn LED thì biển tên có viền đèn nhấp nháy
     const led = this.game.state.upgrades.includes('sign');
@@ -1240,7 +1458,8 @@ export class RestaurantArea implements Area {
       this.nameSign = { text: key, g: sign };
       return;
     }
-    const g = group(this.root, { p: [-this.halfW + 4 + 3.1 - 0.6, 3.78, this.backZ + 0.04] });
+    const signX = this.plan === 'L' ? this.wx(96) : this.plan === 'front' ? 0.6 : -this.halfW + 4 + 3.1 - 0.6;
+    const g = group(this.root, { p: [signX, 3.78, this.backZ + 0.04] });
     const w = Math.min(4.6, 1.2 + name.length * 0.2);
     mesh(g, G.box(w + 0.25, 0.7, 0.06), this.mats.trim);
     mesh(g, G.box(w, 0.56, 0.08), 0xfff4dc, { p: [0, 0, 0.01] });
@@ -1249,6 +1468,30 @@ export class RestaurantArea implements Area {
     g.add(text);
     if (led) this.signLeds = ledFrame(g, w + 0.4, 0.85, 0.06, 0.18);
     this.nameSign = { text: key, g };
+  }
+
+  /** Chỗ đặt trang thiết bị theo mặt bằng riêng (quầy chữ L / bếp sát cửa); bếp tường sau dùng mặc định trong equipment.ts. */
+  private equipSpots(): { line?: EquipDims['line']; knife?: EquipDims['knife']; cabinet?: EquipDims['cabinet']; freezer?: EquipDims['freezer'] } {
+    const { halfW, backZ, frontZ } = this;
+    if (this.plan === 'L') {
+      const z2 = this.wz(322);
+      return {
+        line: { x: this.wx(124), z: (backZ + 1 + z2) / 2, len: z2 - backZ - 1.2, rot: Math.PI / 2 },
+        knife: [-halfW + 0.04, (backZ + z2) / 2, Math.PI / 2],
+        cabinet: [halfW - 0.25, this.wz(310), -Math.PI / 2],
+        freezer: [halfW - 0.4, this.wz(420), -Math.PI / 2],
+      };
+    }
+    if (this.plan === 'front') {
+      const k1 = this.wz(this.room.height - 240);
+      return {
+        line: { x: this.wx(140), z: (k1 + frontZ) / 2 - 0.2, len: frontZ - k1 - 1.6, rot: Math.PI / 2 },
+        knife: [-halfW + 0.04, k1 + 1.2, Math.PI / 2],
+        cabinet: [-halfW + 0.25, this.wz(70), Math.PI / 2],
+        freezer: [-halfW + 0.4, k1 - 1.6, Math.PI / 2],
+      };
+    }
+    return {};
   }
 
   /** Trang thiết bị đã mua: dựng lại khi danh sách đổi (mua thêm), mỗi khung hình chạy hoạt cảnh (nốt nhạc, lửa). */
@@ -1270,6 +1513,7 @@ export class RestaurantArea implements Area {
           kitchenCenter: this.kitchenCenter(),
           kitchenHalf: 1.7 + this.kitchenExtra / 2,
           door: this.door,
+          ...this.equipSpots(),
           cart: spots?.cart,
           grill: spots?.grill,
         },
@@ -1340,6 +1584,7 @@ export class RestaurantArea implements Area {
     this.updateProps(env);
     this.updatePets(env, dt);
     this.updateNameSign(env);
+    this.updateFrontSign();
     this.updateEquipment(env);
     this.updateDirty(env);
     this.updateStains(env);
@@ -1363,7 +1608,7 @@ export class RestaurantArea implements Area {
       const order = orders.find((o) => o.id === s.orderId);
       chef.icon.visible = chef.bar.group.visible = !!order;
       chef.g.position.y = order ? Math.abs(Math.sin(env.t * 9 + i)) * 0.03 : 0;
-      chef.g.rotation.y = order ? Math.sin(env.t * 2 + i) * 0.15 : 0;
+      chef.g.rotation.y = chef.yaw + (order ? Math.sin(env.t * 2 + i) * 0.15 : 0);
       // Đang nấu thì đảo chảo; rảnh thì thỉnh thoảng vẫy tay chào khách
       const idleWave = Math.max(0, Math.min(1, (Math.sin(env.t * 0.4 + i * 2.5) - 0.88) * 9));
       animatePerson(chef.g, env.t, { cook: order ? 1 : 0, wave: order ? 0 : idleWave });
@@ -1371,7 +1616,8 @@ export class RestaurantArea implements Area {
       // Khói bếp bốc lên từ chảo khi đang nấu
       if ((chef.smoke -= dt) <= 0) {
         chef.smoke = 0.35 + Math.random() * 0.2;
-        this.fx.burst('☁️', new THREE.Vector3(chef.g.position.x + (Math.random() - 0.5) * 0.4, 1.5, this.street ? chef.g.position.z + 1.0 : this.backZ + 0.6), { count: 1, up: 0.5, spread: 0.12, gravity: -0.6, life: 1.5, size: 0.32 });
+        const puff = chef.puff ? new THREE.Vector3(chef.puff[0] + (Math.random() - 0.5) * 0.3, 1.5, chef.puff[1] + (Math.random() - 0.5) * 0.3) : new THREE.Vector3(chef.g.position.x + (Math.random() - 0.5) * 0.4, 1.5, this.street ? chef.g.position.z + 1.0 : this.backZ + 0.6);
+        this.fx.burst('☁️', puff, { count: 1, up: 0.5, spread: 0.12, gravity: -0.6, life: 1.5, size: 0.32 });
       }
       const recipe = content.recipes.get(order.recipeId);
       if (chef.iconFor !== recipe.icon) {
@@ -1425,7 +1671,7 @@ export class RestaurantArea implements Area {
         actor.tx = tx;
         actor.tz = tz;
         actor.face = spot ? Math.atan2(this.wx(spot.dishX) - tx, this.wz(spot.dishY) - tz) : Math.PI;
-        actor.restY = spot ? (table!.shared ? 0.4 : 0.14) : 0;
+        actor.restY = spot ? (table!.shared || table!.bar ? 0.4 : 0.14) : 0;
         cx += tx / party.size;
         cz += tz / party.size;
       }
@@ -1440,12 +1686,18 @@ export class RestaurantArea implements Area {
         this.root.add(fx.bar.group);
         this.partyFx.set(party.id, fx);
       }
-      this.updateBubbles(fx, party, env);
+      // Cả nhóm đã tới ghế (không còn đi trên đường vào quán)
+      let arrived = !!spots;
+      for (let i = 0; i < party.size && arrived; i++) {
+        const a = this.actors.get(`${party.id}:${i}`);
+        arrived = !!a && !a.via.length && Math.hypot(a.g.position.x - a.tx, a.g.position.z - a.tz) < 0.15;
+      }
+      this.updateBubbles(fx, party, env, arrived);
       fx.holder.position.set(cx, 1.75, cz);
       const patience = party.patience / party.patienceMax;
       fx.bar.group.position.set(cx, 1.62, cz);
       fx.bar.group.visible =
-        party.phase === 'queue' || ((party.phase === 'seated' || party.phase === 'readyToOrder') && !party.called) || (party.phase === 'waitingFood' && patience < 0.35);
+        party.phase === 'queue' || ((party.phase === 'seated' ? arrived : party.phase === 'readyToOrder') && !party.called) || (party.phase === 'waitingFood' && patience < 0.35);
       fx.bar.set(patience, true);
 
       // Đĩa thức ăn
@@ -1456,7 +1708,7 @@ export class RestaurantArea implements Area {
           if (!order || !spot) return;
           let dish = this.dishes.get(id);
           if (!dish) {
-            const g = group(this.root, { p: [this.wx(spot.dishX), (table.shared ? COUNTER_TOP : TABLE_TOP) + 0.02, this.wz(spot.dishY)] });
+            const g = group(this.root, { p: [this.wx(spot.dishX), (table.shared || table.bar ? COUNTER_TOP : TABLE_TOP) + 0.02, this.wz(spot.dishY)] });
             mesh(g, G.cyl(0.2, 0.14, 0.04, 14), 0xffffff);
             const sprite = emojiSprite(content.recipes.get(order.recipeId).icon, 0.42);
             sprite.position.y = 0.26;
@@ -1473,7 +1725,7 @@ export class RestaurantArea implements Area {
           const served = order.status === 'served';
           if (served && dish.servedAt < 0) dish.servedAt = env.t;
           dish.g.visible = served;
-          dish.g.position.set(this.wx(spot.dishX), (table.shared ? COUNTER_TOP : TABLE_TOP) + 0.02, this.wz(spot.dishY));
+          dish.g.position.set(this.wx(spot.dishX), (table.shared || table.bar ? COUNTER_TOP : TABLE_TOP) + 0.02, this.wz(spot.dishY));
           dish.sprite.position.y = 0.24;
           // Món vừa ra: đĩa nảy lên rồi đáp xuống, đĩa dẹt-giãn một nhịp
           const since = served ? env.t - dish.servedAt : 99;

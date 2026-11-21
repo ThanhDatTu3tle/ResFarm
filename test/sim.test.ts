@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createContent } from '../src/data';
+import { createContent, type CuisineId } from '../src/data';
 import { Game } from '../src/sim/game';
 import { modifier } from '../src/sim/helpers';
 import { deserialize, serialize } from '../src/sim/save';
-import { canPlaceTable, tablePos } from '../src/sim/layout';
+import { canPlaceTable, roomOf, seatSpots, serviceSpot, tablePos } from '../src/sim/layout';
 import { activeTables, findSeats, spawnParty } from '../src/sim/systems/customers';
 import { priceOf } from '../src/sim/systems/market';
 import { calendarOf, festivalOf, seasonalPrice } from '../src/sim/calendar';
@@ -19,7 +19,7 @@ import { moodOf } from '../src/sim/systems/customers';
 import { ownerName, type FarmSlot, type Party } from '../src/sim/state';
 
 const content = createContent();
-const newGame = (seed = 42) => new Game(content, { seed });
+const newGame = (seed = 42, cuisine?: CuisineId) => new Game(content, { seed, cuisine });
 
 /** Người chơi chăm chỉ: mỗi phút game bấm hết những việc phục vụ đang cần. */
 function serve(game: Game): void {
@@ -71,8 +71,8 @@ function spawnPartyFor(game: Game): Party {
   return spawnParty(game.ctx);
 }
 
-function quietGame(): Game {
-  const game = newGame();
+function quietGame(cuisine?: CuisineId): Game {
+  const game = newGame(42, cuisine);
   game.state.restaurant.spawnTimer = 1e9;
   game.state.weather = { id: 'cloudy', minutesLeft: 1e9 };
   game.state.clock.minute = 8 * 60; // trong ca sáng (ngoài ca khách chưa gọi món sẽ về)
@@ -81,7 +81,7 @@ function quietGame(): Game {
 
 describe('nội dung', () => {
   it('hợp lệ; quán khởi đầu có quầy 3 ghế đơn + 1 bàn bốn + 2 bàn đôi (quán ốc: 3 bàn đôi, không có quầy)', () => {
-    const start = activeTables(newGame().ctx);
+    const start = activeTables(newGame(42, 'kr').ctx);
     expect(start.map((t) => t.seats).sort()).toEqual([2, 2, 3, 4]);
     expect(start.filter((t) => t.shared)).toHaveLength(1);
     const oc = new Game(content, { seed: 1, cuisine: 'oc' });
@@ -92,11 +92,40 @@ describe('nội dung', () => {
     // Khách đi một mình ở quán ốc ngồi bàn đôi
     expect(findSeats(oc.ctx, 1)?.tableId).toMatch(/pair/);
   });
+
+  it('giai đoạn 16: quán Nhật quầy chữ L (2 ghế đơn + 2 quầy đôi gắn cố định) + bàn bốn; quán Việt 2 bàn đơn + 2 bàn đôi + bàn bốn, không quầy', () => {
+    const jp = new Game(content, { seed: 1, cuisine: 'jp' });
+    const jt = activeTables(jp.ctx);
+    expect(jt.map((t) => t.seats).sort()).toEqual([2, 2, 2, 4]);
+    expect(jt.filter((t) => t.bar === 'east').map((t) => t.id).sort()).toEqual(['pair', 'pair2']);
+    expect(jt.find((t) => t.id === 'counter')!.seats).toBe(2);
+    expect(roomOf(jp.ctx).height).toBeGreaterThan(roomOf(jp.ctx).width); // quán Nhật: mặt hẹp ra đường, sâu vào trong
+    expect(canPlaceTable(jp.ctx, 'pair', 300, 500)).toMatch(/cố định/);
+    // Ghế quầy dọc nằm phía Đông quầy, ngoài khối bếp; chỗ bồi bàn đứng phục vụ cũng ngoài khối bếp
+    for (const id of ['pair', 'pair2']) {
+      const t = jt.find((x) => x.id === id)!;
+      for (const s of seatSpots(t, tablePos(jp.ctx, t))) expect(s.x).toBeGreaterThan(t.x + t.w / 2);
+      const stand = serviceSpot(t, tablePos(jp.ctx, t), [0, 1]);
+      expect(roomOf(jp.ctx).walls!.some((w) => stand.x > w.x1 && stand.x < w.x2 && stand.y > w.y1 && stand.y < w.y2)).toBe(false);
+    }
+    const medium = jt.find((t) => t.id === 'medium')!;
+    expect(medium.rotated).toBe(true); // bàn bốn đặt dọc sát tường phải
+    expect(canPlaceTable(jp.ctx, 'medium', tablePos(jp.ctx, medium).x, tablePos(jp.ctx, medium).y)).toBeNull();
+    expect(roomOf(jp.ctx).passStand!.x).toBeGreaterThan(192); // quầy line ra giữa tường sau, ngoài quầy chữ L
+    expect(canPlaceTable(jp.ctx, 'medium', 100, 200)).not.toBeNull(); // trong gian bếp
+    const vn = new Game(content, { seed: 1, cuisine: 'vn' });
+    const vt = activeTables(vn.ctx);
+    expect(vt.map((t) => t.seats).sort()).toEqual([1, 1, 2, 2, 4]);
+    expect(vt.some((t) => t.shared)).toBe(false);
+    for (const t of vt) expect(canPlaceTable(vn.ctx, t.id, tablePos(vn.ctx, t).x, tablePos(vn.ctx, t).y), t.id).toBeNull();
+    expect(findSeats(vn.ctx, 1)?.tableId).toMatch(/single/);
+    expect(canPlaceTable(vn.ctx, 'pair', 80, 400)).not.toBeNull(); // bếp sát cửa bên trái
+  });
 });
 
 describe('xếp bàn', () => {
   it('khách lẻ ngồi quầy, nhóm 4 ngồi bàn bốn, nhóm 2 ngồi bàn đôi', () => {
-    const { ctx } = newGame();
+    const { ctx } = newGame(42, 'kr');
     expect(findSeats(ctx, 1)?.tableId).toBe('counter');
     expect(findSeats(ctx, 4)?.tableId).toBe('medium');
     expect(findSeats(ctx, 2)?.tableId).toBe('pair');
@@ -981,7 +1010,7 @@ describe('quán của riêng mình', () => {
   });
 
   it('nâng hạng quán: cần cấp + tiền, khu ăn uống sâu thêm, có hiệu ứng lượng khách', () => {
-    const game = quietGame();
+    const game = quietGame('kr');
     game.state.money = 99999;
     expect(game.dispatch({ type: 'restaurant/upgrade' }).ok).toBe(false); // cấp 1
     game.state.level = 9;
@@ -1487,7 +1516,7 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
   });
 
   it('save giai đoạn 13 (v19) lên bản mới: quán rộng ra, bàn / đồ dời theo, có shipper, chưa phá sản', () => {
-    const now = newGame();
+    const now = newGame(42, 'kr');
     const old = JSON.parse(serialize(now.state));
     old.version = 19;
     delete old.bankrupt;
@@ -1937,7 +1966,7 @@ describe('đơn đặt hàng, bán hàng dư, sự kiện', () => {
 
   it('giai đoạn 15: nâng hạng quán còn nới về phía Đông — quầy ra món dời theo, quầy trước bếp thêm ghế đơn', async () => {
     const { roomOf } = await import('../src/sim/layout');
-    const game = quietGame();
+    const game = quietGame('kr');
     Object.assign(game.state, { money: 1e6, level: 20 });
     const w1 = roomOf(game.ctx).width;
     const counter = () => activeTables(game.ctx).find((t) => t.id === 'counter')!;

@@ -50,6 +50,16 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [ ] **Đơn mang về / giao tận nơi** *(chủ dự án: ý hay, để sau)* — thỉnh thoảng khách gọi điện đặt món ("2 phần Phở giao tới khu chợ trước 12:00"); bếp nấu xong đóng hộp ở quầy line, shipper xe máy đi giao; đúng hạn nhận tiền + tip. Tận dụng bếp lúc quán vắng, nối với hệ bếp + quầy line + màu bàn.
 - [ ] **Lương nhân viên** *(để dành từ giai đoạn 7)*.
 
+## Giai đoạn 16 — Tối ưu UX / UI (21/11/2026)
+
+- [x] Màn chọn quán: nút "👀 Xem trước" → vào xem bên trong quán đang chọn (ván tạm, không lưu, quán tự chạy có khách), thanh trên cùng "← Chọn quán khác" / "✔ Chọn quán này".
+- [x] Xem trước chỉ chiếu lại một đoạn ~1,5 giờ ca sáng rồi tua về đầu (không bao giờ tới giờ cả đội ra chợ / bảng gọi món).
+- [x] Mặt bằng riêng theo quán (`room.variants`, `TableDef.byCuisine`):
+  - Quán Nhật: quầy bếp chữ L ở góc trái-sau (cạnh ngắn 2 ghế đơn quay ra cửa, cạnh dài 2 quầy đôi tách nhau bằng vách gỗ), quầy line giữa tường sau trước cửa sổ cạnh kho, bàn bốn đặt dọc sát tường phải; quán xoay mặt hẹp ra đường, sâu vào trong; WC + kho góc phải cuối quán; khung gỗ treo đèn lồng giấy + thẻ gỗ ghi món kiểu izakaya.
+  - Quán Việt: bếp phở sát cửa bên trái dài nửa quán (tủ kính có biển tên quán người chơi đặt, nồi nước dùng), bỏ quầy ghế đơn, khởi đầu 2 bàn đơn + 2 bàn đôi + bàn bốn; WC + kho góc trái cuối quán.
+- [x] Gợi ý phục vụ ("Quầy line có món…", "Bấm bàn cùng màu để giao") chỉ hiện lần đầu; thẻ nhiệm vụ rộng theo phần thưởng; thông báo khách quen sang góc trái, 1 dòng; khách đi vào ghế xong mới hiện bong bóng menu.
+  - Quán Hàn, quán ốc giữ nguyên. Save v25 (ván Nhật / Việt cũ: bàn gốc về chỗ mặc định mới).
+
 ## Giai đoạn 15 — Trước cửa quán, nhân viên giữ bàn, công an khu vực (21/11/2026)
 
 - [x] Đường + xe cộ trước cả 4 quán; khách đi bộ / xe máy (gửi bên phải) / ô tô (đậu bên trái), xe nhiều màu; bác bảo vệ + chòi gác.

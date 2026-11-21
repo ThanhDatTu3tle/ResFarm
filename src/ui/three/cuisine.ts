@@ -139,6 +139,12 @@ export interface InteriorDims {
   /** Mét dãy bếp dài thêm khi quán nới về phía Đông. */
   kitchenExtra?: number;
   wallH: number;
+  /** Tâm dãy bếp (mặc định tính theo kitchenX1, khớp RestaurantArea.kitchenCenter). */
+  kitchenCenter?: number;
+  /** Giữa hai cửa WC / kho trên tường sau (mặc định: giữa tường trái và vách bếp). */
+  corridorX?: number;
+  /** Quầy chữ L (quán Nhật): tâm cạnh dài (x), tường sau → góc chữ L (z), cạnh ngắn chạy từ tường trái tới xEnd. */
+  lcounter?: { x: number; zBack: number; zCorner: number; xStart: number };
 }
 
 /** Thứ cần cập nhật mỗi khung hình (quạt quay, mèo vẫy, đèn sáng theo đêm). */
@@ -155,7 +161,7 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
   const wavers: THREE.Object3D[] = [];
   const swingers: THREE.Object3D[] = [];
   const back = d.backZ + 0.02;
-  const kc = d.kitchenX1 + 3.1 + (d.kitchenExtra ?? 0) / 2; // tâm dãy bếp (khớp RestaurantArea.kitchenCenter)
+  const kc = d.kitchenCenter ?? d.kitchenX1 + 3.1 + (d.kitchenExtra ?? 0) / 2; // tâm dãy bếp (khớp RestaurantArea.kitchenCenter)
 
   if (cuisine === 'oc') {
     // Cột đèn bốn góc + dây đèn vàng giăng quanh và chéo qua khu bàn; hai chậu cây ở góc trước
@@ -184,6 +190,37 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
       mesh(r, G.cyl(0.3, 0.24, 0.45), 0x8a8f99, { p: [px, 0.22, pz] });
       makeBush(r, { p: [px, 0.4, pz], s: 1 }, 0x4f9e4a);
     }
+  } else if (cuisine === 'jp' && d.lcounter) {
+    // Quầy chữ L kiểu izakaya: khung gỗ trên quầy treo dãy đèn lồng giấy trắng + thẻ gỗ ghi món, rèm noren ở lối vào bếp,
+    // mèo thần tài trên góc quầy, đèn lồng đỏ treo trần khu bàn, bonsai ở góc trước
+    const L = d.lcounter;
+    const beamY = 2.75;
+    const wood = 0xc8955a;
+    const longLen = L.zCorner - L.zBack + 0.3;
+    const shortLen = L.x - L.xStart + 0.3;
+    // Khung gỗ: dầm dọc trên cạnh dài, dầm ngang trên cạnh ngắn, cột gỗ ở góc + đầu quầy
+    mesh(r, G.box(0.42, 0.26, longLen), wood, { p: [L.x, beamY, L.zBack + longLen / 2 - 0.15] });
+    mesh(r, G.box(shortLen, 0.26, 0.42), wood, { p: [L.xStart + shortLen / 2 - 0.15, beamY, L.zCorner] });
+    mesh(r, G.box(0.46, 0.1, longLen + 0.1), 0x8a5a35, { p: [L.x, beamY + 0.17, L.zBack + longLen / 2 - 0.15], cast: false });
+    mesh(r, G.box(shortLen + 0.1, 0.1, 0.46), 0x8a5a35, { p: [L.xStart + shortLen / 2 - 0.15, beamY + 0.17, L.zCorner], cast: false });
+    for (const [x, z] of [[L.x, L.zCorner], [L.xStart + 0.1, L.zCorner]]) mesh(r, G.box(0.16, beamY, 0.16), 0x8a5a35, { p: [x, beamY / 2, z] });
+    // Thẻ gỗ ghi món treo dưới dầm (mặt quay ra phía khách: cạnh dài quay sang phải, cạnh ngắn quay ra cửa)
+    const plaque = (x: number, z: number, rotY: number, i: number) => {
+      const p = group(r, { p: [x, beamY - 0.3, z], r: [0, rotY, 0] });
+      mesh(p, G.box(0.2, 0.4 + (i % 2) * 0.06, 0.02), 0xf1dcae, { cast: false });
+      mesh(p, G.box(0.04, 0.26, 0.01), i % 3 ? 0x2a1f1a : 0xc9343a, { p: [0, 0, 0.015], cast: false });
+    };
+    for (let i = 0, n = Math.floor((longLen - 0.4) / 0.28); i < n; i++) plaque(L.x + 0.23, L.zBack + 0.3 + i * 0.28, Math.PI / 2, i);
+    for (let i = 0, n = Math.floor((shortLen - 0.5) / 0.28); i < n; i++) plaque(L.xStart + 0.3 + i * 0.28, L.zCorner + 0.23, 0, i);
+    // Dãy đèn lồng giấy trắng treo trên khung (như quầy izakaya), giữa có một chiếc đỏ
+    for (let i = 0, n = Math.max(3, Math.round(longLen / 1.05)); i < n; i++) swingers.push(chochin(r, L.x + 0.05, beamY + 0.75, L.zBack + 0.45 + (i * (longLen - 0.9)) / (n - 1), 0.85, i === Math.floor(n / 2) ? 0xd9433a : 0xf6f1e4));
+    for (let i = 0, n = Math.max(2, Math.round(shortLen / 1.05)); i < n; i++) swingers.push(chochin(r, L.xStart + 0.45 + (i * (shortLen - 1.2)) / Math.max(1, n - 1), beamY + 0.75, L.zCorner + 0.05, 0.85, 0xf6f1e4));
+    // Rèm noren treo ở đầu trong của cạnh ngắn (lối đầu bếp ra vào), mèo thần tài trên góc quầy
+    noren(r, L.xStart + 0.75, 2.45, L.zCorner - 0.5, 1.1, 2);
+    wavers.push(manekiNeko(r, L.x, 1.18, L.zCorner, 1.3));
+    for (const x of [d.halfW * 0.05, d.halfW * 0.6]) swingers.push(chochin(r, x, 3.7, (L.zCorner + d.frontZ) / 2 - 1, 1.0)); // treo cao trên khu bàn
+    for (const [x, z] of [[-d.halfW + 0.7, d.frontZ - 0.8], [d.halfW - 0.7, d.frontZ - 0.8]]) bonsai(r, x, z);
+    for (const side of [-1, 1]) for (let i = 0; i < 9; i++) mesh(r, G.cyl(0.035, 0.035, 2.2, 6), 0x8fb35a, { p: [side * (d.halfW - 0.1), 1.1, d.frontZ - 3.4 + i * 0.09], cast: false });
   } else if (cuisine === 'jp') {
     // Rèm noren trước gian bếp, đèn lồng đỏ treo trần, mèo thần tài, thẻ gỗ ghi món trên tường, bonsai ở góc
     noren(r, (d.kitchenX1 + d.halfW) / 2, 3.55, d.kitchenZ + 0.1, d.halfW - d.kitchenX1 - 0.3, 4);
@@ -229,7 +266,7 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
     for (let i = 0; i < 9; i++) swingers.push(hoiAnLantern(r, -d.halfW + 0.9 + i * ((d.halfW * 2 - 1.8) / 8), 3.7, d.kitchenZ + 0.3, colors[i % colors.length], 0.7));
     for (const x of [-d.halfW * 0.3, d.halfW * 0.3]) spinners.push(ceilingFan(r, x, 4.05, -0.4));
     // Chữ Phúc trên giấy đỏ hình thoi
-    const fu = group(r, { p: [(-d.halfW + d.kitchenX1) / 2, 3.3, back + 0.05], r: [0, 0, Math.PI / 4] }); // giữa hai cửa WC / kho
+    const fu = group(r, { p: [d.corridorX ?? (-d.halfW + d.kitchenX1) / 2, 3.3, back + 0.05], r: [0, 0, Math.PI / 4] }); // giữa hai cửa WC / kho
     mesh(fu, G.box(0.75, 0.75, 0.02), 0xd9433a, { cast: false });
     const word = signText('Phúc', '#f2c94c', 0.7, 0.4);
     word.position.set(0, 0, 0.02);
