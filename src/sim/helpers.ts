@@ -95,7 +95,7 @@ export function modifier(ctx: SimContext, key: ModifierKey): number {
   // Quán của riêng mình: hạng quán, thú cưng, đồ trang trí đang bày (mỗi loại tính một lần)
   const { restaurant, profile } = ctx.state;
   value *= ctx.content.room.tiers[restaurant.tier - 1]?.modifiers?.[key] ?? 1;
-  if (profile.pet) value *= ctx.content.pets.get(profile.pet).modifiers?.[key] ?? 1;
+  for (const id of profile.petsOut) value *= ctx.content.pets.get(id).modifiers?.[key] ?? 1;
   for (const id of new Set(restaurant.props.filter((p) => !p.stored).map((p) => p.def))) value *= ctx.content.props.get(id).modifiers?.[key] ?? 1;
   // Sàn bẩn: khách kém kiên nhẫn hơn
   if (key === 'patience' && restaurant.stains.length) {

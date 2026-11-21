@@ -143,6 +143,35 @@ export function makeOwner(o: OwnerProfile): THREE.Group {
   return g;
 }
 
+// ---------- Nhân viên phục vụ thuê ----------
+
+const HELPER_SHIRTS = [0x5fae57, 0xe2703a, 0x9a6bd1, 0x3fb6a8];
+const HELPER_HAIRS = [0x3a2a1e, 0x1f1a17, 0x6b3f22, 0x2a1f1a];
+
+/**
+ * Nhân viên phục vụ: áo theo người + tạp dề trắng + mũ lưỡi trai vàng. `manager` (từ 2 nhân viên, người thuê đầu tiên):
+ * bộ vest xanh than, sơ mi trắng, cà vạt đỏ, bảng tên vàng — không tạp dề, không mũ.
+ */
+export function makeHelperPerson(look: number, manager: boolean, adultShape: (seed: number, hairs: HairStyle[]) => object): THREE.Group {
+  const hairs: HairStyle[] = ['short', 'side', 'pony', 'bob'];
+  const skin = look % 2 ? 0xf2c49b : 0xffd9b8;
+  if (manager) {
+    const shape = adultShape(look * 7 + 3, hairs) as { hair?: HairStyle; width?: number; height?: number };
+    const g = makeRegular({ build: 'adult', hair: shape.hair ?? 'side', hairColor: HELPER_HAIRS[look % 4], skin, shirt: 0xf6f3ec, bottom: 'pants', bottomColor: 0x262b3d, acc: ['jacket'], accent: 0x2b3350, width: shape.width ?? 1 });
+    const rig = g.userData.rig as Rig;
+    // Ve áo mở chữ V khoe sơ mi trắng + cà vạt đỏ, bảng tên vàng
+    mesh(rig.body, G.box(0.12, 0.22, 0.02), 0xf6f3ec, { p: [0, 0.36, 0.215], cast: false });
+    mesh(rig.body, G.box(0.045, 0.2, 0.02), 0xc9343a, { p: [0, 0.33, 0.228], cast: false });
+    mesh(rig.body, G.box(0.1, 0.04, 0.015), 0xf2c14e, { p: [0.12, 0.38, 0.222], cast: false });
+    return g;
+  }
+  const g = makePerson({ shirt: HELPER_SHIRTS[look % 4], hair: HELPER_HAIRS[look % 4], skin }, 'none', adultShape(look * 7 + 3, hairs));
+  const rig = g.userData.rig as Rig;
+  mesh(rig.body, G.box(0.36, 0.34, 0.05), 0xffffff, { p: [0, 0.14, 0.18] }); // tạp dề
+  mesh(rig.head, G.box(0.42, 0.06, 0.3), 0xf2b23e, { p: [0, 0.36, 0.06], r: [-0.2, 0, 0] }); // mũ vàng
+  return g;
+}
+
 // ---------- Thú cưng ----------
 
 /** Mèo hoặc chó nhỏ kiểu chibi; `userData.tail`, `userData.eyes`, `userData.legs` để cử động. */

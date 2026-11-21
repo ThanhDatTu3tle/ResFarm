@@ -29,7 +29,7 @@ export type Command =
   | { type: 'profile/rename'; name: string }
   | { type: 'profile/renameOwner'; name: string }
   | { type: 'pet/adopt'; petId: string }
-  | { type: 'pet/set'; petId: string | null }
+  | { type: 'pet/set'; petId: string; out: boolean }
   | { type: 'prop/buy'; propId: string }
   | { type: 'prop/move'; uid: string; x: number; y: number }
   | { type: 'prop/rotate'; uid: string }
@@ -58,6 +58,7 @@ export type Command =
   | { type: 'service/clean'; tableId: string }
   | { type: 'service/mop'; stainId: number }
   | { type: 'contract/deliver'; contractId: number }
+  | { type: 'event/police'; choice: 'bribe' | 'table' }
   /** Bồi bàn ra quầy line lấy món nấu xong sớm nhất (tối đa balance.service.carryMax). */
   | { type: 'service/pickup' }
   /** Giao các món đang cầm của bàn này. */
@@ -156,11 +157,12 @@ export interface SimEvents {
   'contract/done': { id: number; reward: number };
   'shipper/left': { id: number; until: number };
   'game/bankrupt': { money: number };
+  'helper/sick': { id: string; name: string };
   'contract/expired': { id: number };
   /** Sự kiện ngẫu nhiên: báo trước buổi sáng (critic, inspector), bắt đầu, kết thúc (kết quả + xu thưởng / phạt). */
   'event/announced': { id: string; at: number };
   'event/started': { id: string };
-  'event/ended': { id: string; result: 'good' | 'bad' | null; money: number; mess?: number };
+  'event/ended': { id: string; result: 'good' | 'bad' | null; money: number; mess?: number; table?: string };
   'level/up': { level: number };
   'weather/changed': { id: string };
   /** Sáng ngày lễ (id FestivalDef, tiền mừng đã cộng). */

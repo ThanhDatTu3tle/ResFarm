@@ -4,6 +4,14 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 21/11/2026 (laptop) — Giai đoạn 15: trước cửa quán, nhân viên, công an
+
+**Nhánh:** `giai-doan-15`. 7 mục từ lượt chơi thử tiếp (xem `04-ROADMAP.md`). Shipper giữ nguyên.
+AI tự chọn: cách khách tới chọn theo id nhóm (40% đi bộ, 40% xe máy, 20% ô tô) và chỉ là hình; kéo bàn lệch do tia chuột chạm mặt bàn cao hơn sàn — giữ chỗ nắm + hít chỗ trống trong 45 đơn vị; "nhân viên giữ bàn" áp cho mọi nhân viên kể cả quản lý; người bệnh chọn ngẫu nhiên trong các nhân viên; tiền bồi dưỡng chia đều theo hạng quán (200, 330, 450, 580, 700); bàn bị thu ưu tiên bàn mua thêm, bàn có khách không bị thu; hết tiền và không còn bàn đôi trống thì xin khất (mất uy tín).
+Lượt 2: khách đi bộ 2 / xe máy 4 / ô tô 4.5 / minibus 4 phút game mới vào hàng chờ, đi vào ghế theo quãng đường (150 đơn vị / phút); hạng quán rộng 620 / 660 / 720 / 780 / 840, mỗi 60 đơn vị thêm 1 ghế quầy; bãi xe máy 2 dãy dọc tường (0.62 m / chỗ), bãi ô tô 1 dãy (1.8 m / chỗ).
+
+---
+
 ## 21/11/2026 (laptop) — Giai đoạn 14: sửa lỗi sau khi chơi thử
 
 **Nhánh:** `giai-doan-14`. Chủ dự án và người thân chơi thử 3 ngày đầu, gửi 22 mục — làm hết (xem `04-ROADMAP.md`).

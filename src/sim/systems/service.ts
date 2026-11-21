@@ -20,7 +20,7 @@ import { placeOrders, startBrowsing } from './customers';
 /** Mọi người phục vụ: bồi bàn (người chơi) + nhân viên thuê đang ở quán. */
 export function workers(ctx: SimContext): WaiterState[] {
   const r = ctx.state.restaurant;
-  return [r.waiter, ...r.helpers];
+  return [r.waiter, ...r.helpers.filter((h) => !h.sick)];
 }
 
 /** Đã có ai nhận việc giống vậy chưa (để hai người không cùng chạy tới một việc). */
@@ -67,6 +67,8 @@ export function partyForTray(ctx: SimContext, orderIds: number[]): Party | null 
 /** Nhóm đang chờ người chơi làm gì (để hiện bong bóng / gợi ý). */
 export function needOf(party: Party): 'menu' | 'order' | null {
   if (party.called) return null;
+  // Khách chưa ngồi xuống (đang đi từ cửa vào ghế): chưa ai được tới mang menu
+  if ((party.walking ?? 0) > 0) return null;
   if (party.phase === 'seated') return 'menu';
   if (party.phase === 'readyToOrder') return 'order';
   return null;
@@ -81,7 +83,7 @@ function partySpot(ctx: SimContext, party: Party): Point | null {
 
 /** Chỗ đứng trước quầy ra món. */
 export function passSpot(ctx: SimContext): Point {
-  const pass = ctx.content.room.pass;
+  const pass = roomOf(ctx).pass;
   return { x: pass.x, y: pass.y + 30 };
 }
 
@@ -201,6 +203,7 @@ export const serviceSystem: System = {
       if (blocked) return fail(blocked);
       const party = ctx.state.restaurant.parties.find((p) => p.id === cmd.partyId);
       if (!party || party.phase !== 'seated') return fail('Bàn này chưa cần menu.');
+      if ((party.walking ?? 0) > 0) return fail('Khách đang đi vào chỗ, chờ khách ngồi xuống đã.');
       if (party.called) return fail('Đang mang menu tới bàn này rồi.');
       party.called = true;
       ctx.state.restaurant.waiter.tasks.push({ kind: 'menu', partyId: party.id });
@@ -297,7 +300,9 @@ export const serviceSystem: System = {
 
 /** Một người phục vụ đi tới việc đầu hàng rồi làm; còn quãng đường thì làm luôn việc kế. */
 function stepWorker(ctx: SimContext, w: WaiterState, dt: number): void {
-  let budget = ctx.content.balance.service.waiterSpeed * dt;
+  // Nhân viên thuê đi chậm hơn bồi bàn (người chơi kịp theo dõi, kịp tranh việc)
+  const speed = ctx.content.balance.service.waiterSpeed * (w === ctx.state.restaurant.waiter ? 1 : ctx.content.balance.helpers.speedMul);
+  let budget = speed * dt;
   // Một bước có thể đi tới nơi rồi làm luôn việc kế tiếp nếu còn quãng đường
   for (let guard = 0; guard < 16 && budget > 0; guard++) {
     const task = w.tasks[0];
@@ -325,9 +330,9 @@ function stepWorker(ctx: SimContext, w: WaiterState, dt: number): void {
     // Lau sàn: đứng lau một lúc rồi mới xong
     if (task.kind === 'mop') {
       if (w.work == null) w.work = ctx.content.balance.service.mopTime;
-      const used = Math.min(w.work, budget / ctx.content.balance.service.waiterSpeed);
+      const used = Math.min(w.work, budget / speed);
       w.work -= used;
-      budget -= used * ctx.content.balance.service.waiterSpeed;
+      budget -= used * speed;
       if (w.work > 1e-9) return;
       delete w.work;
     }

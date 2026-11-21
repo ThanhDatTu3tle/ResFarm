@@ -792,6 +792,38 @@ export class FarmArea implements Area {
     return { x: w.x + (Math.random() - 0.5) * 0.6, z: w.z, face: Math.atan2(c.x - w.x, c.z - w.z) };
   }
 
+  /** Hệ thống tưới (trang thiết bị mua ở Siêu thị): mỗi ô ngoài trời cần tưới có vòi phun xoay ở góc, tia nước xanh. */
+  private sprinklers: { key: string; g: THREE.Group; heads: THREE.Object3D[] } | null = null;
+  private updateSprinklers(env: Env): void {
+    const { state, content, ctx } = this.game;
+    const on = state.upgrades.includes('irrigation');
+    const slots = on ? state.farm.slots.filter((s) => content.slotTypes.get(s.type).needsWater && !content.slotTypes.get(s.type).building) : [];
+    const key = slots.map((s) => `${s.id}:${s.tier}`).join(',');
+    if (this.sprinklers?.key !== key) {
+      if (this.sprinklers) this.root.remove(this.sprinklers.g);
+      const g = group(this.root);
+      const heads: THREE.Object3D[] = [];
+      const spray = new THREE.MeshBasicMaterial({ color: 0x8fd3ff, transparent: true, opacity: 0.45, depthWrite: false });
+      for (const s of slots) {
+        const c = slotCenter(ctx, s);
+        const half = (content.slotTypes.get(s.type).layout.size * slotScale(ctx, s)) / 2;
+        const p = group(g, { p: [c.x + half - 0.12, 0, c.z + half - 0.12] });
+        mesh(p, G.cyl(0.03, 0.03, 0.55, 6), 0x5f6b77, { p: [0, 0.28, 0] });
+        const head = group(p, { p: [0, 0.58, 0] });
+        mesh(head, G.cyl(0.06, 0.06, 0.08, 8), 0x2f6fbf);
+        mesh(head, G.cone(0.32, 0.5, 10), spray, { p: [0.28, 0.02, 0], r: [0, 0, Math.PI / 2 + 0.35], cast: false });
+        heads.push(head);
+      }
+      this.sprinklers = { key, g, heads };
+    }
+    // Vòi xoay tròn, ban ngày phun (mùa Đông ô ngoài trời đóng băng thì ngừng)
+    const spin = env.season === 3 ? 0 : 1;
+    this.sprinklers.heads.forEach((h, i) => {
+      h.rotation.y = env.t * 1.6 * spin + i;
+      h.children[1].visible = !!spin;
+    });
+  }
+
   update(env: Env, dt: number): void {
     const { state, content, ctx } = this.game;
     const counts: Partial<Record<SlotType, number>> = {};
@@ -801,6 +833,7 @@ export class FarmArea implements Area {
     }
     this.owner.update(env.t, dt);
 
+    this.updateSprinklers(env);
     for (const slot of state.farm.slots) {
       if (content.slotTypes.get(slot.type).building) continue; // luống trong nhà kính: vẽ ở khu bên trong
       const index = (counts[slot.type] = (counts[slot.type] ?? -1) + 1);

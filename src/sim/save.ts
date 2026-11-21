@@ -92,6 +92,13 @@ const migrations: Record<number, (old: any) => any> = {
   },
   // v21 -> v22: anh shipper giao đơn hàng.
   21: (s) => ({ ...s, bankrupt: false, restaurant: { ...s.restaurant, shipper: { energy: 40, fainted: false, trip: null } }, version: 22 }),
+  // Giai đoạn 15: bàn bị công an thu (quán ốc)
+  22: (s) => ({ ...s, restaurant: { ...s.restaurant, confiscated: [] }, version: 23 }),
+  // Giai đoạn 15: thú cưng ở quán nhiều con cùng lúc (pet → petsOut)
+  23: (s) => {
+    const { pet, ...profile } = s.profile as { pet?: string | null } & Record<string, unknown>;
+    return { ...s, profile: { ...profile, petsOut: pet ? [pet] : [] }, version: 24 };
+  },
 };
 
 export function serialize(state: GameState): string {
@@ -134,7 +141,7 @@ function reconcile(state: GameState, content: Content): GameState {
   const profile = state.profile;
   profile.name = String(profile.name ?? '').slice(0, 24) || DEFAULT_SHOP_NAME;
   profile.pets = profile.pets.filter((id) => content.pets.has(id));
-  if (profile.pet && !profile.pets.includes(profile.pet)) profile.pet = null;
+  profile.petsOut = [...new Set(profile.petsOut ?? [])].filter((id) => profile.pets.includes(id));
   for (const id of Object.keys(state.regulars)) if (!content.regulars.has(id)) delete state.regulars[id];
   const tableIds = new Set([...content.tables.all().map((t) => t.id), ...r.extraTables.map((t) => t.id)]);
   r.parties = r.parties.filter((p) => p.tableId == null || tableIds.has(p.tableId));

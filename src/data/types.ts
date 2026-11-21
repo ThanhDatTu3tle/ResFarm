@@ -442,7 +442,8 @@ export interface Balance {
   /** Bán lại đồ trang trí / bàn mua thêm được bao nhiêu phần giá mua. */
   resellRate: number;
   /** Nhân viên phục vụ thuê thêm: phí thuê, tên lần lượt. */
-  helpers: { hireCost: number; names: string[] };
+  arrival: { walk: number; moto: number; car: number; bus: number; seatUnitsPerMinute: number };
+  helpers: { hireCost: number; names: string[]; speedMul: number; sickChance: number };
   /** Người làm vườn: giá thuê, cấp mở từng chỗ (chỗ thứ i mở ở cấp levels[i]), tên, tốc độ (m/phút game), phút làm 1 việc, chỗ đứng chờ. */
   gardeners: { hireCost: number; levels: number[]; names: string[]; speed: number; workTime: number; homes: { x: number; z: number }[] };
   /**
@@ -579,6 +580,8 @@ export interface TierDef {
   icon: string;
   /** Chiều sâu phòng (toạ độ 2D, thay RoomDef.height); khu ăn uống giãn theo. */
   height: number;
+  /** Chiều rộng phòng (giai đoạn 15: quán nới về phía Đông — bếp, quầy ghế đơn, quầy ra món dài / dời theo). Bỏ trống = RoomDef.width. */
+  width?: number;
   cost: number;
   level: number;
   desc: string;

@@ -43,7 +43,7 @@ export const restaurantPanel: Panel = {
     const tiers = content.room.tiers;
     const tier = tiers[state.restaurant.tier - 1];
     const next = tiers[state.restaurant.tier];
-    const pet = state.profile.pet ? content.pets.get(state.profile.pet) : null;
+    const pets = state.profile.petsOut.map((id) => content.pets.get(id));
     const upgrade = next
       ? `<div class="card" data-key="tier-next"><div class="row"><span class="big">${next.icon}</span>
           <div class="grow"><b>Nâng lên ${esc(next.name)}</b><div class="muted">${esc(next.desc)}</div></div>
@@ -61,7 +61,7 @@ export const restaurantPanel: Panel = {
     return `
       <div class="shop-card" data-key="profile">
         <div class="row"><span class="big">${tier.icon}</span>
-          <div class="grow"><b class="shop-name">${esc(state.profile.name)}</b><div class="muted">Hạng: ${esc(tier.name)}${pet ? ` · ${pet.icon} ${esc(pet.name)}` : ''}</div></div>
+          <div class="grow"><b class="shop-name">${esc(state.profile.name)}</b><div class="muted">Hạng: ${esc(tier.name)}${pets.map((p) => ` · ${p.icon} ${esc(p.name)}`).join('')}</div></div>
 </div>
         <div class="row shop-actions"><button class="mini"${ui('rename')}>✏️ Đổi tên quán</button><button class="mini"${ui('rename:owner')}>🙋 Tên chủ quán</button><button class="mini"${ui('photo')}>📸 Chụp ảnh quán</button></div>
       </div>

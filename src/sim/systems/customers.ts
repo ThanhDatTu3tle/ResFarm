@@ -4,7 +4,7 @@ import { festivalOf, seasonalPrice } from '../calendar';
 import { tutorialHoldsGuests, tutorialLunch } from './tutorial';
 import { randInt, randRange, weightedIndex } from '../../core/rng';
 import { addReputation, addXp, earn, hasAll, modifier, removeAll } from '../helpers';
-import { activeTables, occupiedSeats } from '../layout';
+import { activeTables, occupiedSeats, roomOf, tableById, tablePos } from '../layout';
 import type { Party } from '../state';
 import { favoriteOf, pickRegular, regularPaid, regularTipBonus } from './regulars';
 
@@ -58,6 +58,11 @@ export const customerSystem: System = {
     for (const p of [...r.parties]) {
       switch (p.phase) {
         case 'queue': {
+          // Còn đang đi bộ tới / gửi xe ngoài bãi: chưa vào quán
+          if ((p.walking ?? 0) > 0) {
+            p.walking = Math.max(0, p.walking! - dt);
+            break;
+          }
           const spot = findSeats(ctx, p.size);
           if (spot) {
             p.tableId = spot.tableId;
@@ -65,8 +70,10 @@ export const customerSystem: System = {
             p.phase = 'seated';
             p.called = false;
             p.patience = p.patienceMax = b.service.menuPatience * modifier(ctx, 'patience');
+            // Từ cửa đi vào ghế mất một lúc: tới chỗ ngồi rồi mới cần menu (nhân viên không chạy tới trước khách)
+            p.walking = walkToSeat(ctx, spot.tableId);
             ctx.bus.emit('party/seated', { partyId: p.id, tableId: spot.tableId });
-            ctx.bus.emit('party/needs', { partyId: p.id, need: 'menu' });
+            if (!p.walking) ctx.bus.emit('party/needs', { partyId: p.id, need: 'menu' });
           } else if (!inShift(ctx)) {
             // Hết ca mà vẫn chưa có bàn: quán treo biển nghỉ, khách hẹn lần sau (để cả đội còn ra chợ nghỉ trưa)
             leave(ctx, p, 'closed');
@@ -78,6 +85,12 @@ export const customerSystem: System = {
         }
         case 'seated':
         case 'readyToOrder':
+          // Đang đi vào chỗ: chưa tính kiên nhẫn; ngồi xuống rồi mới gọi menu
+          if ((p.walking ?? 0) > 0) {
+            p.walking = Math.max(0, p.walking! - dt);
+            if (!p.walking) ctx.bus.emit('party/needs', { partyId: p.id, need: 'menu' });
+            if (inShift(ctx)) break;
+          }
           // Đóng cửa mà khách chưa gọi món: mời khách về (không trừ uy tín) để cả đội nghỉ
           if (!inShift(ctx)) {
             leave(ctx, p, 'closed');
@@ -197,10 +210,43 @@ function bigGroupsFull(ctx: SimContext, size: number): boolean {
   return groups >= tables + 1;
 }
 
+/**
+ * Đoàn khách du lịch: mỗi bàn còn trống (không khách, không chén dĩa dơ) một nhóm đúng cỡ bàn, mỗi ghế quầy trống một khách lẻ —
+ * ngồi kín 100% bàn. Trả số nhóm.
+ */
+export function spawnTour(ctx: SimContext): number {
+  let n = 0;
+  for (const t of activeTables(ctx)) {
+    const taken = new Set([...occupiedSeats(ctx, t.id), ...(ctx.state.restaurant.dirty[t.id] ?? [])]);
+    if (t.shared) {
+      for (let i = 0; i < t.seats; i++) if (!taken.has(i)) (spawnParty(ctx, { size: 1, tour: true }), n++);
+    } else if (!taken.size) {
+      spawnParty(ctx, { size: t.maxParty ?? t.seats, tour: true });
+      n++;
+    }
+  }
+  return n;
+}
+
+/** Cách nhóm khách tới quán (tất định theo id nhóm — cảnh trước cửa vẽ theo đây): ~40% đi bộ, ~40% xe máy, ~20% ô tô. */
+export function arrivalMode(partyId: number): 'walk' | 'moto' | 'car' {
+  const h = (partyId * 7919 + 13) % 20;
+  return h < 8 ? 'walk' : h < 16 ? 'moto' : 'car';
+}
+
+/** Phút đi từ cửa quán tới bàn `tableId`. */
+function walkToSeat(ctx: SimContext, tableId: string): number {
+  const room = roomOf(ctx);
+  const t = tableById(ctx, tableId);
+  if (!t) return 0;
+  const at = tablePos(ctx, t);
+  return Math.hypot(at.x - room.width / 2, at.y - room.height) / ctx.content.balance.arrival.seatUnitsPerMinute + 0.5;
+}
+
 /** Thêm một nhóm khách vào hàng chờ. `opts`: nhóm đặc biệt của sự kiện (vd nhà phê bình đi một mình). */
-export function spawnParty(ctx: SimContext, opts: { size?: number; vip?: string; want?: string; tutorial?: boolean } = {}): Party {
+export function spawnParty(ctx: SimContext, opts: { size?: number; vip?: string; want?: string; tutorial?: boolean; tour?: boolean } = {}): Party {
   const { state, content } = ctx;
-  const regular = opts.vip || opts.tutorial ? null : pickRegular(ctx);
+  const regular = opts.vip || opts.tutorial || opts.tour ? null : pickRegular(ctx);
   let size = opts.size ?? Math.max(1, weightedIndex(state.rng, content.balance.partySizeWeights));
   if (regular) size = Math.min(size, content.balance.regulars.maxPartySize);
   // Không có bàn đủ chỗ thì nhóm nhỏ lại cho vừa bàn lớn nhất đang có (quán nhỏ chỉ có bàn bốn)
@@ -225,6 +271,11 @@ export function spawnParty(ctx: SimContext, opts: { size?: number; vip?: string;
     ...(opts.vip ? { vip: opts.vip } : {}),
     ...(opts.want ? { want: opts.want } : {}),
   };
+  // Đi bộ dọc vỉa hè / gửi xe ngoài bãi rồi mới vào hàng chờ (khách của sự kiện, ngày hướng dẫn thì vào ngay)
+  if (opts.tour) {
+    party.tour = true;
+    party.walking = content.balance.arrival.bus; // cả đoàn xuống xe cùng lúc
+  } else if (!opts.vip && !opts.tutorial) party.walking = content.balance.arrival[arrivalMode(party.id)];
   state.restaurant.parties.push(party);
   ctx.bus.emit('party/arrived', { partyId: party.id });
   if (regular) ctx.bus.emit('regular/arrived', { regularId: regular.id, partyId: party.id });

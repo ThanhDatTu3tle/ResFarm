@@ -112,12 +112,12 @@ export const shopPanel: Panel = {
       .all()
       .map((p) => {
         const has = state.profile.pets.includes(p.id);
-        const using = state.profile.pet === p.id;
+        const using = state.profile.petsOut.includes(p.id);
         const levelOk = state.level >= p.level;
         const button = using
-          ? `<button class="on"${cmd({ type: 'pet/set', petId: null })}>✔ Ở quán · Cho nghỉ</button>`
+          ? `<button class="on"${cmd({ type: 'pet/set', petId: p.id, out: false })}>✔ Ở quán · Cho nghỉ</button>`
           : has
-            ? `<button${cmd({ type: 'pet/adopt', petId: p.id })}>Đưa ra quán</button>`
+            ? `<button${cmd({ type: 'pet/set', petId: p.id, out: true })}>Đưa ra quán</button>`
             : `<button${cmd({ type: 'pet/adopt', petId: p.id })}${levelOk && state.money >= p.cost ? '' : ' disabled'}>${levelOk ? coins(p.cost) : `🔒 Cấp ${p.level}`}</button>`;
         return `<div class="card ${using ? 'owned' : ''}" data-key="pet-${p.id}"><div class="row">
           <span class="big">${p.icon}</span>

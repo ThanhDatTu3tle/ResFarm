@@ -3,9 +3,11 @@ import { partyColor } from '../../colors';
 import { passSlots } from '../../../sim/systems/kitchen';
 import type { RoomDef, TableDef } from '../../../data';
 import type { Game } from '../../../sim/game';
-import { blockerOf, canPlaceProp, canPlaceTable, LAYOUT_GRID, placedProps, roomOf, seatSpots, tableById, tablePos, withRotation } from '../../../sim/layout';
+import { blockerOf, canPlaceProp, canPlaceTable, LAYOUT_GRID, nearestPlaceable, placedProps, roomOf, seatSpots, tableById, tablePos, withRotation } from '../../../sim/layout';
 import { heartsOf } from '../../../sim/systems/regulars';
-import { makePet, makeRegular } from '../people';
+import { makeHelperPerson, makePet, makeRegular } from '../people';
+import { isManager } from '../../../sim/systems/helpers';
+import { policePending } from '../../../sim/systems/events';
 import { animateProp, makeProp } from '../props';
 import { activeTables, moodOf } from '../../../sim/systems/customers';
 import { isReserved, needOf } from '../../../sim/systems/service';
@@ -13,13 +15,15 @@ import { adultShape, animateCreature, animatePerson, LOOKS, makeBush, makeDish, 
 import { buildSeat, counterExtras, decorateInterior, seatStyle, signText, tableExtras, type InteriorAnimator } from '../cuisine';
 import { buildStreetGround, buildStreetKitchen, standingSign, streetSpots } from '../street';
 import { HOLD_MS, type Area, type Env, type Pick } from '../stage';
-import { Bar3D, bubbleSprite, emojiSprite, G, group, mesh, textSprite, toon, paintSeason } from '../toon';
+import { Bar3D, blinkLeds, bubbleSprite, emojiSprite, G, group, ledFrame, mesh, textSprite, toon, paintSeason } from '../toon';
 import { easeOutBack, wobble } from '../../ease';
 import { Particles } from '../fx';
 import { FestiveSet } from '../festive';
 import { makeScooter } from '../farmkit';
 import { nextWaypoint } from '../../../sim/pathing';
 import { OwnerWalker, type Spot } from '../owner';
+import { Curbside } from '../curbside';
+import { buildEquipment, type EquipView } from '../equipment';
 
 /**
  * KHU QUÁN — nội thất quán ăn tông ấm, nhìn kiểu "cắt mái".
@@ -95,6 +99,10 @@ interface Actor {
   /** Độ cao khi đã vào chỗ (ngồi ghế thì nhô lên). */
   restY: number;
   leaving: boolean;
+  /** Các điểm phải đi qua trước khi tới đích (vào: cửa quán; về: cửa → chỗ đậu xe / cuối vỉa hè). */
+  via: [number, number][];
+  /** Đã xếp đường ra về chưa. */
+  exitSet?: boolean;
   /** Đã có ghế (để ngồi khi tới nơi) và đang ăn (đưa tay lên miệng). */
   seated: boolean;
   eating: boolean;
@@ -129,6 +137,8 @@ export class RestaurantArea implements Area {
 
   // Kích thước phòng (mét)
   private halfW: number;
+  /** Mét quán rộng thêm về phía Đông so với hạng 1 (dãy bếp dài thêm chừng đó). */
+  private kitchenExtra = 0;
   private backZ: number;
   private frontZ: number;
   private kitchenZ: number;
@@ -169,10 +179,12 @@ export class RestaurantArea implements Area {
   private fx = new Particles(this.root);
   private tables = new Map<string, TableView>();
   private drag: { kind: 'table' | 'prop'; id: string; x: number; y: number } | null = null;
+  /** Lệch giữa chỗ con trỏ chạm sàn lúc bắt đầu kéo và tâm vật: giữ nguyên để vật không "nhảy" ra sau con trỏ. */
+  private grab: { dx: number; dy: number } | null = null;
   private props = new Map<string, PropView>();
   private selMat = new THREE.MeshBasicMaterial({ color: 0xffd23e, transparent: true, opacity: 0.45 });
   /** Thú cưng đi lang thang trong khu ăn uống (chỉ là hình ảnh, sim chỉ biết đang nuôi con nào). */
-  private pet: { id: string; g: THREE.Group; x: number; z: number; tx: number; tz: number; wait: number; petting: number } | null = null;
+  private pets = new Map<string, { id: string; g: THREE.Group; x: number; z: number; tx: number; tz: number; wait: number; petting: number }>();
   /** Biển tên quán trên tường sau. */
   private nameSign: { text: string; g: THREE.Group } | null = null;
   /** Mặt bằng theo hạng quán lúc dựng cảnh (lên hạng thì app.ts dựng lại cả khu). */
@@ -181,6 +193,12 @@ export class RestaurantArea implements Area {
   private floats: { sprite: THREE.Sprite; life: number }[] = [];
   private lamps: THREE.PointLight[] = [];
   private firstFrame = true;
+  /** Trước cửa quán: đường, xe cộ, bãi giữ xe, bác bảo vệ, khách tới bằng xe (curbside.ts). */
+  private curb!: Curbside;
+  /** Trang thiết bị đã mua ở Siêu thị (equipment.ts): dựng lại khi mua thêm. */
+  private equip: { key: string; view: EquipView } | null = null;
+  /** Viền LED quanh biển tên quán (khi có Biển hiệu đèn LED). */
+  private signLeds: THREE.MeshBasicMaterial[] = [];
   /** Đồ trang trí theo phong cách quán (đèn lồng đung đưa, quạt quay...). */
   private interior: InteriorAnimator;
   /** Quán ốc vỉa hè (không tường, xe đẩy + bếp nướng dưới sạp dù — xem street.ts). */
@@ -201,11 +219,14 @@ export class RestaurantArea implements Area {
     this.frontZ = this.wz(room.height) + 0.4;
     this.kitchenZ = this.wz(room.kitchenDepth);
     // Gian bếp giữ nguyên chỗ so với quầy ra món khi quán rộng thêm (giai đoạn 14: 540 → 620); lối đi WC / kho bên trái rộng ra
-    this.kitchenX1 = -this.halfW + 4 + (room.width - 540) / 2 / UNIT;
+    // Giai đoạn 15: quán nới về phía Đông thì gian bếp giữ mép trái, dãy bếp dài thêm sang phải (kitchenExtra)
+    this.kitchenX1 = -this.halfW + 4 + 40 / UNIT;
+    this.kitchenExtra = (room.width - game.content.room.width) / UNIT;
     this.door = [0, this.frontZ + 0.6];
     this.queueZ = this.wz(room.height - 32);
     const depth = this.frontZ - this.backZ;
-    this.view = { position: [0, depth * 0.95, depth * 1.12], target: [0, 0.6, 0.3], orbit: 0.95 };
+    // Giai đoạn 15: nhìn lùi ra một chút để thấy vỉa hè, con đường, bãi giữ xe hai bên
+    this.view = { position: [0, depth * 1.0, depth * 1.18 + 1.4], target: [0, 0.6, 1.4], orbit: 0.95 };
     this.rainBox = { min: [-22, 0, this.backZ - 13], max: [22, 14, this.backZ - 0.5] };
 
     this.label = game.content.cuisines.get(game.state.cuisine).name;
@@ -237,7 +258,8 @@ export class RestaurantArea implements Area {
       );
     }
     this.buildKitchen();
-    this.interior = decorateInterior(game.state.cuisine, this.root, { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, kitchenZ: this.kitchenZ, kitchenX1: this.kitchenX1, wallH: WALL_H });
+    this.curb = new Curbside(this.root, { halfW: this.halfW, frontZ: this.frontZ, backZ: this.backZ, door: this.door, hasRoad: this.street });
+    this.interior = decorateInterior(game.state.cuisine, this.root, { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, kitchenZ: this.kitchenZ, kitchenX1: this.kitchenX1, kitchenExtra: this.kitchenExtra, wallH: WALL_H });
 
     this.unsub.push(game.bus.on('party/left', (e) => {
       let anchor: THREE.Vector3 | null = null;
@@ -276,6 +298,41 @@ export class RestaurantArea implements Area {
 
   private dims() {
     return { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, kitchenZ: this.kitchenZ };
+  }
+
+  private police: THREE.Group | null = null;
+
+  /** Công an khu vực (quán ốc): đứng trước cửa quán trong lúc chờ chủ quán quyết, thỉnh thoảng chỉ tay vào bàn ghế. */
+  private updatePolice(env: Env): void {
+    const on = !!policePending(this.game.ctx);
+    if (!this.police && !on) return;
+    if (!this.police) {
+      // Quân phục xanh lá đậm, mũ kê-pi có quai đỏ + huy hiệu sao vàng, cầu vai đỏ
+      const p = makePerson({ shirt: 0x6f7d3a, hair: 0x1f1a17, skin: 0xf2c49b }, 'none', { width: 1.08, hair: 'short' });
+      const rig = p.userData.rig;
+      const cap = group(rig.head, { p: [0, 0.3, 0.01] });
+      mesh(cap, G.cyl(0.25, 0.22, 0.12, 14), 0x5c6a2e, { p: [0, 0.04, 0] });
+      mesh(cap, G.cyl(0.29, 0.29, 0.03, 16), 0x5c6a2e, { p: [0, 0.12, 0.02], s: [1, 1, 1.08] });
+      mesh(cap, G.box(0.3, 0.04, 0.02), 0xc9343a, { p: [0, 0.03, 0.235], cast: false });
+      mesh(cap, G.box(0.24, 0.025, 0.12), 0x2b2b2b, { p: [0, -0.02, 0.24], r: [0.25, 0, 0] });
+      const star = emojiSprite('⭐', 0.13);
+      star.position.set(0, 0.07, 0.26);
+      cap.add(star);
+      for (const side of [-1, 1]) mesh(rig.body, G.box(0.1, 0.03, 0.16), 0xc9343a, { p: [side * 0.2, 0.47, 0] }); // cầu vai
+      mesh(rig.body, G.box(0.42, 0.05, 0.3), 0x3a2a1e, { p: [0, -0.02, 0] }); // thắt lưng
+      p.scale.setScalar(1.1);
+      const badge = emojiSprite('👮', 0.55);
+      badge.position.set(0, 2.4, 0);
+      p.add(badge);
+      p.position.set(-0.8, 0, this.frontZ + 1.0);
+      this.root.add(p);
+      this.police = p;
+    }
+    this.police.visible = on;
+    if (on) {
+      this.police.rotation.y = Math.PI * 0.8 + Math.sin(env.t * 0.7) * 0.35;
+      animatePerson(this.police, env.t, { wave: Math.max(0, Math.sin(env.t * 1.3)) });
+    }
   }
 
   /** Anh shipper + xe máy trước cửa (bên phải cửa ra vào). */
@@ -453,7 +510,7 @@ export class RestaurantArea implements Area {
 
   /** Tâm dãy bếp (mét): giữa tủ lạnh và quầy ra món. */
   private kitchenCenter(): number {
-    return this.kitchenX1 + 3.1;
+    return this.kitchenX1 + 3.1 + this.kitchenExtra / 2;
   }
 
   /** Gian bếp khởi đầu gọn nhẹ: 1 dãy bếp ngắn + tủ lạnh. Bếp to hơn là việc của các nâng cấp sau này. */
@@ -467,8 +524,10 @@ export class RestaurantArea implements Area {
       this.buildStreetChefs();
       return;
     }
+    // Dãy bếp dài thêm theo phần quán nới về phía Đông; bàn sơ chế / lò nướng đứng nối đuôi bên phải
+    const ext = this.kitchenExtra;
     if (ktier >= 2) {
-      const px = cx + 2.45;
+      const px = cx + 2.45 + ext / 2;
       mesh(r, G.box(1.2, 0.95, 0.9), 0xb9c2ca, { p: [px, 0.475, z] });
       mesh(r, G.box(1.3, 0.08, 1), 0x5f6b77, { p: [px, 0.98, z] });
       mesh(r, G.box(0.6, 0.04, 0.4), 0xd9b38c, { p: [px - 0.2, 1.04, z + 0.05] }); // thớt
@@ -476,14 +535,21 @@ export class RestaurantArea implements Area {
       mesh(r, G.cyl(0.2, 0.18, 0.32, 12), 0xcfd6dc, { p: [px + 0.35, 1.18, z - 0.1] }); // nồi hầm
     }
     if (ktier >= 3) {
-      const ox = cx + 2.45;
+      const ox = cx + 2.45 + ext / 2;
       mesh(r, G.box(1.2, 1.1, 0.7), 0x3b3f46, { p: [ox, 1.62, z - 0.05] }); // lò nướng trên bàn
       mesh(r, G.box(0.9, 0.55, 0.04), 0x8a5a35, { p: [ox, 1.62, z + 0.31] });
       mesh(r, G.box(0.9, 0.5, 0.02), new THREE.MeshBasicMaterial({ color: 0xff9a4a }), { p: [ox, 1.62, z + 0.34], cast: false });
       mesh(r, G.cyl(0.36, 0.3, 0.12), 0x3b3f46, { p: [cx - 0.4, 1.08, z] }); // chảo thứ hai
     }
-    mesh(r, G.box(3.4, 0.95, 0.9), 0x9aa6b2, { p: [cx, 0.475, z] });
-    mesh(r, G.box(3.6, 0.08, 1), 0x5f6b77, { p: [cx, 0.98, z] });
+    mesh(r, G.box(3.4 + ext, 0.95, 0.9), 0x9aa6b2, { p: [cx, 0.475, z] });
+    mesh(r, G.box(3.6 + ext, 0.08, 1), 0x5f6b77, { p: [cx, 0.98, z] });
+    // Phần bếp dài thêm: thêm bếp ga + nồi, chảo cho đầu bếp thuê
+    for (let k = 0; k < Math.floor(ext / 2.2); k++) {
+      for (const [bx, c] of [[cx - 1.7 - ext / 2 + 0.55 + k * 1.1, 0xd9534a], [cx + 1.7 + ext / 2 - 0.55 - k * 1.1, 0xcfd6dc]] as const) {
+        mesh(r, G.cyl(0.3, 0.26, 0.1), 0x3b3f46, { p: [bx, 1.07, z] });
+        mesh(r, G.cyl(0.22, 0.2, 0.28, 12), c, { p: [bx, 1.26, z - 0.05] });
+      }
+    }
     mesh(r, G.cyl(0.32, 0.28, 0.35), 0xd9534a, { p: [cx - 1.0, 1.2, z] });
     mesh(r, G.cyl(0.34, 0.34, 0.04), 0x8a2f2a, { p: [cx - 1.0, 1.39, z] });
     mesh(r, G.cyl(0.36, 0.3, 0.12), 0x3b3f46, { p: [cx + 0.2, 1.08, z] });
@@ -498,8 +564,8 @@ export class RestaurantArea implements Area {
 
     // Đầu bếp đứng sau quầy, quay mặt ra phòng ăn — dàn đều theo số đầu bếp thật (bếp lên hạng thì dãy dài thêm)
     const staff = this.game.state.restaurant.staff.map((s) => this.game.content.staff.get(s.id));
-    const lo = this.kitchenCenter() - 1.6;
-    const hi = this.kitchenCenter() + 1.6 + (ktier >= 2 ? 1.1 : 0);
+    const lo = this.kitchenCenter() - 1.6 - ext / 2;
+    const hi = this.kitchenCenter() + 1.6 + ext / 2 + (ktier >= 2 ? 1.1 : 0);
     staff.forEach((def, i) => {
       const g = makePerson({ shirt: def.hire ? 0xf6f0e4 : 0xffffff, hair: i % 3 === 2 ? 0x6b4a2f : 0x3a2a1e, skin: i % 2 ? 0xffd9b8 : 0xf2c49b }, 'chef', { width: [1.2, 0.95, 1.05, 0.9][i % 4] });
       g.position.set(staff.length === 1 ? this.kitchenCenter() : lo + ((i + 0.5) * (hi - lo)) / staff.length, 0, this.kitchenZ - 1.05);
@@ -816,25 +882,23 @@ export class RestaurantArea implements Area {
     });
   }
 
-  private helperViews = new Map<string, { g: THREE.Group; hand: THREE.Group; handKey: string; lastX: number; lastZ: number; bar: Bar3D; status: THREE.Sprite; statusKey: string }>();
+  private helperViews = new Map<string, { mgr: boolean; g: THREE.Group; hand: THREE.Group; handKey: string; lastX: number; lastZ: number; bar: Bar3D; status: THREE.Sprite; statusKey: string }>();
 
   /** Nhân viên thuê: áo theo người, mũ vàng, thanh năng lượng trên đầu; xỉu thì nằm lăn ra sàn 😵; đi ăn ở chợ thì vắng mặt. */
   private updateHelpers(env: Env, dt: number): void {
     const helpers = this.game.state.restaurant.helpers;
     const away = !!this.game.state.crew.restaurantAway;
     for (const [id, v] of this.helperViews) {
-      if (helpers.some((h) => h.id === id)) continue;
+      // Vừa lên quản lý (thuê thêm người thứ 2) hay thôi làm quản lý: dựng lại hình
+      if (helpers.some((h) => h.id === id) && v.mgr === isManager(this.game.ctx, id)) continue;
       this.root.remove(v.g);
       this.helperViews.delete(id);
     }
     for (const h of helpers) {
       let v = this.helperViews.get(h.id);
       if (!v) {
-        const shirts = [0x5fae57, 0xe2703a, 0x9a6bd1, 0x3fb6a8];
-        const g = makePerson({ shirt: shirts[h.look % shirts.length], hair: [0x3a2a1e, 0x1f1a17, 0x6b3f22, 0x2a1f1a][h.look % 4], skin: h.look % 2 ? 0xf2c49b : 0xffd9b8 }, 'none', adultShape(h.look * 7 + 3, ['short', 'side', 'pony', 'bob']));
-        const rig = g.userData.rig;
-        mesh(rig.body, G.box(0.36, 0.34, 0.05), 0xffffff, { p: [0, 0.14, 0.18] }); // tạp dề
-        mesh(rig.head, G.box(0.42, 0.06, 0.3), 0xf2b23e, { p: [0, 0.36, 0.06], r: [-0.2, 0, 0] }); // mũ vàng
+        const mgr = isManager(this.game.ctx, h.id);
+        const g = makeHelperPerson(h.look, mgr, adultShape);
         const hand = group(g, { p: [0, 0.98, 0.34] });
         const bar = new Bar3D(0.7);
         bar.group.position.set(0, 2.0, 0);
@@ -846,9 +910,10 @@ export class RestaurantArea implements Area {
         g.scale.setScalar(1.05);
         g.position.set(this.wx(h.x), 0, this.wz(h.y));
         this.root.add(g);
-        this.helperViews.set(h.id, (v = { g, hand, handKey: '', lastX: g.position.x, lastZ: g.position.z, bar, status, statusKey: '' }));
+        this.helperViews.set(h.id, (v = { mgr, g, hand, handKey: '', lastX: g.position.x, lastZ: g.position.z, bar, status, statusKey: '' }));
       }
-      v.g.visible = !away;
+      // Bệnh nghỉ ở nhà hôm nay: không có mặt ở quán
+      v.g.visible = !away && !h.sick;
       this.moveWorker(h, v, env, dt, h.fainted);
       const max = this.game.content.balance.crew.maxEnergy;
       v.bar.set(h.energy / max, true);
@@ -873,14 +938,30 @@ export class RestaurantArea implements Area {
   /** Đang kéo bàn `id` tới điểm (x, z) trên sàn: cập nhật vị trí xem trước. */
   dragItem(kind: 'table' | 'prop', id: string, x: number, z: number): void {
     const room = this.room;
+    const { ctx, state } = this.game;
     const snap = (v: number) => Math.round(v / LAYOUT_GRID) * LAYOUT_GRID;
-    this.drag = { kind, id, x: snap(x * UNIT + room.width / 2), y: snap(z * UNIT + room.height / 2) };
+    const px = x * UNIT + room.width / 2;
+    const py = z * UNIT + room.height / 2;
+    // Lần đầu: nhớ chỗ nắm so với tâm vật (bấm lên mặt bàn cao hơn sàn nên tia chạm sàn lệch ra sau)
+    if (!this.drag || this.drag.id !== id) {
+      const prop = kind === 'prop' ? state.restaurant.props.find((p) => p.uid === id) : null;
+      const t = kind === 'table' ? tableById(ctx, id) : null;
+      const at = prop ?? (t ? tablePos(ctx, t) : { x: px, y: py });
+      this.grab = { dx: at.x - px, dy: at.y - py };
+    }
+    const want = { x: snap(px + (this.grab?.dx ?? 0)), y: snap(py + (this.grab?.dy ?? 0)) };
+    // Vướng một chút thì tự hít vào chỗ trống gần nhất (xem trước màu xanh, thả ra đặt luôn chỗ đó)
+    const prop = kind === 'prop' ? state.restaurant.props.find((p) => p.uid === id) : null;
+    const check = (cx: number, cy: number) => (kind === 'table' ? canPlaceTable(ctx, id, cx, cy) : canPlaceProp(ctx, id, cx, cy, prop?.rot ?? 0));
+    const fit = nearestPlaceable(check, want.x, want.y);
+    this.drag = { kind, id, ...(fit ?? want) };
   }
 
   /** Kết thúc kéo: trả về vị trí để app gửi lệnh 'layout/moveTable' (null nếu không kéo gì). */
   endDrag(): { kind: 'table' | 'prop'; id: string; x: number; y: number } | null {
     const d = this.drag;
     this.drag = null;
+    this.grab = null;
     return d;
   }
 
@@ -1072,25 +1153,28 @@ export class RestaurantArea implements Area {
   }
 
   /** Thú cưng: đi lang thang tới chỗ trống ngẫu nhiên, thỉnh thoảng lại gần khách đang ngồi cho vuốt ve (tim bay). */
-  private updatePet(env: Env, dt: number): void {
-    const { state, content } = this.game;
-    const id = state.profile.pet;
-    if (this.pet && this.pet.id !== id) {
-      this.root.remove(this.pet.g);
-      this.pet = null;
+  /** Các bé thú cưng đang ở quán (chó, mèo cùng lúc được): mỗi bé đi lang thang riêng. */
+  private updatePets(env: Env, dt: number): void {
+    const out = this.game.state.profile.petsOut;
+    for (const [id, p] of this.pets) {
+      if (out.includes(id)) continue;
+      this.root.remove(p.g);
+      this.pets.delete(id);
     }
-    if (!id) return;
+    out.forEach((id, i) => this.updatePet(env, dt, id, i));
+  }
+
+  private updatePet(env: Env, dt: number, id: string, index: number): void {
     const d = this.room.dining;
-    if (!this.pet) {
+    let pet = this.pets.get(id);
+    if (!pet) {
       const g = makePet(id);
-      const x = this.wx((d.x1 + d.x2) / 2);
+      const x = this.wx((d.x1 + d.x2) / 2) + (index ? 1.2 : 0);
       const z = this.wz(d.y2 - 40);
       g.position.set(x, 0, z);
       this.root.add(g);
-      this.pet = { id, g, x, z, tx: x, tz: z, wait: 1, petting: 0 };
-      void content;
+      this.pets.set(id, (pet = { id, g, x, z, tx: x, tz: z, wait: 1 + index * 1.5, petting: 0 }));
     }
-    const pet = this.pet;
     const dx = pet.tx - pet.x;
     const dz = pet.tz - pet.z;
     const dist = Math.hypot(dx, dz);
@@ -1132,18 +1216,28 @@ export class RestaurantArea implements Area {
   }
 
   /** Biển tên quán treo trên tường sau (dựng lại khi đổi tên). */
-  private updateNameSign(): void {
+  private updateNameSign(env: Env): void {
+    // Có Biển hiệu đèn LED thì biển tên có viền đèn nhấp nháy
+    const led = this.game.state.upgrades.includes('sign');
     const name = this.game.state.profile.name;
-    if (this.nameSign?.text === name) return;
+    const key = `${name}|${led}`;
+    if (this.signLeds.length) blinkLeds(this.signLeds, env.t);
+    if (this.nameSign?.text === key) return;
     if (this.nameSign) this.root.remove(this.nameSign.g);
+    this.signLeds = [];
     if (this.street) {
       // Quán ốc: bảng tên chân đứng bên trái xe đẩy
       const at = streetSpots(this.dims()).sign;
       const sign = standingSign(name, this.mats.trim);
       sign.position.set(at.x, 0, at.z);
       sign.rotation.y = 0.2;
+      if (led) {
+        const w = Math.min(2.2, 0.9 + name.length * 0.09);
+        const board = group(sign, { p: [0, 1.15, 0.15], r: [-0.12, 0, 0] });
+        this.signLeds = ledFrame(board, w + 0.1, 1.0, 0.06, 0.14);
+      }
       this.root.add(sign);
-      this.nameSign = { text: name, g: sign };
+      this.nameSign = { text: key, g: sign };
       return;
     }
     const g = group(this.root, { p: [-this.halfW + 4 + 3.1 - 0.6, 3.78, this.backZ + 0.04] });
@@ -1153,7 +1247,37 @@ export class RestaurantArea implements Area {
     const text = signText(name, '#8a3a2a', w - 0.15, 0.48);
     text.position.z = 0.06;
     g.add(text);
-    this.nameSign = { text: name, g };
+    if (led) this.signLeds = ledFrame(g, w + 0.4, 0.85, 0.06, 0.18);
+    this.nameSign = { text: key, g };
+  }
+
+  /** Trang thiết bị đã mua: dựng lại khi danh sách đổi (mua thêm), mỗi khung hình chạy hoạt cảnh (nốt nhạc, lửa). */
+  private updateEquipment(env: Env): void {
+    const owned = this.game.state.upgrades;
+    const key = [...owned].sort().join(',');
+    if (this.equip?.key !== key) {
+      if (this.equip) this.root.remove(this.equip.view.g);
+      const spots = this.street ? streetSpots(this.dims()) : null;
+      const view = buildEquipment(
+        this.root,
+        {
+          street: this.street,
+          halfW: this.halfW,
+          backZ: this.backZ,
+          frontZ: this.frontZ,
+          kitchenZ: this.kitchenZ,
+          kitchenX1: this.kitchenX1,
+          kitchenCenter: this.kitchenCenter(),
+          kitchenHalf: 1.7 + this.kitchenExtra / 2,
+          door: this.door,
+          cart: spots?.cart,
+          grill: spots?.grill,
+        },
+        new Set(owned),
+      );
+      this.equip = { key, view };
+    }
+    this.equip.view.update(env.t);
   }
 
   // ---------- Đồng bộ với state mỗi khung hình ----------
@@ -1174,6 +1298,7 @@ export class RestaurantArea implements Area {
     this.streetAnim(env, dt);
     this.updateOwner(env, dt);
     this.updateShipper(env);
+    this.updatePolice(env);
 
     // Màu theo nội thất đang dùng
     const colors = (slot: 'floor' | 'wall' | 'furniture') => content.decor.get(state.decor.equipped[slot]).colors;
@@ -1213,8 +1338,9 @@ export class RestaurantArea implements Area {
       this.tables.delete(id);
     }
     this.updateProps(env);
-    this.updatePet(env, dt);
-    this.updateNameSign();
+    this.updatePets(env, dt);
+    this.updateNameSign(env);
+    this.updateEquipment(env);
     this.updateDirty(env);
     this.updateStains(env);
 
@@ -1262,8 +1388,12 @@ export class RestaurantArea implements Area {
     const seen = new Set<string>();
     const seenParties = new Set<number>();
     let queueX = 1.4;
+    // Trước cửa: nhóm mới tới bằng xe thì xe chạy vào bãi trước, khách xuống xe rồi mới đi vào
+    const present = new Set([...this.actors.keys()].map((k) => Number(k.split(':')[0])));
+    this.curb.update(env.t, dt * Math.max(1, speed), env.night, parties, present, this.firstFrame);
     for (const party of parties) {
       seenParties.add(party.id);
+      if (!this.firstFrame && this.curb.holding(party.id)) continue;
       const table = party.tableId ? tableById(ctx, party.tableId) : null;
       const spots = table ? seatSpots(table, tablePos(ctx, table)) : null;
       let cx = 0;
@@ -1281,10 +1411,11 @@ export class RestaurantArea implements Area {
           const walkIn = randomShape(party.id * 10 + i, i, LOOKS[party.looks[i] % LOOKS.length]);
           const g = regular ? makeRegular(regular.style) : makePerson(walkIn.look!, 'none', walkIn.shape);
           g.userData.pick = { type: 'party', id: String(party.id) } satisfies Pick;
-          const [sx, sz] = this.firstFrame ? [tx, tz] : this.door;
-          g.position.set(sx, 0, sz);
+          // Khách đi bộ dọc vỉa hè tới, hoặc bước xuống từ xe vừa đậu; đi qua cửa rồi mới vào chỗ
+          const [sx, sz] = this.firstFrame ? [tx, tz] : this.curb.spawnOf(party.id);
+          g.position.set(sx + (this.firstFrame ? 0 : (i % 3) * 0.3 - 0.3), 0, sz);
           this.root.add(g);
-          this.actors.set(key, (actor = { g, tx, tz, face: 0, restY: 0, leaving: false, seated: false, eating: false }));
+          this.actors.set(key, (actor = { g, tx, tz, face: 0, restY: 0, leaving: false, via: this.firstFrame ? [] : this.curb.entryVia(party.id), seated: false, eating: false }));
           if (regular) actor.regular = this.decorateRegular(g, regular.name, heartsOf(ctx, regular.id), env.t);
           if (party.vip && i === 0) this.decorateVip(g);
         }
@@ -1376,15 +1507,26 @@ export class RestaurantArea implements Area {
     this.updateWaiter(env, dt);
 
     // Di chuyển khách
-    const step = WALK_SPEED * dt * Math.max(1, speed);
+    // dt có thể âm ở khung hình đầu (tua ?ff= lâu hơn mốc rAF): kẹp về 0 để không chia 0/0 ra NaN
+    const step = WALK_SPEED * Math.max(0, dt) * Math.max(1, speed);
     for (const [key, actor] of this.actors) {
       if (!seen.has(key)) actor.leaving = true;
-      if (actor.leaving) [actor.tx, actor.tz] = this.door;
+      if (actor.leaving && !actor.exitSet) {
+        // Ra về: ra cửa, rồi tới xe của nhóm (bãi giữ xe) hoặc đi bộ dọc vỉa hè
+        actor.exitSet = true;
+        const out = this.curb.exitOf(Number(key.split(':')[0]));
+        actor.via = [this.door, ...out.slice(0, -1)];
+        [actor.tx, actor.tz] = out[out.length - 1];
+      }
       const pos = actor.g.position;
-      const dx = actor.tx - pos.x;
-      const dz = actor.tz - pos.z;
+      const [gx, gz] = actor.via.length ? actor.via[0] : [actor.tx, actor.tz];
+      const dx = gx - pos.x;
+      const dz = gz - pos.z;
       const dist = Math.hypot(dx, dz);
-      if (dist <= step) {
+      if (dist <= Math.max(step, 1e-6) && actor.via.length) {
+        pos.set(gx, 0, gz);
+        actor.via.shift();
+      } else if (dist <= Math.max(step, 1e-6)) {
         if (actor.leaving) {
           this.root.remove(actor.g);
           this.actors.delete(key);

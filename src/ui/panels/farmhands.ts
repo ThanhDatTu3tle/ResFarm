@@ -29,7 +29,7 @@ function gardenerCard(game: Game, g: GardenerState): string {
 export const farmhandsPanel: Panel = {
   id: 'farmhands',
   label: 'Nhà nông',
-  icon: '🧰',
+  icon: '👒',
   badge(game) {
     const { state, content } = game;
     const canHire = state.farm.gardeners.length < maxGardeners(game.ctx) && state.money >= content.balance.gardeners.hireCost ? 1 : 0;

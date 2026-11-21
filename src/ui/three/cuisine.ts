@@ -136,6 +136,8 @@ export interface InteriorDims {
   kitchenZ: number;
   /** Mép trái gian bếp; bên trái là lối đi WC + kho. */
   kitchenX1: number;
+  /** Mét dãy bếp dài thêm khi quán nới về phía Đông. */
+  kitchenExtra?: number;
   wallH: number;
 }
 
@@ -153,7 +155,7 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
   const wavers: THREE.Object3D[] = [];
   const swingers: THREE.Object3D[] = [];
   const back = d.backZ + 0.02;
-  const kc = d.kitchenX1 + 3.1; // tâm dãy bếp (khớp RestaurantArea.kitchenCenter)
+  const kc = d.kitchenX1 + 3.1 + (d.kitchenExtra ?? 0) / 2; // tâm dãy bếp (khớp RestaurantArea.kitchenCenter)
 
   if (cuisine === 'oc') {
     // Cột đèn bốn góc + dây đèn vàng giăng quanh và chéo qua khu bàn; hai chậu cây ở góc trước

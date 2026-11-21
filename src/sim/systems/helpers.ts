@@ -1,4 +1,6 @@
+import { rand, randInt } from '../../core/rng';
 import { spend } from '../helpers';
+import { roomOf } from '../layout';
 import { kitchenTierOf } from './kitchen';
 import type { HelperJob, HelperState } from '../state';
 import { fail, ok, type SimContext, type System } from '../types';
@@ -10,13 +12,32 @@ import { needOf, readyOrders, taskTaken } from './service';
  *  - Người chơi giao việc: bưng món (serve), mang menu + ghi món (menu), dọn bàn (clean), lau sàn (mop).
  *    Nhân viên rảnh thì tự nhận việc đang chờ theo thứ tự đó; đi lại / làm việc dùng chung luật với bồi bàn (service.ts).
  *  - Năng lượng, xỉu, giờ nghỉ ra chợ ăn: chung cho cả đội — xem systems/crew.ts.
+ *  - Từ 2 nhân viên (giai đoạn 15): người thuê đầu tiên là quản lý (mặc vest); mỗi người GIỮ MỘT BÀN (`focus`): mang menu cho bàn
+ *    nào thì chỉ ghi món, bưng món cho bàn đó, khách về thì dọn luôn rồi mới nhận bàn mới. Mỗi sáng có thể 1 người bệnh nghỉ (`sick`).
  */
 export const helperSystem: System = {
   id: 'helpers',
   update(ctx) {
     const r = ctx.state.restaurant;
+    // Xỉu / bệnh / ra chợ: bỏ bàn đang giữ cho người khác nhận
+    for (const h of r.helpers) if (h.focus && (h.fainted || h.sick || ctx.state.crew.restaurantAway)) h.focus = null;
     if (ctx.state.crew.restaurantAway) return;
-    for (const h of r.helpers) if (!h.fainted && !h.tasks.length) pickTask(ctx, h);
+    const focused = teamMode(ctx);
+    for (const h of r.helpers) if (!h.fainted && !h.sick && !h.tasks.length) (focused ? pickFocused : pickTask)(ctx, h);
+  },
+  onDayStart(ctx) {
+    const { state, content } = ctx;
+    const hs = state.restaurant.helpers;
+    for (const h of hs) {
+      h.sick = false;
+      h.focus = null;
+    }
+    // Từ 2 nhân viên: thỉnh thoảng có người bệnh xin nghỉ một ngày
+    if (hs.length >= 2 && rand(state.rng) < content.balance.helpers.sickChance) {
+      const h = hs[randInt(state.rng, 0, hs.length - 1)];
+      h.sick = true;
+      ctx.bus.emit('helper/sick', { id: h.id, name: h.name });
+    }
   },
   commands: {
     'helper/hire'(ctx) {
@@ -27,7 +48,7 @@ export const helperSystem: System = {
       if (!spend(ctx, b.hireCost)) return fail('Không đủ tiền.');
       const used = new Set(r.helpers.map((h) => h.name));
       const name = b.names.find((n) => !used.has(n)) ?? `Nhân viên ${r.helpers.length + 1}`;
-      const door = { x: content.room.width / 2, y: content.room.dining.y2 };
+      const door = { x: roomOf(ctx).width / 2, y: roomOf(ctx).dining.y2 };
       r.helpers.push({ id: `h${state.nextId++}`, name, look: r.helpers.length, ...door, tasks: [], carrying: [], jobs: { serve: true, menu: true, clean: true, mop: true }, energy: content.balance.crew.maxEnergy, fainted: false });
       return ok();
     },
@@ -46,6 +67,85 @@ export const helperSystem: System = {
     },
   },
 };
+
+/** Từ 2 nhân viên trở lên: mỗi người giữ một bàn, người đầu tiên làm quản lý. */
+export function teamMode(ctx: SimContext): boolean {
+  return ctx.state.restaurant.helpers.length >= 2;
+}
+
+/** Nhân viên này là quản lý (người thuê đầu tiên, khi đã có từ 2 nhân viên). */
+export function isManager(ctx: SimContext, helperId: string): boolean {
+  return teamMode(ctx) && ctx.state.restaurant.helpers[0]?.id === helperId;
+}
+
+/** Bàn (nhóm khách) này đang có nhân viên khác giữ. */
+function heldByOther(ctx: SimContext, h: HelperState, partyId: number): boolean {
+  return ctx.state.restaurant.helpers.some((x) => x !== h && !x.sick && !x.fainted && x.focus?.partyId === partyId);
+}
+
+/**
+ * Chế độ giữ bàn: đang giữ bàn thì chỉ làm việc của bàn đó (menu → ghi món → bưng → dọn); rảnh tay thì nhận bàn mới đang chờ
+ * menu, hoặc làm giúp việc của bàn không ai giữ (người chơi đã mang menu), cuối cùng mới lau sàn.
+ */
+function pickFocused(ctx: SimContext, h: HelperState): void {
+  const r = ctx.state.restaurant;
+  const can = (job: HelperJob) => h.jobs[job];
+  if (h.focus) {
+    const party = r.parties.find((p) => p.id === h.focus!.partyId);
+    if (party) {
+      if (can('menu') && needOf(party)) {
+        const kind = needOf(party) === 'menu' ? 'menu' : 'takeOrder';
+        party.called = true;
+        h.tasks.push({ kind, partyId: party.id });
+        return;
+      }
+      const ready = can('serve') ? readyOrders(ctx).filter((o) => o.partyId === party.id) : [];
+      if (ready.length) {
+        h.tasks.push({ kind: 'deliver', orderIds: ready.map((o) => o.id), partyId: party.id });
+        return;
+      }
+      return; // khách đang chờ món / đang ăn: đứng chờ, không bỏ bàn
+    }
+    // Khách về: dọn bàn mình giữ rồi mới rảnh tay
+    const tableId = h.focus.tableId;
+    h.focus = null;
+    if (can('clean') && r.dirty[tableId]?.length && !taskTaken(ctx, (x) => x.kind === 'clean' && x.tableId === tableId)) {
+      h.tasks.push({ kind: 'clean', tableId });
+      return;
+    }
+  }
+  if (can('menu')) {
+    const party = r.parties.find((p) => p.tableId && needOf(p) && !heldByOther(ctx, h, p.id));
+    if (party) {
+      const kind = needOf(party) === 'menu' ? 'menu' : 'takeOrder';
+      party.called = true;
+      h.focus = { partyId: party.id, tableId: party.tableId! };
+      h.tasks.push({ kind, partyId: party.id });
+      return;
+    }
+  }
+  if (can('serve')) {
+    // Món của bàn không ai giữ (người chơi tự phục vụ bàn đó) vẫn bưng giúp
+    const ready = readyOrders(ctx).filter((o) => !heldByOther(ctx, h, o.partyId));
+    if (ready.length) {
+      const partyId = ready[0].partyId;
+      h.tasks.push({ kind: 'deliver', orderIds: ready.filter((o) => o.partyId === partyId).map((o) => o.id), partyId });
+      return;
+    }
+  }
+  if (can('clean')) {
+    const held = new Set(r.helpers.filter((x) => x !== h && x.focus).map((x) => x.focus!.tableId));
+    const id = Object.keys(r.dirty).find((t) => r.dirty[t]?.length && !held.has(t) && !taskTaken(ctx, (x) => x.kind === 'clean' && x.tableId === t));
+    if (id) {
+      h.tasks.push({ kind: 'clean', tableId: id });
+      return;
+    }
+  }
+  if (can('mop')) {
+    const stain = r.stains.find((s) => !taskTaken(ctx, (x) => x.kind === 'mop' && x.stainId === s.id));
+    if (stain) h.tasks.push({ kind: 'mop', stainId: stain.id });
+  }
+}
 
 /** Số nhân viên thuê được ở hạng quán hiện tại (hạng 1: 0, mỗi bậc +1). */
 export function maxHelpers(ctx: SimContext): number {

@@ -1,7 +1,8 @@
 import { achievements } from '../data/achievements';
 import { farmTools } from '../data/farmhands';
 import type * as THREE from 'three';
-import { defOf } from '../sim/systems/events';
+import { bribeOf, defOf, policePending, seizableTable } from '../sim/systems/events';
+import { canAfford } from '../sim/helpers';
 import { clockText } from './format';
 import { guideHtml } from './tutorial';
 import { coachHtml } from './coach';
@@ -342,6 +343,9 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   game.bus.on('order/ready', checkLowStock);
   game.bus.on('shift/started', checkLowStock);
   // Đơn đặt hàng + sự kiện ngẫu nhiên
+  game.bus.on('helper/sick', (e) => {
+    toast(`🤒 ${e.name} bị bệnh, xin nghỉ hôm nay. Quán bớt một người phục vụ.`, 'bad', undefined, 5000);
+  });
   game.bus.on('shipper/left', (e) => {
     toast(`🛵 Anh shipper chạy đi giao, về khoảng ${clockText(Math.ceil(e.until / 10) * 10)}.`);
   });
@@ -361,13 +365,14 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   });
   game.bus.on('event/started', (e) => {
     const def = defOf(e.id);
-    toast(`${def.icon} ${def.start}`, def.id === 'outage' ? 'bad' : 'good', '', 4800);
+    toast(`${def.icon} ${def.start}`, def.id === 'outage' || def.id === 'police' ? 'bad' : 'good', '', 4800);
     sound.play('bell');
   });
   game.bus.on('event/ended', (e) => {
     const def = defOf(e.id);
     let text = `${def.icon} ${def.name} đã kết thúc.`;
     if (def.kind === 'critic') text = e.result === 'good' ? `🧐 Nhà phê bình khen nức nở! Uy tín +${def.reward?.rep}, thưởng ${e.money} xu.` : `🧐 Nhà phê bình không hài lòng — uy tín −${def.penalty?.rep}.`;
+    else if (def.kind === 'police') text = e.money < 0 ? `👮 Đã "bồi dưỡng" ${-e.money} xu, công an khu vực cho qua.` : e.table ? `👮 Công an khu vực thu mất ${e.table}. Uy tín giảm nhẹ.` : '👮 Công an khu vực nhắc nhở rồi đi — lần sau nhớ dọn gọn lề đường.';
     else if (def.kind === 'inspector') text = e.result === 'good' ? `🕵️ Thanh tra khen quán sạch sẽ! Thưởng ${e.money} xu.` : `🕵️ Thanh tra phạt ${-e.money} xu vì ${e.mess} chỗ bẩn (vết bẩn, bàn chưa dọn).`;
     toast(text, e.result === 'bad' ? 'bad' : 'good', '', 5200);
     sound.play(e.result === 'bad' ? 'sad' : e.result === 'good' ? 'levelup' : 'pop');
@@ -467,7 +472,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     morph($('hud'), hudHtml(game, ui, money.value));
     morph($('settings'), settingsHtml(ui, sound.prefs));
     morph($('calendar'), calendarHtml(game, ui));
-    morph($('bankrupt'), state.bankrupt ? bankruptHtml() : '');
+    morph($('bankrupt'), state.bankrupt ? bankruptHtml() : policePending(game.ctx) ? policeHtml() : '');
     morph($('rename'), renameHtml(ui));
     morph($('guide'), ui.guide == null ? '' : guideHtml(ui.guide, uiAttr, 'Chơi tiếp'));
     morph($('questdlg'), questHtml(game, ui));
@@ -856,6 +861,23 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     renderDom();
   });
   window.addEventListener('pagehide', save);
+  /** Công an khu vực (quán ốc): game dừng, chủ quán chọn bồi dưỡng hay để thu một bàn đôi. */
+  function policeHtml(): string {
+    const money = bribeOf(game.ctx);
+    const table = seizableTable(game.ctx);
+    const afford = canAfford(game.ctx, money);
+    const neither = !table && !afford;
+    return `<div class="backdrop"><div class="dialog police" role="dialog" aria-label="Công an khu vực">
+      <h2>👮 Công an khu vực</h2>
+      <p>"Quán bày bàn ghế lấn chiếm lề đường, cản lối người đi bộ. Chủ quán tính sao đây?"</p>
+      <div class="police-choices">
+        <button class="primary"${cmd({ type: 'event/police', choice: 'bribe' })}${afford ? '' : ' disabled'}>💵 Bồi dưỡng · ${coins(money)}</button>
+        <button${cmd({ type: 'event/police', choice: 'table' })}${table || neither ? '' : ' disabled'}>${neither ? '🙏 Xin khất lần sau (mất uy tín)' : `🪑 Để công an thu ${table ? esc(table.name) : 'một bàn đôi'}`}</button>
+      </div>
+      <p class="muted">${table ? 'Bàn bị thu thì mất luôn, muốn có lại phải mua bàn mới ở Siêu thị. Uy tín giảm nhẹ.' : 'Bàn đôi nào cũng đang có khách — chỉ còn cách bồi dưỡng.'}</p>
+    </div></div>`;
+  }
+
   /** Màn phá sản: nợ quá mức cho phép, hết ván. */
   function bankruptHtml(): string {
     const { state, content } = game;
@@ -911,10 +933,11 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   let saveTimer = 0;
   const frame = (now: number) => {
     // Giới hạn dt: tab bị ẩn thì game tạm dừng thay vì tua một mạch.
-    const dt = Math.min(0.1, (now - last) / 1000);
+    const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
     last = now;
     // Mở bảng Cài đặt, bảng gọi món cho đội hay hoá đơn ăn uống thì game tạm dừng; đóng lại chạy tiếp ở tốc độ đã chọn
-    const speed = game.state.bankrupt || ui.settings || ui.calendar != null || ui.rename != null || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
+    // Sắp xếp bàn ghế, mở Siêu thị (mua đồ nâng cấp) cũng tạm dừng để người chơi thong thả
+    const speed = game.state.bankrupt || !!policePending(game.ctx) || ui.settings || ui.editLayout || ui.drawer === 'shop' || ui.calendar != null || ui.rename != null || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
     game.tick(dt * speed * content.balance.minutesPerSecond);
     stage.env.selectedSlot = ui.selectedSlot;
     stage.env.editLayout = ui.editLayout;
