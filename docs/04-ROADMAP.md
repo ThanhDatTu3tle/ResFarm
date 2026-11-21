@@ -50,6 +50,22 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [ ] **Đơn mang về / giao tận nơi** *(chủ dự án: ý hay, để sau)* — thỉnh thoảng khách gọi điện đặt món ("2 phần Phở giao tới khu chợ trước 12:00"); bếp nấu xong đóng hộp ở quầy line, shipper xe máy đi giao; đúng hạn nhận tiền + tip. Tận dụng bếp lúc quán vắng, nối với hệ bếp + quầy line + màu bàn.
 - [ ] **Lương nhân viên** *(để dành từ giai đoạn 7)*.
 
+## Giai đoạn 15 — Trước cửa quán, nhân viên giữ bàn, công an khu vực (21/11/2026)
+
+- [x] Đường + xe cộ trước cả 4 quán; khách đi bộ / xe máy (gửi bên phải) / ô tô (đậu bên trái), xe nhiều màu; bác bảo vệ + chòi gác.
+- [x] Sắp xếp bàn ghế và mở Siêu thị thì dừng giờ. Kéo bàn giữ đúng chỗ nắm, vướng chút thì tự hít vào chỗ trống gần nhất; ghế chiếm chỗ nhỏ lại (15 → 12).
+- [x] Nhân viên thuê đi chậm hơn (×0.6). Từ 2 nhân viên: người đầu làm quản lý (vest), mỗi người giữ một bàn (menu → ghi món → bưng → dọn); có ngày 1 người bệnh nghỉ (20%).
+- [x] Quán ốc: công an khu vực hỏi thăm vì lấn chiếm lề đường — bồi dưỡng 200–700 xu theo hạng quán hoặc mất 1 bàn đôi (save v23).
+- [x] Icon Nhà nông đổi thành mũ 👒.
+- [x] Sửa: nhân viên chạy tới mang menu khi khách chưa ngồi — khách đi bộ / gửi xe rồi mới vào hàng chờ, đi vào ghế rồi mới cần menu (`Party.walking`).
+- [x] Nâng hạng quán nới cả về phía Đông (rộng 620 → 840): bếp dài ra, quầy trước bếp thêm ghế (3 → 6), quầy ra món dời theo.
+- [x] Bãi xe xoay dọc theo tường bên (đầu xe hướng vào tường), dài theo quán; vỉa hè trước quán rộng 2.8 m cho xe shipper.
+- [x] Xe du lịch: minibus đỗ trước cửa, đoàn khách ngồi kín 100% bàn còn trống, xe đợi cả đoàn về rồi mới đi.
+- [x] Trang thiết bị mua ở Siêu thị hiện ngay trong quán (`equipment.ts`): chậu cây + tranh, thanh dao, loa + nốt nhạc, viền LED biển tên, chụp hút khói + lửa xanh, tủ chén sứ, tủ kem; Hệ thống tưới = vòi phun xoay ở ruộng. Thêm **Tủ kem** (+30% kiên nhẫn, 700 xu, cấp 4).
+- [x] Chó và mèo ở quán cùng lúc (`profile.petsOut`, save v24).
+- [x] Sửa: khách vẽ ở toạ độ NaN (biến mất) ở khung hình đầu sau khi tua `?ff=` (dt âm).
+- [ ] Chưa thử bằng tay kéo bàn / bấm hộp công an trên máy thật (theo quy ước chỉ xem, không bấm).
+
 ## Giai đoạn 14 — Sửa lỗi sau khi chơi thử 3 ngày (21/11/2026)
 
 - [x] Phục vụ: mang menu + dọn bàn không tốn sức; đi vòng qua cả ghế và khách đang ngồi (`footprint` trong pathing).

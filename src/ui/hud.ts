@@ -104,7 +104,7 @@ export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
     open && state.clock.minute >= b.crew.endDayAfter
       ? `<button class="end-day"${cmd({ type: 'day/end' })} title="Đi ngủ sớm, sang màn tổng kết ngày">🌙 Kết thúc ngày</button>`
       : '';
-  const speed = ui.speed === 0 ? `<span class="tag paused" title="Đang tạm dừng">⏸</span>` : ui.speed > 1 ? `<span class="tag fast" title="Tốc độ">x${ui.speed}</span>` : '';
+  const speed = ui.speed === 0 || ui.editLayout || ui.drawer === 'shop' ? `<span class="tag paused" title="Đang tạm dừng">⏸</span>` : ui.speed > 1 ? `<span class="tag fast" title="Tốc độ">x${ui.speed}</span>` : '';
 
   return `<div class="hud-left">
       <div class="hud-top">

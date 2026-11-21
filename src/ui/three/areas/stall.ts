@@ -6,6 +6,8 @@ import { signText } from '../cuisine';
 import { adultShape, animatePerson, FARMER_SHAPE, LOOKS, makePerson, randomShape } from '../models';
 import type { Area, Env, Pick } from '../stage';
 import { OwnerWalker } from '../owner';
+import { makeHelperPerson } from '../people';
+import { isManager } from '../../../sim/systems/helpers';
 import { blinkLeds, emojiSprite, G, group, ledFrame, mesh, paintSeason, type V3 } from '../toon';
 
 /**
@@ -689,7 +691,8 @@ export function crewLook(game: Game, who: string): THREE.Group {
     return makePerson({ shirt: 0xffffff, hair: 0x3a2a1e, skin: i % 2 ? 0xffd9b8 : 0xf2c49b }, 'chef', { width: [1.2, 0.95, 1.05, 0.9][i % 4] });
   }
   const h = state.restaurant.helpers.find((x) => x.id === who);
-  const p = makePerson(h ? { shirt: [0x5fae57, 0xe2703a, 0x9a6bd1, 0x3fb6a8][h.look % 4], hair: [0x3a2a1e, 0x1f1a17, 0x6b3f22, 0x2a1f1a][h.look % 4], skin: h.look % 2 ? 0xf2c49b : 0xffd9b8 } : { shirt: 0x3f8fd2, hair: 0x2a1f1a, skin: 0xffd9b8 }, 'none', h ? adultShape(h.look * 7 + 3, ['short', 'side', 'pony', 'bob']) : {});
-  mesh(p.userData.rig.head, G.box(0.42, 0.06, 0.3), h ? 0xf2b23e : 0xe2574c, { p: [0, 0.36, 0.06], r: [-0.2, 0, 0] }); // mũ lưỡi trai
+  if (h) return makeHelperPerson(h.look, isManager(game.ctx, h.id), adultShape);
+  const p = makePerson({ shirt: 0x3f8fd2, hair: 0x2a1f1a, skin: 0xffd9b8 }); // bồi bàn (người chơi)
+  mesh(p.userData.rig.head, G.box(0.42, 0.06, 0.3), 0xe2574c, { p: [0, 0.36, 0.06], r: [-0.2, 0, 0] }); // mũ lưỡi trai
   return p;
 }

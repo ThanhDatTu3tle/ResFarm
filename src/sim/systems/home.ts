@@ -37,12 +37,15 @@ export const homeSystem: System = {
         if (!spend(ctx, def.cost)) return fail('Không đủ tiền.');
         state.profile.pets.push(def.id);
       }
-      state.profile.pet = def.id;
+      if (!state.profile.petsOut.includes(def.id)) state.profile.petsOut.push(def.id);
       return ok();
     },
+    // Cho một bé ra quán / về nhà nghỉ (nhiều bé ở quán cùng lúc được)
     'pet/set'(ctx, cmd) {
-      if (cmd.petId != null && !ctx.state.profile.pets.includes(cmd.petId)) return fail('Chưa nhận nuôi bé này.');
-      ctx.state.profile.pet = cmd.petId;
+      const p = ctx.state.profile;
+      if (!p.pets.includes(cmd.petId)) return fail('Chưa nhận nuôi bé này.');
+      p.petsOut = p.petsOut.filter((id) => id !== cmd.petId);
+      if (cmd.out) p.petsOut.push(cmd.petId);
       return ok();
     },
 

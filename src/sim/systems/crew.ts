@@ -1,6 +1,8 @@
 import { randInt } from '../../core/rng';
 import type { StaffDishDef } from '../../data';
 import { spend } from '../helpers';
+import { isManager } from './helpers';
+import { roomOf } from '../layout';
 import type { BreakKind, MealLine, PendingMeal, Vitals, WaiterState } from '../state';
 
 /** Hoá đơn lần trước đã báo chưa (theo state, không lưu vào save — chỉ để phát sự kiện một lần). */
@@ -42,7 +44,8 @@ export function crewMembers(ctx: SimContext): CrewMember[] {
       return { who: s.id, name: def.name, icon: def.icon, role: 'chef', group: 'restaurant', vitals: s };
     }),
     { who: 'waiter', name: 'Bồi bàn (bạn)', icon: '🙋', role: 'waiter', group: 'restaurant', vitals: r.waiter },
-    ...r.helpers.map((h): CrewMember => ({ who: h.id, name: h.name, icon: '🧑‍🍳', role: 'helper', group: 'restaurant', vitals: h })),
+    // Nhân viên bệnh nghỉ ở nhà: không đi làm, không ra chợ ăn cùng đội
+    ...r.helpers.filter((h) => !h.sick).map((h): CrewMember => ({ who: h.id, name: isManager(ctx, h.id) ? `${h.name} (quản lý)` : h.name, icon: isManager(ctx, h.id) ? '🤵' : '🧑‍🍳', role: 'helper', group: 'restaurant', vitals: h })),
     { who: 'shipper', name: 'Anh shipper', icon: '🛵', role: 'shipper', group: 'restaurant', vitals: r.shipper },
     { who: 'farmer', name: 'Bác nông dân', icon: '👨‍🌾', role: 'farmer', group: 'farm', vitals: state.farm.farmer },
   ];
@@ -265,7 +268,7 @@ function comeBack(ctx: SimContext, group: CrewGroup): void {
   }
   if (group === 'restaurant') {
     state.crew.restaurantAway = null;
-    const door = { x: content.room.width / 2, y: content.room.dining.y2 };
+    const door = { x: roomOf(ctx).width / 2, y: roomOf(ctx).dining.y2 };
     for (const w of [state.restaurant.waiter, ...state.restaurant.helpers]) Object.assign(w, door);
   } else {
     state.crew.farmerAway = null;
@@ -330,7 +333,7 @@ export const crewSystem: System = {
     wasDue.set(ctx.state, due);
   },
   onDayStart(ctx) {
-    const { state, content } = ctx;
+    const { state } = ctx;
     finishAll(ctx);
     // Hoá đơn tối qua chưa trả thì tự trả (không vượt số tiền đang có)
     if (state.crew.bill.length) payBill(ctx);
@@ -341,8 +344,8 @@ export const crewSystem: System = {
     state.crew.farmerBack = null;
     // Ngủ một đêm: ai cũng đầy năng lượng
     for (const m of crewMembers(ctx)) Object.assign(m.vitals, { energy: maxEnergyOf(ctx, m.who), fainted: false });
-    Object.assign(state.restaurant.waiter, content.room.waiterHome);
-    for (const h of state.restaurant.helpers) Object.assign(h, content.room.waiterHome);
+    Object.assign(state.restaurant.waiter, roomOf(ctx).waiterHome);
+    for (const h of state.restaurant.helpers) Object.assign(h, roomOf(ctx).waiterHome);
   },
   commands: {
     'crew/order'(ctx, cmd) {

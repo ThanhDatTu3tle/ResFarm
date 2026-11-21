@@ -16,11 +16,12 @@ export const room: RoomDef = {
   // Hạng quán (C3): phòng ăn sâu thêm về phía cửa; bếp, quầy ra món giữ nguyên chỗ
   // Mỗi bậc lên hạng thêm 1 chỗ thuê nhân viên phục vụ (tối đa 4 người ở hạng 5)
   tiers: [
+    // Giai đoạn 15: từ hạng 2 quán còn nới về phía Đông (width): bếp dài ra, quầy trước bếp thêm ghế đơn
     { id: 1, name: 'Quán nhỏ', icon: '🏠', height: 480, cost: 0, level: 1, desc: 'Quán khởi nghiệp gọn gàng.' },
-    { id: 2, name: 'Tiệm ăn', icon: '🏡', height: 570, cost: 1000, level: 3, desc: 'Phòng ăn rộng thêm, khách tới đông hơn 10%, thuê được 1 nhân viên.', modifiers: { spawnRate: 1.1 } },
-    { id: 3, name: 'Quán đông khách', icon: '🏘️', height: 660, cost: 3000, level: 4, desc: 'Rộng thêm nữa, khách đông hơn 20%, thuê được 2 nhân viên.', modifiers: { spawnRate: 1.2 } },
-    { id: 4, name: 'Nhà hàng', icon: '🏯', height: 750, cost: 5000, level: 6, desc: 'Khách đông hơn 30%, giá món +5%, thuê được 3 nhân viên.', modifiers: { spawnRate: 1.3, dishPrice: 1.05 } },
-    { id: 5, name: 'Nhà hàng nổi tiếng', icon: '🏰', height: 840, cost: 8000, level: 8, desc: 'Khách đông hơn 40%, giá món +10%, thuê được 4 nhân viên.', modifiers: { spawnRate: 1.4, dishPrice: 1.1 } },
+    { id: 2, name: 'Tiệm ăn', icon: '🏡', height: 570, width: 660, cost: 1000, level: 3, desc: 'Phòng ăn rộng thêm cả chiều dài lẫn chiều ngang, khách tới đông hơn 10%, thuê được 1 nhân viên.', modifiers: { spawnRate: 1.1 } },
+    { id: 3, name: 'Quán đông khách', icon: '🏘️', height: 660, width: 720, cost: 3000, level: 4, desc: 'Rộng thêm nữa, bếp dài ra, quầy trước bếp thêm ghế; khách đông hơn 20%, thuê được 2 nhân viên.', modifiers: { spawnRate: 1.2 } },
+    { id: 4, name: 'Nhà hàng', icon: '🏯', height: 750, width: 780, cost: 5000, level: 6, desc: 'Bếp dài rộng rãi, quầy thêm ghế; khách đông hơn 30%, giá món +5%, thuê được 3 nhân viên.', modifiers: { spawnRate: 1.3, dishPrice: 1.05 } },
+    { id: 5, name: 'Nhà hàng nổi tiếng', icon: '🏰', height: 840, width: 840, cost: 8000, level: 8, desc: 'Rộng nhất: bếp dài cho 4 đầu bếp, quầy 6 ghế đơn; khách đông hơn 40%, giá món +10%, thuê được 4 nhân viên.', modifiers: { spawnRate: 1.4, dishPrice: 1.1 } },
   ],
 };
 
@@ -52,4 +53,6 @@ export const upgrades: UpgradeDef[] = [
   { id: 'sign', name: 'Biển hiệu đèn LED', icon: '💡', desc: 'Khách tới đông hơn 25%.', cost: 500, level: 3, modifiers: { spawnRate: 1.25 } },
   { id: 'stove', name: 'Bếp công nghiệp', icon: '🔥', desc: 'Nấu nhanh hơn 25% nữa.', cost: 900, level: 4, requires: 'knives', modifiers: { cookSpeed: 1.25 } },
   { id: 'porcelain', name: 'Bộ bát đĩa sứ', icon: '🍽️', desc: 'Giá bán mọi món tăng 10%.', cost: 1200, level: 5, modifiers: { dishPrice: 1.1 } },
+  // Giai đoạn 15: tủ kem đặt trong quán — khách ngó kem trong lúc chờ, kiên nhẫn hơn
+  { id: 'icecream', name: 'Tủ kem', icon: '🍦', desc: 'Khách kiên nhẫn hơn 30%.', cost: 700, level: 4, modifiers: { patience: 1.3 } },
 ];

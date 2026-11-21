@@ -75,7 +75,10 @@ export const balance: Balance = {
   seasons: { inSeasonPrice: 0.85, offSeasonPrice: 1.3, dishBonus: 1.2 },
   regulars: { chance: 0.22, heartVisits: [1, 3, 6, 10, 15], tipPerHeart: 0.12, favoriteTip: 0.5, favoriteRep: 0.04, giftHearts: 3, maxPartySize: 2 },
   resellRate: 0.5,
-  helpers: { hireCost: 300, names: ['Bé Mận', 'Anh Bin', 'Chị Hoa', 'Cu Tèo'] },
+  // Nhân viên thuê đi chậm hơn bồi bàn (người chơi) — speedMul; từ 2 người: mỗi sáng sickChance có 1 người bệnh nghỉ
+  // Khách tới: đi bộ / gửi xe máy / đậu ô tô mất bấy nhiêu phút trước khi vào hàng chờ; đi từ cửa vào ghế theo quãng đường
+  arrival: { walk: 2, moto: 4, car: 4.5, bus: 4, seatUnitsPerMinute: 150 },
+  helpers: { hireCost: 300, names: ['Bé Mận', 'Anh Bin', 'Chị Hoa', 'Cu Tèo'], speedMul: 0.6, sickChance: 0.2 },
   // Người làm vườn: chậm hơn bác nông dân một chút; nghỉ cùng giờ với bác
   gardeners: { hireCost: 350, levels: [2, 4, 6], names: ['Cô Lài', 'Chú Tư', 'Anh Sáu'], speed: 3.0, workTime: 1.4, homes: [{ x: 0.2, z: 5.4 }, { x: 2.3, z: 5.4 }, { x: 1.25, z: 6.4 }] },
   // Đầu bếp 30 năng lượng, bồi bàn / nhân viên / bác nông dân 50; ngủ qua đêm đầy lại. Dọn bàn không tốn sức. Nghỉ trưa: quán đóng 12:00, cả đội ra chợ (đội quán 14:00 về,

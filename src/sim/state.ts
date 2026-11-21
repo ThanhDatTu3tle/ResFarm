@@ -40,7 +40,8 @@ export interface GameState {
   /** Khách quen đã từng ghé (id RegularDef -> số lần, ngày ghé gần nhất, đã tặng quà chưa). Chưa ghé lần nào thì không có mục. */
   regulars: Record<string, RegularState>;
   /** Quán của riêng mình: tên quán, thú cưng đang nuôi và các con đã nhận nuôi. */
-  profile: { name: string; pet: string | null; pets: string[] };
+  /** pets = đã nhận nuôi; petsOut = đang ở quán (giai đoạn 15: nhiều con cùng lúc — cả chó lẫn mèo). */
+  profile: { name: string; pets: string[]; petsOut: string[] };
   /** Hệ số giá chợ hôm nay theo từng nguyên liệu. */
   market: { priceFactor: Record<string, number> };
   weather: { id: string; minutesLeft: number };
@@ -119,6 +120,13 @@ export interface Party {
   color?: number;
   /** Ngày hướng dẫn: món nhóm khách này nhất định gọi (id món) khi đủ nguyên liệu. */
   want?: string;
+  /**
+   * Giai đoạn 15: phút còn lại khách mới tới nơi — trong hàng chờ: đang đi bộ / gửi xe ngoài bãi (chưa xếp bàn);
+   * đã có bàn: đang đi từ cửa vào chỗ ngồi (chưa cần menu, không mất kiên nhẫn). Không có / 0 = đã tới.
+   */
+  walking?: number;
+  /** Khách trong đoàn du lịch (sự kiện xe du lịch): tới bằng minibus đỗ trước quán. */
+  tour?: boolean;
 }
 
 /** Một đơn đặt hàng từ khách ngoài (systems/contracts.ts). */
@@ -286,6 +294,13 @@ export interface HelperState extends WaiterState {
   /** Kiểu áo (chỉ để vẽ). */
   look: number;
   jobs: Record<HelperJob, boolean>;
+  /**
+   * Từ 2 nhân viên trở lên: mỗi người giữ một bàn — mang menu cho bàn nào thì ghi món, bưng món, dọn bàn đó (giai đoạn 15).
+   * null / không có = đang rảnh tay, nhận bàn mới.
+   */
+  focus?: { partyId: number; tableId: string } | null;
+  /** Hôm nay bị bệnh, nghỉ làm (sự kiện mỗi sáng khi có từ 2 nhân viên). */
+  sick?: boolean;
 }
 
 export interface RestaurantState {
@@ -300,6 +315,8 @@ export interface RestaurantState {
   layout: Record<string, { x: number; y: number; rot?: boolean }>;
   /** Bàn lẻ mua thêm (id bàn, loại TableKindDef). */
   extraTables: { id: string; kind: string }[];
+  /** Bàn gốc bị công an khu vực thu (quán ốc lấn chiếm lề đường) — không còn trong quán. */
+  confiscated: string[];
   /** Đồ trang trí đã mua (đang bày hoặc cất kho). */
   props: PropState[];
   /** Hạng quán (1 = Quán nhỏ), chỉ số trong content.room.tiers + 1. */
@@ -392,7 +409,7 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 22;
+export const SAVE_VERSION = 24;
 
 export interface OwnerProfile {
   gender: 'male' | 'female';
@@ -511,6 +528,7 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
       spawnTimer: 10,
       layout: {},
       extraTables: [],
+      confiscated: [],
       props: [],
       tier: 1,
       waiter: { ...content.room.waiterHome, tasks: [], carrying: [], energy: b.crew.maxEnergy, fainted: false },
@@ -532,7 +550,7 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
     traffic: 1,
     tutorial: null,
     regulars: {},
-    profile: { name: DEFAULT_SHOP_NAME, pet: null, pets: [] },
+    profile: { name: DEFAULT_SHOP_NAME, pets: [], petsOut: [] },
     weather: { id: content.weathers.all()[0].id, minutesLeft: 0 },
     crew: { restaurantAway: null, farmerAway: null, pending: [], meals: [], bill: [], farmerWaiting: false, farmerBack: null, farmerLunchDay: 0 },
     contracts: [],

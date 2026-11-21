@@ -60,6 +60,11 @@ function seatParty(game: Game, tableId: string, size: number, seats: number[] = 
   return party;
 }
 
+/** Số ghế đang có khách ở một bàn. */
+function occupiedSeatsOf(game: Game, tableId: string): number {
+  return game.state.restaurant.parties.filter((p) => p.tableId === tableId).reduce((s, p) => s + p.seats.length, 0);
+}
+
 /** Game không có khách tự tới và thời tiết cố định — để dựng tình huống phục vụ bằng tay. */
 /** Một nhóm khách mới tới (cỡ nhóm ngẫu nhiên theo luật), giữ nguyên trong hàng chờ. */
 function spawnPartyFor(game: Game): Party {
@@ -906,7 +911,25 @@ describe('quán của riêng mình', () => {
     const money = game.state.money;
     expect(game.dispatch({ type: 'pet/adopt', petId: 'cat' }).ok).toBe(true);
     expect(game.state.money).toBe(money);
-    expect(game.state.profile.pet).toBe('cat');
+    // Giai đoạn 15: chó và mèo ở quán cùng lúc, hiệu ứng cộng cả hai; cho một bé nghỉ thì còn bé kia
+    expect(game.state.profile.petsOut.sort()).toEqual(['cat', 'dog']);
+    expect(modifier(game.ctx, 'patience')).toBeCloseTo(before * 1.06);
+    expect(game.dispatch({ type: 'pet/set', petId: 'cat', out: false }).ok).toBe(true);
+    expect(game.state.profile.petsOut).toEqual(['dog']);
+    expect(modifier(game.ctx, 'patience')).toBeCloseTo(before);
+    // Save cũ (v23, một con ở quán) lên v24
+    const old = JSON.parse(serialize(game.state));
+    old.version = 23;
+    old.profile = { name: 'x', pet: 'cat', pets: ['cat', 'dog'] };
+    expect(deserialize(JSON.stringify(old), content)!.profile).toEqual({ name: 'x', pets: ['cat', 'dog'], petsOut: ['cat'] });
+  });
+
+  it('giai đoạn 15: tủ kem (+30% kiên nhẫn) có ở Siêu thị', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 5000, level: 9 });
+    const before = modifier(game.ctx, 'patience');
+    expect(game.dispatch({ type: 'upgrade/buy', upgradeId: 'icecream' }).ok).toBe(true);
+    expect(modifier(game.ctx, 'patience')).toBeCloseTo(before * 1.3);
   });
 
   it('đồ trang trí: mua tự đặt chỗ trống, không chồng bàn; dời / xoay / cất / bán lại; hiệu ứng mỗi loại tính 1 lần', () => {
@@ -1134,6 +1157,120 @@ describe('nhân viên phục vụ thuê thêm', () => {
     expect(game.state.money).toBe(money - content.balance.crew.reviveCost);
     expect(h.fainted).toBe(false);
     expect(h.energy).toBe(content.balance.crew.reviveEnergy);
+  });
+
+  it('giai đoạn 15: từ 2 nhân viên — người đầu làm quản lý, mỗi người giữ một bàn; có ngày 1 người bệnh nghỉ; đi chậm hơn bồi bàn', async () => {
+    const { isManager, teamMode } = await import('../src/sim/systems/helpers');
+    const game = quietGame();
+    Object.assign(game.state, { money: 1e6, level: 20 });
+    while (game.dispatch({ type: 'restaurant/upgrade' }).ok);
+    game.dispatch({ type: 'helper/hire' });
+    expect(teamMode(game.ctx)).toBe(false);
+    game.dispatch({ type: 'helper/hire' });
+    const [a, b] = game.state.restaurant.helpers;
+    expect(teamMode(game.ctx)).toBe(true);
+    expect(isManager(game.ctx, a.id)).toBe(true);
+    expect(isManager(game.ctx, b.id)).toBe(false);
+    // Hai bàn cần menu: mỗi người nhận một bàn, giữ luôn bàn đó
+    const p1 = seatParty(game, 'pair', 2);
+    const p2 = seatParty(game, 'pair2', 2);
+    game.tick(0.2);
+    const held = [a.focus?.partyId, b.focus?.partyId].sort();
+    expect(held).toEqual([p1.id, p2.id].sort());
+    const owner = a.focus!.partyId === p1.id ? a : b;
+    const other = owner === a ? b : a;
+    // Bàn của người kia chọn món xong: chỉ người giữ bàn đó tới ghi món
+    for (let i = 0; i < 80 && p1.phase !== 'readyToOrder' && p1.phase !== 'waitingFood'; i++) game.tick(0.5);
+    for (let i = 0; i < 20 && p1.phase === 'readyToOrder'; i++) {
+      expect(other.tasks.some((t) => 'partyId' in t && t.partyId === p1.id && t.kind === 'takeOrder')).toBe(false);
+      game.tick(0.5);
+    }
+    expect(p1.phase).toBe('waitingFood');
+    // Nhân viên thuê đi chậm hơn bồi bàn
+    expect(content.balance.helpers.speedMul).toBeLessThan(1);
+    // Bệnh nghỉ: chỉ khi có từ 2 nhân viên; người bệnh không làm, không ra chợ ăn cùng đội
+    const sickDays = Array.from({ length: 30 }, (_, i) => {
+      const g = new Game(content, { seed: 100 + i });
+      Object.assign(g.state, { money: 1e6, level: 20 });
+      while (g.dispatch({ type: 'restaurant/upgrade' }).ok);
+      g.dispatch({ type: 'helper/hire' });
+      g.dispatch({ type: 'helper/hire' });
+      runDay(g, false);
+      g.dispatch({ type: 'day/next' });
+      return g.state.restaurant.helpers.filter((h) => h.sick).length;
+    });
+    expect(Math.max(...sickDays)).toBe(1);
+    expect(sickDays.some((n) => n === 1)).toBe(true);
+    expect(sickDays.some((n) => n === 0)).toBe(true);
+  });
+
+  it('giai đoạn 15: công an khu vực (chỉ quán ốc) — bồi dưỡng theo hạng quán hoặc mất một bàn đôi; save v22 lên v23', async () => {
+    const { bribeOf, policePending, seizableTable } = await import('../src/sim/systems/events');
+    const { events } = await import('../src/data/events');
+    expect(events.find((e) => e.id === 'police')?.cuisines).toEqual(['oc']);
+    const make = () => {
+      const g = new Game(content, { seed: 7, cuisine: 'oc' });
+      g.state.restaurant.spawnTimer = 1e9;
+      g.state.clock.minute = 8 * 60;
+      g.state.event = { id: 'police', at: 0, status: 'scheduled', minutesLeft: 0, partyId: null, result: null };
+      g.tick(0.5);
+      return g;
+    };
+    const g = make();
+    expect(policePending(g.ctx)).not.toBeNull();
+    expect(bribeOf(g.ctx)).toBe(200);
+    g.state.restaurant.tier = content.room.tiers.length;
+    expect(bribeOf(g.ctx)).toBe(700);
+    g.state.restaurant.tier = 1;
+    const money = g.state.money;
+    expect(g.dispatch({ type: 'event/police', choice: 'bribe' }).ok).toBe(true);
+    expect(g.state.money).toBe(money - 200);
+    expect(policePending(g.ctx)).toBeNull();
+    // Để thu bàn: mất một bàn đôi đang trống (bàn có khách không bị thu)
+    const t = make();
+    const pairs = () => activeTables(t.ctx).filter((x) => x.seats === 2);
+    const before = pairs().length;
+    seatParty(t, pairs()[0].id, 2);
+    const target = seizableTable(t.ctx)!;
+    expect(target.id).not.toBe(pairs()[0].id);
+    expect(t.dispatch({ type: 'event/police', choice: 'table' }).ok).toBe(true);
+    expect(pairs()).toHaveLength(before - 1);
+    expect(t.state.restaurant.confiscated).toEqual([target.id]);
+    // Lưu / tải lại vẫn mất bàn; save cũ v22 có confiscated rỗng
+    const again = deserialize(serialize(t.state), content)!;
+    expect(again.restaurant.confiscated).toEqual([target.id]);
+    const old = JSON.parse(serialize(newGame().state));
+    old.version = 22;
+    delete old.restaurant.confiscated;
+    expect(deserialize(JSON.stringify(old), content)!.restaurant.confiscated).toEqual([]);
+    // Quán khác không bao giờ có công an
+    for (let seed = 1; seed <= 60; seed++) {
+      const v = new Game(content, { seed, cuisine: 'vn' });
+      for (let d = 0; d < 3; d++) {
+        runDay(v, false);
+        v.dispatch({ type: 'day/next' });
+        expect(v.state.event?.id).not.toBe('police');
+      }
+      if (seed > 6) break;
+    }
+  });
+
+  it('giai đoạn 15: kéo bàn thả hơi lệch vào khe thì tự hít vào chỗ trống gần nhất', async () => {
+    const { nearestPlaceable } = await import('../src/sim/layout');
+    const game = quietGame();
+    const pair = activeTables(game.ctx).find((t) => t.id === 'pair')!;
+    const medium = activeTables(game.ctx).find((t) => t.id === 'medium')!;
+    const at = tablePos(game.ctx, medium);
+    // Đặt bàn đôi sát bàn bốn (vướng), chỗ trống gần nhất cách đó không xa
+    const check = (x: number, y: number) => canPlaceTable(game.ctx, pair.id, x, y);
+    const want = { x: at.x + 125, y: at.y };
+    const fit = nearestPlaceable(check, want.x, want.y, 60);
+    expect(fit).not.toBeNull();
+    expect(check(fit!.x, fit!.y)).toBeNull();
+    expect(Math.hypot(fit!.x - want.x, fit!.y - want.y)).toBeLessThanOrEqual(60);
+    // Chỗ đã trống thì giữ nguyên
+    const free = tablePos(game.ctx, pair);
+    expect(nearestPlaceable(check, free.x, free.y)).toEqual(free);
   });
 
   it('save v11 được nâng cấp lên v12', () => {
@@ -1756,15 +1893,66 @@ describe('đơn đặt hàng, bán hàng dư, sự kiện', () => {
     expect(game.state.reputation).toBeLessThan(rep);
   });
 
-  it('xe du lịch: khách tới gấp đôi trong lúc diễn ra rồi hết', () => {
+  it('xe du lịch: minibus chở một đoàn khách ngồi kín 100% bàn; cả đoàn về hết thì xe đi (sự kiện xong)', () => {
     const game = quietGame();
-    const base = modifier(game.ctx, 'spawnRate');
-    game.state.event = { id: 'tour_bus', at: 8 * 60, status: 'scheduled', minutesLeft: 90, partyId: null, result: null };
-    game.tick(1);
-    expect(modifier(game.ctx, 'spawnRate')).toBeCloseTo(base * 2);
-    game.tick(95);
+    seatParty(game, 'pair', 2);
+    game.state.event = { id: 'tour_bus', at: 8 * 60, status: 'scheduled', minutesLeft: 0, partyId: null, result: null };
+    game.tick(0.5);
+    const tour = game.state.restaurant.parties.filter((p) => p.tour);
+    // Mỗi bàn còn trống một nhóm đúng cỡ bàn, mỗi ghế quầy một khách
+    const tables = activeTables(game.ctx);
+    const seats = tables.filter((t) => t.id !== 'pair').reduce((s, t) => s + t.seats, 0);
+    expect(tour.reduce((s, p) => s + p.size, 0)).toBe(seats);
+    expect(game.state.event!.status).toBe('active');
+    for (let i = 0; i < 30; i++) game.tick(0.5);
+    for (const t of tables) expect(occupiedSeatsOf(game, t.id), t.id).toBe(t.seats);
+    // Không ai phục vụ: đoàn bỏ về hết → sự kiện xong
+    for (let i = 0; i < 600 && game.state.event!.status === 'active'; i++) game.tick(1);
     expect(game.state.event!.status).toBe('done');
-    expect(modifier(game.ctx, 'spawnRate')).toBeCloseTo(base);
+    expect(game.state.restaurant.parties.some((p) => p.tour)).toBe(false);
+  });
+
+  it('giai đoạn 15: khách tới / ngồi xuống rồi mới cần menu — nhân viên không chạy tới trước khách', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 1e6, level: 20 });
+    game.dispatch({ type: 'restaurant/upgrade' });
+    game.dispatch({ type: 'helper/hire' });
+    const p = spawnPartyFor(game);
+    expect(p.walking).toBeGreaterThan(0); // còn đi bộ / gửi xe ngoài bãi
+    for (let i = 0; i < 40 && p.phase === 'queue'; i++) game.tick(0.25);
+    expect(p.phase).toBe('seated');
+    expect(p.walking).toBeGreaterThan(0); // đang đi vào ghế
+    expect(game.dispatch({ type: 'service/menu', partyId: p.id }).ok).toBe(false);
+    const patience = p.patience;
+    const h = game.state.restaurant.helpers[0];
+    while ((p.walking ?? 0) > 0) {
+      expect(h.tasks.some((t) => 'partyId' in t && t.partyId === p.id)).toBe(false);
+      expect(p.called).toBe(false);
+      game.tick(0.1);
+    }
+    expect(p.patience).toBe(patience);
+    for (let i = 0; i < 40 && p.phase === 'seated'; i++) game.tick(0.5);
+    expect(p.phase).toBe('browsing');
+  });
+
+  it('giai đoạn 15: nâng hạng quán còn nới về phía Đông — quầy ra món dời theo, quầy trước bếp thêm ghế đơn', async () => {
+    const { roomOf } = await import('../src/sim/layout');
+    const game = quietGame();
+    Object.assign(game.state, { money: 1e6, level: 20 });
+    const w1 = roomOf(game.ctx).width;
+    const counter = () => activeTables(game.ctx).find((t) => t.id === 'counter')!;
+    expect(counter().seats).toBe(3);
+    while (game.dispatch({ type: 'restaurant/upgrade' }).ok);
+    const room = roomOf(game.ctx);
+    expect(room.width).toBeGreaterThan(w1);
+    expect(room.pass.x - content.room.pass.x).toBe(room.width - w1);
+    expect(counter().seats).toBe(6);
+    // Mép trái quầy giữ nguyên, bố cục mặc định vẫn không chồng nhau
+    expect(counter().x - counter().w / 2).toBe(content.tables.get('counter').x - content.tables.get('counter').w / 2);
+    for (const t of activeTables(game.ctx)) if (!t.fixed) expect(canPlaceTable(game.ctx, t.id, tablePos(game.ctx, t).x, tablePos(game.ctx, t).y), t.id).toBeNull();
+    // Quầy 6 ghế nhận đủ 6 khách lẻ
+    for (let i = 0; i < 6; i++) expect(findSeats(game.ctx, 1)).not.toBeNull(), seatParty(game, 'counter', 1, [findSeats(game.ctx, 1)!.seats[0]]);
+    expect(findSeats(game.ctx, 1)?.tableId).not.toBe('counter');
   });
 
   it('save v15 nâng lên v16 có đơn hàng + sự kiện', () => {

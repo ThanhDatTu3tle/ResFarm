@@ -6,12 +6,20 @@ import type { ModifierKey } from './types';
  *  - critic: một vị khách đặc biệt tới quán; phục vụ vui vẻ thì thưởng, để khách bực / bỏ về thì mất uy tín.
  *  - inspector: thanh tra vệ sinh kiểm tra lúc tới: sàn sạch, bàn sạch thì thưởng; mỗi vết bẩn / bàn dơ bị phạt.
  *  - modifier: hiệu ứng nhân vào `modifier()` trong `duration` phút (xe du lịch, mất điện, khách sộp...).
+ *  - tour: minibus du lịch đỗ trước quán, một đoàn khách vào ngồi kín 100% bàn còn trống (`Party.tour`); xe đợi tới khi
+ *    cả đoàn ăn xong ra về.
+ *  - police: (chỉ quán ốc vỉa hè) công an khu vực ghé nhắc lấn chiếm lề đường — game dừng, chủ quán chọn "bồi dưỡng"
+ *    (`bribe`: [hạng 1, hạng cao nhất] xu, theo hạng quán) hoặc để công an thu một bàn đôi (lệnh `event/police`).
  */
 export interface EventDef {
   id: string;
   name: string;
   icon: string;
-  kind: 'critic' | 'inspector' | 'modifier';
+  kind: 'critic' | 'inspector' | 'modifier' | 'police' | 'tour';
+  /** Chỉ xảy ra ở các phong cách quán này (bỏ trống = mọi quán). */
+  cuisines?: string[];
+  /** police: số xu "bồi dưỡng" ở hạng quán thấp nhất / cao nhất (ở giữa chia đều theo hạng). */
+  bribe?: [number, number];
   weight: number;
   /** Báo trước từ sáng (critic, inspector) — người chơi có thời gian chuẩn bị. */
   announce?: string;
@@ -52,11 +60,10 @@ export const events: EventDef[] = [
     id: 'tour_bus',
     name: 'Xe du lịch ghé',
     icon: '🚌',
-    kind: 'modifier',
+    kind: 'tour',
     weight: 3,
-    start: 'Một xe du lịch vừa đỗ trước cửa — khách kéo tới gấp đôi trong 1 tiếng rưỡi!',
-    duration: 90,
-    effects: { spawnRate: 2 },
+    // Giai đoạn 15: một chiếc minibus đỗ trước quán, cả đoàn khách vào ngồi kín mọi bàn còn trống
+    start: 'Một chiếc minibus du lịch vừa đỗ trước cửa — cả đoàn khách kéo vào, ngồi kín mọi bàn!',
   },
   {
     id: 'outage',
@@ -77,5 +84,16 @@ export const events: EventDef[] = [
     start: 'Mấy đoàn khách sộp đang đi ăn quanh khu — tip gấp đôi trong 2 tiếng!',
     duration: 120,
     effects: { tip: 2 },
+  },
+  {
+    id: 'police',
+    name: 'Công an khu vực',
+    icon: '👮',
+    kind: 'police',
+    cuisines: ['oc'],
+    weight: 2,
+    start: 'Công an khu vực ghé hỏi thăm: quán bày bàn ghế lấn chiếm lề đường!',
+    bribe: [200, 700],
+    penalty: { money: 0, rep: 0.1 },
   },
 ];

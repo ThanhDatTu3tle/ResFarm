@@ -28,14 +28,40 @@ export interface Rect {
 
 /** Bước lưới khi dời bàn / đồ trang trí. */
 export const LAYOUT_GRID = 5;
-const SEAT_RADIUS = 15;
+// Ghế chiếm chỗ quanh điểm ngồi (giai đoạn 15: 15 → 12 cho khớp ghế thật trong cảnh, đỡ bị "vướng" khi còn khe trống)
+const SEAT_RADIUS = 12;
 
 /** Mặt bằng quán theo hạng hiện tại: phòng sâu thêm về phía cửa, khu ăn uống giãn theo. */
 export function roomOf(ctx: SimContext): RoomDef {
   const base = ctx.content.room;
   const tier = base.tiers[ctx.state.restaurant.tier - 1] ?? base.tiers[0];
-  if (tier.height === base.height) return base;
-  return { ...base, height: tier.height, dining: { ...base.dining, y2: base.dining.y2 + tier.height - base.height } };
+  const extra = widthExtra(ctx);
+  if (tier.height === base.height && !extra) return base;
+  // Nới về phía Đông: mép phải khu ăn, quầy ra món, chỗ bồi bàn đứng dời sang phải theo phần rộng thêm
+  return {
+    ...base,
+    width: base.width + extra,
+    height: tier.height,
+    dining: { ...base.dining, x2: base.dining.x2 + extra, y2: base.dining.y2 + tier.height - base.height },
+    pass: { x: base.pass.x + extra, y: base.pass.y },
+    waiterHome: { x: base.waiterHome.x + extra, y: base.waiterHome.y },
+  };
+}
+
+/** Phần quán rộng thêm về phía Đông so với hạng 1 (toạ độ 2D). */
+export function widthExtra(ctx: SimContext): number {
+  const base = ctx.content.room;
+  const tier = base.tiers[ctx.state.restaurant.tier - 1] ?? base.tiers[0];
+  return Math.max(0, (tier.width ?? base.width) - base.width);
+}
+
+/** Quầy ghế đơn trước bếp dài theo bếp: mỗi 60 đơn vị rộng thêm có thêm 1 ghế (mép trái giữ nguyên). */
+function withCounterSeats(ctx: SimContext, t: TableDef): TableDef {
+  if (!t.shared || !t.fixed) return t;
+  const more = Math.floor(widthExtra(ctx) / 60);
+  if (!more) return t;
+  const seatW = t.w / t.seats;
+  return { ...t, seats: t.seats + more, w: t.w + seatW * more, x: t.x + (seatW * more) / 2 };
 }
 
 /**
@@ -45,9 +71,9 @@ export function roomOf(ctx: SimContext): RoomDef {
 export function activeTables(ctx: SimContext): TableDef[] {
   const { state, content } = ctx;
   const r = state.restaurant;
-  const base = content.tables.all().filter((t) => (!t.requiresUpgrade || state.upgrades.includes(t.requiresUpgrade)) && (!t.cuisines || t.cuisines.includes(state.cuisine)));
+  const base = content.tables.all().filter((t) => (!t.requiresUpgrade || state.upgrades.includes(t.requiresUpgrade)) && (!t.cuisines || t.cuisines.includes(state.cuisine)) && !r.confiscated?.includes(t.id));
   const extra = r.extraTables.map((e) => extraTableDef(ctx, e.id, e.kind));
-  return [...base, ...extra].map((t) => withRotation(t, !!r.layout[t.id]?.rot));
+  return [...base.map((t) => withCounterSeats(ctx, t)), ...extra].map((t) => withRotation(t, !!r.layout[t.id]?.rot));
 }
 
 /** Bàn theo id (gồm cả bàn mua thêm); null nếu không có. */
@@ -153,6 +179,25 @@ export function blockerOf(ctx: SimContext, rect: Rect, skip: string): string | n
     if (p.uid === skip) continue;
     const def = ctx.content.props.get(p.def);
     if (overlaps(rect, propRect(def, p.x, p.y, p.rot))) return `Vướng ${def.name}.`;
+  }
+  return null;
+}
+
+/**
+ * Chỗ đặt được gần (x, y) nhất trong bán kính `radius` (dò theo lưới LAYOUT_GRID, gần trước xa sau) — dùng khi kéo thả:
+ * thả hơi lệch vào khe vẫn tự hít vào chỗ trống. `check` trả lý do vướng hoặc null. Không có chỗ nào thì null.
+ */
+export function nearestPlaceable(check: (x: number, y: number) => string | null, x: number, y: number, radius = 45): Point | null {
+  if (!check(x, y)) return { x, y };
+  const r = Math.floor(radius / LAYOUT_GRID);
+  const cands: [number, number, number][] = [];
+  for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) if (i || j) cands.push([i * i + j * j, i, j]);
+  cands.sort((a, b) => a[0] - b[0]);
+  for (const [d, i, j] of cands) {
+    if (d > r * r) break;
+    const px = x + i * LAYOUT_GRID;
+    const py = y + j * LAYOUT_GRID;
+    if (!check(px, py)) return { x: px, y: py };
   }
   return null;
 }

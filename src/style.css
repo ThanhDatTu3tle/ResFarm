@@ -1129,6 +1129,16 @@ button.water {
 }
 
 /* Thông báo nổi: góc phải, dưới đồng hồ, cạnh cột nút tròn — không che giữa màn hình */
+.dialog.police .police-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 6px;
+}
+.dialog.police .police-choices button {
+  flex: 1 1 180px;
+}
+
 #toasts {
   position: fixed;
   top: var(--toast-top, 168px);
