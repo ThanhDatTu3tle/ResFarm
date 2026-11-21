@@ -1,6 +1,6 @@
 import type { RngState } from '../core/rng';
 import type { GardenerJob } from '../data/farmhands';
-import { defaultDecor, recipesFor, type Content, type CuisineId, type DecorSlot, type ItemStack, type MillType, type SlotType } from '../data';
+import { defaultDecor, recipesFor, roomFor, type Content, type CuisineId, type DecorSlot, type ItemStack, type MillType, type SlotType } from '../data';
 
 /**
  * TRẠNG THÁI GAME — chỉ gồm dữ liệu JSON thuần (không class, không hàm, không Map/Set)
@@ -409,7 +409,7 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 24;
+export const SAVE_VERSION = 25;
 
 export interface OwnerProfile {
   gender: 'male' | 'female';
@@ -531,7 +531,7 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
       confiscated: [],
       props: [],
       tier: 1,
-      waiter: { ...content.room.waiterHome, tasks: [], carrying: [], energy: b.crew.maxEnergy, fainted: false },
+      waiter: { ...roomFor(content, cuisine).waiterHome, tasks: [], carrying: [], energy: b.crew.maxEnergy, fainted: false },
       shipper: { energy: b.crew.shipperMaxEnergy, fainted: false, trip: null },
       helpers: [],
       dirty: {},

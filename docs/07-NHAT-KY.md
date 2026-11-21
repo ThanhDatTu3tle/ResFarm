@@ -4,6 +4,16 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
+## 21/11/2026 (laptop) — Giai đoạn 16: tối ưu UX / UI
+
+**Nhánh:** `giai-doan-16`. Xem trước quán ở màn chọn quán.
+AI tự chọn: xem trước bằng cách tải lại trang với `?preview=` (ván tạm, seed 11, tua 110 phút tới ~08:50) thay vì dựng cảnh trong màn mở đầu — dùng lại nguyên cảnh quán thật, không phải dọn renderer; quay về bằng `?pick=` / `?choose=` (giờ chạy cả bản build, bản build tự xoá tham số khỏi thanh địa chỉ). Lúc xem trước ẩn HUD / ngăn kéo / thông báo, game không bao giờ hết tiền, không ghi đè save đang có.
+Sau góp ý: xem trước chỉ chiếu lại 90 phút game (chụp state lúc vào, hết đoạn thì gán lại + dựng lại khu quán, chớp trắng nhẹ) — không còn hiện bảng gọi món cho đội.
+Mặt bằng riêng quán Nhật (quầy chữ L) và quán Việt (bếp sát cửa): `RoomDef.plan / passStand / walls / variants` + `TableDef.byCuisine / bar`; giữ id bàn cũ (`pair`, `pair2` của quán Nhật thành 2 quầy đôi gắn cố định) để save cũ không vỡ. `walls` = khối bếp: không đặt bàn, người phục vụ đi vòng (pathing). Quán Nhật dùng chung bậc hạng quán (cộng phần chênh so với hạng 1) — hạng cao quán vẫn nới cả sâu lẫn ngang, quầy chữ L giữ nguyên (không thêm ghế quầy như quán Hàn).
+Góp ý UX: gợi ý phục vụ chỉ hiện lần đầu (cờ trong localStorage `quan-nha-vuon:hints`, màn xem trước không tính); toast khách quen vào `#toasts-left`; bong bóng 📖 chờ cả nhóm tới ghế trong cảnh (sim cũng nới thời gian đi vào ghế ×1.3 + 0.8 phút).
+
+---
+
 ## 21/11/2026 (laptop) — Giai đoạn 15: trước cửa quán, nhân viên, công an
 
 **Nhánh:** `giai-doan-15`. 7 mục từ lượt chơi thử tiếp (xem `04-ROADMAP.md`). Shipper giữ nguyên.

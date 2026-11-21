@@ -25,6 +25,8 @@ let cached: Grid | null = null;
 function bodiesOf(ctx: SimContext): Rect[] {
   // Cả bàn lẫn ghế (khách đang ngồi ở ghế): người phục vụ không đi xuyên qua ghế / khách
   const rects = activeTables(ctx).map((t) => footprint(t, tablePos(ctx, t)));
+  // Khối bếp / quầy cố định (quầy chữ L quán Nhật, bếp sát cửa quán Việt)
+  rects.push(...(roomOf(ctx).walls ?? []));
   for (const p of placedProps(ctx)) {
     const def = ctx.content.props.get(p.def);
     rects.push(propRect(def, p.x, p.y, p.rot));

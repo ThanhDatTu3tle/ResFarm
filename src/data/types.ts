@@ -243,6 +243,12 @@ export interface TableDef {
   rotated?: boolean;
   /** Bàn mua thêm: loại bàn (TableKindDef) — bán lại được. */
   kind?: string;
+  /** Bàn xoay 90° sẵn khi chưa được người chơi xoay / dời (bàn bốn quán Nhật đặt dọc sát tường). */
+  rot?: boolean;
+  /** Bàn kiểu quầy cao, ghế xếp một hàng ở cạnh phía Đông (quầy chữ L của quán Nhật). */
+  bar?: 'east';
+  /** Ghi đè theo phong cách quán (vị trí, số ghế, kiểu quầy...) — id giữ nguyên để save cũ không vỡ. */
+  byCuisine?: Partial<Record<CuisineId, Partial<Omit<TableDef, 'byCuisine' | 'id'>>>>;
   x: number;
   y: number;
   w: number;
@@ -290,6 +296,17 @@ export interface RoomDef {
   waiterHome: { x: number; y: number };
   /** Các hạng quán; hạng 1 = kích thước gốc (height). */
   tiers: TierDef[];
+  /**
+   * Kiểu mặt bằng (giai đoạn 16): 'back' = bếp dọc tường sau, quầy ghế đơn trước bếp (mặc định) ·
+   * 'L' = quầy bếp chữ L ở góc trái-sau, quán xoay mặt hẹp ra đường (quán Nhật) · 'front' = bếp sát cửa bên trái (quán Việt).
+   */
+  plan?: 'back' | 'L' | 'front';
+  /** Chỗ bồi bàn đứng lấy món ở quầy ra món (mặc định: ngay trước quầy, pass.y + 30). */
+  passStand?: { x: number; y: number };
+  /** Khối bếp / quầy cố định: không đặt bàn, người không đi xuyên qua. */
+  walls?: { x1: number; y1: number; x2: number; y2: number }[];
+  /** Mặt bằng riêng theo phong cách quán (ghi đè các trường trên; hạng quán vẫn dùng chung `tiers`, cộng thêm phần chênh so với hạng 1). */
+  variants?: Partial<Record<CuisineId, Partial<Omit<RoomDef, 'tiers' | 'variants'>>>>;
 }
 
 export type DecorSlot = 'floor' | 'wall' | 'furniture';

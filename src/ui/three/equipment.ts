@@ -26,6 +26,14 @@ export interface EquipDims {
   kitchenCenter: number;
   kitchenHalf: number;
   door: [number, number];
+  /**
+   * Mặt bằng riêng (quầy chữ L quán Nhật, bếp sát cửa quán Việt): dãy bếp (tâm, chiều dài, góc xoay — 0 = dọc tường sau),
+   * chỗ treo dao, tủ chén, tủ kem [x, z, góc xoay]. Bỏ trống = theo dãy bếp tường sau.
+   */
+  line?: { x: number; z: number; len: number; rot: number };
+  knife?: [number, number, number];
+  cabinet?: [number, number, number];
+  freezer?: [number, number, number];
   /** Quán ốc: chỗ xe đẩy, bếp nướng. */
   cart?: { x: number; z: number };
   grill?: { x: number; z: number };
@@ -70,8 +78,8 @@ export function buildEquipment(parent: THREE.Object3D, d: EquipDims, owned: Set<
   if (has('knives')) {
     if (!d.street) {
       // Thanh nam châm + 5 con dao trên tường bếp, bên trái dãy bếp
-      const x = d.kitchenCenter - d.kitchenHalf + 0.9;
-      const bar = group(g, { p: [x, 1.85, d.backZ + 0.05] });
+      const [x, z, rot] = d.knife ?? [d.kitchenCenter - d.kitchenHalf + 0.9, d.backZ + 0.05, 0];
+      const bar = group(g, { p: [x, 1.85, z], r: [0, rot, 0] });
       mesh(bar, G.box(1.0, 0.07, 0.04), 0x3b3f46);
       for (let i = 0; i < 5; i++) {
         const k = group(bar, { p: [-0.4 + i * 0.2, -0.05, 0.04] });
@@ -117,12 +125,14 @@ export function buildEquipment(parent: THREE.Object3D, d: EquipDims, owned: Set<
     const flameMat = new THREE.MeshBasicMaterial({ color: 0x4da3ff, transparent: true, opacity: 0.85 });
     if (!d.street) {
       // Chụp hút khói inox dài theo dãy bếp + ống khói lên trần, lửa xanh dưới chảo
-      const w = d.kitchenHalf * 2;
-      const z = d.backZ + 0.55;
-      mesh(g, G.box(w, 0.35, 0.95), 0xc7cfd6, { p: [d.kitchenCenter, 2.55, z] });
-      mesh(g, G.box(w - 0.2, 0.06, 0.85), 0x8f9aa4, { p: [d.kitchenCenter, 2.36, z] });
-      mesh(g, G.box(0.5, 0.8, 0.5), 0xc7cfd6, { p: [d.kitchenCenter, 3.1, z - 0.1] });
-      for (const dx of [-1.0, 0.2]) flames.push(mesh(g, G.cone(0.12, 0.12, 8), flameMat, { p: [d.kitchenCenter + dx, 1.03, z], cast: false }));
+      const line = d.line ?? { x: d.kitchenCenter, z: d.backZ + 0.55, len: d.kitchenHalf * 2, rot: 0 };
+      const h = group(g, { p: [line.x, 0, line.z], r: [0, line.rot, 0] });
+      const w = line.len;
+      const deep = d.line ? 0.7 : 0.95;
+      mesh(h, G.box(w, 0.35, deep), 0xc7cfd6, { p: [0, 2.55, 0] });
+      mesh(h, G.box(w - 0.2, 0.06, deep - 0.1), 0x8f9aa4, { p: [0, 2.36, 0] });
+      mesh(h, G.box(0.5, 0.8, 0.5), 0xc7cfd6, { p: [0, 3.1, -0.1] });
+      for (const dx of d.line ? [-w * 0.3, 0, w * 0.3] : [-1.0, 0.2]) flames.push(mesh(h, G.cone(0.12, 0.12, 8), flameMat, { p: [dx, 1.03, 0], cast: false }));
     } else if (d.grill) {
       // Quán ốc: bếp ga đôi trên chân sắt, chảo gang lớn, lửa xanh
       const x = d.grill.x + 1.25;
@@ -140,7 +150,7 @@ export function buildEquipment(parent: THREE.Object3D, d: EquipDims, owned: Set<
 
   if (has('porcelain')) {
     // Tủ chén kính: 3 tầng đĩa sứ trắng viền xanh, bát úp
-    const at: [number, number, number] = d.street ? [-d.halfW + 1.4, d.backZ + 0.45, 0] : [d.kitchenX1 - 0.32, (d.backZ + d.kitchenZ) / 2 + 0.2, -Math.PI / 2];
+    const at: [number, number, number] = d.street ? [-d.halfW + 1.4, d.backZ + 0.45, 0] : (d.cabinet ?? [d.kitchenX1 - 0.32, (d.backZ + d.kitchenZ) / 2 + 0.2, -Math.PI / 2]);
     const c = group(g, { p: [at[0], 0, at[1]], r: [0, at[2], 0] });
     mesh(c, G.box(1.1, 1.9, 0.42), 0x9a6b44, { p: [0, 0.95, 0] });
     mesh(c, G.box(1.0, 1.7, 0.02), new THREE.MeshBasicMaterial({ color: 0xcfeaff, transparent: true, opacity: 0.25 }), { p: [0, 1.0, 0.22], cast: false });
@@ -156,7 +166,7 @@ export function buildEquipment(parent: THREE.Object3D, d: EquipDims, owned: Set<
 
   if (has('icecream')) {
     // Tủ kem nắp kính: thân trắng, sọc hồng, khay kem nhiều màu, bảng "KEM" + cây kem trên nóc
-    const at: [number, number, number] = d.street ? [-d.halfW + 0.9, d.kitchenZ - 1.0, 0.3] : [-d.halfW + 1.9, d.kitchenZ + 0.55, 0];
+    const at: [number, number, number] = d.street ? [-d.halfW + 0.9, d.kitchenZ - 1.0, 0.3] : (d.freezer ?? [-d.halfW + 1.9, d.kitchenZ + 0.55, 0]);
     const f = group(g, { p: [at[0], 0, at[1]], r: [0, at[2], 0] });
     mesh(f, G.box(1.3, 0.85, 0.7), 0xfdfbf6, { p: [0, 0.43, 0] });
     mesh(f, G.box(1.32, 0.12, 0.72), 0xf08fb0, { p: [0, 0.62, 0] });

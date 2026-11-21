@@ -107,9 +107,15 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
   let focus: CuisineId = 'vn';
   /** Trang hướng dẫn đang mở (null = đóng). */
   let guide: number | null = null;
-  // Chỉ bản dev: ?pick=jp|kr|vn mở thẳng bước chọn quán (để xem / chụp giao diện)
-  const pick = import.meta.env.DEV ? new URLSearchParams(location.search).get('pick') : null;
+  // ?pick=oc: mở thẳng bước chọn quán (quay về từ màn xem trước — "Chọn quán khác"; bản dev dùng để chụp giao diện)
+  // ?choose=oc: quay về từ xem trước — "Chọn quán này": sang luôn bước chọn chủ quán
+  const query = new URLSearchParams(location.search);
+  const pick = query.get('pick');
   if (pick && content.cuisines.has(pick)) [step, focus] = ['pick', pick as CuisineId];
+  const choose = query.get('choose');
+  if (choose && content.cuisines.has(choose)) [step, focus, pickedOwner] = ['owner', choose as CuisineId, true];
+  // Bỏ tham số khỏi thanh địa chỉ (tải lại trang thì về màn đầu như thường)
+  if (!import.meta.env.DEV && (pick || choose)) history.replaceState(null, '', location.pathname);
   // Chỉ bản dev: ?owner=f35 mở thẳng bước chọn chủ quán (m / f + tuổi; kèm ?pick=oc để chọn quán)
   const devOwner = import.meta.env.DEV ? new URLSearchParams(location.search).get('owner') : null;
   if (devOwner) {
@@ -173,6 +179,7 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
       uiEl.innerHTML = `<div class="pick-head"><button class="mini" data-title="back" aria-label="Quay lại">←</button><h2>Chọn phong cách quán</h2></div>
         <div class="cuisine-cards">${ORDER.map(card).join('')}</div>
         <div class="pick-foot"><span class="muted">Nông trại và chợ dùng chung cho cả 4 quán.</span>
+          <button class="big preview-btn" data-title="preview" title="Vào xem thử bên trong quán đang có khách">👀 Xem trước</button>
           <button class="primary big" data-title="owner" style="--accent:${c.accent}"><span class="flag">${FLAGS[focus]}</span> Chọn ${esc(c.name)} →</button></div>`;
     }
   };
@@ -207,6 +214,11 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
     if (!el) return;
     const [action, arg] = el.dataset.title!.split(':');
     if (action === 'continue') return finish(null);
+    // Xem trước quán đang chọn: mở ván tạm của quán đó (không đụng tới save)
+    if (action === 'preview') {
+      location.href = `${location.pathname}?preview=${focus}`;
+      return;
+    }
     if (action === 'gender' || action === 'hair' || action === 'outfit') {
       // Đổi giới tính: kiểu tóc / quần áo của giới kia về "Theo tuổi" / "Mặc định" (giữ nguyên tên đang gõ)
       owner = action === 'gender' ? { ...cleanOwner({ ...owner, gender: arg as OwnerProfile['gender'] }), name: owner.name } : { ...owner, [action]: arg };

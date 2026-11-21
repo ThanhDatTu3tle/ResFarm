@@ -83,8 +83,8 @@ function partySpot(ctx: SimContext, party: Party): Point | null {
 
 /** Chỗ đứng trước quầy ra món. */
 export function passSpot(ctx: SimContext): Point {
-  const pass = roomOf(ctx).pass;
-  return { x: pass.x, y: pass.y + 30 };
+  const room = roomOf(ctx);
+  return room.passStand ?? { x: room.pass.x, y: room.pass.y + 30 };
 }
 
 function targetOf(ctx: SimContext, task: WaiterTask, w: WaiterState): Point | null {

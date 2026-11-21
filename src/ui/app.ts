@@ -26,7 +26,7 @@ import { calendarHtml } from './calendar';
 import { billHtml, buyHtml, lowStock, mealHtml, moneyText, periodSummaryHtml, renameHtml, tomorrowFestivalHtml, SIDE_PANELS, hudHtml, questHtml, serviceAlerts, serviceHtml, settingsHtml, SPEEDS } from './hud';
 import { memberOf } from '../sim/systems/crew';
 import { farmerBlocked } from '../sim/systems/farmer';
-import { needOf } from '../sim/systems/service';
+import { autoServeCommands, needOf } from '../sim/systems/service';
 import { resale } from '../sim/systems/home';
 import { bump, Counter, floatText, flyIcon, fxLayer } from './juice';
 import { panels, type UiState } from './panels';
@@ -49,20 +49,22 @@ const AUTOSAVE_SECONDS = 10;
  * opts.cuisine có giá trị = Ván mới với phong cách quán đó (ghi đè save cũ); không có = chơi tiếp từ save.
  * Màn hình mở đầu (title.ts) gọi hàm này sau khi người chơi chọn.
  */
-export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?: OwnerProfile; content?: Content } = {}): void {
+export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?: OwnerProfile; content?: Content; preview?: CuisineId } = {}): void {
   const content = opts.content ?? createContent();
 
   // Tham số URL để thử nhanh: ?fresh (bỏ qua save, không ghi save) · ?seed=7 · ?ff=300 (tua 300 phút game)
   // · ?area=farm · ?tab=menu (mở sẵn ngăn kéo) · ?speed=4
   const params = new URLSearchParams(location.search);
-  const fresh = params.has('fresh');
+  // Xem trước quán (màn chọn quán): ván tạm, không đọc / ghi save, không có ngày hướng dẫn
+  const preview = opts.preview ?? null;
+  const fresh = params.has('fresh') || !!preview;
   const saved = fresh || opts.cuisine ? null : loadSave(content);
   // ?cuisine=jp|kr|vn (kèm ?fresh) để thử nhanh một quán mà không qua màn hình mở đầu
   const paramCuisine = params.get('cuisine');
-  const cuisine = opts.cuisine ?? (paramCuisine && content.cuisines.has(paramCuisine) ? (paramCuisine as CuisineId) : 'vn');
+  const cuisine = opts.cuisine ?? preview ?? (paramCuisine && content.cuisines.has(paramCuisine) ? (paramCuisine as CuisineId) : 'vn');
   // Ván mới từ màn mở đầu: ngày 1 là ngày hướng dẫn (ván tạm ?fresh thì chỉ khi có ?tutorial)
-  const tutorial = !!opts.cuisine || params.has('tutorial');
-  const game = new Game(content, saved ? { state: saved } : { seed: params.has('seed') ? Number(params.get('seed')) : undefined, cuisine, tutorial, owner: opts.owner ?? paramOwner(params) });
+  const tutorial = !preview && (!!opts.cuisine || params.has('tutorial'));
+  const game = new Game(content, saved ? { state: saved } : { seed: params.has('seed') ? Number(params.get('seed')) : preview ? 11 : undefined, cuisine, tutorial, owner: opts.owner ?? paramOwner(params) });
   if (import.meta.env.DEV) {
     // ?tut=market — nhảy tới một bước của ngày hướng dẫn (intro / serve / hard / market / cook / farm / morning / lunch / done)
     const tut = params.get('tut');
@@ -98,6 +100,12 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       game.tick(1);
       if (billDue(game.ctx)) game.dispatch({ type: 'crew/pay' });
     }
+  } else if (preview) {
+    // Xem trước: tua tới giữa ca sáng, bồi bàn tự phục vụ để quán có khách đang ngồi ăn
+    for (let m = 0; m < 110; m++) {
+      previewAuto(game);
+      game.tick(1);
+    }
   } else game.tick(Number(params.get('ff')) || 0);
 
   root.innerHTML = `
@@ -121,6 +129,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     <div id="buy"></div>
     <div id="guide"></div>
     <div id="toasts"></div>
+    <div id="toasts-left"></div>
+    ${preview ? previewBarHtml(content, preview) : ''}
     <div id="photobar"><button class="primary" data-ui="snap">📸 Chụp ảnh quán</button><button data-ui="photo:close">✕ Thoát</button></div>
     <div id="rotate">
       <div class="big">📱↻</div>
@@ -128,6 +138,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       <span>Màn hình ngang hiển thị được nhiều hơn.</span>
       <button class="primary" data-ui="fullscreen">Toàn màn hình + xoay ngang</button>
     </div>`;
+  root.classList.toggle('previewing', !!preview);
   const $ = (id: string) => root.querySelector<HTMLElement>(`#${id}`)!;
 
   // Thứ tự mảng = thứ tự các khu từ trái sang phải khi bấm nút chuyển khu.
@@ -178,7 +189,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     const el = document.createElement('div');
     el.className = `toast ${kind}${pic ? ' with-pic' : ''}`;
     el.innerHTML = pic + `<span>${esc(text)}</span>`;
-    $('toasts').appendChild(el);
+    // Khách quen ghé / về: góc trái dưới thẻ nhiệm vụ (bên phải đã có đồng hồ + cột nút)
+    $(kind.includes('regular') ? 'toasts-left' : 'toasts').appendChild(el);
     setTimeout(() => el.remove(), ms);
   };
 
@@ -411,6 +423,19 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     restaurant.dispose();
     stage.replaceArea(restaurant, next);
     restaurant = next;
+  };
+  // Xem trước: chỉ chiếu lại một đoạn ~1,5 giờ của ca sáng (08:50 → 10:20) rồi tua về đầu — không bao giờ tới giờ đội ra chợ / gọi món
+  const previewLoop = preview ? { snap: structuredClone(game.state), from: game.state.clock.minute } : null;
+  const rewindPreview = () => {
+    if (!previewLoop) return;
+    const s = game.state as unknown as Record<string, unknown>;
+    for (const k of Object.keys(s)) delete s[k];
+    Object.assign(s, structuredClone(previewLoop.snap));
+    rebuildRestaurant();
+    const fade = root.querySelector<HTMLElement>('#preview-fade');
+    fade?.classList.remove('on');
+    void fade?.offsetWidth;
+    fade?.classList.add('on');
   };
   game.bus.on('restaurant/upgraded', (e) => {
     const tier = content.room.tiers[e.tier - 1];
@@ -772,7 +797,11 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     } else if (action === 'farmFocus') ui.farmFocus = arg || null;
     else if (action === 'speed') ui.speed = Number(arg);
     else if (action === 'settings') ui.settings = arg === 'close' ? false : !ui.settings;
-    else if (action === 'restart') {
+    else if (action === 'preview') {
+      // Xem trước xong: về màn chọn quán (back) hoặc sang bước chọn chủ quán với quán này (pick)
+      location.href = `${location.pathname}?${arg === 'pick' ? 'choose' : 'pick'}=${preview}`;
+      return;
+    } else if (action === 'restart') {
       // Phá sản: xoá save, về màn mở đầu chơi ván mới
       try {
         localStorage.removeItem(SAVE_KEY);
@@ -957,6 +986,9 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     }
     if ((domTimer += dt) >= 1 / DOM_FPS) {
       domTimer = 0;
+      // Xem trước: quán tự chạy (tự phục vụ, đội tự gọi món, tự trả tiền) — người xem chỉ ngắm
+      if (preview) previewAuto(game);
+      if (previewLoop && game.state.clock.minute - previewLoop.from >= PREVIEW_LOOP_MINUTES) rewindPreview();
       renderDom();
     }
     if ((saveTimer += dt) >= AUTOSAVE_SECONDS) {
@@ -984,6 +1016,26 @@ function readSave(): string | null {
   } catch {
     return null;
   }
+}
+
+/** Độ dài đoạn chiếu lại khi xem trước quán (phút game; 90 phút ≈ 1 phút thực ở x1). */
+const PREVIEW_LOOP_MINUTES = 90;
+
+/** Xem trước quán: người phục vụ mẫu làm mọi việc, đội tự gọi món / trả tiền — không có bảng nào hiện lên chặn màn. */
+function previewAuto(game: Game): void {
+  for (const c of autoServeCommands(game.ctx)) game.dispatch(c);
+  if (game.state.crew.pending.length) game.dispatch({ type: 'crew/autoOrder' });
+  if (billDue(game.ctx)) game.dispatch({ type: 'crew/pay' });
+  if (game.state.money < 100) game.state.money = 500; // ván xem trước không bao giờ hết tiền
+}
+
+/** Thanh trên cùng khi xem trước quán: tên quán, gợi ý thao tác camera, nút quay lại / chọn quán này. */
+function previewBarHtml(content: Content, id: CuisineId): string {
+  const c = content.cuisines.get(id);
+  return `<div id="preview-fade"></div><div id="preview-bar" style="--accent:${c.accent}">
+    <div class="pv-text"><b>👀 Xem trước ${esc(c.name)}</b><span>Kéo để xoay · lăn chuột / chụm hai ngón để phóng to · quán chiếu lại một đoạn ca sáng để bạn ngắm</span></div>
+    <div class="pv-actions"><button data-ui="preview:back">← Chọn quán khác</button><button class="primary" data-ui="preview:pick">✔ Chọn quán này</button></div>
+  </div>`;
 }
 
 /** ?owner=f35 (kèm ?fresh): ông chủ (m) / bà chủ (f) + tuổi cho ván tạm; thêm -tóc-quần áo-tên: ?owner=f35-braid-aodai-Cô Ba. */

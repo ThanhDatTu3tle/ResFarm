@@ -1,5 +1,5 @@
 import { farmTools } from '../data/farmhands';
-import { decorFor, defaultDecor, type Content } from '../data';
+import { decorFor, defaultDecor, roomFor, type Content } from '../data';
 import { EventBus } from '../core/events';
 import { canPlaceTable } from './layout';
 import { resolveOverlaps } from './systems/home';
@@ -99,6 +99,15 @@ const migrations: Record<number, (old: any) => any> = {
     const { pet, ...profile } = s.profile as { pet?: string | null } & Record<string, unknown>;
     return { ...s, profile: { ...profile, petsOut: pet ? [pet] : [] }, version: 24 };
   },
+  // Giai đoạn 16: quán Nhật (quầy chữ L, quán sâu) và quán Việt (bếp sát cửa) đổi mặt bằng — bàn gốc về chỗ mặc định mới,
+  // bồi bàn / nhân viên về chỗ đứng chờ mới (bàn mua thêm, đồ trang trí bị đè thì fixLayout tự dời)
+  24: (s) => {
+    const r = s.restaurant as { layout: Record<string, unknown>; waiter: { x: number }; helpers: { x: number }[] };
+    if (s.cuisine !== 'jp' && s.cuisine !== 'vn') return { ...s, version: 25 };
+    const layout = { ...r.layout };
+    for (const id of ['counter', 'medium', 'pair', 'pair2']) delete layout[id];
+    return { ...s, restaurant: { ...r, layout, waiter: { ...r.waiter, x: -1 }, helpers: r.helpers.map((h) => ({ ...h, x: -1 })) }, version: 25 };
+  },
 };
 
 export function serialize(state: GameState): string {
@@ -143,7 +152,7 @@ function reconcile(state: GameState, content: Content): GameState {
   profile.pets = profile.pets.filter((id) => content.pets.has(id));
   profile.petsOut = [...new Set(profile.petsOut ?? [])].filter((id) => profile.pets.includes(id));
   for (const id of Object.keys(state.regulars)) if (!content.regulars.has(id)) delete state.regulars[id];
-  const tableIds = new Set([...content.tables.all().map((t) => t.id), ...r.extraTables.map((t) => t.id)]);
+  const tableIds = new Set([...content.tables.all().filter((t) => !t.cuisines || t.cuisines.includes(state.cuisine)).map((t) => t.id), ...r.extraTables.map((t) => t.id)]);
   r.parties = r.parties.filter((p) => p.tableId == null || tableIds.has(p.tableId));
   for (const p of r.parties) if (p.regular && !content.regulars.has(p.regular)) p.regular = null;
   // Nông trại: dụng cụ còn trong data, số người làm vườn theo chỗ đã mở, việc trỏ tới ô không còn thì bỏ
@@ -157,7 +166,8 @@ function reconcile(state: GameState, content: Content): GameState {
   }
   for (const id of state.achievements.claimed) if (!state.achievements.done.includes(id)) state.achievements.done.push(id);
   // Bồi bàn: bỏ việc trỏ tới khách / món không còn; món đang bưng mà không còn trên tay thì trả về quầy
-  if (r.waiter.x < 0) Object.assign(r.waiter, content.room.waiterHome);
+  const home = roomFor(content, state.cuisine).waiterHome;
+  for (const w of [r.waiter, ...r.helpers]) if (w.x < 0) Object.assign(w, home);
   // Chỗ nhân viên: theo hạng quán + phần cộng của hạng bếp (khớp maxHelpers trong systems/helpers.ts)
   const kitchenBonus = content.balance.kitchen.tiers[Math.max(1, Math.floor(r.kitchenTier) || 1) - 1]?.helpers ?? 0;
   r.helpers = r.helpers.slice(0, Math.min(4, Math.max(0, r.tier - 1) + kitchenBonus));

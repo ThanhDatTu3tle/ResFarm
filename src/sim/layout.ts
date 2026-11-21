@@ -1,4 +1,4 @@
-import type { PropDef, RoomDef, TableDef } from '../data';
+import { roomFor, type PropDef, type RoomDef, type TableDef } from '../data';
 import type { PropState } from './state';
 import type { SimContext } from './types';
 
@@ -31,20 +31,33 @@ export const LAYOUT_GRID = 5;
 // Ghế chiếm chỗ quanh điểm ngồi (giai đoạn 15: 15 → 12 cho khớp ghế thật trong cảnh, đỡ bị "vướng" khi còn khe trống)
 const SEAT_RADIUS = 12;
 
-/** Mặt bằng quán theo hạng hiện tại: phòng sâu thêm về phía cửa, khu ăn uống giãn theo. */
+/**
+ * Mặt bằng quán theo hạng hiện tại: phòng sâu thêm về phía cửa, khu ăn uống giãn theo.
+ * Mỗi phong cách quán có thể có mặt bằng riêng (room.variants — quán Nhật quầy chữ L, quán Việt bếp sát cửa);
+ * hạng quán cộng thêm phần chênh so với hạng 1 của mặt bằng chung.
+ */
 export function roomOf(ctx: SimContext): RoomDef {
-  const base = ctx.content.room;
-  const tier = base.tiers[ctx.state.restaurant.tier - 1] ?? base.tiers[0];
+  const def = ctx.content.room;
+  const base = roomFor(ctx.content, ctx.state.cuisine);
+  const tier = def.tiers[ctx.state.restaurant.tier - 1] ?? def.tiers[0];
   const extra = widthExtra(ctx);
-  if (tier.height === base.height && !extra) return base;
-  // Nới về phía Đông: mép phải khu ăn, quầy ra món, chỗ bồi bàn đứng dời sang phải theo phần rộng thêm
+  const dh = tier.height - def.height;
+  if (!dh && !extra) return base;
+  const plan = base.plan ?? 'back';
+  // Bếp dọc tường sau (mặc định): nới về phía Đông thì quầy ra món, chỗ bồi bàn đứng dời sang phải theo phần rộng thêm.
+  // Bếp sát cửa (quán Việt): phòng sâu thêm thì bếp + quầy ra món đi theo mặt tiền.
+  const dx = plan === 'back' ? extra : 0;
+  const dy = plan === 'front' ? dh : 0;
+  const move = (p: Point): Point => ({ x: p.x + dx, y: p.y + dy });
   return {
     ...base,
     width: base.width + extra,
-    height: tier.height,
-    dining: { ...base.dining, x2: base.dining.x2 + extra, y2: base.dining.y2 + tier.height - base.height },
-    pass: { x: base.pass.x + extra, y: base.pass.y },
-    waiterHome: { x: base.waiterHome.x + extra, y: base.waiterHome.y },
+    height: base.height + dh,
+    dining: { ...base.dining, x2: base.dining.x2 + extra, y2: base.dining.y2 + dh },
+    pass: move(base.pass),
+    passStand: base.passStand && move(base.passStand),
+    waiterHome: move(base.waiterHome),
+    walls: base.walls?.map((w) => ({ ...w, y1: w.y1 + dy, y2: w.y2 + dy })),
   };
 }
 
@@ -57,7 +70,7 @@ export function widthExtra(ctx: SimContext): number {
 
 /** Quầy ghế đơn trước bếp dài theo bếp: mỗi 60 đơn vị rộng thêm có thêm 1 ghế (mép trái giữ nguyên). */
 function withCounterSeats(ctx: SimContext, t: TableDef): TableDef {
-  if (!t.shared || !t.fixed) return t;
+  if (!t.shared || !t.fixed || (roomFor(ctx.content, ctx.state.cuisine).plan ?? 'back') !== 'back') return t;
   const more = Math.floor(widthExtra(ctx) / 60);
   if (!more) return t;
   const seatW = t.w / t.seats;
@@ -71,9 +84,12 @@ function withCounterSeats(ctx: SimContext, t: TableDef): TableDef {
 export function activeTables(ctx: SimContext): TableDef[] {
   const { state, content } = ctx;
   const r = state.restaurant;
-  const base = content.tables.all().filter((t) => (!t.requiresUpgrade || state.upgrades.includes(t.requiresUpgrade)) && (!t.cuisines || t.cuisines.includes(state.cuisine)) && !r.confiscated?.includes(t.id));
+  const base = content.tables
+    .all()
+    .filter((t) => (!t.requiresUpgrade || state.upgrades.includes(t.requiresUpgrade)) && (!t.cuisines || t.cuisines.includes(state.cuisine)) && !r.confiscated?.includes(t.id))
+    .map((t) => (t.byCuisine?.[state.cuisine] ? { ...t, ...t.byCuisine[state.cuisine] } : t));
   const extra = r.extraTables.map((e) => extraTableDef(ctx, e.id, e.kind));
-  return [...base.map((t) => withCounterSeats(ctx, t)), ...extra].map((t) => withRotation(t, !!r.layout[t.id]?.rot));
+  return [...base.map((t) => withCounterSeats(ctx, t)), ...extra].map((t) => withRotation(t, r.layout[t.id]?.rot ?? !!t.rot));
 }
 
 /** Bàn theo id (gồm cả bàn mua thêm); null nếu không có. */
@@ -87,9 +103,9 @@ function extraTableDef(ctx: SimContext, id: string, kind: string): TableDef {
   return { id, name: k.name, seats: k.seats, x: at.x, y: at.y, w: k.w, h: k.h, kind };
 }
 
-/** Bản xoay / bỏ xoay của một bàn (bàn quầy ghế đơn không xoay). */
+/** Bản xoay / bỏ xoay của một bàn (bàn quầy không xoay). */
 export function withRotation(t: TableDef, rot: boolean): TableDef {
-  if (t.shared || !!t.rotated === rot) return t;
+  if (t.shared || t.bar || !!t.rotated === rot) return t;
   return { ...t, w: t.h, h: t.w, rotated: rot };
 }
 
@@ -99,7 +115,7 @@ export function occupiedSeats(ctx: SimContext, tableId: string): number[] {
 
 /** Vị trí hiện tại của tâm bàn: chỗ người chơi đã dời tới, hoặc mặc định trong TableDef. */
 export function tablePos(ctx: SimContext, t: TableDef): Point {
-  const at = ctx.state.restaurant.layout[t.id];
+  const at = t.fixed ? null : ctx.state.restaurant.layout[t.id];
   return at ? { x: at.x, y: at.y } : { x: t.x, y: t.y };
 }
 
@@ -117,6 +133,13 @@ export function seatSpots(t: TableDef, at: Point = t): Spot[] {
     });
   }
   const along = (i: number, n: number) => at.x - t.w / 2 + (t.w * (i + 0.5)) / n;
+  // Quầy dọc (quầy chữ L quán Nhật): ghế một hàng phía Đông, quay mặt vào bếp
+  if (t.bar === 'east') {
+    return Array.from({ length: t.seats }, (_, i) => {
+      const y = at.y - t.h / 2 + (t.h * (i + 0.5)) / t.seats;
+      return { x: at.x + t.w / 2 + 28, y, dishX: at.x, dishY: y };
+    });
+  }
   if (t.shared) {
     return Array.from({ length: t.seats }, (_, i) => ({ x: along(i, t.seats), y: at.y + t.h / 2 + 28, dishX: along(i, t.seats), dishY: at.y }));
   }
@@ -168,8 +191,10 @@ export function placedProps(ctx: SimContext): PropState[] {
  * `skip` = id bàn hoặc uid đồ trang trí đang được dời (không tính chính nó). Trả lý do hoặc null.
  */
 export function blockerOf(ctx: SimContext, rect: Rect, skip: string): string | null {
-  const area = roomOf(ctx).dining;
+  const room = roomOf(ctx);
+  const area = room.dining;
   if (rect.x1 < area.x1 || rect.y1 < area.y1 || rect.x2 > area.x2 || rect.y2 > area.y2) return 'Nằm ngoài khu vực ăn uống.';
+  if (room.walls?.some((w) => overlaps(rect, w))) return 'Vướng quầy bếp.';
   if (overlaps(rect, entranceOf(ctx))) return 'Vướng lối ra vào (chỗ khách xếp hàng).';
   for (const t of activeTables(ctx)) {
     if (t.id === skip) continue;
@@ -254,6 +279,11 @@ export function serviceSpot(t: TableDef, at: Point, seats: number[]): Point {
   if (t.rotated) {
     const s = serviceSpot(withRotation(t, false), { x: 0, y: 0 }, seats);
     return turn(at, s.x, s.y);
+  }
+  if (t.bar === 'east') {
+    const spots = seatSpots(t, at);
+    const ys = seats.map((i) => spots[i]?.y ?? at.y);
+    return { x: at.x + t.w / 2 + 62, y: ys.reduce((a, b) => a + b, 0) / Math.max(1, ys.length) };
   }
   if (t.shared) {
     const spots = seatSpots(t, at);

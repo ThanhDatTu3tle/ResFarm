@@ -178,6 +178,12 @@ export function validateContent(c: Content): string[] {
   return errors;
 }
 
+/** Mặt bằng hạng 1 của quán phong cách này: mặt bằng chung + phần ghi đè riêng (room.variants). */
+export function roomFor(c: Content, cuisine: CuisineId): RoomDef {
+  const v = c.room.variants?.[cuisine];
+  return v ? { ...c.room, ...v } : c.room;
+}
+
 /** Nội thất bán cho quán phong cách này (món riêng của quán + món dùng chung). */
 export function decorFor(c: Content, cuisine: CuisineId): DecorDef[] {
   return c.decor.all().filter((d) => !d.cuisine || d.cuisine === cuisine);

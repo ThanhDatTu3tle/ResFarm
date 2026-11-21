@@ -35,7 +35,7 @@ export const decorSystem: System = {
       const problem = canPlaceTable(ctx, cmd.tableId, x, y);
       if (problem) return fail(problem);
       const rot = ctx.state.restaurant.layout[cmd.tableId]?.rot;
-      ctx.state.restaurant.layout[cmd.tableId] = rot ? { x, y, rot } : { x, y };
+      ctx.state.restaurant.layout[cmd.tableId] = rot != null ? { x, y, rot } : { x, y };
       return ok();
     },
     'layout/reset'(ctx) {
