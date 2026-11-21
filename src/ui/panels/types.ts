@@ -20,6 +20,8 @@ export interface UiState {
    * trong cảnh 3D. null = hiện tất cả (mở từ nút Nông trại).
    */
   farmFocus: string | null;
+  /** Tooltip nguồn nguyên liệu đang mở (bấm tag nguyên liệu ở bảng Đơn hàng): "<id đơn>:<id món>". */
+  itemTip?: string | null;
   /** Bàn (id) hoặc đồ trang trí (uid) đang chọn ở chế độ sắp xếp — thanh trên cùng hiện nút xoay / cất / bán. */
   editSelected: string | null;
   /** Chế độ chụp ảnh: ẩn hết bảng biểu, chỉ còn cảnh 3D + nút chụp. */

@@ -62,7 +62,7 @@ export const tables: TableDef[] = [
   { id: 'counter', name: 'Quầy trước bếp', seats: 3, shared: true, fixed: true, x: 325, y: 140, w: 210, h: 34, cuisines: ['jp', 'kr'], byCuisine: { jp: { name: 'Quầy ghế đơn', seats: 2, x: 99, y: 340, w: 178, h: 36 } } },
   // Quán ốc vỉa hè: không có quầy ghế đơn, thay bằng một bộ bàn đôi nhựa nữa
   { id: 'pair_oc', name: 'Bàn đôi vỉa hè', seats: 2, x: 470, y: 378, w: 70, h: 70, cuisines: ['oc'] },
-  { id: 'medium', name: 'Bàn bốn', seats: 4, x: 165, y: 300, w: 120, h: 76, byCuisine: { jp: { x: 370, y: 205, rot: true }, vn: { x: 300, y: 110 } } },
+  { id: 'medium', name: 'Bàn bốn', seats: 4, x: 165, y: 300, w: 120, h: 76, byCuisine: { jp: { name: 'Bàn bốn sát tường', fixed: true, wall: 'east', x: 442, y: 263, w: 76, h: 120 }, vn: { x: 300, y: 110 } } },
   // Quán Nhật: 2 bàn đôi là 2 khúc quầy đôi trên cạnh dài của quầy chữ L (gắn cố định, ghế quay vào bếp)
   { id: 'pair', name: 'Bàn đôi', seats: 2, x: 470, y: 290, w: 70, h: 70, byCuisine: { jp: { name: 'Quầy đôi', fixed: true, bar: 'east', x: 170, y: 115, w: 36, h: 90 }, vn: { x: 480, y: 110 }, oc: { x: 470, y: 265 } } },
   { id: 'pair2', name: 'Bàn đôi góc', seats: 2, x: 160, y: 420, w: 70, h: 70, byCuisine: { jp: { name: 'Quầy đôi trong', fixed: true, bar: 'east', x: 170, y: 245, w: 36, h: 90 }, vn: { x: 300, y: 300 } } },

@@ -3468,6 +3468,38 @@ button.meal-dish b {
   }
 }
 
+/* Tag nguyên liệu bấm được (bảng Đơn hàng) + tooltip nguồn nguyên liệu */
+button.chip.item-chip {
+  font: inherit;
+  cursor: pointer;
+}
+button.chip.item-chip.on {
+  outline: 2px solid var(--accent, #e2703a);
+}
+.item-tip {
+  position: relative;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fff4dc;
+  border: 2px solid #f2b23e;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.item-tip::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 18px;
+  border: 7px solid transparent;
+  border-top: 0;
+  border-bottom-color: #f2b23e;
+}
+.item-tip ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
 /* ---------- Giai đoạn 16: thẻ nhiệm vụ đủ chỗ cho phần thưởng, thông báo khách quen bên trái ---------- */
 .hud-top > .quest {
   width: auto;

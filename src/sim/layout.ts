@@ -87,7 +87,8 @@ export function activeTables(ctx: SimContext): TableDef[] {
   const base = content.tables
     .all()
     .filter((t) => (!t.requiresUpgrade || state.upgrades.includes(t.requiresUpgrade)) && (!t.cuisines || t.cuisines.includes(state.cuisine)) && !r.confiscated?.includes(t.id))
-    .map((t) => (t.byCuisine?.[state.cuisine] ? { ...t, ...t.byCuisine[state.cuisine] } : t));
+    .map((t) => (t.byCuisine?.[state.cuisine] ? { ...t, ...t.byCuisine[state.cuisine] } : t))
+    .map((t) => (t.wall === 'east' ? alongEastWall(ctx, t) : t));
   const extra = r.extraTables.map((e) => extraTableDef(ctx, e.id, e.kind));
   return [...base.map((t) => withCounterSeats(ctx, t)), ...extra].map((t) => withRotation(t, r.layout[t.id]?.rot ?? !!t.rot));
 }
@@ -95,6 +96,13 @@ export function activeTables(ctx: SimContext): TableDef[] {
 /** Bàn theo id (gồm cả bàn mua thêm); null nếu không có. */
 export function tableById(ctx: SimContext, id: string): TableDef | null {
   return activeTables(ctx).find((t) => t.id === id) ?? null;
+}
+
+/** Bàn sát tường phải: dời theo tường khi quán nới về phía Đông, giữ ở giữa tường bên khi quán sâu thêm. */
+function alongEastWall(ctx: SimContext, t: TableDef): TableDef {
+  const def = ctx.content.room;
+  const tier = def.tiers[ctx.state.restaurant.tier - 1] ?? def.tiers[0];
+  return { ...t, x: t.x + widthExtra(ctx), y: t.y + (tier.height - def.height) / 2 };
 }
 
 function extraTableDef(ctx: SimContext, id: string, kind: string): TableDef {
@@ -105,7 +113,7 @@ function extraTableDef(ctx: SimContext, id: string, kind: string): TableDef {
 
 /** Bản xoay / bỏ xoay của một bàn (bàn quầy không xoay). */
 export function withRotation(t: TableDef, rot: boolean): TableDef {
-  if (t.shared || t.bar || !!t.rotated === rot) return t;
+  if (t.shared || t.bar || t.wall || !!t.rotated === rot) return t;
   return { ...t, w: t.h, h: t.w, rotated: rot };
 }
 
@@ -142,6 +150,16 @@ export function seatSpots(t: TableDef, at: Point = t): Spot[] {
   }
   if (t.shared) {
     return Array.from({ length: t.seats }, (_, i) => ({ x: along(i, t.seats), y: at.y + t.h / 2 + 28, dishX: along(i, t.seats), dishY: at.y }));
+  }
+  // Bàn sát tường phải: 2 ghế cạnh dài phía trong quán, 1 ghế mỗi đầu bàn (không ai ngồi quay lưng vào tường)
+  if (t.wall === 'east') {
+    const down = (i: number) => at.y - t.h / 2 + (t.h * (i + 0.5)) / 2;
+    return [
+      { x: at.x - t.w / 2 - 24, y: down(0), dishX: at.x - t.w / 4, dishY: down(0) },
+      { x: at.x - t.w / 2 - 24, y: down(1), dishX: at.x - t.w / 4, dishY: down(1) },
+      { x: at.x, y: at.y - t.h / 2 - 24, dishX: at.x, dishY: at.y - t.h / 4 - 6 },
+      { x: at.x, y: at.y + t.h / 2 + 24, dishX: at.x, dishY: at.y + t.h / 4 + 6 },
+    ].slice(0, t.seats);
   }
   if (t.seats === 2) {
     return [-1, 1].map((side) => ({ x: at.x + side * (t.w / 2 + 26), y: at.y, dishX: at.x + (side * t.w) / 4, dishY: at.y }));
@@ -290,6 +308,7 @@ export function serviceSpot(t: TableDef, at: Point, seats: number[]): Point {
     const xs = seats.map((i) => spots[i]?.x ?? at.x);
     return { x: xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length), y: at.y + t.h / 2 + 60 };
   }
+  if (t.wall === 'east') return { x: at.x - t.w / 2 - 62, y: at.y };
   if (t.seats === 2) return { x: at.x, y: at.y + t.h / 2 + 24 };
   return { x: at.x + t.w / 2 + 24, y: at.y };
 }

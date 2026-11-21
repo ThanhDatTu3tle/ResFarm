@@ -108,6 +108,19 @@ interface Actor {
   eating: boolean;
   /** Khách quen: bảng tên (hiện vài giây lúc mới tới) rồi thu thành ngôi sao nhỏ trên đầu. */
   regular?: { tag: THREE.Sprite; star: THREE.Sprite; born: number };
+  /** Điểm rẽ kế tiếp khi đi vòng qua bàn ghế (pathing), tính lại vài lần mỗi giây. */
+  wp?: PathCache;
+  /** Chỗ đứng ngay sau ghế (lùi ra khỏi bàn): vào chỗ thì tới đây trước rồi mới ngồi, ra về thì lùi ra đây trước. */
+  out?: [number, number] | null;
+  /** Đã tới chỗ đứng sau ghế (đang vào ghế / đang ngồi). */
+  atOut?: boolean;
+}
+
+/** Đường vòng qua bàn ghế đang đi: điểm rẽ kế tiếp + đích lúc tính + mốc thời gian. */
+interface PathCache {
+  wp: [number, number];
+  goal: [number, number];
+  at: number;
 }
 
 interface PropView {
@@ -190,7 +203,7 @@ export class RestaurantArea implements Area {
   private props = new Map<string, PropView>();
   private selMat = new THREE.MeshBasicMaterial({ color: 0xffd23e, transparent: true, opacity: 0.45 });
   /** Thú cưng đi lang thang trong khu ăn uống (chỉ là hình ảnh, sim chỉ biết đang nuôi con nào). */
-  private pets = new Map<string, { id: string; g: THREE.Group; x: number; z: number; tx: number; tz: number; wait: number; petting: number }>();
+  private pets = new Map<string, { id: string; g: THREE.Group; x: number; z: number; tx: number; tz: number; wait: number; petting: number; wp?: PathCache }>();
   /** Biển tên quán trên tường sau. */
   private nameSign: { text: string; g: THREE.Group } | null = null;
   /** Mặt bằng theo hạng quán lúc dựng cảnh (lên hạng thì app.ts dựng lại cả khu). */
@@ -407,6 +420,22 @@ export class RestaurantArea implements Area {
     this.owner.update(env.t, dt);
   }
 
+  /**
+   * Điểm hướng tới kế tiếp trên đường từ (x, z) tới đích (gx, gz) — mét. Ngoài vỉa hè đi thẳng; trong quán dùng pathing của sim
+   * (lưới A* vòng qua bàn kèm ghế, đồ trang trí, khối bếp). Tính lại mỗi 0,25 giây, khi tới điểm rẽ hoặc đổi đích.
+   */
+  private pathStep(a: { wp?: PathCache }, x: number, z: number, gx: number, gz: number, t: number): [number, number] {
+    const out = this.frontZ + 0.3;
+    if (z > out && gz > out) return [gx, gz];
+    const c = a.wp;
+    if (!c || c.goal[0] !== gx || c.goal[1] !== gz || t - c.at > 0.25 || Math.hypot(c.wp[0] - x, c.wp[1] - z) < 0.08) {
+      const toRoom = (px: number, pz: number) => ({ x: px * UNIT + this.room.width / 2, y: pz * UNIT + this.room.height / 2 });
+      const w = nextWaypoint(this.game.ctx, toRoom(x, z), toRoom(gx, gz));
+      a.wp = { wp: [this.wx(w.x), this.wz(w.y)], goal: [gx, gz], at: t };
+    }
+    return a.wp!.wp;
+  }
+
   wx(px: number): number {
     return (px - this.room.width / 2) / UNIT;
   }
@@ -466,16 +495,8 @@ export class RestaurantArea implements Area {
     for (const side of [-1, 1]) mesh(r, G.box(halfW - 1.3, 0.5, 0.3), mats.trim, { p: [side * (halfW + 1.3) / 2, 0.25, frontZ + 0.15] });
 
     // Bảng thực đơn phấn trên tường sau (quán Việt; quán Nhật treo thẻ gỗ, quán Hàn treo biển neon — xem cuisine.ts)
-    if (this.game.state.cuisine === 'vn' && this.plan === 'front') {
-      // Bếp sát cửa: bảng thực đơn treo tường trái, trên gian bếp
-      const k1 = this.wz(this.room.height - 240);
-      const b = group(r, { p: [-halfW + 0.03, 2.75, (k1 + frontZ) / 2 - 0.4], r: [0, Math.PI / 2, 0] });
-      mesh(b, G.box(2.3, 1.2, 0.05), mats.trim);
-      mesh(b, G.box(2.1, 1, 0.08), 0x2f5d50, { p: [0, 0, 0.03] });
-      const menu = emojiSprite('📋', 0.7);
-      menu.position.set(0, 0, 0.2);
-      b.add(menu);
-    } else if (this.game.state.cuisine === 'vn') {
+    // (Bếp sát cửa quán Việt: không treo bảng thực đơn sau lưng đầu bếp)
+    if (this.game.state.cuisine === 'vn' && this.plan === 'back') {
       const mx = this.kitchenCenter() - 0.6;
       mesh(r, G.box(2.3, 1.2, 0.05), mats.trim, { p: [mx, 2.75, backZ + 0.02] });
       mesh(r, G.box(2.1, 1, 0.08), 0x2f5d50, { p: [mx, 2.75, backZ + 0.05] });
@@ -1381,14 +1402,17 @@ export class RestaurantArea implements Area {
       this.root.add(g);
       this.pets.set(id, (pet = { id, g, x, z, tx: x, tz: z, wait: 1 + index * 1.5, petting: 0 }));
     }
-    const dx = pet.tx - pet.x;
-    const dz = pet.tz - pet.z;
-    const dist = Math.hypot(dx, dz);
+    const dist = Math.hypot(pet.tx - pet.x, pet.tz - pet.z);
     const legs = pet.g.userData.legs as THREE.Object3D[];
     if (dist > 0.05) {
-      const step = Math.min(dist, dt * 1.1);
-      pet.x += (dx / dist) * step;
-      pet.z += (dz / dist) * step;
+      // Đi vòng qua bàn ghế như người
+      const [sx, sz] = this.pathStep(pet, pet.x, pet.z, pet.tx, pet.tz, env.t);
+      const dx = sx - pet.x;
+      const dz = sz - pet.z;
+      const sdist = Math.max(1e-6, Math.hypot(dx, dz));
+      const step = Math.min(sdist, dt * 1.1);
+      pet.x += (dx / sdist) * step;
+      pet.z += (dz / sdist) * step;
       pet.g.rotation.y = Math.atan2(dx, dz);
       legs.forEach((l, i) => (l.rotation.x = Math.sin(env.t * 14 + i * Math.PI) * 0.5));
       pet.g.position.y = Math.abs(Math.sin(env.t * 14)) * 0.03;
@@ -1478,8 +1502,8 @@ export class RestaurantArea implements Area {
       return {
         line: { x: this.wx(124), z: (backZ + 1 + z2) / 2, len: z2 - backZ - 1.2, rot: Math.PI / 2 },
         knife: [-halfW + 0.04, (backZ + z2) / 2, Math.PI / 2],
-        cabinet: [halfW - 0.25, this.wz(310), -Math.PI / 2],
-        freezer: [halfW - 0.4, this.wz(420), -Math.PI / 2],
+        cabinet: [halfW - 0.25, this.wz(395), -Math.PI / 2],
+        freezer: [halfW - 0.4, this.wz(475), -Math.PI / 2],
       };
     }
     if (this.plan === 'front') {
@@ -1661,15 +1685,23 @@ export class RestaurantArea implements Area {
           const [sx, sz] = this.firstFrame ? [tx, tz] : this.curb.spawnOf(party.id);
           g.position.set(sx + (this.firstFrame ? 0 : (i % 3) * 0.3 - 0.3), 0, sz);
           this.root.add(g);
-          this.actors.set(key, (actor = { g, tx, tz, face: 0, restY: 0, leaving: false, via: this.firstFrame ? [] : this.curb.entryVia(party.id), seated: false, eating: false }));
+          this.actors.set(key, (actor = { g, tx, tz, face: 0, restY: 0, leaving: false, via: this.firstFrame ? [] : this.curb.entryVia(party.id), seated: false, eating: false, atOut: this.firstFrame }));
           if (regular) actor.regular = this.decorateRegular(g, regular.name, heartsOf(ctx, regular.id), env.t);
           if (party.vip && i === 0) this.decorateVip(g);
         }
         if (actor.regular) this.updateRegularTag(actor, env);
         actor.seated = !!spot;
         actor.eating = party.phase === 'eating';
+        if (actor.tx !== tx || actor.tz !== tz) actor.atOut = false;
         actor.tx = tx;
         actor.tz = tz;
+        // Chỗ đứng sau ghế: lùi 34 đơn vị khỏi bàn theo hướng ghế → đĩa (ngoài vùng bàn kèm ghế, để đi vòng không xuyên bàn mình)
+        if (spot) {
+          const ox = spot.x - spot.dishX;
+          const oy = spot.y - spot.dishY;
+          const n = Math.hypot(ox, oy) || 1;
+          actor.out = [this.wx(spot.x + (ox / n) * 34), this.wz(spot.y + (oy / n) * 34)];
+        } else actor.out = null;
         actor.face = spot ? Math.atan2(this.wx(spot.dishX) - tx, this.wz(spot.dishY) - tz) : Math.PI;
         actor.restY = spot ? (table!.shared || table!.bar ? 0.4 : 0.14) : 0;
         cx += tx / party.size;
@@ -1767,17 +1799,25 @@ export class RestaurantArea implements Area {
         // Ra về: ra cửa, rồi tới xe của nhóm (bãi giữ xe) hoặc đi bộ dọc vỉa hè
         actor.exitSet = true;
         const out = this.curb.exitOf(Number(key.split(':')[0]));
-        actor.via = [this.door, ...out.slice(0, -1)];
+        actor.via = [...(actor.out && actor.atOut ? [actor.out] : []), this.door, ...out.slice(0, -1)];
         [actor.tx, actor.tz] = out[out.length - 1];
       }
       const pos = actor.g.position;
-      const [gx, gz] = actor.via.length ? actor.via[0] : [actor.tx, actor.tz];
-      const dx = gx - pos.x;
-      const dz = gz - pos.z;
-      const dist = Math.hypot(dx, dz);
+      // Vào chỗ: tới chỗ đứng sau ghế trước, rồi mới bước vào ghế
+      const toOut = !actor.via.length && !actor.leaving && !!actor.out && !actor.atOut;
+      const [gx, gz] = actor.via.length ? actor.via[0] : toOut ? actor.out! : [actor.tx, actor.tz];
+      const dist = Math.hypot(gx - pos.x, gz - pos.z);
+      // Trong quán: đi vòng qua bàn ghế, khách đang ngồi, đồ trang trí, khối bếp (như nhân viên)
+      const [sx, sz] = this.pathStep(actor, pos.x, pos.z, gx, gz, env.t);
+      const dx = sx - pos.x;
+      const dz = sz - pos.z;
+      const sdist = Math.max(1e-6, Math.hypot(dx, dz));
       if (dist <= Math.max(step, 1e-6) && actor.via.length) {
         pos.set(gx, 0, gz);
         actor.via.shift();
+      } else if (dist <= Math.max(step, 1e-6) && toOut) {
+        pos.set(gx, 0, gz);
+        actor.atOut = true;
       } else if (dist <= Math.max(step, 1e-6)) {
         if (actor.leaving) {
           this.root.remove(actor.g);
@@ -1789,8 +1829,8 @@ export class RestaurantArea implements Area {
         const sit = actor.seated && !actor.leaving;
         animatePerson(actor.g, env.t, { sit, eat: sit && actor.eating });
       } else {
-        pos.x += (dx / dist) * step;
-        pos.z += (dz / dist) * step;
+        pos.x += (dx / sdist) * Math.min(step, sdist);
+        pos.z += (dz / sdist) * Math.min(step, sdist);
         pos.y = Math.abs(Math.sin(env.t * 11 + pos.x)) * 0.07;
         actor.g.rotation.y = Math.atan2(dx, dz);
         animatePerson(actor.g, env.t, { walk: 1 });
