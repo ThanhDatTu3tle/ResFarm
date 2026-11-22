@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { G, group, mesh, toon, type Place } from './toon';
+import { G, group, mesh, seeded, toon, type Place } from './toon';
 
 /** Các model dùng chung giữa nhiều khu: người, cây, con vật, rau củ. Mọi model nhìn về +z, chân ở y = 0. */
 
@@ -19,22 +19,58 @@ export function animateCreature(g: THREE.Object3D, t: number, phase: number): vo
 
 // ---------- Cây cối, hàng rào ----------
 
-/** Cây tán tròn; userData.sway đánh dấu để khu vực cho đung đưa theo gió. */
+let treeSeed = 1;
+
+/** Màu lá đậm / nhạt hơn để tán có khối sáng tối (vẫn là sắc xanh nên paintSeason đổi màu theo mùa được). */
+function shade(hex: number, k: number): number {
+  return new THREE.Color(hex).multiplyScalar(k).getHex();
+}
+
+/**
+ * Cây tán tròn: thân thuôn có rễ loe + chạc cành, tán gồm nhiều cụm lá to nhỏ khác nhau (mỗi cây một dáng),
+ * cụm dưới sẫm, cụm đỉnh sáng cho ra khối. userData.sway đánh dấu để khu vực cho đung đưa theo gió.
+ */
 export function makeTree(parent: THREE.Object3D, o: Place, leaf = 0x5fae57): THREE.Group {
+  const rnd = seeded(treeSeed++ * 97 + 3);
   const g = group(parent, o);
-  mesh(g, G.cyl(0.14, 0.2, 1.1, 8), 0x8a5a3a, { p: [0, 0.55, 0] });
+  const bark = 0x8a5a3a;
+  mesh(g, G.cyl(0.13, 0.2, 1.15, 7), bark, { p: [0, 0.575, 0] });
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 + rnd();
+    mesh(g, G.box(0.09, 0.08, 0.26), bark, { p: [Math.cos(a) * 0.15, 0.04, Math.sin(a) * 0.15], r: [0, -a + Math.PI / 2, 0], cast: false }); // rễ loe
+  }
+  const fork = rnd() < 0.5 ? -1 : 1;
+  mesh(g, G.cyl(0.05, 0.08, 0.5, 6), bark, { p: [fork * 0.16, 1.0, 0], r: [0, 0, -fork * 0.7] });
   const crown = group(g, { p: [0, 1.1, 0] });
-  mesh(crown, G.ico(0.75, 1), leaf, { p: [0, 0.55, 0] });
-  mesh(crown, G.ico(0.5, 1), leaf, { p: [0.45, 0.25, 0.1] });
-  mesh(crown, G.ico(0.48, 1), leaf, { p: [-0.42, 0.3, -0.1] });
+  mesh(crown, G.ico(0.72, 1), leaf, { p: [0, 0.58, 0] });
+  mesh(crown, G.ico(0.55, 1), shade(leaf, 0.82), { p: [0, 0.18, 0.05] }); // cụm dưới sẫm
+  const n = 3 + Math.floor(rnd() * 2);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + rnd() * 0.8;
+    const r = [0.42, 0.48, 0.52][Math.floor(rnd() * 3)];
+    mesh(crown, G.ico(r, 1), i % 2 ? leaf : shade(leaf, 0.9), { p: [Math.cos(a) * 0.48, 0.3 + rnd() * 0.25, Math.sin(a) * 0.42] });
+  }
+  mesh(crown, G.ico(0.34, 1), shade(leaf, 1.15), { p: [0.1, 1.02, 0.12] }); // đỉnh đón nắng
   crown.userData.sway = Math.random() * 6;
   return g;
 }
 
+/** Bụi cây: 3–4 cụm lá to nhỏ, khoảng một nửa số bụi có hoa nhỏ (trắng / hồng / vàng) điểm trên mặt. */
 export function makeBush(parent: THREE.Object3D, o: Place, leaf = 0x6fbf5f): THREE.Group {
+  const rnd = seeded(treeSeed++ * 61 + 11);
   const g = group(parent, o);
   mesh(g, G.ico(0.4, 1), leaf, { p: [0, 0.3, 0] });
-  mesh(g, G.ico(0.28, 1), leaf, { p: [0.32, 0.22, 0.05] });
+  mesh(g, G.ico(0.28, 1), shade(leaf, 0.85), { p: [0.32, 0.2, 0.05] });
+  mesh(g, G.ico(0.26, 1), shade(leaf, 1.1), { p: [-0.28, 0.22, 0.1] });
+  if (rnd() < 0.5) mesh(g, G.ico(0.22, 1), leaf, { p: [0.05, 0.18, -0.3] });
+  if (rnd() < 0.55) {
+    const bloom = [0xffffff, 0xf08fb0, 0xf2d24e][Math.floor(rnd() * 3)];
+    for (let i = 0; i < 7; i++) {
+      const a = rnd() * Math.PI * 2;
+      const up = 0.3 + rnd() * 0.9;
+      mesh(g, G.sphere(0.045, 6, 5), bloom, { p: [Math.cos(a) * Math.cos(up) * 0.4, 0.3 + Math.sin(up) * 0.4, Math.sin(a) * Math.cos(up) * 0.4], cast: false });
+    }
+  }
   return g;
 }
 
@@ -553,19 +589,39 @@ export function makeDish(recipeId: string): THREE.Group | null {
 
 // ---------- Đồ trang trí ----------
 
-/** Cột đèn; trả về vật liệu bóng đèn để khu vực chỉnh độ sáng theo ban đêm. */
+/**
+ * Cột đèn kiểu cổ: đế bát giác, thân có vòng nẹp, đèn lồng 4 mặt kính (sáng theo đêm) có mái chóp + núm.
+ * Trả về vật liệu kính đèn để khu vực chỉnh độ sáng theo ban đêm.
+ */
 export function makeLampPost(parent: THREE.Object3D, o: Place): THREE.MeshToonMaterial {
   const g = group(parent, o);
   const bulb = toon(0xfff1c2, { emissive: 0xffc861, emissiveIntensity: 0 });
-  mesh(g, G.cyl(0.07, 0.1, 2.6, 8), 0x4a4f5a, { p: [0, 1.3, 0] });
-  mesh(g, G.cone(0.32, 0.25, 8), 0x4a4f5a, { p: [0, 2.85, 0] });
-  mesh(g, G.sphere(0.18, 10, 8), bulb, { p: [0, 2.65, 0], cast: false });
+  const iron = 0x3b4049;
+  mesh(g, G.cyl(0.17, 0.21, 0.28, 8), iron, { p: [0, 0.14, 0] });
+  mesh(g, G.cyl(0.12, 0.17, 0.12, 8), iron, { p: [0, 0.34, 0] });
+  mesh(g, G.cyl(0.055, 0.075, 2.15, 8), iron, { p: [0, 1.47, 0] });
+  for (const y of [0.55, 1.6, 2.5]) mesh(g, G.cyl(0.085, 0.085, 0.05, 8), 0x5a606b, { p: [0, y, 0], cast: false });
+  // Đèn lồng
+  const head = group(g, { p: [0, 2.58, 0] });
+  mesh(head, G.cyl(0.17, 0.11, 0.06, 4), iron, { r: [0, Math.PI / 4, 0] });
+  mesh(head, G.box(0.22, 0.3, 0.22), bulb, { p: [0, 0.18, 0], cast: false });
+  for (const x of [-0.115, 0.115]) for (const z of [-0.115, 0.115]) mesh(head, G.box(0.03, 0.32, 0.03), iron, { p: [x, 0.18, z] });
+  mesh(head, G.cone(0.24, 0.2, 4), iron, { p: [0, 0.43, 0], r: [0, Math.PI / 4, 0] });
+  mesh(head, G.sphere(0.04, 6, 5), iron, { p: [0, 0.55, 0] });
   return bulb;
 }
 
+/** Thùng gỗ ván thưa: nan ngang có khe hở, 4 cột góc, lỗ tay cầm hai đầu, lòng thùng sẫm (đặt hàng lên trên y ≈ 0.3). */
 export function makeCrate(parent: THREE.Object3D, o: Place, color = 0xd9a066): THREE.Group {
   const g = group(parent, o);
-  mesh(g, G.box(0.62, 0.3, 0.5), color, { p: [0, 0.15, 0] });
-  mesh(g, G.box(0.66, 0.05, 0.54), 0xb07a45, { p: [0, 0.3, 0] });
+  const dark = new THREE.Color(color).multiplyScalar(0.72).getHex();
+  mesh(g, G.box(0.58, 0.22, 0.46), 0x5a3b2a, { p: [0, 0.14, 0] }); // lòng thùng
+  mesh(g, G.box(0.62, 0.03, 0.5), dark, { p: [0, 0.015, 0] });
+  for (const y of [0.07, 0.165, 0.26]) {
+    for (const s of [-1, 1]) mesh(g, G.box(0.6, 0.07, 0.02), color, { p: [0, y, s * 0.245] });
+    for (const s of [-1, 1]) mesh(g, G.box(0.02, 0.07, 0.46), color, { p: [s * 0.3, y, 0] });
+  }
+  for (const x of [-0.29, 0.29]) for (const z of [-0.235, 0.235]) mesh(g, G.box(0.045, 0.31, 0.045), dark, { p: [x, 0.155, z] });
+  for (const s of [-1, 1]) mesh(g, G.box(0.025, 0.04, 0.14), 0x2a1f1a, { p: [s * 0.305, 0.26, 0], cast: false }); // lỗ tay cầm
   return g;
 }

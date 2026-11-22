@@ -10,10 +10,11 @@ import { adultShape, animateCreature, animatePerson, FARMER_SHAPE, LOOKS, makeAn
 import { makeHelperPerson, makeOwner, makePet, makePolice, makeRegular, makeShipper, makeShipperBike, makeWaiter } from '../ui/three/people';
 import { buildSeat, counterExtras, makeShopfront, seatStyle, shopkeeper, tableExtras } from '../ui/three/cuisine';
 import { makeProp } from '../ui/three/props';
-import { grainField, hayBale, makeCar, makeFruitTree, makeGreenhouse, makeRiceMill, makeScooter, makeTractor, makeTruck, makeWindmill } from '../ui/three/farmkit';
-import { makeMai, makeStarLantern, makeXmasTree } from '../ui/three/festive';
+import { grainField, hayBale, CAR_COLORS, CAR_KINDS, makeCar, makeFruitTree, makeGreenhouse, makeRiceMill, makeScooter, makeTractor, makeWindmill } from '../ui/three/farmkit';
+import { makeMai, makeStarLantern, makeSnowman, makeXmasTree } from '../ui/three/festive';
 import { makeGuard, makeMinibus } from '../ui/three/curbside';
 import { buildEquipment } from '../ui/three/equipment';
+import { buildBarCounter, buildBarStool, buildCaddy, buildChopstickSet, buildGrillTable, buildJpSet, buildKrSet, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, woodMats } from '../ui/three/furniture';
 import { G, group, mesh, toon } from '../ui/three/toon';
 
 /**
@@ -99,29 +100,45 @@ function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'counter'): THREE.Group 
   const mats = furnitureMats(c);
   if (kind === 'counter') {
     const [w, d, top] = [2.2, 0.62, 1.1];
-    mesh(g, G.box(w, top - 0.08, d), mats.base, { p: [0, (top - 0.08) / 2, 0] });
-    mesh(g, G.box(w + 0.2, 0.08, d + 0.25), mats.top, { p: [0, top - 0.04, 0] });
-    counterExtras(c, g, top, w, d);
-    for (const x of [-0.7, 0, 0.7]) {
-      const chair = group(g, { p: [x, 0, d / 2 + 0.5], r: [0, Math.PI, 0] });
-      mesh(chair, G.cyl(0.05, 0.07, 0.72, 8), 0x5f6b77, { p: [0, 0.36, 0] });
-      mesh(chair, G.cyl(0.26, 0.26, 0.08, 14), mats.seat, { p: [0, 0.74, 0] });
+    const style = c === 'jp' || c === 'kr' ? c : null;
+    const wood = woodMats(defaultDecor(content, c).find((x) => x.slot === 'furniture')!.colors as { top: number; base: number; seat: number });
+    if (style) buildBarCounter(g, style, w, d, top, wood, mats.base);
+    else {
+      mesh(g, G.box(w, top - 0.08, d), mats.base, { p: [0, (top - 0.08) / 2, 0] });
+      mesh(g, G.box(w + 0.2, 0.08, d + 0.25), mats.top, { p: [0, top - 0.04, 0] });
     }
+    counterExtras(c, g, top, w, d);
+    [-0.7, 0, 0.7].forEach((x, i) => {
+      const chair = group(g, { p: [x, 0, d / 2 + 0.5], r: [0, Math.PI, 0] });
+      if (style) buildBarStool(chair, style, wood, mats.seat, i + 1);
+      else {
+        mesh(chair, G.cyl(0.05, 0.07, 0.72, 8), 0x5f6b77, { p: [0, 0.36, 0] });
+        mesh(chair, G.cyl(0.26, 0.26, 0.08, 14), mats.seat, { p: [0, 0.74, 0] });
+      }
+    });
     return g;
   }
   const [w, d] = kind === 'pair' ? [1.27, 1.27] : [2.18, 1.38];
   const top = 0.8;
-  mesh(g, G.box(w, 0.1, d), mats.top, { p: [0, top - 0.05, 0] });
-  mesh(g, G.box(w - 0.15, 0.06, d - 0.15), mats.base, { p: [0, top - 0.13, 0] });
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) mesh(g, G.cyl(0.06, 0.06, top - 0.1, 8), mats.base, { p: [sx * (w / 2 - 0.15), (top - 0.1) / 2, sz * (d / 2 - 0.15)] });
-  tableExtras(c, g, top, w, d);
+  const wood = c === 'vn' || c === 'jp' || c === 'kr' ? woodMats(defaultDecor(content, c).find((x) => x.slot === 'furniture')!.colors as { top: number; base: number; seat: number }) : null;
+  if (wood && c === 'kr') buildGrillTable(g, w, d, top, wood, mats.base, kind === 'pair' ? 3 : 5);
+  else if (wood && c === 'jp') buildOakTable(g, w, d, top, wood, kind === 'pair' ? 3 : 5);
+  else if (wood) buildWoodTable(g, w, d, top, wood, kind === 'pair' ? 3 : 5);
+  else if (c === 'oc') buildPlasticTable(g, w, d, top, mats, kind === 'pair' ? 3 : 5);
+  else {
+    mesh(g, G.box(w, 0.1, d), mats.top, { p: [0, top - 0.05, 0] });
+    mesh(g, G.box(w - 0.15, 0.06, d - 0.15), mats.base, { p: [0, top - 0.13, 0] });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) mesh(g, G.cyl(0.06, 0.06, top - 0.1, 8), mats.base, { p: [sx * (w / 2 - 0.15), (top - 0.1) / 2, sz * (d / 2 - 0.15)] });
+  }
   const seats: [number, number, number][] = kind === 'pair' ? [[-(w / 2 + 0.47), 0, Math.PI / 2], [w / 2 + 0.47, 0, -Math.PI / 2]] : [[-w / 4, -(d / 2 + 0.44), 0], [w / 4, -(d / 2 + 0.44), 0], [-w / 4, d / 2 + 0.44, Math.PI], [w / 4, d / 2 + 0.44, Math.PI]];
+  tableExtras(c, g, top, w, d, kind === 'pair' ? 3 : 5, seats.map(([x, z]) => ({ x, z })));
   seats.forEach(([x, z, r], i) => {
     const chair = group(g, { p: [x, 0, z], r: [0, r, 0] });
-    if (c === 'oc') {
-      buildSeat('plastic', chair, i % 2 ? { ...mats, seat: mats.back } : mats);
-      chair.scale.setScalar(0.88);
-    } else buildSeat(seatStyle(c), chair, mats);
+    if (c === 'kr') buildLeatherChair(chair, mats.seat, i + 1);
+    else if (wood && c === 'jp') buildOakChair(chair, wood, mats.seat, i + 1);
+    else if (wood) buildWoodStool(chair, wood, i + 1);
+    else if (c === 'oc') buildPlasticChair(chair, mats.seat, i + 1);
+    else buildSeat(seatStyle(c), chair, mats);
   });
   return g;
 }
@@ -140,15 +157,31 @@ function thingSections(): Section[] {
     tables.push({ name: `${cuName(c)} · bàn đôi`, make: () => tableSet(c, 'pair') });
     tables.push({ name: `${cuName(c)} · bàn bốn`, make: () => tableSet(c, 'four') });
     if (c === 'jp' || c === 'kr') tables.push({ name: `${cuName(c)} · quầy ghế đơn`, make: () => tableSet(c, 'counter') });
+    if (c === 'oc') tables.push({ name: `${cuName(c)} · ống đũa, chai lọ`, note: 'Đặt trên mỗi bàn', make: () => { const g = group(null); buildChopstickSet(g, 0); return g; } });
+    if (c === 'kr') tables.push({ name: `${cuName(c)} · kệ menu, đũa muỗng, soju`, note: 'Đặt sát mép mỗi bàn nướng', make: () => { const g = group(null); buildKrSet(g, 0); return g; } });
+    if (c === 'jp') tables.push({ name: `${cuName(c)} · hộp giấy, lọ nước tương`, note: 'Đặt trên mỗi bàn', make: () => { const g = group(null); buildJpSet(g, 0); return g; } });
+    if (c === 'vn') tables.push({ name: `${cuName(c)} · khay đa năng`, note: 'Đặt giữa mỗi bàn', make: () => { const g = group(null); buildCaddy(g, 0); return g; } });
   }
-  const colors = [0xe2574c, 0x4a9bd8, 0xf2a23a, 0x5fae57];
+  const CAR_NAMES = { sedan: 'sedan', suv: 'SUV', pickup: 'bán tải', mini: 'tải mini' } as const;
+  const COLOR_NAMES = ['đỏ', 'xanh dương', 'trắng', 'bạc', 'đen', 'vàng', 'xanh lá', 'cam', 'xanh ngọc', 'đỏ đô', 'be', 'xanh navy'];
+  // Mỗi loại xe 3 màu khác nhau (xoay vòng bảng màu CAR_COLORS)
+  const PICKS: Record<string, number[]> = { sedan: [0, 3, 9], suv: [1, 4, 10], pickup: [6, 2, 11], mini: [2, 5, 8] };
   const vehicles: Entry[] = [
-    ...colors.map((c, i) => ({ name: `Ô tô (màu ${i + 1})`, make: () => makeCar(c) })),
-    { name: 'Xe tải nhỏ', make: () => makeTruck(0x4a9bd8) },
+    ...CAR_KINDS.flatMap((k) => PICKS[k].map((c, j) => ({ name: j ? `Ô tô ${CAR_NAMES[k]} (${COLOR_NAMES[c]})` : `Ô tô ${CAR_NAMES[k]}`, make: () => makeCar(CAR_COLORS[c], k) }))),
     { name: 'Xe máy + người lái', make: () => makeScooter(0xe2574c, makePerson(LOOKS[3], 'none', adultShape(4))) },
     { name: 'Xe máy giao hàng (shipper)', make: makeShipperBike },
     { name: 'Minibus du lịch', make: () => makeMinibus().g },
     { name: 'Máy cày', make: () => makeTractor().g },
+    {
+      name: 'Máy cày + bác nông dân',
+      make: () => {
+        const { g } = makeTractor();
+        const farmer = makePerson(LOOKS[2], 'straw', FARMER_SHAPE);
+        farmer.position.y = 0.5;
+        g.add(farmer);
+        return g;
+      },
+    },
   ];
   const farm: Entry[] = [
     { name: 'Cối xay gió', make: () => makeWindmill().g },
@@ -163,6 +196,7 @@ function thingSections(): Section[] {
   const festive: Entry[] = [
     { name: 'Cành mai (Tết)', make: () => makeMai(group(null), [0, 0, 0]) },
     { name: 'Cây thông Noel', make: () => makeXmasTree(group(null), [0, 0, 0]) },
+    { name: 'Người tuyết (Giáng sinh)', make: () => makeSnowman(group(null), [0, 0, 0]) },
     { name: 'Lồng đèn ông sao (Trung thu)', make: () => makeStarLantern(group(null), [0, 0, 0], 0xe2574c) },
   ];
   const equip = content.upgrades
@@ -285,10 +319,16 @@ const thumbScene = new THREE.Scene();
 lightUp(thumbScene);
 const thumbCam = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
 
+/** Người ngồi trên xe (xe máy, máy cày): ngồi + hai tay nắm tay lái. */
+function animateRiders(obj: THREE.Object3D, t: number): void {
+  obj.traverse((o) => o !== obj && o.userData.rig && animatePerson(o as THREE.Group, t, { sit: true, ride: true }));
+}
+
 function snapshot(make: () => THREE.Object3D): string {
   const obj = make();
   thumbScene.add(obj);
   if (obj.userData.rig) animatePerson(obj as THREE.Group, 0.4, {});
+  else animateRiders(obj, 0.4);
   obj.updateMatrixWorld(true);
   frame(thumbCam, obj);
   thumbRenderer.render(thumbScene, thumbCam);
@@ -390,6 +430,9 @@ const POSES: [string, Pose][] = [
 function open(e: Entry): void {
   if (current) vScene.remove(current);
   current = e.make!();
+  // ?goc=90: xoay vật đi 90° quanh trục đứng (xem góc ngang / sau qua link, khỏi kéo chuột)
+  const goc = Number(new URLSearchParams(location.search).get('goc'));
+  if (goc) current.rotation.y = THREE.MathUtils.degToRad(goc);
   current.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) o.castShadow = true;
   });
@@ -425,6 +468,11 @@ document.getElementById('vclose')!.addEventListener('click', close);
 viewer.addEventListener('click', (ev) => ev.target === viewer && close());
 addEventListener('keydown', (ev) => ev.key === 'Escape' && close());
 
+// ?xem=<tên model> mở thẳng model đó (gửi link cho nhau, vd ?xem=Quán Việt · bàn đôi)
+const want = new URLSearchParams(location.search).get('xem');
+const wanted = want && app.querySelector<HTMLElement>(`.card:not(.flat)[data-name="${CSS.escape(want.trim().toLowerCase())}"]`);
+if (wanted) open(pick(wanted.dataset.i!));
+
 function resize(): void {
   const w = vc.clientWidth;
   const h = vc.clientHeight;
@@ -441,6 +489,9 @@ vRenderer.setAnimationLoop(() => {
   const t = clock.getElapsedTime();
   controls.update();
   if (current.userData.rig) animatePerson(current as THREE.Group, t, pose);
-  else current.traverse((o) => o.userData.eyes && animateCreature(o, t, 0));
+  else {
+    current.traverse((o) => o.userData.eyes && animateCreature(o, t, 0));
+    animateRiders(current, t);
+  }
   vRenderer.render(vScene, vCam);
 });

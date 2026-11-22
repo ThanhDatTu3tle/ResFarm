@@ -3,6 +3,7 @@ import type { CuisineId } from '../../data';
 import { makeBush, makePerson } from './models';
 import type { Env } from './stage';
 import { emojiSprite, G, group, mesh, toon } from './toon';
+import { buildChopstickSet, buildJpSet, buildKrSet, placeCaddy } from './furniture';
 
 /**
  * HÌNH ẢNH THEO PHONG CÁCH QUÁN (Nhật / Hàn / Việt):
@@ -299,34 +300,20 @@ export function seatStyle(cuisine: CuisineId): SeatStyle {
 }
 
 /**
- * Đồ trên bàn (bàn thường, không phải quầy): Nhật — chai nước tương + ống đũa; Hàn — bếp nướng giữa bàn + ống hút khói
- * treo trên + chai soju; Việt — ống đũa + lọ tương ớt + hộp giấy. Gốc toạ độ ở tâm bàn, mặt bàn ở `top`.
+ * Đồ trên bàn (bàn thường, không phải quầy): Nhật — hộp giấy, khay lọ nước tương, đĩa chấm (buildJpSet); Hàn — kệ menu, hộp giấy, ống đũa muỗng, chai soju sát mép (vỉ nướng nằm trong bàn: buildGrillTable); Ốc — đĩa ống đũa inox + chai lọ (buildChopstickSet); Việt — khay đa năng gỗ (buildCaddy: hộp giấy, ống đũa thìa, hũ sứ, tương ớt, nước tương, tăm). Gốc toạ độ ở tâm bàn, mặt bàn ở `top`.
  */
-export function tableExtras(cuisine: CuisineId, g: THREE.Object3D, top: number, w: number, d: number): void {
+export function tableExtras(cuisine: CuisineId, g: THREE.Object3D, top: number, w: number, d: number, seed = 1, seats: { x: number; z: number }[] = []): void {
   if (cuisine === 'oc') {
-    // Chén nước chấm, lọ ớt, hộp giấy (mưa thì mái sạp bếp kéo dài ra che cả sân — street.ts)
-    mesh(g, G.cyl(0.07, 0.05, 0.05, 10), 0xffffff, { p: [-0.18, top + 0.03, 0.05] });
-    mesh(g, G.cyl(0.04, 0.04, 0.02, 10), 0x7cc35c, { p: [-0.18, top + 0.06, 0.05], cast: false }); // muối tiêu chanh
-    mesh(g, G.cyl(0.035, 0.04, 0.14, 8), 0xd9433a, { p: [0.18, top + 0.07, -0.05] });
-    mesh(g, G.box(0.14, 0.08, 0.1), 0xffffff, { p: [0.05, top + 0.04, -0.15] });
+    // Đĩa thiếc: ống inox cắm đũa, chai nước tương, chai nước mắm, cốc tăm — sát mép bàn đôi, giữa bàn bốn
+    placeCaddy(g, top, w, d, seats, seed, buildChopstickSet, 0.15, 1);
   } else if (cuisine === 'kr') {
-    mesh(g, G.cyl(0.26, 0.26, 0.06, 18), 0x2a2d35, { p: [0, top + 0.03, 0] });
-    mesh(g, G.torus(0.22, 0.012, 4, 20), 0x8a8f99, { p: [0, top + 0.07, 0], r: [Math.PI / 2, 0, 0], cast: false });
-    // Ống hút khói bạc treo từ trần xuống
-    // treo cao (miệng ống ~2.9 m) để không che mặt khách
-    mesh(g, G.cyl(0.07, 0.07, 1.0, 10), 0xc9ced6, { p: [0, top + 2.75, 0], cast: false });
-    mesh(g, G.cone(0.3, 0.3, 14), 0xc9ced6, { p: [0, top + 2.15, 0], cast: false });
-    mesh(g, G.cyl(0.035, 0.045, 0.24, 8), 0x5fd08a, { p: [w / 2 - 0.2, top + 0.12, d / 2 - 0.18] });
+    // Vỉ nướng nằm trong bàn (buildGrillTable); kệ menu, hộp giấy, ống đũa muỗng, soju luôn sát một mép trống
+    placeCaddy(g, top, w, d, seats, seed, buildKrSet, 0.1, 1.2, true);
   } else if (cuisine === 'jp') {
-    mesh(g, G.cyl(0.035, 0.04, 0.12, 8), 0x2a1f1a, { p: [0.12, top + 0.06, 0] });
-    mesh(g, G.cyl(0.02, 0.02, 0.04, 6), 0xd9433a, { p: [0.12, top + 0.14, 0] });
-    mesh(g, G.cyl(0.05, 0.05, 0.16, 10), 0x6b4a2f, { p: [-0.1, top + 0.08, 0] });
-    for (const dx of [-0.02, 0.02]) mesh(g, G.cyl(0.008, 0.008, 0.22, 4), 0xe8cf9c, { p: [-0.1 + dx, top + 0.18, 0], cast: false });
+    // Hộp giấy, khay lọ nước tương + shichimi, chồng đĩa chấm — sát mép bàn đôi, giữa bàn bốn
+    placeCaddy(g, top, w, d, seats, seed, buildJpSet, 0.13, 1.3);
   } else {
-    mesh(g, G.cyl(0.05, 0.05, 0.16, 10), 0xd9d2c5, { p: [-0.1, top + 0.08, 0] });
-    for (const dx of [-0.02, 0.02]) mesh(g, G.cyl(0.008, 0.008, 0.22, 4), 0xc98b4f, { p: [-0.1 + dx, top + 0.18, 0], cast: false });
-    mesh(g, G.cyl(0.035, 0.04, 0.14, 8), 0xd9433a, { p: [0.08, top + 0.07, 0] });
-    mesh(g, G.box(0.14, 0.08, 0.1), 0xffffff, { p: [0.08, top + 0.04, 0.14] });
+    placeCaddy(g, top, w, d, seats, seed);
   }
 }
 

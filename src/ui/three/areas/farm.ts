@@ -706,9 +706,9 @@ export class FarmArea implements Area {
       const slot = mill ? undefined : state.farm.slots.find((s) => s.id === work.slotId);
       const c = mill ? millCenter(ctx, mill) : slot ? slotCenter(ctx, slot) : null;
       if (c && !driving) g.rotation.y = Math.atan2(c.x - f.x, c.z - f.z);
-      pose = driving ? { sit: true } : work.kind === 'till' ? { dig: 1 } : work.kind === 'water' ? { pour: 1 } : work.kind === 'visit' ? {} : { reach: 1 };
+      pose = driving ? { sit: true, ride: true } : work.kind === 'till' ? { dig: 1 } : work.kind === 'water' ? { pour: 1 } : work.kind === 'visit' ? {} : { reach: 1 };
     } else if (driving) {
-      pose = { sit: true };
+      pose = { sit: true, ride: true };
     } else if (!task) {
       // Rảnh: thở, chớp mắt, thỉnh thoảng vẫy tay chào
       pose = { wave: Math.max(0, Math.min(1, (Math.sin(env.t * 0.35) - 0.85) * 8)) };

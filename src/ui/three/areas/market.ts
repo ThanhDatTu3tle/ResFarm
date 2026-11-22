@@ -8,7 +8,7 @@ import { blinkLeds, emojiSprite, G, group, ledFrame, mesh, seeded, toon, type V3
 import { signText } from '../cuisine';
 import { FestiveSet } from '../festive';
 import { OwnerWalker, randIn, type Spot } from '../owner';
-import { makeCar, makeScooter, makeTruck, setVehicleLights } from '../farmkit';
+import { CAR_COLORS, CAR_KINDS, makeCar, makeScooter, setVehicleLights } from '../farmkit';
 
 /**
  * KHU CHỢ — mỗi StallDef trong src/data/market.ts thành một sạp có mái bạt sọc, tự bày hàng theo `items`.
@@ -162,11 +162,11 @@ export class MarketArea implements Area {
     }
 
     // Xe cộ: ô tô, xe tải nhỏ, xe máy chạy hai chiều
-    const kinds: ['car' | 'truck' | 'scooter', number][] = [['car', 0xe2574c], ['scooter', 0x4a9bd8], ['car', 0xf2c94c], ['scooter', 0xe2703a], ['truck', 0x3f8fd2], ['scooter', 0x5fae57], ['car', 0xf3f3f3], ['scooter', 0x9a6bd1]];
+    const kinds: ['car' | 'scooter', number][] = [['car', CAR_COLORS[0]], ['scooter', 0x4a9bd8], ['car', CAR_COLORS[5]], ['scooter', 0xe2703a], ['car', CAR_COLORS[8]], ['scooter', 0x5fae57], ['car', CAR_COLORS[3]], ['scooter', 0x9a6bd1]];
     kinds.forEach(([kind, color], i) => {
       const dir: 1 | -1 = i % 2 ? -1 : 1;
       const rider = kind === 'scooter' ? makePerson(LOOKS[(i * 5 + 2) % LOOKS.length], 'none', adultShape(i * 5 + 2)) : null;
-      const g = kind === 'car' ? makeCar(color) : kind === 'truck' ? makeTruck(color) : makeScooter(color, rider!);
+      const g = kind === 'car' ? makeCar(color, CAR_KINDS[(i >> 1) % CAR_KINDS.length]) : makeScooter(color, rider!);
       // Mỗi làn 4 xe cách đều nhau (cùng tốc độ nên giữ nguyên khoảng cách)
       g.position.set(-ROAD_HALF + (Math.floor(i / 2) + 0.25 + (i % 2) * 0.5) * (ROAD_HALF / 2), 0, LANES[i % 2 ? 1 : 0] + (kind === 'scooter' ? (rnd() - 0.5) * 0.8 : 0));
       g.rotation.y = dir > 0 ? 0 : Math.PI;
@@ -482,7 +482,7 @@ export class MarketArea implements Area {
       if (v.g.position.x < -ROAD_HALF) v.g.position.x = ROAD_HALF;
       for (const w of v.wheels) w.rotation.y += v.speed * dt * 3;
       v.g.position.y = Math.abs(Math.sin(env.t * 14 + v.speed)) * 0.015;
-      if (v.rider) animatePerson(v.rider, env.t, { sit: true });
+      if (v.rider) animatePerson(v.rider, env.t, { sit: true, ride: true });
     }
     setVehicleLights(env.night);
     for (const b of this.bobbers) b.obj.position.y = b.y + Math.abs(Math.sin(env.t * 2 + b.phase)) * b.amp;

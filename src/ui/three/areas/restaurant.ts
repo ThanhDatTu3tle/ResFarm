@@ -23,6 +23,7 @@ import { nextWaypoint } from '../../../sim/pathing';
 import { OwnerWalker, type Spot } from '../owner';
 import { Curbside } from '../curbside';
 import { buildEquipment, type EquipDims, type EquipView } from '../equipment';
+import { buildBarCounter, buildBarStool, buildGrillTable, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, tintWood, woodMats } from '../furniture';
 
 /**
  * KHU QUÁN — nội thất quán ăn tông ấm, nhìn kiểu "cắt mái".
@@ -54,6 +55,8 @@ interface PartyFx {
   holder: THREE.Group;
 }
 
+/** Seed hình ảnh theo id bàn (mỗi bàn gỗ lệch một kiểu, cố định giữa các lần tải). */
+const seedOf = (id: string) => [...id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 7);
 const UNIT = 55; // số đơn vị toạ độ 2D ứng với 1 mét trong cảnh
 
 /** Bảng tên khách quen: nền kem viền hồng, tên + dãy tim. */
@@ -176,6 +179,8 @@ export class RestaurantArea implements Area {
     seat: toon(0xe2703a, {}),
     back: toon(0xb9733f, {}),
   };
+  /** Bàn ghế gỗ mộc quán Việt (vân gỗ, đổi màu theo nội thất). */
+  private wood = woodMats();
   private padMat = new THREE.MeshBasicMaterial({ color: 0x5fd068, transparent: true, opacity: 0.55 });
   private bulbMat = toon(0xfff1c2, { emissive: 0xffc861, emissiveIntensity: 0.3 });
   private windowMat = toon(0xbfe6ff, { transparent: true, opacity: 0.3 });
@@ -661,10 +666,11 @@ export class RestaurantArea implements Area {
     const Z = (pz: number) => this.wz(pz);
     const ktier = this.game.state.restaurant.kitchenTier;
     const cw = 36 / UNIT;
+    // Khúc quầy nối: cùng kiểu thân quầy gỗ sồi nan dọc với quầy đôi (mặt nan quay ra khu ăn, phía Đông)
     const counter = (z1: number, z2: number) => {
       if (z2 - z1 < 0.05) return;
-      mesh(r, G.box(cw, COUNTER_TOP - 0.08, z2 - z1), mats.base, { p: [X(170), (COUNTER_TOP - 0.08) / 2, (z1 + z2) / 2] });
-      mesh(r, G.box(cw + 0.25, 0.08, z2 - z1), mats.top, { p: [X(170), COUNTER_TOP - 0.04, (z1 + z2) / 2] });
+      const body = group(r, { p: [X(170), 0, (z1 + z2) / 2], r: [0, Math.PI / 2, 0] });
+      buildBarCounter(body, 'jp', z2 - z1, cw, COUNTER_TOP, this.wood, mats.base);
     };
     // Phần quầy nối: sau quầy ra món → quầy đôi đầu, quầy đôi trong → góc chữ L
     // Đầu quầy sát tường sau → quầy đôi đầu; khúc ngăn giữa 2 quầy đôi (không ghế, vách gỗ + chậu cây); góc chữ L
@@ -879,6 +885,26 @@ export class RestaurantArea implements Area {
     }
   }
 
+  private get woodTables(): boolean {
+    return this.game.state.cuisine === 'vn';
+  }
+
+  /** Kiểu quầy ghế đơn theo bộ bàn ghế mới (Nhật gỗ sồi / Hàn gỗ xám + da bò); null = kiểu cũ. */
+  private get barStyle(): 'jp' | 'kr' | null {
+    const c = this.game.state.cuisine;
+    return c === 'jp' || c === 'kr' ? c : null;
+  }
+
+  /** Quán Hàn: bàn nướng mặt gỗ xám chân tủ kim loại + ghế da bò chân sắt. */
+  private get grillTables(): boolean {
+    return this.game.state.cuisine === 'kr';
+  }
+
+  /** Quán Nhật: bàn gỗ sồi sáng + ghế tựa cong đệm vải (dùng chung bộ vật liệu vân gỗ `wood`). */
+  private get oakTables(): boolean {
+    return this.game.state.cuisine === 'jp';
+  }
+
   /** Dựng một bàn + ghế trong group riêng (gốc ở tâm bàn) để dời được cả cụm. */
   private buildTable(rotated: TableDef): TableView {
     const t = withRotation(rotated, false);
@@ -891,9 +917,18 @@ export class RestaurantArea implements Area {
       // Quầy dọc (quầy chữ L quán Nhật): dựng như quầy ngang rồi xoay để mặt khách quay sang phía Đông
       const body = t.bar ? group(g, { r: [0, Math.PI / 2, 0] }) : g;
       const [bw, bd] = t.bar ? [d, w] : [w, d];
-      mesh(body, G.box(bw, COUNTER_TOP - 0.08, bd), mats.base, { p: [0, (COUNTER_TOP - 0.08) / 2, 0] });
-      mesh(body, G.box(bw + (t.bar ? 0 : 0.2), 0.08, bd + 0.25), mats.top, { p: [0, COUNTER_TOP - 0.04, 0] });
+      if (this.barStyle) buildBarCounter(body, this.barStyle, bw, bd, COUNTER_TOP, this.wood, mats.base);
+      else {
+        mesh(body, G.box(bw, COUNTER_TOP - 0.08, bd), mats.base, { p: [0, (COUNTER_TOP - 0.08) / 2, 0] });
+        mesh(body, G.box(bw + (t.bar ? 0 : 0.2), 0.08, bd + 0.25), mats.top, { p: [0, COUNTER_TOP - 0.04, 0] });
+      }
       counterExtras(this.game.state.cuisine, body, COUNTER_TOP, bw, bd);
+    } else if (this.woodTables || this.street || this.oakTables || this.grillTables) {
+      if (this.street) buildPlasticTable(g, w, d, TABLE_TOP, mats, seedOf(t.id));
+      else if (this.oakTables) buildOakTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
+      else if (this.grillTables) buildGrillTable(g, w, d, TABLE_TOP, this.wood, mats.base, seedOf(t.id));
+      else buildWoodTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
+      tableExtras(this.game.state.cuisine, g, TABLE_TOP, w, d, seedOf(t.id), seatSpots(t, { x: 0, y: 0 }).map((s) => ({ x: s.x / UNIT, z: s.y / UNIT })));
     } else {
       mesh(g, G.box(w, 0.1, d), mats.top, { p: [0, TABLE_TOP - 0.05, 0] });
       mesh(g, G.box(w - 0.15, 0.06, d - 0.15), mats.base, { p: [0, TABLE_TOP - 0.13, 0] });
@@ -904,15 +939,17 @@ export class RestaurantArea implements Area {
       const cx = s.x / UNIT;
       const cz = s.y / UNIT;
       const chair = group(g, { p: [cx, 0, cz], r: [0, Math.atan2(s.dishX / UNIT - cx, s.dishY / UNIT - cz), 0] });
-      if (t.shared || t.bar) {
+      if ((t.shared || t.bar) && this.barStyle) buildBarStool(chair, this.barStyle, this.wood, mats.seat, seedOf(t.id) + si);
+      else if (t.shared || t.bar) {
         mesh(chair, G.cyl(0.05, 0.07, 0.72, 8), 0x5f6b77, { p: [0, 0.36, 0] });
         mesh(chair, G.cyl(0.26, 0.26, 0.08, 14), mats.seat, { p: [0, 0.74, 0] });
       } else {
-        // Quán ốc: ghế nhựa mini xanh / đỏ xen kẽ
-        if (this.street) {
-          buildSeat('plastic', chair, si % 2 ? { ...mats, seat: mats.back } : mats);
-          chair.scale.setScalar(0.88);
-        } else buildSeat(seatStyle(this.game.state.cuisine), chair, mats);
+        // Quán Việt: ghế đẩu gỗ · Quán ốc: ghế nhựa đỏ có tựa · Quán Nhật: ghế gỗ sồi tựa cong · Quán Hàn: ghế da bò chân sắt
+        if (this.woodTables) buildWoodStool(chair, this.wood, seedOf(t.id) + si);
+        else if (this.street) buildPlasticChair(chair, mats.seat, seedOf(t.id) + si);
+        else if (this.oakTables) buildOakChair(chair, this.wood, mats.seat, seedOf(t.id) + si);
+        else if (this.grillTables) buildLeatherChair(chair, mats.seat, seedOf(t.id) + si);
+        else buildSeat(seatStyle(this.game.state.cuisine), chair, mats);
       }
     }
     const pad = mesh(g, G.box(1, 0.03, 1), this.padMat, { p: [0, 0.03, 0], s: [w + 1.3, 1, d + 1.5], cast: false, receive: false });
@@ -1559,6 +1596,7 @@ export class RestaurantArea implements Area {
     mats.base.color.setHex(furn.base);
     mats.seat.color.setHex(furn.seat);
     mats.back.color.setHex(furn.back);
+    tintWood(this.wood, furn as { top: number; base: number; seat: number });
 
     // Bàn: dựng bàn mới có, đặt đúng vị trí hiện tại (hoặc vị trí đang kéo)
     const tablesNow = activeTables(ctx);

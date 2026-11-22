@@ -31,7 +31,7 @@ export const cuisines: CuisineDef[] = [
     name: 'Quán Việt',
     country: 'Việt Nam',
     flag: '🇻🇳',
-    blurb: 'Đèn lồng Hội An, quạt trần, ghế nhựa đỏ — cơm gia đình, phở, bún bò, cơm tấm.',
+    blurb: 'Đèn lồng Hội An, quạt trần, bàn ghế gỗ mộc — cơm gia đình, phở, bún bò, cơm tấm.',
     showcase: ['pho', 'bun_bo', 'com_tam'],
     accent: '#e2a028',
     startInventory: [{ item: 'egg', qty: 45 }, { item: 'cabbage', qty: 36 }, { item: 'tomato', qty: 36 }],
