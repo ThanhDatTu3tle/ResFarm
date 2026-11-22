@@ -66,6 +66,11 @@ const CROPS: Record<string, CropStyle> = {
 export type CropStage = 0 | 1 | 2;
 
 /** Đổi tỉ lệ lớn (0..1) của lứa đầu sang giai đoạn hiển thị. */
+/** Giống này có model cây riêng trong CROPS (không có thì nông trại hiện bụi xanh chung / emoji). */
+export function hasCropModel(producerId: string): boolean {
+  return producerId in CROPS;
+}
+
 export function cropStageOf(frac: number): CropStage {
   return frac < 0.3 ? 0 : frac < 0.7 ? 1 : 2;
 }

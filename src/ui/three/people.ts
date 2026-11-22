@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import type { HairStyle, PersonStyle } from '../../data';
 import type { OwnerProfile } from '../../sim/state';
 import { makePerson, rimify, type Rig } from './models';
-import { G, group, mesh, toon } from './toon';
+import { emojiSprite, G, group, mesh, toon } from './toon';
+import { makeScooter } from './farmkit';
 
 /**
  * KHÁCH QUEN — dựng từ makePerson rồi đổi dáng, tóc, quần/váy và gắn phụ kiện.
@@ -200,4 +201,49 @@ export function makePet(kind: string): THREE.Group {
   g.userData.legs = legs;
   g.userData.head = head;
   return g;
+}
+
+/** Bồi bàn (nhân vật của người chơi): áo xanh, tạp dề trắng, mũ lưỡi trai đỏ. Cảnh quán gắn thêm vòng sáng dưới chân + tay cầm món. */
+export function makeWaiter(): THREE.Group {
+  const g = makePerson({ shirt: 0x3f8fd2, hair: 0x2a1f1a, skin: 0xffd9b8 });
+  const rig = g.userData.rig;
+  mesh(rig.body, G.box(0.36, 0.34, 0.05), 0xffffff, { p: [0, 0.14, 0.18] }); // tạp dề
+  mesh(rig.head, G.box(0.42, 0.06, 0.3), 0xe2574c, { p: [0, 0.36, 0.06], r: [-0.2, 0, 0] }); // mũ lưỡi trai đỏ
+  return g;
+}
+
+/** Công an khu vực (quán ốc): quân phục xanh lá đậm, mũ kê-pi quai đỏ + sao vàng, cầu vai đỏ, thắt lưng. */
+export function makePolice(): THREE.Group {
+  const p = makePerson({ shirt: 0x6f7d3a, hair: 0x1f1a17, skin: 0xf2c49b }, 'none', { width: 1.08, hair: 'short' });
+  const rig = p.userData.rig;
+  const cap = group(rig.head, { p: [0, 0.3, 0.01] });
+  mesh(cap, G.cyl(0.25, 0.22, 0.12, 14), 0x5c6a2e, { p: [0, 0.04, 0] });
+  mesh(cap, G.cyl(0.29, 0.29, 0.03, 16), 0x5c6a2e, { p: [0, 0.12, 0.02], s: [1, 1, 1.08] });
+  mesh(cap, G.box(0.3, 0.04, 0.02), 0xc9343a, { p: [0, 0.03, 0.235], cast: false });
+  mesh(cap, G.box(0.24, 0.025, 0.12), 0x2b2b2b, { p: [0, -0.02, 0.24], r: [0.25, 0, 0] });
+  const star = emojiSprite('⭐', 0.13);
+  star.position.set(0, 0.07, 0.26);
+  cap.add(star);
+  for (const side of [-1, 1]) mesh(rig.body, G.box(0.1, 0.03, 0.16), 0xc9343a, { p: [side * 0.2, 0.47, 0] }); // cầu vai
+  mesh(rig.body, G.box(0.42, 0.05, 0.3), 0x3a2a1e, { p: [0, -0.02, 0] }); // thắt lưng
+  p.scale.setScalar(1.1);
+  return p;
+}
+
+/** Anh shipper: áo + mũ bảo hiểm xanh lá, thùng giao hàng sau lưng. */
+export function makeShipper(): THREE.Group {
+  const person = makePerson({ shirt: 0x2fa84f, hair: 0x2a1f1a, skin: 0xf2c49b }, 'none', { width: 1.0 });
+  mesh(person.userData.rig.head, G.sphere(0.27, 12, 8), 0x2fa84f, { p: [0, 0.24, -0.02], s: [1, 0.85, 1] }); // mũ bảo hiểm xanh
+  mesh(person.userData.rig.body, G.box(0.34, 0.36, 0.26), 0x2fa84f, { p: [0, 0.28, -0.24] }); // thùng giao hàng sau lưng
+  person.scale.setScalar(1.1);
+  return person;
+}
+
+/** Xe máy giao hàng của anh shipper (thùng hàng trên baga), người lái ẩn khi xe đậu. */
+export function makeShipperBike(): THREE.Group {
+  const rider = makePerson({ shirt: 0x2fa84f, hair: 0x2a1f1a, skin: 0xf2c49b });
+  rider.visible = false;
+  const bike = makeScooter(0x2fa84f, rider);
+  mesh(bike, G.box(0.5, 0.42, 0.5), 0x2fa84f, { p: [-0.55, 0.92, 0] }); // thùng hàng trên baga
+  return bike;
 }

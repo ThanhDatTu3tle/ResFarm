@@ -279,7 +279,10 @@ sec('quan', '🏠 Quán', () => `
   ${table(DB.tables, [
     { h: 'Bàn', v: (t) => esc(t.name) },
     { h: 'Ghế', num: true, v: (t) => t.seats, sort: (t) => t.seats },
+    { h: 'Quán', v: (t) => (t.cuisines ? t.cuisines.map(cuisineTag).join('') : cuisineTag(null)) },
     { h: 'Ghi chú', v: (t) => [t.shared && 'ghế dùng chung', t.fixed && 'cố định', t.requiresUpgrade && `cần ${U[t.requiresUpgrade]?.name ?? t.requiresUpgrade}`].filter(Boolean).map((x) => `<span class="tag">${esc(x)}</span>`).join('') || '—' },
+    // Bàn khác đi theo quán (TableDef.byCuisine): quán Nhật quầy chữ L, bàn bốn sát tường; quán Việt / Ốc dời chỗ
+    { h: 'Khác theo quán', v: (t) => Object.entries(t.byCuisine ?? {}).map(([cu, o]) => `${CU[cu]?.flag ?? ''} ${esc([o.name, o.seats && `${o.seats} ghế`, o.bar && 'quầy dọc', o.wall && !o.name?.includes('sát tường') && 'sát tường', o.fixed && 'cố định'].filter(Boolean).join(', ') || 'dời chỗ')}`).join('<br>') || '—' },
   ])}
   <h3>Bàn mua thêm</h3>
   ${table(DB.tableKinds, [
