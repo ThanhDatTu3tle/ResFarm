@@ -172,16 +172,7 @@ export class Curbside {
     const stool = group(r, { p: [x + 0.9, 0, z + 0.2] });
     mesh(stool, G.cyl(0.2, 0.17, 0.05, 12), 0xe2574c, { p: [0, 0.42, 0] });
     for (const [sx, sz] of [[-0.12, -0.12], [0.12, -0.12], [-0.12, 0.12], [0.12, 0.12]]) mesh(stool, G.cyl(0.025, 0.025, 0.42, 6), 0xe2574c, { p: [sx, 0.21, sz] });
-    const p = makePerson({ shirt: 0x9cc3e6, hair: 0x9a948c, skin: 0xe8b88a }, 'none', { build: 'elder', width: 1.15, hair: 'short' });
-    const rig = p.userData.rig;
-    const cap = group(rig.head, { p: [0, 0.3, 0.01] });
-    mesh(cap, G.cyl(0.25, 0.23, 0.12, 14), 0x23304a, { p: [0, 0.04, 0] });
-    mesh(cap, G.cyl(0.28, 0.28, 0.03, 16), 0x23304a, { p: [0, 0.11, 0.02] });
-    mesh(cap, G.box(0.24, 0.025, 0.12), 0x111111, { p: [0, -0.02, 0.24], r: [0.25, 0, 0] });
-    mesh(cap, G.box(0.08, 0.06, 0.02), 0xf2c14e, { p: [0, 0.05, 0.245], cast: false });
-    for (const side of [-1, 1]) mesh(rig.body, G.box(0.1, 0.03, 0.16), 0x23304a, { p: [side * 0.2, 0.47, 0] }); // cầu vai
-    mesh(rig.body, G.box(0.42, 0.05, 0.3), 0x2a2d35, { p: [0, -0.02, 0] }); // thắt lưng
-    mesh(rig.body, G.box(0.05, 0.12, 0.02), 0xf2c14e, { p: [0.12, 0.33, 0.215], cast: false }); // còi
+    const p = makeGuard();
     p.position.set(x, 0, z);
     p.rotation.y = -0.4;
     r.add(p);
@@ -250,26 +241,8 @@ export class Curbside {
     return [[this.d.door[0] + (partyId % 2 ? -8 : 8), this.sidewalkZ]];
   }
 
-  /** Minibus: thân dài trắng, sọc cam, dải kính xanh, cửa bên hông phía vỉa hè; chạy theo +x. */
   private makeBus(): { g: THREE.Group; wheels: THREE.Object3D[] } {
-    const g = group(this.root);
-    mesh(g, G.box(4.4, 1.5, 1.6), 0xf6f3ec, { p: [0, 1.15, 0] });
-    mesh(g, G.box(4.42, 0.5, 1.62), 0x7fc4ef, { p: [-0.1, 1.45, 0] }); // dải kính
-    mesh(g, G.box(4.44, 0.14, 1.64), 0xf28c28, { p: [0, 0.75, 0] }); // sọc cam
-    mesh(g, G.box(4.3, 0.12, 1.5), 0xdcd6cb, { p: [0, 1.96, 0] }); // mui
-    mesh(g, G.box(0.06, 0.55, 1.3), 0x7fc4ef, { p: [2.21, 1.4, 0] }); // kính trước
-    mesh(g, G.box(0.62, 1.1, 0.04), 0x5d6f80, { p: [1.3, 1.0, -0.81] }); // cửa lên xuống
-    for (const z of [-0.5, 0.5]) mesh(g, G.box(0.06, 0.14, 0.24), 0xfff3b0, { p: [2.21, 0.62, z], cast: false });
-    const sign = signText('DU LỊCH', '#e2703a', 1.6, 0.3);
-    sign.position.set(-0.4, 1.0, 0.82);
-    g.add(sign);
-    const wheels: THREE.Object3D[] = [];
-    for (const x of [-1.4, 1.3]) for (const z of [-0.8, 0.8]) {
-      const w = mesh(g, G.cyl(0.36, 0.36, 0.22, 14), 0x2a2d35, { p: [x, 0.36, z], r: [Math.PI / 2, 0, 0] });
-      mesh(w, G.cyl(0.16, 0.16, 0.24, 8), 0xcfd6dc);
-      wheels.push(w);
-    }
-    return { g, wheels };
+    return makeMinibus(this.root);
   }
 
   /** Minibus: có đoàn khách thì chạy tới đỗ trước cửa; đoàn về hết (sim lẫn trên cảnh) thì chạy đi. */
@@ -406,4 +379,41 @@ export class Curbside {
     this.guard.rotation.y += (face - this.guard.rotation.y) * Math.min(1, dt * 3);
     animatePerson(this.guard, t, { wave: busy ? 1 : 0 });
   }
+}
+
+/** Minibus du lịch: thân dài trắng, sọc cam, dải kính xanh, cửa bên hông phía vỉa hè; chạy theo +x. */
+export function makeMinibus(parent: THREE.Object3D | null = null): { g: THREE.Group; wheels: THREE.Object3D[] } {
+  const g = group(parent);
+  mesh(g, G.box(4.4, 1.5, 1.6), 0xf6f3ec, { p: [0, 1.15, 0] });
+  mesh(g, G.box(4.42, 0.5, 1.62), 0x7fc4ef, { p: [-0.1, 1.45, 0] }); // dải kính
+  mesh(g, G.box(4.44, 0.14, 1.64), 0xf28c28, { p: [0, 0.75, 0] }); // sọc cam
+  mesh(g, G.box(4.3, 0.12, 1.5), 0xdcd6cb, { p: [0, 1.96, 0] }); // mui
+  mesh(g, G.box(0.06, 0.55, 1.3), 0x7fc4ef, { p: [2.21, 1.4, 0] }); // kính trước
+  mesh(g, G.box(0.62, 1.1, 0.04), 0x5d6f80, { p: [1.3, 1.0, -0.81] }); // cửa lên xuống
+  for (const z of [-0.5, 0.5]) mesh(g, G.box(0.06, 0.14, 0.24), 0xfff3b0, { p: [2.21, 0.62, z], cast: false });
+  const sign = signText('DU LỊCH', '#e2703a', 1.6, 0.3);
+  sign.position.set(-0.4, 1.0, 0.82);
+  g.add(sign);
+  const wheels: THREE.Object3D[] = [];
+  for (const x of [-1.4, 1.3]) for (const z of [-0.8, 0.8]) {
+    const w = mesh(g, G.cyl(0.36, 0.36, 0.22, 14), 0x2a2d35, { p: [x, 0.36, z], r: [Math.PI / 2, 0, 0] });
+    mesh(w, G.cyl(0.16, 0.16, 0.24, 8), 0xcfd6dc);
+    wheels.push(w);
+  }
+  return { g, wheels };
+}
+
+/** Bác bảo vệ bãi giữ xe: áo xanh nhạt, mũ kê-pi xanh đậm, cầu vai, thắt lưng, còi vàng. */
+export function makeGuard(): THREE.Group {
+  const p = makePerson({ shirt: 0x9cc3e6, hair: 0x9a948c, skin: 0xe8b88a }, 'none', { build: 'elder', width: 1.15, hair: 'short' });
+  const rig = p.userData.rig;
+  const cap = group(rig.head, { p: [0, 0.3, 0.01] });
+  mesh(cap, G.cyl(0.25, 0.23, 0.12, 14), 0x23304a, { p: [0, 0.04, 0] });
+  mesh(cap, G.cyl(0.28, 0.28, 0.03, 16), 0x23304a, { p: [0, 0.11, 0.02] });
+  mesh(cap, G.box(0.24, 0.025, 0.12), 0x111111, { p: [0, -0.02, 0.24], r: [0.25, 0, 0] });
+  mesh(cap, G.box(0.08, 0.06, 0.02), 0xf2c14e, { p: [0, 0.05, 0.245], cast: false });
+  for (const side of [-1, 1]) mesh(rig.body, G.box(0.1, 0.03, 0.16), 0x23304a, { p: [side * 0.2, 0.47, 0] }); // cầu vai
+  mesh(rig.body, G.box(0.42, 0.05, 0.3), 0x2a2d35, { p: [0, -0.02, 0] }); // thắt lưng
+  mesh(rig.body, G.box(0.05, 0.12, 0.02), 0xf2c14e, { p: [0.12, 0.33, 0.215], cast: false }); // còi
+  return p;
 }

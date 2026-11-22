@@ -17,8 +17,9 @@ Cần Node 20.19+ hoặc 22+.
 | `npm run dev:lan` | Như trên nhưng mở cho máy khác cùng mạng (thử trên điện thoại) |
 | `npm test` | Test lõi mô phỏng (Vitest, chạy trong Node, không cần trình duyệt) |
 | `npm run typecheck` | Kiểm tra kiểu TypeScript |
-| `npm run build` | Typecheck + build production ra `dist` |
+| `npm run build` | Typecheck + build production ra `dist`: game + 3 trang model + Sổ tay `dist/so-tay.html` (bản online ở `<trang game>/so-tay.html`) |
 | `http://localhost:5184/lineup.html` | (chỉ bản dev, không build) dàn nhân vật: mọi dáng người × kiểu tóc, cử động, đội quán, khách quen — `src/dev/lineup.ts` |
+| `http://localhost:5184/models-nhan-vat.html` · `models-do-vat.html` · `models-mon-an.html` | 3 trang xem toàn bộ model 3D (có trong bản build — bản online ở `<trang game>/models-nhan-vat.html`…): nhân vật / đồ vật, bàn ghế, xe cộ, trang trí / món ăn, cây trồng, vật nuôi, nguyên liệu — ảnh nhỏ chụp từ đúng hàm dựng trong `src/ui/three`, bấm để xem to, xoay, thử cử động; `src/dev/models.ts` (thêm model mới thì thêm 1 dòng vào danh mục ở đó) |
 | `npm run sotay` | Sinh **Sổ tay** (bảng tra cứu toàn bộ nội dung game, tự tính giây thực / giá vốn / lãi) từ `src/data` ra `notes/so-tay-quan-nha-vuon.html` — xem ở `http://localhost:5184/notes/so-tay-quan-nha-vuon.html` khi đang chạy dev |
 
 Sau mỗi thay đổi: chạy `npm run typecheck` và `npm test`. Ở bản dev, `window.game` là đối tượng `Game` (xem state, gọi `game.dispatch(...)`, `game.tick(phút)` từ console).

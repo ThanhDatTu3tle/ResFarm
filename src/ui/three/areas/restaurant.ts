@@ -5,7 +5,7 @@ import type { RoomDef, StaffDef, TableDef } from '../../../data';
 import type { Game } from '../../../sim/game';
 import { blockerOf, canPlaceProp, canPlaceTable, LAYOUT_GRID, nearestPlaceable, placedProps, roomOf, seatSpots, tableById, tablePos, withRotation } from '../../../sim/layout';
 import { heartsOf } from '../../../sim/systems/regulars';
-import { makeHelperPerson, makePet, makeRegular } from '../people';
+import { makeHelperPerson, makePet, makePolice, makeRegular, makeShipper, makeShipperBike, makeWaiter } from '../people';
 import { isManager } from '../../../sim/systems/helpers';
 import { policePending } from '../../../sim/systems/events';
 import { animateProp, makeProp } from '../props';
@@ -19,7 +19,6 @@ import { Bar3D, blinkLeds, bubbleSprite, emojiSprite, G, group, ledFrame, mesh, 
 import { easeOutBack, wobble } from '../../ease';
 import { Particles } from '../fx';
 import { FestiveSet } from '../festive';
-import { makeScooter } from '../farmkit';
 import { nextWaypoint } from '../../../sim/pathing';
 import { OwnerWalker, type Spot } from '../owner';
 import { Curbside } from '../curbside';
@@ -338,20 +337,7 @@ export class RestaurantArea implements Area {
     const on = !!policePending(this.game.ctx);
     if (!this.police && !on) return;
     if (!this.police) {
-      // Quân phục xanh lá đậm, mũ kê-pi có quai đỏ + huy hiệu sao vàng, cầu vai đỏ
-      const p = makePerson({ shirt: 0x6f7d3a, hair: 0x1f1a17, skin: 0xf2c49b }, 'none', { width: 1.08, hair: 'short' });
-      const rig = p.userData.rig;
-      const cap = group(rig.head, { p: [0, 0.3, 0.01] });
-      mesh(cap, G.cyl(0.25, 0.22, 0.12, 14), 0x5c6a2e, { p: [0, 0.04, 0] });
-      mesh(cap, G.cyl(0.29, 0.29, 0.03, 16), 0x5c6a2e, { p: [0, 0.12, 0.02], s: [1, 1, 1.08] });
-      mesh(cap, G.box(0.3, 0.04, 0.02), 0xc9343a, { p: [0, 0.03, 0.235], cast: false });
-      mesh(cap, G.box(0.24, 0.025, 0.12), 0x2b2b2b, { p: [0, -0.02, 0.24], r: [0.25, 0, 0] });
-      const star = emojiSprite('⭐', 0.13);
-      star.position.set(0, 0.07, 0.26);
-      cap.add(star);
-      for (const side of [-1, 1]) mesh(rig.body, G.box(0.1, 0.03, 0.16), 0xc9343a, { p: [side * 0.2, 0.47, 0] }); // cầu vai
-      mesh(rig.body, G.box(0.42, 0.05, 0.3), 0x3a2a1e, { p: [0, -0.02, 0] }); // thắt lưng
-      p.scale.setScalar(1.1);
+      const p = makePolice();
       const badge = emojiSprite('👮', 0.55);
       badge.position.set(0, 2.4, 0);
       p.add(badge);
@@ -369,14 +355,8 @@ export class RestaurantArea implements Area {
   /** Anh shipper + xe máy trước cửa (bên phải cửa ra vào). */
   private updateShipper(env: Env): void {
     if (!this.shipper) {
-      const person = makePerson({ shirt: 0x2fa84f, hair: 0x2a1f1a, skin: 0xf2c49b }, 'none', { width: 1.0 });
-      mesh(person.userData.rig.head, G.sphere(0.27, 12, 8), 0x2fa84f, { p: [0, 0.24, -0.02], s: [1, 0.85, 1] }); // mũ bảo hiểm xanh
-      mesh(person.userData.rig.body, G.box(0.34, 0.36, 0.26), 0x2fa84f, { p: [0, 0.28, -0.24] }); // thùng giao hàng sau lưng
-      person.scale.setScalar(1.1);
-      const rider = makePerson({ shirt: 0x2fa84f, hair: 0x2a1f1a, skin: 0xf2c49b });
-      rider.visible = false;
-      const bike = makeScooter(0x2fa84f, rider);
-      mesh(bike, G.box(0.5, 0.42, 0.5), 0x2fa84f, { p: [-0.55, 0.92, 0] }); // thùng hàng trên baga
+      const person = makeShipper();
+      const bike = makeShipperBike();
       const x = this.halfW - 1.0;
       const z = this.frontZ + 1.3;
       bike.position.set(x, 0, z);
@@ -852,10 +832,7 @@ export class RestaurantArea implements Area {
 
   /** Bồi bàn — nhân vật của người chơi: áo xanh, tạp dề trắng, vòng sáng dưới chân cho dễ nhận ra. */
   private buildWaiter(): void {
-    const g = makePerson({ shirt: 0x3f8fd2, hair: 0x2a1f1a, skin: 0xffd9b8 });
-    const rig = g.userData.rig;
-    mesh(rig.body, G.box(0.36, 0.34, 0.05), 0xffffff, { p: [0, 0.14, 0.18] }); // tạp dề
-    mesh(rig.head, G.box(0.42, 0.06, 0.3), 0xe2574c, { p: [0, 0.36, 0.06], r: [-0.2, 0, 0] }); // mũ lưỡi trai đỏ
+    const g = makeWaiter();
     const ring = mesh(g, G.torus(0.42, 0.04, 6, 24), new THREE.MeshBasicMaterial({ color: 0xffd23e }), { p: [0, 0.03, 0], r: [Math.PI / 2, 0, 0], cast: false, receive: false });
     const hand = group(g, { p: [0, 0.98, 0.34] });
     g.scale.setScalar(1.1);

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --port 5184 --strictPort",
     "dev:lan": "vite --host --port 5184 --strictPort",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node scripts/so-tay.mjs dist/so-tay.html",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
