@@ -219,13 +219,12 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
     // Rèm noren treo ở đầu trong của cạnh ngắn (lối đầu bếp ra vào), mèo thần tài trên góc quầy
     noren(r, L.xStart + 0.75, 2.45, L.zCorner - 0.5, 1.1, 2);
     wavers.push(manekiNeko(r, L.x, 1.18, L.zCorner, 1.3));
-    for (const x of [d.halfW * 0.05, d.halfW * 0.6]) swingers.push(chochin(r, x, 3.7, (L.zCorner + d.frontZ) / 2 - 1, 1.0)); // treo cao trên khu bàn
+    // (đã bỏ 2 đèn lồng đỏ treo giữa khu bàn — vướng mắt, che bong bóng khách)
     for (const [x, z] of [[-d.halfW + 0.7, d.frontZ - 0.8], [d.halfW - 0.7, d.frontZ - 0.8]]) bonsai(r, x, z);
     for (const side of [-1, 1]) for (let i = 0; i < 9; i++) mesh(r, G.cyl(0.035, 0.035, 2.2, 6), 0x8fb35a, { p: [side * (d.halfW - 0.1), 1.1, d.frontZ - 3.4 + i * 0.09], cast: false });
   } else if (cuisine === 'jp') {
-    // Rèm noren trước gian bếp, đèn lồng đỏ treo trần, mèo thần tài, thẻ gỗ ghi món trên tường, bonsai ở góc
+    // Rèm noren trước gian bếp, mèo thần tài, thẻ gỗ ghi món trên tường, bonsai ở góc (không treo đèn lồng đỏ giữa quán)
     noren(r, (d.kitchenX1 + d.halfW) / 2, 3.55, d.kitchenZ + 0.1, d.halfW - d.kitchenX1 - 0.3, 4);
-    for (const x of [-d.halfW * 0.55, 0, d.halfW * 0.55]) swingers.push(chochin(r, x, 3.7, 1, 1.0)); // treo cao, không che khách
     for (const x of [-d.halfW + 0.6, d.halfW - 0.6]) swingers.push(chochin(r, x, 3.3, d.kitchenZ + 0.4, 0.9, 0xf3efe0));
     wavers.push(manekiNeko(r, kc - 1.55, 1.02, d.backZ + 0.55, 1.3)); // đầu dãy bếp, cạnh chảo
     for (let i = 0; i < 7; i++) {
@@ -261,9 +260,9 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
       for (const bx of [-0.2, 0, 0.2]) mesh(crate, G.cyl(0.04, 0.05, 0.28, 8), 0x5fd08a, { p: [bx, 0.82, 0] });
     }
   } else {
-    // Đèn lồng Hội An nhiều màu, quạt trần, chữ Phúc, mành tre (không đặt bàn thờ ở quán nào)
+    // Dãy đèn lồng Hội An nhiều màu, quạt trần, chữ Phúc, mành tre (không đặt bàn thờ ở quán nào)
     const colors = [0xd9433a, 0xf2b23e, 0x9a4fc4, 0xe2703a, 0x3f9f6a];
-    for (const [i, x] of [-d.halfW * 0.55, 0, d.halfW * 0.55].entries()) swingers.push(hoiAnLantern(r, x, 3.75, 1, colors[i], 1.15)); // treo cao, không che khách
+    // Chỉ giữ dãy đèn trước gian bếp + 2 quạt trần (đã bỏ 3 đèn lồng to treo giữa quán)
     for (let i = 0; i < 9; i++) swingers.push(hoiAnLantern(r, -d.halfW + 0.9 + i * ((d.halfW * 2 - 1.8) / 8), 3.7, d.kitchenZ + 0.3, colors[i % colors.length], 0.7));
     for (const x of [-d.halfW * 0.3, d.halfW * 0.3]) spinners.push(ceilingFan(r, x, 4.05, -0.4));
     // Chữ Phúc trên giấy đỏ hình thoi

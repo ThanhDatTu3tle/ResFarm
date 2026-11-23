@@ -50,7 +50,7 @@ const AUTOSAVE_SECONDS = 10;
  * opts.cuisine có giá trị = Ván mới với phong cách quán đó (ghi đè save cũ); không có = chơi tiếp từ save.
  * Màn hình mở đầu (title.ts) gọi hàm này sau khi người chơi chọn.
  */
-export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?: OwnerProfile; content?: Content; preview?: CuisineId } = {}): void {
+export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?: OwnerProfile; shopName?: string; content?: Content; preview?: CuisineId } = {}): void {
   const content = opts.content ?? createContent();
 
   // Tham số URL để thử nhanh: ?fresh (bỏ qua save, không ghi save) · ?seed=7 · ?ff=300 (tua 300 phút game)
@@ -66,6 +66,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   // Ván mới từ màn mở đầu: ngày 1 là ngày hướng dẫn (ván tạm ?fresh thì chỉ khi có ?tutorial)
   const tutorial = !preview && (!!opts.cuisine || params.has('tutorial'));
   const game = new Game(content, saved ? { state: saved } : { seed: params.has('seed') ? Number(params.get('seed')) : preview ? 11 : undefined, cuisine, tutorial, owner: opts.owner ?? paramOwner(params) });
+  // Ván mới: tên quán người chơi đặt ở bước chọn quán (trống / sai thì giữ tên mặc định)
+  if (!saved && opts.shopName) game.dispatch({ type: 'profile/rename', name: opts.shopName });
   if (import.meta.env.DEV) {
     // ?tut=market — nhảy tới một bước của ngày hướng dẫn (intro / serve / hard / market / cook / farm / morning / lunch / done)
     const tut = params.get('tut');
@@ -197,6 +199,40 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     // Khách quen ghé / về: góc trái dưới thẻ nhiệm vụ (bên phải đã có đồng hồ + cột nút)
     $(kind.includes('regular') ? 'toasts-left' : 'toasts').appendChild(el);
     setTimeout(() => el.remove(), ms);
+  };
+  /**
+   * Thông báo khách quen: mỗi lần chỉ hiện MỘT cái (~2 s), nhiều khách cùng lúc thì xếp hàng hiện lần lượt.
+   * Canh mép phải theo thẻ nhiệm vụ (không sát lề trái — tai thỏ / Dynamic Island trên iPhone che mất).
+   */
+  const regularQueue: { text: string; kind: string; pic: string }[] = [];
+  let regularBusy = false;
+  const pumpRegular = () => {
+    if (regularBusy) return;
+    const item = regularQueue.shift();
+    if (!item) return;
+    regularBusy = true;
+    const box = $('toasts-left');
+    const quest = root.querySelector<HTMLElement>('.hud-top > .quest');
+    const r = quest?.getBoundingClientRect();
+    if (r && r.width > 0) {
+      box.classList.add('anchored');
+      box.style.left = `${Math.round(r.right)}px`;
+      box.style.top = `${Math.round(r.bottom + 6)}px`;
+      box.style.maxWidth = `${Math.round(r.width)}px`;
+    } else {
+      box.classList.remove('anchored');
+      box.style.left = box.style.top = box.style.maxWidth = '';
+    }
+    toast(item.text, item.kind, item.pic, 2000);
+    setTimeout(() => {
+      regularBusy = false;
+      pumpRegular();
+    }, 2150);
+  };
+  const regularToast = (text: string, kind: string, pic: string) => {
+    regularQueue.push({ text, kind, pic });
+    if (regularQueue.length > 4) regularQueue.shift(); // dồn quá nhiều thì bỏ bớt cái cũ
+    pumpRegular();
   };
 
   const save = () => {
@@ -431,7 +467,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   // Khách quen: thông báo có chân dung lúc ghé quán; lên tim / được ăn món ruột / tặng quà
   game.bus.on('regular/arrived', (e) => {
     const def = content.regulars.get(e.regularId);
-    toast(`${def.name} ghé quán — "${def.greet}"`, 'regular', portraitHtml(def, 'toast-pic'), 3600);
+    regularToast(`${def.name} ghé quán — "${def.greet}"`, 'regular', portraitHtml(def, 'toast-pic'));
     if (ui.area === 'restaurant') sound.play('bell');
   });
   game.bus.on('regular/visited', (e) => {
@@ -439,7 +475,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     const max = content.balance.regulars.heartVisits.length;
     const parts = [e.fav ? `${def.name} khen món ruột ngon tuyệt!` : `${def.name} ăn ngon miệng.`];
     if (e.heartUp) parts.push(`Thân thiết lên ${'♥'.repeat(e.hearts)}${'♡'.repeat(max - e.hearts)}`);
-    toast(parts.join(' '), 'regular good', portraitHtml(def, 'toast-pic'), 3600);
+    regularToast(parts.join(' '), 'regular good', portraitHtml(def, 'toast-pic'));
     if (e.gift) {
       const gift = content.props.get(e.gift);
       setTimeout(() => toast(`🎁 ${def.name} tặng quán "${gift.name}" — quà đã được chuyển vào kho.`, 'good', portraitHtml(def, 'toast-pic'), 5000), 900);

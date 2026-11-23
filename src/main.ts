@@ -19,6 +19,6 @@ else if (params.has('fresh') || params.has('play')) startApp(root, { content });
 else {
   showTitle(root, content, {
     hasSave: loadSave(content) != null,
-    onStart: (cuisine, owner) => startApp(root, { content, cuisine: cuisine ?? undefined, owner }),
+    onStart: (cuisine, owner, shopName) => startApp(root, { content, cuisine: cuisine ?? undefined, owner, shopName }),
   });
 }

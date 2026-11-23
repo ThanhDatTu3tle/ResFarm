@@ -155,6 +155,7 @@ const bubbleTextures = new Map<string, THREE.Texture>();
 /**
  * Bong bóng chat (nền trắng bo tròn, đuôi nhọn chỉ xuống) chứa một hoặc nhiều emoji — dùng cho yêu cầu của khách
  * (📖 cần menu, 😊 chọn xong món, mặt theo tâm trạng, các món đã gọi). Texture có cache theo nội dung.
+ * Luôn vẽ đè lên cảnh (không bị quầy / mái quầy / tường che — vd bàn dơ ở quầy chữ L quán Nhật).
  */
 export function bubbleSprite(icons: string[], size = 0.62, bg?: string | null): THREE.Sprite {
   const key = icons.join('|') + (bg ? `#${bg}` : '');
@@ -184,10 +185,10 @@ export function bubbleSprite(icons: string[], size = 0.62, bg?: string | null): 
     });
     bubbleTextures.set(key, tex);
   }
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }));
   sprite.center.set(0.5, 0);
   sprite.scale.set((size * w) / 168, size, 1);
-  sprite.renderOrder = 5;
+  sprite.renderOrder = 20;
   return sprite;
 }
 

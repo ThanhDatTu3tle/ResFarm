@@ -6,7 +6,7 @@ import { animatePerson, makeBush, makeTree } from './three/models';
 import { makeShopfront, shopkeeper } from './three/cuisine';
 import { G, group, mesh, seeded } from './three/toon';
 import { makeOwner } from './three/people';
-import { cleanOwner, DEFAULT_OWNER, OWNER_AGE, OWNER_HAIRS, OWNER_NAME_MAX, OWNER_OUTFITS, type OwnerProfile } from '../sim/state';
+import { cleanOwner, DEFAULT_OWNER, DEFAULT_SHOP_NAME, OWNER_AGE, OWNER_HAIRS, OWNER_NAME_MAX, OWNER_OUTFITS, type OwnerProfile } from '../sim/state';
 
 /**
  * MÀN HÌNH MỞ ĐẦU — logo + "Chơi tiếp" (khi có save hợp lệ) + "Ván mới".
@@ -36,7 +36,7 @@ const FLAGS: Record<CuisineId, string> = {
   oc: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#faf3e6"/><path d="M0 0h5v20H0zM10 0h5v20h-5zM20 0h5v20h-5z" fill="#e2473c"/><circle cx="15" cy="10" r="7" fill="#fff6e0" stroke="#c9762c" stroke-width="1.4"/><path d="M15 4.5a5.5 5.5 0 0 1 0 11a3.6 3.6 0 0 1 0-7.2a2 2 0 0 1 0 4" fill="none" stroke="#c9762c" stroke-width="1.3"/></svg>',
 };
 
-export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: boolean; onStart: (cuisine: CuisineId | null, owner?: OwnerProfile) => void }): void {
+export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: boolean; onStart: (cuisine: CuisineId | null, owner?: OwnerProfile, shopName?: string) => void }): void {
   root.innerHTML = `<div id="title">
     <canvas id="title-scene"></canvas>
     <div class="title-ui"></div>
@@ -103,6 +103,8 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
   rebuildOwner();
   /** Đã qua bước chọn chủ quán (hộp hỏi xoá ván cũ hiện trên bước đó). */
   let pickedOwner = false;
+  /** Tên quán đặt ở bước chọn quán (trống = tên mặc định). */
+  let shopName = '';
 
   // ---------- Trạng thái + giao diện ----------
   let step: Step = 'menu';
@@ -180,7 +182,8 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
     } else {
       uiEl.innerHTML = `<div class="pick-head"><button class="mini" data-title="back" aria-label="Quay lại">←</button><h2>Chọn phong cách quán</h2></div>
         <div class="cuisine-cards">${ORDER.map(card).join('')}</div>
-        <div class="pick-foot"><span class="muted">Nông trại và chợ dùng chung cho cả 4 quán.</span>
+        <div class="pick-foot"><label class="owner-name shop-name-field"><span>🏠 Tên quán</span>
+            <input type="text" maxlength="24" value="${esc(shopName)}" placeholder="${esc(DEFAULT_SHOP_NAME)}" data-shop-input autocomplete="off" enterkeyhint="done"></label>
           <button class="big preview-btn" data-title="preview" title="Vào xem thử bên trong quán đang có khách">👀 Xem trước</button>
           <button class="primary big" data-title="owner" style="--accent:${c.accent}"><span class="flag">${FLAGS[focus]}</span> Chọn ${esc(c.name)} →</button></div>`;
     }
@@ -193,6 +196,10 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
   uiEl.addEventListener('input', (e) => {
     const el = e.target as HTMLInputElement;
     // Gõ tên: giữ nguyên chữ đang gõ (cắt khoảng trắng lúc mở quán)
+    if (el.matches('[data-shop-input]')) {
+      shopName = el.value.slice(0, 24);
+      return;
+    }
     if (el.matches('[data-name-input]')) {
       owner = { ...owner, name: el.value.slice(0, OWNER_NAME_MAX) };
       return;
@@ -340,6 +347,6 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
     window.removeEventListener('resize', resize);
     renderer.dispose();
     renderer.forceContextLoss();
-    opts.onStart(cuisine, cuisine ? cleanOwner(owner) : undefined);
+    opts.onStart(cuisine, cuisine ? cleanOwner(owner) : undefined, cuisine ? shopName.replace(/s+/g, ' ').trim() || undefined : undefined);
   }
 }
