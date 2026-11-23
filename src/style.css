@@ -3630,3 +3630,145 @@ button.quest-claim {
     box-shadow: 0 0 0 4px rgba(47, 158, 90, 0.45);
   }
 }
+
+/* E2: xuất / nhập file save (Cài đặt + màn mở đầu) */
+.save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.save-actions button {
+  flex: 1 1 140px;
+}
+.save-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 8px 0;
+}
+.save-compare > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.save-compare small {
+  color: var(--muted);
+  font-weight: 700;
+}
+.save-compare > div:last-child .save-sum {
+  opacity: 0.75;
+}
+.save-sum {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 2px solid var(--wood);
+  background: #fffaf1;
+  font-size: 13px;
+}
+.save-sum b {
+  font-size: 15px;
+}
+@media (max-width: 560px) {
+  .save-compare {
+    grid-template-columns: 1fr;
+  }
+}
+.title-menu .file-btn {
+  padding: 6px 14px;
+  font-size: 14px;
+  background: rgba(255, 250, 241, 0.9);
+}
+.title-menu .file-msg {
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #fde3df;
+  color: #9a2e22;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* F1: thăm quán người khác (?visit) — chỉ xem: ẩn HUD, ngăn kéo, mọi bảng / hộp thoại của ván đó */
+#app.visiting #hud,
+#app.visiting #tools,
+#app.visiting #areabar,
+#app.visiting #drawer,
+#app.visiting #coach,
+#app.visiting #toasts-left,
+#app.visiting #service,
+#app.visiting #modal,
+#app.visiting #questdlg,
+#app.visiting #bill,
+#app.visiting #meal,
+#app.visiting #bankrupt,
+#app.visiting #buy,
+#app.visiting #calendar {
+  display: none !important;
+}
+#visit-bar {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right));
+  padding: 8px 10px 8px 14px;
+  border-radius: 16px;
+  background: var(--panel, #fffaf1);
+  border: 3px solid #c2457f;
+  box-shadow: 0 6px 20px rgba(60, 40, 20, 0.25);
+}
+#visit-bar .vb-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+#visit-bar .vb-text b,
+#visit-bar .vb-text span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#visit-bar .vb-text span {
+  font-size: 12px;
+  opacity: 0.75;
+}
+#visit-bar .vb-areas {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+#visit-bar .vb-areas button {
+  padding: 4px 9px;
+  font-size: 13px;
+}
+#visit-bar > .primary {
+  flex-shrink: 0;
+  background: #c2457f;
+  border-color: #a3335f;
+}
+@media (max-width: 720px), (max-height: 540px) {
+  #visit-bar {
+    top: max(6px, env(safe-area-inset-top));
+    gap: 8px;
+    padding: 5px 6px 5px 10px;
+  }
+  #visit-bar .vb-text b {
+    font-size: 14px;
+  }
+  #visit-bar .vb-text span {
+    font-size: 11px;
+  }
+  #visit-bar .vb-areas button,
+  #visit-bar > .primary {
+    padding: 3px 7px;
+    font-size: 12px;
+  }
+}

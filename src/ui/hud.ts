@@ -320,6 +320,14 @@ export function settingsHtml(ui: UiState, prefs: { music: boolean; sfx: boolean 
       </section>
 
       <section>
+        <h3>💾 Lưu game</h3>
+        <p class="muted">Ván tự lưu trong trình duyệt này. Tải file save về để chuyển sang máy khác hoặc giữ phòng trình duyệt xoá dữ liệu.</p>
+        <div class="save-actions"><button${uiAttr('saveExport')}>⬇️ Tải ván này về</button><button${uiAttr('saveImport')}>📂 Mở file save</button></div>
+        <p class="muted">Có file save của bạn bè? Sang thăm quán của họ — chỉ xem, ván của bạn đứng yên chờ bạn về.</p>
+        <button class="wide"${uiAttr('visitFile')}>🏡 Thăm quán từ file save</button>
+      </section>
+
+      <section>
         <h3>Màn hình</h3>
         <button class="wide"${uiAttr('fullscreen')}>⛶ Bật/tắt toàn màn hình</button>
       </section>

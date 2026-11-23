@@ -261,7 +261,7 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 ## E. Kỹ thuật và phát hành
 
 - [ ] **E1 · CI** *(Sonnet)* — GitHub Actions chạy typecheck + test mỗi lần push.
-- [ ] **E2 · Xuất/nhập save** *(Sonnet)* — nút tải file save về và nạp lại, để chuyển máy hoặc gửi cho bạn. Không cần server.
+- [x] **E2 · Xuất/nhập save** *(24/11/2026, giai đoạn 19 — `src/ui/savefile.ts`, `exportSave` / `readSaveFile` trong `save.ts`)* — Cài đặt → 💾 Lưu game: "Tải ván này về" (điện thoại mở hộp chia sẻ), "Mở file save" (hộp so sánh hai ván rồi mới thay); màn mở đầu có nút "📂 Mở file save". Không cần server.
 - [ ] **E3 · Chia nhỏ gói JS** *(Sonnet)* — tách Three.js thành chunk riêng để cache tốt hơn.
 - [ ] **E4 · Biểu tượng app + ảnh chờ** *(Sonnet)* — thêm icon vào `manifest.webmanifest` để "Thêm vào màn hình chính" có hình.
 - [ ] **E5 · Đa ngôn ngữ** *(Opus, chỉ khi cần)* — tách chữ khỏi data và panel.
@@ -289,7 +289,7 @@ Online chia 3 mức, khó dần và pháp lý nặng dần. **Làm theo thứ t�
 
 ### Việc cụ thể
 
-- [ ] **F1 · Chế độ xem quán chỉ đọc từ một file save** *(Opus — làm trước, chưa cần máy chủ)* — nạp một file save (vd từ E2 xuất / nhập save) vào state riêng, dựng quán + nông trại của "người khác", dừng sim của mình, giờ trong ngày theo mình / mùa theo bản chụp, dải tên chủ quán ở góc, nút "← Về quán mình". Kiểm tra: mở save quán khác phong cách (Nhật / Hàn / Việt / Ốc), khác mùa, khác hạng.
+- [x] **F1 · Chế độ xem quán chỉ đọc từ một file save** *(24/11/2026, giai đoạn 19 — Cài đặt → "🏡 Thăm quán từ file save" → `?visit`; bản chụp cất trong sessionStorage, sim đứng yên, mọi lệnh bị chặn; dev: `?visit=jp&at=1200`)* *(Opus — làm trước, chưa cần máy chủ)* — nạp một file save (vd từ E2 xuất / nhập save) vào state riêng, dựng quán + nông trại của "người khác", dừng sim của mình, giờ trong ngày theo mình / mùa theo bản chụp, dải tên chủ quán ở góc, nút "← Về quán mình". Kiểm tra: mở save quán khác phong cách (Nhật / Hàn / Việt / Ốc), khác mùa, khác hạng.
 - [ ] **F2 · Hoạt cảnh cho quán đang thăm** *(Opus)* — khách ảo vào ngồi, nhân viên đi lại, không đụng kinh tế.
 - [ ] **F3 · Máy chủ + tài khoản** *(Opus, cần chủ dự án quyết nhà cung cấp)* — đăng nhập, tải bản chụp lên / xuống, danh sách bạn bè (mã mời). Kèm **nút xoá tài khoản trong game** (CH Play / App Store bắt buộc) và cập nhật chính sách quyền riêng tư.
 - [ ] **F4 · Tim, sticker, quà** *(Opus)* — hàng chờ trên máy chủ, nhận khi mở game, giới hạn quà.

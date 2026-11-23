@@ -15,7 +15,7 @@ const params = new URLSearchParams(location.search);
 // Xem trước một quán ở màn chọn quán (?preview=oc): ván tạm không lưu, quán tự chạy — xem xong quay lại màn chọn
 const preview = params.get('preview');
 if (preview && content.cuisines.has(preview)) startApp(root, { content, preview: preview as CuisineId });
-else if (params.has('fresh') || params.has('play')) startApp(root, { content });
+else if (params.has('fresh') || params.has('play') || params.has('visit')) startApp(root, { content }); // ?visit: thăm quán từ file save (F1)
 else {
   showTitle(root, content, {
     hasSave: loadSave(content) != null,

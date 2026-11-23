@@ -1,4 +1,5 @@
 import type { Game } from '../../sim/game';
+import type { GameState } from '../../sim/state';
 
 /** Trạng thái thuần giao diện (không lưu vào save). */
 export interface UiState {
@@ -44,6 +45,8 @@ export interface UiState {
   rename: string | null;
   /** Hộp đổi tên đang đổi tên gì: quán (biển hiệu) hay chủ quán (tên trên đầu nhân vật). */
   renameKind: 'shop' | 'owner';
+  /** E2: file save vừa chọn, đang chờ người chơi xác nhận thay ván (null = không có hộp). */
+  importSave: { raw: string; state: GameState } | null;
   /** Nội thất (DecorDef id) đang xem trước trong quán ở bảng Siêu thị — chưa mua, chỉ tô lại màu; đóng bảng là thôi. */
   decorPreview?: string | null;
 }

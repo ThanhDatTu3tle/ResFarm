@@ -9,13 +9,14 @@ import { coachHtml } from './coach';
 import { billDue } from '../sim/systems/crew';
 import { tutorialJump } from '../sim/systems/tutorial';
 import { seedTakeoutDemo } from '../sim/systems/takeout';
-import { cleanOwner, type OwnerProfile, type TutorialStep } from '../sim/state';
+import { cleanOwner, ownerName, type GameState, type OwnerProfile, type TutorialStep } from '../sim/state';
 import { inShift } from '../sim/systems/customers';
 import { festivals, seasons } from '../data/calendar';
 import { calendarOf } from '../sim/calendar';
 import { createContent, type Content, type CuisineId, type MillType } from '../data';
 import { Game } from '../sim/game';
 import { deserialize, serialize } from '../sim/save';
+import { downloadSave, pickSaveFile, saveSummaryHtml, SAVE_KEY, storeSave } from './savefile';
 import { needsWatering } from '../sim/systems/farm';
 import { buildingRect, queuedKinds, slotCenter, slotCenterAt } from '../sim/systems/farmer';
 import { millCenter, millCenterAt } from '../sim/systems/mills';
@@ -40,7 +41,6 @@ import { Stage, type Area, type Pick } from './three/stage';
 import { portraitHtml } from './three/portraits';
 import { tableById } from '../sim/layout';
 
-const SAVE_KEY = 'quan-nha-vuon/save';
 /** Số lần vẽ lại DOM mỗi giây (cảnh 3D vẫn vẽ mỗi khung hình). */
 const DOM_FPS = 8;
 const AUTOSAVE_SECONDS = 10;
@@ -58,17 +58,26 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   const params = new URLSearchParams(location.search);
   // Xem trước quán (màn chọn quán): ván tạm, không đọc / ghi save, không có ngày hướng dẫn
   const preview = opts.preview ?? null;
-  const fresh = params.has('fresh') || !!preview;
-  const saved = fresh || opts.cuisine ? null : loadSave(content);
+  // F1 · Thăm quán (?visit): bản chụp quán của người khác (file save, cất trong sessionStorage) — chỉ xem, không lưu.
+  // Ván của mình đã lưu trước khi sang đây nên giờ của mình đứng yên; về lại thì chạy tiếp.
+  const visit = params.has('visit') ? (import.meta.env.DEV && content.cuisines.has(params.get('visit') ?? '') ? demoVisit(content, params.get('visit') as CuisineId) : readVisit(content)) : null;
+  const fresh = params.has('fresh') || !!preview || !!visit;
+  const saved = visit ?? (fresh || opts.cuisine ? null : loadSave(content));
   // ?cuisine=jp|kr|vn (kèm ?fresh) để thử nhanh một quán mà không qua màn hình mở đầu
   const paramCuisine = params.get('cuisine');
   const cuisine = opts.cuisine ?? preview ?? (paramCuisine && content.cuisines.has(paramCuisine) ? (paramCuisine as CuisineId) : 'vn');
   // Ván mới từ màn mở đầu: ngày 1 là ngày hướng dẫn (ván tạm ?fresh thì chỉ khi có ?tutorial)
-  const tutorial = !preview && (!!opts.cuisine || params.has('tutorial'));
+  const tutorial = !preview && !visit && (!!opts.cuisine || params.has('tutorial'));
   const game = new Game(content, saved ? { state: saved } : { seed: params.has('seed') ? Number(params.get('seed')) : preview ? 11 : undefined, cuisine, tutorial, owner: opts.owner ?? paramOwner(params) });
   // Ván mới: tên quán người chơi đặt ở bước chọn quán (trống / sai thì giữ tên mặc định)
   if (!saved && opts.shopName) game.dispatch({ type: 'profile/rename', name: opts.shopName });
-  if (import.meta.env.DEV) {
+  if (visit) {
+    // Giờ trong ngày theo người đi thăm (?at=phút), mùa / năm giữ theo bản chụp của chủ quán
+    const at = Number(params.get('at'));
+    if (Number.isFinite(at) && at >= 0 && at < 24 * 60) game.state.clock.minute = Math.floor(at);
+    game.state.clock.phase = 'open';
+  }
+  if (import.meta.env.DEV && !visit) {
     // ?tut=market — nhảy tới một bước của ngày hướng dẫn (intro / serve / hard / market / cook / farm / morning / lunch / done)
     const tut = params.get('tut');
     if (tut) tutorialJump(game.ctx, tut as TutorialStep);
@@ -113,7 +122,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       previewAuto(game);
       game.tick(1);
     }
-  } else game.tick(Number(params.get('ff')) || 0);
+  } else if (!visit) game.tick(Number(params.get('ff')) || 0);
 
   root.innerHTML = `
     <section id="stage">
@@ -132,12 +141,14 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     <div id="calendar"></div>
     <div id="bankrupt"></div>
     <div id="rename"></div>
+    <div id="importsave"></div>
     <div id="service"></div>
     <div id="buy"></div>
     <div id="guide"></div>
     <div id="toasts"></div>
     <div id="toasts-left"></div>
     ${preview ? previewBarHtml(content, preview) : ''}
+    ${visit ? visitBarHtml(game.state) : ''}
     <div id="photobar"><button class="primary" data-ui="snap">📸 Chụp ảnh quán</button><button data-ui="photo:close">✕ Thoát</button></div>
     <div id="rotate">
       <div class="big">📱↻</div>
@@ -146,6 +157,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       <button class="primary" data-ui="fullscreen">Toàn màn hình + xoay ngang</button>
     </div>`;
   root.classList.toggle('previewing', !!preview);
+  root.classList.toggle('visiting', !!visit);
   const $ = (id: string) => root.querySelector<HTMLElement>(`#${id}`)!;
 
   // Thứ tự mảng = thứ tự các khu từ trái sang phải khi bấm nút chuyển khu.
@@ -166,7 +178,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     selectedSlot: import.meta.env.DEV ? params.get('slot') : null,
     selectedStall: null,
     editLayout: import.meta.env.DEV && params.has('edit'),
-    settings: false,
+    settings: import.meta.env.DEV && params.has('settings'), // ?settings: mở sẵn bảng Cài đặt (chỉ bản dev)
     // Chỉ bản dev: ?focus=pen mở bảng Nông trại chỉ với một loại ô / cối (để xem giao diện)
     farmFocus: import.meta.env.DEV ? params.get('focus') : null,
     editSelected: null,
@@ -181,6 +193,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     calendar: import.meta.env.DEV && params.has('cal') ? 0 : null, // ?cal: mở sẵn cuốn lịch (chỉ bản dev)
     rename: import.meta.env.DEV && params.has('rename') ? game.state.profile.name : null, // ?rename: mở sẵn hộp đổi tên quán (chỉ bản dev)
     renameKind: 'shop',
+    importSave: null,
   };
   // Chỉ bản dev: ?stall=seafood mở thẳng bên trong một quầy chợ (sạp nguyên liệu / Tiệm 25caaaaa)
   const devStall = import.meta.env.DEV ? params.get('stall') : null;
@@ -235,8 +248,10 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     pumpRegular();
   };
 
+  /** Đang rời trang để mở ván từ file (E2): không ghi đè save vừa nạp lúc pagehide. */
+  let leaving = false;
   const save = () => {
-    if (fresh) return;
+    if (fresh || leaving) return;
     try {
       localStorage.setItem(SAVE_KEY, serialize(game.state));
     } catch {
@@ -254,6 +269,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
 
   let pauseHintAt = -1e9;
   const run = (command: Command) => {
+    if (visit) return false; // đang thăm quán người khác: chỉ xem, không làm gì được
     const result = game.dispatch(command);
     if (result.ok && (command.type === 'decor/buy' || command.type === 'decor/equip')) ui.decorPreview = null; // mua / đổi rồi thì thôi xem trước
     if (!result.ok) {
@@ -562,6 +578,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
 
     morph($('hud'), hudHtml(game, ui, money.value));
     morph($('settings'), settingsHtml(ui, sound.prefs));
+    morph($('importsave'), importSaveHtml());
     morph($('calendar'), calendarHtml(game, ui));
     morph($('bankrupt'), state.bankrupt ? bankruptHtml() : policePending(game.ctx) ? policeHtml() : '');
     morph($('rename'), renameHtml(ui));
@@ -694,8 +711,9 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     $('scene').animate([{ opacity: 0.15 }, { opacity: 1 }], { duration: 380, easing: 'ease-out' });
   };
 
-  // Bấm vào vật thể trong cảnh 3D
-  stage.onPick = (pick: Pick) => {
+  // Bấm vào vật thể trong cảnh 3D (đang thăm quán: chỉ cho bấm nhà kính / sạp chợ để đi vào xem)
+  stage.onPick = (pick: Pick, held: number) => (visit && pick.type !== 'building' && pick.type !== 'stall' ? undefined : onPick(pick, held));
+  const onPick = (pick: Pick, _held: number) => {
     if (pick.type === 'slot') {
       // Bác đang ở chợ / kiệt sức: nhắc (vẫn mở bảng để xem)
       const blocked = farmerBlocked(game.ctx);
@@ -963,6 +981,58 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       if (document.fullscreenElement) void document.exitFullscreen();
       else void document.documentElement.requestFullscreen?.().then(lock).catch(() => {});
     }
+    else if (action === 'saveExport') {
+      // E2: tải file save về máy (lưu bộ nhớ trước cho chắc)
+      save();
+      void downloadSave(game.state).then((ok) => ok && toast('💾 Đã tải file save — giữ file này để mở lại ván trên máy khác.', 'good', '', 3600));
+    } else if (action === 'visitFile') {
+      // F1: chọn file save của bạn → lưu ván mình → sang chế độ thăm quán (giờ trong ngày theo mình)
+      void pickSaveFile(content).then((res) => {
+        if (!res) return;
+        if (!res.ok) return toast(`🏡 ${res.reason}`, 'bad', '', 4200);
+        try {
+          sessionStorage.setItem(VISIT_KEY, res.raw);
+        } catch {
+          return toast('Trình duyệt không cho lưu tạm dữ liệu, không mở được quán này.', 'bad', '', 4200);
+        }
+        save();
+        leaving = true;
+        location.href = `${location.pathname}?visit&at=${Math.floor(game.state.clock.minute)}`;
+      });
+    } else if (action === 'visit' && arg === 'home') {
+      // Về quán mình: ván của mình chạy tiếp từ đúng chỗ đã lưu
+      try {
+        sessionStorage.removeItem(VISIT_KEY);
+      } catch {
+        /* bỏ qua */
+      }
+      location.href = loadSave(content) ? `${location.pathname}?play` : location.pathname;
+      return;
+    } else if (action === 'saveImport') {
+      // E2: chọn file save → hộp xác nhận (ván đang chơi sẽ bị thay)
+      void pickSaveFile(content).then((res) => {
+        if (!res) return;
+        if (!res.ok) toast(`📂 ${res.reason}`, 'bad', '', 4200);
+        else {
+          ui.importSave = { raw: res.raw, state: res.state };
+          ui.settings = false;
+          renderDom();
+        }
+      });
+    } else if (action === 'importSave') {
+      if (arg === 'ok' && ui.importSave) {
+        if (!storeSave(ui.importSave.raw)) {
+          toast('Trình duyệt không cho lưu dữ liệu, không mở được ván này.', 'bad', '', 4200);
+          ui.importSave = null;
+          renderDom();
+          return;
+        }
+        leaving = true;
+        location.href = `${location.pathname}?play`;
+        return;
+      }
+      ui.importSave = null;
+    }
     else if (action === 'home') {
       // Về màn hình mở đầu: lưu rồi tải lại trang (màn mở đầu có Chơi tiếp / Ván mới)
       save();
@@ -972,6 +1042,22 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     renderDom();
   });
   window.addEventListener('pagehide', save);
+  /** E2: hộp xác nhận mở ván từ file save — so ván đang chơi với ván trong file. */
+  function importSaveHtml(): string {
+    if (!ui.importSave) return '';
+    return `<div class="backdrop" data-key="importsave"${uiAttr('importSave:close')}>
+      <div class="dialog import-save" role="dialog" aria-label="Mở ván từ file"${uiAttr('noop')}>
+        <h2>📂 Mở ván từ file?</h2>
+        <div class="save-compare">
+          <div><small>Ván trong file</small>${saveSummaryHtml(ui.importSave.state, content)}</div>
+          <div><small>${fresh ? 'Ván đang lưu trong trình duyệt' : 'Ván đang chơi'} — sẽ bị thay</small>${(fresh ? loadSave(content) : game.state) ? saveSummaryHtml((fresh ? loadSave(content) : game.state)!, content) : '<div class="save-sum muted">Chưa có ván nào</div>'}</div>
+        </div>
+        <p class="muted">Muốn giữ ván đang chơi thì bấm "Tải ván này về" trong Cài đặt trước.</p>
+        <div class="dialog-foot"><button${uiAttr('importSave:close')}>Huỷ</button><button class="primary"${uiAttr('importSave:ok')}>Mở ván trong file</button></div>
+      </div>
+    </div>`;
+  }
+
   /** Công an khu vực (quán ốc): game dừng, chủ quán chọn bồi dưỡng hay để thu một bàn đôi. */
   function policeHtml(): string {
     const money = bribeOf(game.ctx);
@@ -1048,7 +1134,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     last = now;
     // Mở bảng Cài đặt, bảng gọi món cho đội hay hoá đơn ăn uống thì game tạm dừng; đóng lại chạy tiếp ở tốc độ đã chọn
     // Sắp xếp bàn ghế, mở Siêu thị (mua đồ nâng cấp) cũng tạm dừng để người chơi thong thả
-    const speed = game.state.bankrupt || !!policePending(game.ctx) || ui.settings || ui.editLayout || ui.drawer === 'shop' || ui.calendar != null || ui.rename != null || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
+    const speed = visit || game.state.bankrupt || !!policePending(game.ctx) || ui.settings || ui.editLayout || ui.drawer === 'shop' || ui.calendar != null || ui.rename != null || ui.importSave != null || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
     game.tick(dt * speed * content.balance.minutesPerSecond);
     // Xem trước nội thất chỉ khi bảng Siêu thị còn mở
     if (ui.drawer !== 'shop') ui.decorPreview = null;
@@ -1112,6 +1198,42 @@ function previewAuto(game: Game): void {
   if (game.state.crew.pending.length) game.dispatch({ type: 'crew/autoOrder' });
   if (billDue(game.ctx)) game.dispatch({ type: 'crew/pay' });
   if (game.state.money < 100) game.state.money = 500; // ván xem trước không bao giờ hết tiền
+}
+
+const VISIT_KEY = 'quan-nha-vuon/visit';
+
+/** F1: bản chụp quán đang thăm (file save đã chọn, cất trong sessionStorage), null nếu không có / hỏng. */
+function readVisit(content: Content): GameState | null {
+  try {
+    return deserialize(sessionStorage.getItem(VISIT_KEY), content);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Chỉ bản dev: ?visit=jp — quán mẫu để thử chế độ thăm quán mà không cần chọn file: bà chủ Lan, mùa Thu năm 1,
+ * đã chạy tới giữa ca sáng có khách ngồi (giờ trong ngày vẫn lấy theo ?at=).
+ */
+function demoVisit(content: Content, cuisine: CuisineId): GameState {
+  const g = new Game(content, { seed: 23, cuisine, owner: { gender: 'female', age: 28, name: 'Lan' } });
+  g.dispatch({ type: 'profile/rename', name: 'Quán Nhà Lan' });
+  g.state.clock.day = 29;
+  for (let m = 0; m < 150; m++) {
+    previewAuto(g);
+    g.tick(1);
+  }
+  return g.state;
+}
+
+/** Thanh trên cùng khi thăm quán: quán của ai, mùa / năm của chủ quán, chuyển khu, nút về quán mình. */
+function visitBarHtml(state: GameState): string {
+  const cal = calendarOf(state.clock.day);
+  return `<div id="visit-bar">
+    <div class="vb-text"><b>🏡 Quán của ${esc(ownerName(state.owner))}</b><span>${esc(state.profile.name)} · Mùa ${esc(seasons[cal.season]?.name ?? '')}, năm ${cal.year}</span></div>
+    <div class="vb-areas"><button data-ui="area:farm">🌾 Vườn</button><button data-ui="area:restaurant">🏠 Quán</button><button data-ui="area:market">🧺 Chợ</button></div>
+    <button class="primary" data-ui="visit:home">← Về quán mình</button>
+  </div>`;
 }
 
 /** Thanh trên cùng khi xem trước quán: tên quán, gợi ý thao tác camera, nút quay lại / chọn quán này. */
