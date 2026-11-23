@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { HairStyle, PersonBuild } from '../../data';
 import { G, group, mesh, toonRim } from './toon';
+import { mergeParts } from './merge';
 
 /**
  * NGƯỜI kiểu chibi: đầu to, mắt to có đốm sáng, má hồng, tay chân tách rời quay quanh khớp.
@@ -431,6 +432,11 @@ const mix = (a: number, b: number, k: number) => a + (b - a) * k;
 export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): void {
   const rig = g.userData.rig as Rig | undefined;
   if (!rig) return;
+  // Tối ưu: lần cử động đầu tiên (người đã dựng xong cả trang phục, phụ kiện) thì gộp mesh cùng vật liệu trên từng bộ phận
+  if (!g.userData.partsMerged) {
+    g.userData.partsMerged = true;
+    mergeParts([rig.body, rig.head, rig.armL, rig.armR, rig.legL, rig.legR]);
+  }
   const scarf = g.userData.scarf as THREE.Object3D | undefined;
   if (scarf) scarf.visible = wardrobe.winter;
   const umbrella = g.userData.umbrella as THREE.Object3D | undefined;

@@ -16,6 +16,7 @@ import { adultShape, animateCreature, animatePerson, LOOKS, makeBush, makeDish, 
 import { buildSeat, counterExtras, decorateInterior, seatStyle, signText, tableExtras, type InteriorAnimator } from '../cuisine';
 import { buildStreetGround, buildStreetKitchen, standingSign, streetSpots } from '../street';
 import { buildNeighborhood } from '../neighborhood';
+import { mergeAdded, mergeStatic } from '../merge';
 import { HOLD_MS, type Area, type Env, type Pick } from '../stage';
 import { Bar3D, blinkLeds, bubbleSprite, emojiSprite, G, group, ledFrame, mesh, speechSprite, textSprite, toon, paintSeason } from '../toon';
 import { easeOutBack, wobble } from '../../ease';
@@ -273,14 +274,17 @@ export class RestaurantArea implements Area {
       this.nightDark = 0.7;
       // Ngoài trời: mưa rơi khắp khu quán (cả bàn ghế), không chỉ ngoài cửa sổ
       this.rainBox = { min: [-this.halfW - 3, 0, this.backZ - 3], max: [this.halfW + 3, 12, this.frontZ + 3] };
-      buildStreetGround(this.root, this.dims(), this.mats);
+      // Nền vỉa hè + dãy nhà phố: cảnh tĩnh, gộp mesh (merge.ts)
+      const ground = group(this.root);
+      buildStreetGround(ground, this.dims(), this.mats);
+      mergeStatic(ground, false);
       for (const x of [-this.halfW * 0.5, this.halfW * 0.5]) {
         const lamp = new THREE.PointLight(0xffc27a, 0, 0, 0);
         lamp.position.set(x, 3.2, 0.5);
         this.lamps.push(lamp);
         this.root.add(lamp);
       }
-    } else this.buildRoom();
+    } else this.mergeBuilt(() => this.buildRoom()); // tường, sàn, cửa sổ, hành lang: cảnh tĩnh → gộp mesh
     // Trang trí lễ hội: dây treo dọc hai tường bên, đồ đứng hai bên cửa (chỉ hiện vào ngày lễ)
     {
       const { halfW, backZ, frontZ } = this;
@@ -298,7 +302,9 @@ export class RestaurantArea implements Area {
     this.buildCashier();
     this.curb = new Curbside(this.root, { halfW: this.halfW, frontZ: this.frontZ, backZ: this.backZ, door: this.door, hasRoad: this.street });
     // Xóm quanh quán: dãy nhà sau hẻm, nhà mặt tiền + cây xanh hai bên ngoài bãi xe (neighborhood.ts)
-    this.neighborhood = buildNeighborhood(this.root, { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, street: this.street });
+    const hood = group(this.root);
+    this.neighborhood = buildNeighborhood(hood, { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, street: this.street });
+    mergeStatic(hood, false);
     this.interior = decorateInterior(game.state.cuisine, this.root, {
       halfW: this.halfW,
       backZ: this.backZ,
@@ -525,6 +531,14 @@ export class RestaurantArea implements Area {
   }
 
   // ---------- Dựng cảnh tĩnh ----------
+
+  /**
+   * Tối ưu: chạy hàm dựng `fn` rồi gom mọi thứ nó vừa gắn vào root vào một nhóm và gộp mesh (merge.ts).
+   * Chỉ dùng cho phần dựng cảnh tĩnh — không chỗ nào giữ tham chiếu tới từng mesh để cử động / ẩn hiện.
+   */
+  private mergeBuilt(fn: () => void): void {
+    mergeAdded(this.root, fn, false);
+  }
 
   private buildRoom(): void {
     const r = this.root;
@@ -1047,6 +1061,8 @@ export class RestaurantArea implements Area {
     const hand = emojiSprite('✋', 0.55);
     hand.position.set(0, 1.75, 0);
     g.add(hand);
+    // Tối ưu: gộp mesh bàn + ghế + đồ trên bàn (pad / ✋ giữ riêng — được bật tắt)
+    mergeStatic(g, false);
     return { def: t, g, pad, hand };
   }
 

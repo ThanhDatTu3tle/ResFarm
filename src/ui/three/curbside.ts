@@ -6,6 +6,7 @@ import { Chatter } from './chatter';
 import { ROAD_MID, SIDEWALK } from './street';
 import { arrivalMode } from '../../sim/systems/customers';
 import { emojiSprite, G, group, mesh } from './toon';
+import { mergeAdded } from './merge';
 
 /**
  * TRƯỚC CỬA QUÁN (giai đoạn 15) — dùng chung cho cả 4 phong cách quán:
@@ -79,8 +80,11 @@ export class Curbside {
     this.busStop = [d.door[0] - 2.6, frontZ + SIDEWALK + 0.95];
     this.sidewalkZ = frontZ + 2.1;
     this.aisle = { moto: halfW + 4.4, car: -halfW - 4.6 };
-    if (!d.hasRoad) this.buildRoad();
-    this.buildLots();
+    // Đường, vỉa hè, hai bãi xe (vạch, biển P): cảnh tĩnh → gộp mesh (merge.ts)
+    mergeAdded(root, () => {
+      if (!d.hasRoad) this.buildRoad();
+      this.buildLots();
+    }, false);
     this.guard = this.buildGuard(halfW + 5.6, frontZ + 1.4);
     this.guardTalk = new Chatter(this.guard, ['Gửi xe bên này nha!', 'Vô từ từ thôi nha!', 'Dắt xe vô trong nè!', 'Nhớ lấy vé xe nha!'], 1.95, 3, 0.2);
     this.buildThrough();

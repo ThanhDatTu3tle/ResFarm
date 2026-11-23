@@ -339,20 +339,29 @@ const hsl = { h: 0, s: 0, l: 0 };
  * màu gốc giữ ở `userData.seasonBase` nên gọi lại bao nhiêu lần cũng được. `foliage = false`: chỉ đổi nền cỏ
  * (trong quán có chậu cây, không phủ tuyết lên chậu cây trong nhà).
  */
+/**
+ * Màu gốc nếu mesh này đổi màu theo mùa (lá cây: khối ico màu xanh lá; nền cỏ: màu trong GROUND), null nếu không.
+ * Dùng chung cho paintSeason và mergeStatic (khối gộp giữ màu gốc trong userData.seasonBase).
+ */
+export function seasonBaseOf(o: THREE.Mesh, foliage = true): number | null {
+  const m = o.material;
+  if (!(m instanceof THREE.MeshToonMaterial)) return null;
+  const hex = m.color.getHex();
+  if (matCache.get(hex) !== m) return null;
+  m.color.getHSL(hsl);
+  const leafy = foliage && o.geometry instanceof THREE.IcosahedronGeometry && hsl.h > 0.17 && hsl.h < 0.45 && hsl.s > 0.2;
+  return leafy || GROUND.has(hex) ? hex : null;
+}
+
 export function paintSeason(root: THREE.Object3D, season: number, foliage = true): void {
   const [to, k] = SEASON_TINT[season] ?? [0, 0];
   root.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
     let base = o.userData.seasonBase as number | undefined;
     if (base === undefined) {
-      const m = o.material;
-      if (!(m instanceof THREE.MeshToonMaterial)) return;
-      const hex = m.color.getHex();
-      if (matCache.get(hex) !== m) return;
-      m.color.getHSL(hsl);
-      const leafy = foliage && o.geometry instanceof THREE.IcosahedronGeometry && hsl.h > 0.17 && hsl.h < 0.45 && hsl.s > 0.2;
-      if (!leafy && !GROUND.has(hex)) return;
-      o.userData.seasonBase = base = hex;
+      base = seasonBaseOf(o, foliage) ?? undefined;
+      if (base === undefined) return;
+      o.userData.seasonBase = base;
     }
     const kk = GROUND.has(base) ? (GROUND_K[season] ?? 0) : k;
     o.material = toon(kk ? new THREE.Color(base).lerp(new THREE.Color(to), kk).getHex() : base);

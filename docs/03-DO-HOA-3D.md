@@ -167,7 +167,18 @@ Nhờ thứ tự "file → code → emoji", có thể thay dần từng model m�
 | Bóng đổ | 1 nguồn, 2048² | `Stage` |
 | Dung lượng JS | ~720 KB (~190 KB nén) + font Mali (~5 KB mỗi phần chữ) | `npm run build` |
 
-Đo ngày 18/11/2026 (máy dev, chưa đo điện thoại): **560–650 draw call** mỗi khung tuỳ khu (đã tính pass đổ bóng), 25–55 nghìn tam giác — draw call đã vượt mục tiêu, nên việc gộp mesh tĩnh (D5) nên làm trước khi thêm nhiều vật thể. Đo bằng `window.stage.renderer.info.render` sau `stage.render()` ở bản dev. Chưa đo trên thiết bị thật. Khi đo, cảnh nặng nhất là chợ và nông trại lúc mưa. Thứ tự tối ưu nếu giật: gộp mesh tĩnh → hạ độ phân giải bóng → hạ tỉ lệ điểm ảnh xuống 1.5 → giảm hạt mưa.
+Đo ngày 18/11/2026 (máy dev, chưa đo điện thoại): **560–650 draw call** mỗi khung tuỳ khu (đã tính pass đổ bóng), 25–55 nghìn tam giác — draw call đã vượt mục tiêu, nên việc gộp mesh tĩnh (D5) nên làm trước khi thêm nhiều vật thể. Đo bằng `window.stage.renderer.info.render` sau `stage.render()` ở bản dev.
+
+**Đo lại 23/11/2026 (giai đoạn 18, máy dev, cảnh ban ngày, có pass đổ bóng)** — sau nhiều giai đoạn thêm cảnh (xóm nhà, sạp chợ, xe buýt, biển LED…) số lần vẽ đã tăng gấp 4–7 lần; gộp mesh tĩnh (`src/ui/three/merge.ts`) kéo xuống:
+
+| Khu | Trước | Sau | Giảm |
+| --- | --- | --- | --- |
+| Quán (quán Việt hạng 3) | 2 378 | 1 012 | −57% |
+| Chợ | 4 391 | 1 425 | −68% |
+| Nông trại | 2 658 | 1 399 | −47% |
+| Quán Nhật / Hàn / Ốc (hạng 1) | — | 1 087 / 755 / 1 083 | |
+
+Đã gộp: cảnh tĩnh từng khu (đất, đường, vỉa hè, dãy nhà, cây, cột đèn, hàng rào — `mergeStatic`), từng sạp / tiệm / xe hàng rong, tường + sàn quán, bàn ghế, bãi xe, viền nét đứt "mở rộng" ở nông trại, thân xe trên đường (bánh xe giữ riêng), và các mảnh cùng màu trên từng bộ phận người (`mergeParts`, gộp lazily ở lần `animatePerson` đầu tiên — tóc nhiều mảnh, má…). Chưa gộp (có phần cử động được giữ tham chiếu): gian bếp + đầu bếp, đồ trang trí nội thất (quạt quay…), cối xay gió / nhà xay lúa, ô nông trại (đổi theo cây lớn), suối (vệt nước chảy), xe buýt, khách. Tam giác không giảm (gộp không bỏ hình), có khi tăng nhẹ vì khối gộp lớn không bị cắt khỏi khung nhìn. Chưa đo trên điện thoại thật. Chưa đo trên thiết bị thật. Khi đo, cảnh nặng nhất là chợ và nông trại lúc mưa. Thứ tự tối ưu nếu giật: gộp mesh tĩnh → hạ độ phân giải bóng → hạ tỉ lệ điểm ảnh xuống 1.5 → giảm hạt mưa.
 
 Để xem nhanh số liệu, thêm tạm vào `app.ts` (bản dev): `(window as any).info = renderer.info` — hiện `renderer` là private trong `Stage`, cần mở một getter.
 
