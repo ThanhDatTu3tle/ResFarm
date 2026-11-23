@@ -26,7 +26,7 @@ export const stalls: StallDef[] = [
     ],
   },
   {
-    id: 'banhtrang', name: 'Bánh tráng trộn', icon: '🥢', markup: 1, calls: ['Bánh tráng trộn đây!', 'Cay cay giòn giòn nè!', 'Trộn liền tay nha!'], kind: 'pole', spot: { x: 0.5, z: 6.8 }, items: [],
+    id: 'banhtrang', name: 'Bánh tráng trộn', icon: '🥢', markup: 1, calls: ['Bánh tráng trộn đây!', 'Cay cay giòn giòn nè!', 'Trộn liền tay nha!'], kind: 'pole', spot: { x: 4.7, z: 7.3 }, items: [],
     menu: [
       { name: 'Bánh tráng trộn', icon: '🥗', price: 14, energy: 9 },
       { name: 'Bánh tráng nướng', icon: '🍕', price: 16, energy: 10 },

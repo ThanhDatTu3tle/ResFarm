@@ -497,8 +497,13 @@ export interface Balance {
     chefPerDish: number;
     waiterPerTask: number;
     farmerPerTask: number;
+    /** Bồi dưỡng nhanh lần đầu trong ngày; mỗi lần sau trong cùng ngày đắt thêm reviveStep. */
     reviveCost: number;
-    reviveEnergy: number;
+    reviveStep: number;
+    /** Bồi dưỡng hồi bấy nhiêu phần năng lượng tối đa (0.5 = một nửa). */
+    reviveRatio: number;
+    /** Tối qua nhịn bữa tối thì sáng dậy chỉ còn bấy nhiêu phần năng lượng tối đa. */
+    hungryWakeRatio: number;
     /** Nghỉ ngơi trong giờ nghỉ cũng hồi chút sức (cộng thêm ngoài món ăn). */
     restEnergy: number;
     lunchBack: number;

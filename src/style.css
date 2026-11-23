@@ -878,6 +878,33 @@ button.danger {
   margin: 8px 0;
 }
 
+/*
+ * Thẻ trong ngăn kéo (biểu tượng · chữ · nút): ngăn kéo hẹp (điện thoại ngang) thì nút xuống hàng dưới, canh phải,
+ * chữ giữ đủ bề rộng — không còn cột chữ bị ép mỗi dòng một từ.
+ */
+#panel .card > .row,
+#panel > .row {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+#panel .card > .row > .grow,
+#panel > .row > .grow {
+  flex: 1 1 170px;
+}
+#panel .card > .row > button,
+#panel > .row > button,
+#panel .card > .row > .btns {
+  margin-left: auto;
+}
+#panel .card > .row > .btns {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.card.previewing {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(226, 112, 58, 0.25);
+}
+
 .card.off {
   opacity: 0.6;
 }

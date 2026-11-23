@@ -15,6 +15,7 @@ import { makeFruitTree } from '../farmkit';
 import { adultShape, animateCreature, animatePerson, cropStageOf, FARMER_SHAPE, LOOKS, makeAnimals, makeBush, makeCrop, makeFence, makeLampPost, makePerson, makeTree, type CropStage } from '../models';
 import { collectSway, sway, type Area, type Env, type Pick } from '../stage';
 import { Bar3D, emojiSprite, G, group, mesh, seeded, toon, type V3, paintSeason } from '../toon';
+import { HUNGRY_UNTIL, updateHunger } from '../chatter';
 
 /**
  * KHU NÔNG TRẠI — ruộng, chuồng, ao ngoài trời. Mỗi ô trong state.farm.slots có một SlotView;
@@ -674,6 +675,9 @@ export class FarmArea implements Area {
       this.tractor.g.visible = false;
       this.parked.g.visible = true;
     }
+    // Tối qua nhịn đói: sáng nay than đói (tới 09:00)
+    const hungry = state.crew.hungry.includes('farmer') && state.clock.minute < this.game.content.balance.shifts[0].from + HUNGRY_UNTIL;
+    updateHunger(g, hungry && !f.fainted && g.visible, env.t, 50, 2.5);
     if (f.fainted || !g.visible) {
       g.position.set(f.x, f.fainted ? 0.2 : 0, f.z);
       g.rotation.z += ((f.fainted ? Math.PI / 2 : 0) - g.rotation.z) * Math.min(1, dt * 6);

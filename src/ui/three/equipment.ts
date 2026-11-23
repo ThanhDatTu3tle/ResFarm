@@ -162,8 +162,8 @@ export function buildEquipment(parent: THREE.Object3D, d: EquipDims, owned: Set<
       for (const sx of [-0.48, 0.48]) mesh(bar, G.cyl(0.012, 0.012, 0.045, 6), 0xdfe5ea, { p: [sx, 0, 0.01], r: [Math.PI / 2, 0, 0], cast: false });
       [0, 1, 2, 3, 4].forEach((kind, i) => knife(bar, -0.4 + i * 0.2, kind));
     } else if (d.cart) {
-      // Quán ốc: hộp dao gỗ nghiêng trên xe đẩy, cán dao cắm trong khe
-      const blk = group(g, { p: [d.cart.x + 0.7, 1.05, d.cart.z - 0.2] });
+      // Quán ốc: hộp dao gỗ nghiêng ở chỗ thái đầu phải bàn ốc, cán dao cắm trong khe
+      const blk = group(g, { p: [d.cart.x + 0.72, 0.99, d.cart.z - 0.12] });
       const body = group(blk, { p: [0, 0.12, 0], r: [0.3, 0, 0] });
       mesh(body, G.box(0.22, 0.24, 0.16), 0x8a5a35);
       mesh(body, G.box(0.2, 0.01, 0.14), 0x6b4428, { p: [0, 0.121, 0], cast: false });

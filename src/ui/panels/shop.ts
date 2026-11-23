@@ -3,7 +3,7 @@ import { decorSlotNames } from '../../data/decor';
 import type { Game } from '../../sim/game';
 import { cmd, esc, ui } from '../dom';
 import { coins } from '../format';
-import type { Panel } from './types';
+import type { Panel, UiState } from './types';
 
 const MODIFIER_NAMES: Record<ModifierKey, string> = {
   cookSpeed: 'tốc độ nấu',
@@ -23,7 +23,7 @@ export function bonusText(modifiers?: Partial<Record<ModifierKey, number>>): str
 
 const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
 
-function decorCard(game: Game, d: DecorDef): string {
+function decorCard(game: Game, d: DecorDef, uiState: UiState): string {
   const { state } = game;
   const owned = state.decor.owned.includes(d.id);
   const using = state.decor.equipped[d.slot] === d.id;
@@ -36,12 +36,15 @@ function decorCard(game: Game, d: DecorDef): string {
     : owned
       ? `<button${cmd({ type: 'decor/equip', decorId: d.id })}>Dùng</button>`
       : `<button${cmd({ type: 'decor/buy', decorId: d.id })}${levelOk && state.money >= d.cost ? '' : ' disabled'}>${levelOk ? coins(d.cost) : `🔒 Cấp ${d.level}`}</button>`;
-  return `<div class="card ${using ? 'owned' : ''}" data-key="${d.id}"><div class="row">
+  // Xem trước: tô lại quán bằng màu món này (chưa mua), bấm lần nữa thì thôi
+  const previewing = uiState.decorPreview === d.id;
+  const preview = using ? '' : `<button class="${previewing ? 'on' : 'ghost'}"${ui(`decorPreview:${d.id}`)}>${previewing ? '✖ Thôi xem' : '👀 Xem trước'}</button>`;
+  return `<div class="card ${using ? 'owned' : ''}${previewing ? ' previewing' : ''}" data-key="${d.id}"><div class="row">
     <span class="big">${d.icon}</span>
     <div class="grow"><b>${esc(d.name)}</b>
       <div class="swatches">${swatches}</div>
       <div class="muted">${bonusText(d.modifiers) || 'Chỉ để đẹp'}</div></div>
-    ${button}</div></div>`;
+    <div class="btns">${preview}${button}</div></div></div>`;
 }
 
 /** Siêu thị: nội thất (sàn, sơn tường, bàn ghế) + trang thiết bị nâng cấp quán. */
@@ -49,14 +52,14 @@ export const shopPanel: Panel = {
   id: 'shop',
   label: 'Siêu thị',
   icon: '🛒',
-  render(game) {
+  render(game, uiState) {
     const { state, content } = game;
 
     const decor = (Object.keys(decorSlotNames) as DecorSlot[])
       .map((slot) => {
         const cards = decorFor(content, state.cuisine)
           .filter((d) => d.slot === slot)
-          .map((d) => decorCard(game, d))
+          .map((d) => decorCard(game, d, uiState))
           .join('');
         return `<h3>${decorSlotNames[slot]}</h3>${cards}`;
       })
@@ -126,7 +129,11 @@ export const shopPanel: Panel = {
       })
       .join('');
 
-    return `<div class="row"><p class="muted grow">Mua nội thất là dùng ngay; món đã mua đổi qua lại miễn phí.</p>
+    const pv = uiState.decorPreview && content.decor.has(uiState.decorPreview) ? content.decor.get(uiState.decorPreview) : null;
+    const previewBar = pv
+      ? `<div class="card previewing" data-key="decor-preview"><div class="row"><span class="big">👀</span><div class="grow"><b>Đang xem trước: ${esc(pv.name)}</b><div class="muted">Quán đang tô màu thử — mua thì giữ luôn, thôi thì về như cũ.</div></div><div class="btns"><button class="ghost"${ui('decorPreview:')}>Thôi</button></div></div></div>`
+      : '';
+    return `${previewBar}<div class="row"><p class="muted grow">Mua nội thất là dùng ngay; món đã mua đổi qua lại miễn phí. Bấm 👀 Xem trước để thử màu sàn, tường, bàn ghế trong quán trước khi mua.</p>
       <button class="mini"${ui('edit')}>🪑 Sắp xếp quán</button></div>
       <h3>Đồ trang trí</h3><p class="muted">Mua là tự bày vào chỗ trống; vào 🪑 Sắp xếp quán để kéo đi chỗ khác, xoay, cất kho. Mỗi loại tính hiệu ứng một lần.</p>${props}
       <h3>Thú cưng</h3>${pets}
