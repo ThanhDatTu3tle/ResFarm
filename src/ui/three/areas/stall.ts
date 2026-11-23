@@ -3,6 +3,8 @@ import type { StallDef } from '../../../data';
 import type { Game } from '../../../sim/game';
 import { priceOf } from '../../../sim/systems/market';
 import { signText } from '../cuisine';
+import { makeIngredient } from '../ingredients';
+import { Chatter } from '../chatter';
 import { adultShape, animatePerson, FARMER_SHAPE, LOOKS, makePerson, randomShape } from '../models';
 import type { Area, Env, Pick } from '../stage';
 import { OwnerWalker } from '../owner';
@@ -53,6 +55,20 @@ export function logoBoard(parent: THREE.Object3D, p: V3, w: number): THREE.Group
 /** Số khay tối đa trên quầy trước (2 hàng × 5): nhiều hơn thì bày lên kệ sau, quầy không cao quá che người bán. */
 const FRONT_MAX = 10;
 
+/**
+ * Một món hàng bày trên khay / rổ trong quầy: model nguyên liệu (ingredients.ts) nếu có, không thì biểu tượng.
+ * `size` = cỡ biểu tượng cũ (m), `scale` = cạnh dài nhất của model so với size, `y` = độ cao tâm biểu tượng; model (gốc ở đáy) đặt ngay trên mặt khay `floor`, lớp trên chồng cao hơn.
+ */
+function goodsPiece(id: string, icon: string, size: number, k: number, y: number, floor: number, stacked: boolean, scale: number): { obj: THREE.Object3D; y: number } {
+  const m = makeIngredient(id);
+  if (!m) return { obj: emojiSprite(icon, size), y };
+  // Co theo khối bao để món nào cũng cùng cỡ trên khay (bao gạo to, quả ớt nhỏ...): cạnh dài nhất = size × scale
+  const dim = new THREE.Box3().setFromObject(m).getSize(new THREE.Vector3());
+  m.scale.setScalar((size * scale) / Math.max(dim.x, dim.y, dim.z, 0.01));
+  m.rotation.y = k * 1.9;
+  return { obj: m, y: floor + (stacked ? size * 0.35 : 0) };
+}
+
 export class StallArea implements Area {
   id = 'stall';
   label = 'Trong quầy';
@@ -65,6 +81,12 @@ export class StallArea implements Area {
   private stallId: string | null = null;
   private day = -1;
   private vendor: THREE.Group | null = null;
+  /** Lời rao của người bán (StallDef.calls). */
+  private chatter: Chatter | null = null;
+  /** Người bán làm gì: vẫy chào (mặc định), chặt thịt (sạp thịt), lựa hải sản bỏ lên cân (sạp hải sản). */
+  private vendorMode: 'wave' | 'chop' | 'weigh' = 'wave';
+  /** Sạp hải sản: kim cân (lắc khi đặt hàng lên), con tôm trên tay người bán, hướng quay mặt về phía cân. */
+  private weigh: { needle: THREE.Object3D; held: THREE.Object3D; toScale: number } | null = null;
   private eaters = new Map<string, THREE.Group>();
   private bobbers: { obj: THREE.Object3D; y: number; phase: number }[] = [];
   /** Hải sản bơi trong bể (sạp kiểu 'tanks'): bơi qua lại theo trục x của bể, quay đầu khi đổi hướng. */
@@ -108,6 +130,9 @@ export class StallArea implements Area {
     this.owner = null;
     this.leds = [];
     this.vendor = null;
+    this.chatter = null;
+    this.vendorMode = 'wave';
+    this.weigh = null;
     this.day = this.game.state.clock.day;
     const { content } = this.game;
     if (!this.stallId || !content.stalls.has(this.stallId)) return;
@@ -116,6 +141,7 @@ export class StallArea implements Area {
     this.view = def.kind === 'kiosk' ? { position: [0, 4.6, 7.4], target: [0, 1.5, -2.4], orbit: 0.45 } : { position: [0, 6.6, 7.6], target: [0, 1.1, -1], orbit: 0.45 };
     if (def.kind === 'kiosk') this.buildKiosk(def);
     else this.buildStall(def, STALL_COLORS[index % STALL_COLORS.length], index);
+    if (this.vendor) this.chatter = new Chatter(this.vendor, def.calls ?? [], 1.95, index, 0.16);
   }
 
   /** Sạp nguyên liệu: sàn gạch, mái bạt sọc, kệ thùng phía sau, quầy gỗ bày khay hàng có biển giá (sạp 'tanks': bể nước, xem buildTanks). */
@@ -183,8 +209,7 @@ export class StallArea implements Area {
       mesh(tray, G.box(w - 0.12, 0.06, d - 0.12), 0xf3e6c8, { p: [0, 0.04, 0] });
       // Đống hàng: vài biểu tượng chồng lên nhau
       for (let k = 0; k < 5; k++) {
-        const sp = emojiSprite(item.icon, 0.42 * s);
-        const y = (0.28 + (k > 2 ? 0.18 : 0)) * s;
+        const { obj: sp, y } = goodsPiece(id, item.icon, 0.42 * s, k, (0.28 + (k > 2 ? 0.18 : 0)) * s, 0.07, k > 2, 1.15);
         sp.position.set(((k % 3) - 1) * 0.34 * (w / tw), y, (k > 2 ? -0.05 : 0.12 - (k % 2) * 0.12) * (d / td));
         tray.add(sp);
         if (k === 4) this.bobbers.push({ obj: sp, y, phase: i * 1.3 });
@@ -317,7 +342,15 @@ export class StallArea implements Area {
     mesh(scale, G.cyl(0.22, 0.26, 0.5, 10), 0x2f6fb0, { p: [0, 0.25, 0] }); // ghế đẩu nhựa
     mesh(scale, G.box(0.42, 0.22, 0.36), 0xe9e4da, { p: [0, 0.61, 0] }); // thân cân
     mesh(scale, G.cyl(0.13, 0.13, 0.04, 16), 0xffffff, { p: [0, 0.62, 0.19], r: [Math.PI / 2, 0, 0], cast: false }); // mặt đồng hồ
-    mesh(scale, G.box(0.01, 0.09, 0.01), 0xc0392b, { p: [0.02, 0.64, 0.215], r: [0, 0, -0.5], cast: false }); // kim
+    const needle = group(scale, { p: [0, 0.62, 0.215] });
+    mesh(needle, G.box(0.01, 0.09, 0.01), 0xc0392b, { p: [0, 0.045, 0], cast: false }); // kim (quay quanh tâm mặt đồng hồ)
+    const held = makeIngredient('shrimp')!;
+    held.scale.setScalar(1.6);
+    held.position.set(0, -0.32, 0.06);
+    held.visible = false;
+    (vendor.userData.rig.armR as THREE.Object3D).add(held);
+    this.weigh = { needle, held, toScale: Math.atan2(0.9 - vendor.position.x, -1.0 - vendor.position.z) };
+    this.vendorMode = 'weigh';
     mesh(scale, G.cyl(0.26, 0.22, 0.04, 16), 0xb9c2c8, { p: [0, 0.75, 0] }); // đĩa cân
     const onScale = emojiSprite('🦐', 0.3);
     onScale.position.set(0, 0.88, 0);
@@ -365,12 +398,12 @@ export class StallArea implements Area {
     mesh(b, G.torus(0.42, 0.035, 4, 16), 0xa77a3a, { p: [0, 0.3, 0], r: [Math.PI / 2, 0, 0], cast: false });
     mesh(b, G.cyl(0.39, 0.39, 0.04, 14), 0x7a5a3a, { p: [0, 0.27, 0], cast: false }); // đáy hàng
     for (let k = 0; k < 6; k++) {
-      const s = emojiSprite(item.icon, 0.24);
+      const { obj: s, y } = goodsPiece(id, item.icon, 0.24, k, 0.36 + (k === 5 ? 0.08 : 0), 0.29, k === 5, 0.95);
       const a = (k / 6) * Math.PI * 2 + i;
-      const r = k === 5 ? 0 : 0.18;
-      s.position.set(Math.cos(a) * r, 0.36 + (k === 5 ? 0.08 : 0), Math.sin(a) * r * 0.7);
+      const r = k === 5 ? 0 : 0.2;
+      s.position.set(Math.cos(a) * r, y, Math.sin(a) * r * 0.7);
       b.add(s);
-      if (k === 5) this.bobbers.push({ obj: s, y: 0.44, phase: i * 1.1 });
+      if (k === 5) this.bobbers.push({ obj: s, y, phase: i * 1.1 });
     }
     this.priceTag(b, id, [0, 0.14, 0.47], 1.3, -0.25);
   }
@@ -447,9 +480,6 @@ export class StallArea implements Area {
     mesh(board, G.cyl(0.5, 0.5, 0.005, 20), 0xa77a45, { p: [0, 0.205, 0], cast: false }); // vân gỗ
     mesh(board, G.box(0.4, 0.1, 0.28), 0xa8333a, { p: [-0.1, 0.26, 0.05], r: [0, 0.4, 0] });
     mesh(board, G.box(0.18, 0.08, 0.2), 0xf0a1a1, { p: [0.25, 0.25, -0.18], r: [0, -0.3, 0] });
-    const knife = group(board, { p: [0.18, 0.32, 0.12], r: [0, -0.5, 0.25] });
-    mesh(knife, G.box(0.34, 0.16, 0.015), 0xdfe6ea); // lưỡi dao phay
-    mesh(knife, G.box(0.2, 0.05, 0.04), 0x3a2a1e, { p: [0.26, -0.03, 0] }); // cán
 
     // Cân thịt: đế, mặt đồng hồ, đĩa cân có miếng thịt
     const sc = group(g, { p: [2.75, H + 0.03, z0 - 0.05] });
@@ -462,12 +492,18 @@ export class StallArea implements Area {
 
     // Người bán đứng sau thớt, tạp dề trắng dính chút đỏ
     const vendor = makePerson(LOOKS[(index * 3 + 5) % LOOKS.length], 'none', { ...adultShape(index * 3 + 5), width: 1.2, hair: 'bun' });
-    vendor.position.set(1.3, 0, z0 - 1.1);
+    vendor.position.set(1.3, 0.32, z0 - 0.78); // đứng trên bục sát thớt: thấy rõ tay chặt thịt
+    mesh(g, G.box(1.3, 0.32, 0.8), 0x8a6a4a, { p: [1.3, 0.16, z0 - 0.85] }); // bục gỗ
     vendor.scale.setScalar(1.25);
     mesh(vendor, G.box(0.42, 0.5, 0.05), 0xffffff, { p: [0, 0.55, 0.19], cast: false });
     mesh(vendor, G.sphere(0.04, 6, 5), 0xc0392b, { p: [0.08, 0.6, 0.22], cast: false });
+    // Dao phay trong tay phải: cán nắm trong lòng bàn tay, lưỡi chĩa tới trước (theo cánh tay bổ xuống thớt)
+    const cleaver = group(vendor.userData.rig.armR as THREE.Object3D, { p: [0, -0.3, 0.02], r: [Math.PI / 2, 0, 0] });
+    mesh(cleaver, G.box(0.03, 0.12, 0.035), 0x3a2a1e, { p: [0, 0.02, 0] }); // cán
+    mesh(cleaver, G.box(0.012, 0.2, 0.13), 0xdfe6ea, { p: [0, 0.17, 0.04] }); // lưỡi
     g.add(vendor);
     this.vendor = vendor;
+    this.vendorMode = 'chop';
   }
 
   /** Tiệm 25caaaaa: phòng hồng, quầy pha chế có biển logo, bảng menu, bàn ghế cho cả đội ngồi ăn. */
@@ -647,6 +683,32 @@ export class StallArea implements Area {
     }
   }
 
+  /**
+   * Người bán làm việc + rao hàng. Sạp thịt: chặt thịt liên tục, thỉnh thoảng ngẩng lên vẫy khách. Sạp hải sản: cúi lựa
+   * ở rổ → quay sang cân, đặt con tôm lên (kim cân lắc) → quay lại. Sạp khác: thỉnh thoảng vẫy chào.
+   */
+  private updateVendor(t: number): void {
+    const v = this.vendor;
+    if (!v) return;
+    this.chatter?.update(t);
+    const wave = Math.max(0, Math.min(1, (Math.sin(t * 0.5) - 0.8) * 6));
+    if (this.vendorMode === 'chop') {
+      animatePerson(v, t, { chop: wave > 0.05 ? 0 : 1, wave });
+    } else if (this.vendorMode === 'weigh' && this.weigh) {
+      const u = (t % WEIGH_CYCLE) / WEIGH_CYCLE;
+      const w = this.weigh;
+      // 0–0.3 cúi lựa ở rổ · 0.3–0.4 quay sang cân · 0.4–0.7 đặt lên cân · 0.7–0.8 quay lại · 0.8–1 đứng rao / vẫy
+      const turn = u < 0.3 ? 0 : u < 0.4 ? (u - 0.3) / 0.1 : u < 0.7 ? 1 : u < 0.8 ? 1 - (u - 0.7) / 0.1 : 0;
+      v.rotation.y = turn * w.toScale;
+      w.held.visible = u > 0.22 && u < 0.55;
+      const weighing = u > 0.45 && u < 0.7;
+      w.needle.rotation.z = weighing ? -0.6 - Math.sin((u - 0.45) * 40) * 0.25 * (0.7 - u) * 4 : -0.05;
+      animatePerson(v, t, { reach: u < 0.25 ? 1 : 0, carry: u > 0.3 && u < 0.62, wave: u > 0.82 ? wave : 0 });
+    } else {
+      animatePerson(v, t, { wave });
+    }
+  }
+
   update(env: Env, dt = 0.016): void {
     // Đèn trong tiệm: luôn hơi sáng, trời tối thì sáng hẳn
     for (const l of this.lamps) {
@@ -659,7 +721,7 @@ export class StallArea implements Area {
       paintSeason(this.root, env.season, false);
     }
     if (this.stallId && this.game.state.clock.day !== this.day) this.build(); // giá đổi theo ngày
-    if (this.vendor) animatePerson(this.vendor, env.t, { wave: Math.max(0, Math.min(1, (Math.sin(env.t * 0.5) - 0.8) * 6)) });
+    this.updateVendor(env.t);
     for (const b of this.bobbers) b.obj.position.y = b.y + Math.abs(Math.sin(env.t * 2.4 + b.phase)) * 0.05;
     // Hải sản bơi qua lại, quay đầu theo hướng bơi (emoji nhìn sang trái: bơi sang phải thì lật ngang)
     for (const s of this.swimmers) {
@@ -676,6 +738,9 @@ export class StallArea implements Area {
     this.owner?.update(env.t, dt, { reach: Math.sin(env.t * 0.35 + 1) > 0.8 ? 0.35 : 0 });
   }
 }
+
+/** Thời lượng một vòng thao tác của người bán hải sản (giây): lựa ở rổ → quay sang cân → đặt lên cân → quay lại. */
+const WEIGH_CYCLE = 9;
 
 /** Model người trong đội theo vai (đầu bếp mũ trắng, bồi bàn mũ đỏ, nhân viên thuê mũ vàng, bác nông dân nón lá). */
 export function crewLook(game: Game, who: string): THREE.Group {

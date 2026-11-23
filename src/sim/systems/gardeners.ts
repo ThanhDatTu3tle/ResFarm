@@ -135,7 +135,7 @@ function step(ctx: SimContext, g: GardenerState, dt: number): void {
       g.task = null;
       continue;
     }
-    const target = nextWaypoint(g, spot, content.balance.farmer.lanes);
+    const target = nextWaypoint(g, spot, content.balance.farmer.lanes, content.balance.farmer.side);
     const dx = target.x - g.x;
     const dz = target.z - g.z;
     const dist = Math.hypot(dx, dz);

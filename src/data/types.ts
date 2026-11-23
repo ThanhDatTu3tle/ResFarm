@@ -155,6 +155,11 @@ export interface SlotTypeDef {
    * tự gieo lại giống cũ rồi chở hết sản lượng tới cối loại này để chế biến.
    */
   mill?: MillType;
+  /**
+   * Ô không mua lẻ mà thêm theo bậc nới rộng: mỗi lần nới rộng (tiers) mọi ô loại này cùng lên bậc và có thêm bấy nhiêu ô
+   * mới (ao cá: mỗi ô nuôi = một loại hải sản, chung một mặt ao).
+   */
+  perTier?: number;
   /** Mua thêm theo lô: mỗi lần mua thêm bấy nhiêu ô cùng lúc (luống nhà kính: nhà dài thêm, thêm 4 luống). */
   batch?: number;
   /** Hệ số tốc độ lớn riêng của loại ô (nhà kính lớn nhanh hơn ngoài trời). */
@@ -202,6 +207,8 @@ export interface StallDef {
   interior?: 'trays' | 'tanks' | 'butcher';
   /** Sạp bể nước: các mặt hàng này bày trong rổ quanh người bán (còn lại thả trong bể). */
   baskets?: string[];
+  /** Lời rao của người bán: lâu lâu bật thành bong bóng thoại trên đầu (ngoài chợ + bên trong sạp). Chỉ là hình ảnh. */
+  calls?: string[];
   /**
    * Kiểu hàng quán (hình 3D): 'stall' sạp mái bạt trong dãy chợ (mặc định), 'kiosk' tiệm nhỏ trong dãy chợ,
    * 'cart' xe đẩy, 'pole' gánh hàng rong, 'bike' xe đạp bán dạo — ba kiểu sau đứng trên vỉa hè ở `spot`.
@@ -415,6 +422,11 @@ export interface Balance {
     home: { x: number; z: number };
     /** Toạ độ x các lối đi dọc (mét): bác chỉ chạy dọc trên các lối này, còn lại đi ngang theo khe giữa các hàng ô. */
     lanes: number[];
+    /**
+     * Lối dọc phụ bên kia vật cản lớn (ao): mọi chỗ ở phía đông x thuộc lối này; bác chỉ vào / ra lối phụ qua hàng trống
+     * joinZ (đi ngang từ lối chính), nên không phải chạy ngang xuyên ao để tới những gốc cây cùng hàng với ao.
+     */
+    side?: { x: number; joinZ: number }[];
     /** Tốc độ chạy: mét mỗi phút game. */
     speed: number;
     /** Thời gian làm một việc (cuốc, tưới, gieo, thu) khi đã tới nơi, phút game. */

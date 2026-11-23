@@ -379,6 +379,10 @@ export interface Pose {
   walk?: number;
   /** Đang ngồi ghế. */
   sit?: boolean;
+  /** Cầm lái (xe máy, máy cày): hai tay vươn tới trước nắm tay lái, người hơi chồm tới. Dùng kèm sit. */
+  ride?: boolean;
+  /** Chặt / thái thịt: tay phải cầm dao giơ lên bổ xuống thớt theo nhịp, tay trái giữ miếng thịt, cúi nhìn thớt (0..1). */
+  chop?: number;
   /** Đang nấu (đảo chảo). */
   cook?: number;
   /** Đang ăn (đưa tay lên miệng). */
@@ -397,8 +401,8 @@ export interface Pose {
   reach?: number;
 }
 
-type PoseKey = 'walk' | 'sit' | 'cook' | 'eat' | 'wave' | 'carry' | 'dig' | 'pour' | 'mop' | 'reach';
-const POSE_KEYS: PoseKey[] = ['walk', 'sit', 'cook', 'eat', 'wave', 'carry', 'dig', 'pour', 'mop', 'reach'];
+type PoseKey = 'walk' | 'sit' | 'cook' | 'eat' | 'wave' | 'carry' | 'dig' | 'pour' | 'mop' | 'reach' | 'ride' | 'chop';
+const POSE_KEYS: PoseKey[] = ['walk', 'sit', 'cook', 'eat', 'wave', 'carry', 'dig', 'pour', 'mop', 'reach', 'ride', 'chop'];
 
 /**
  * Làm mượt tư thế: mỗi người giữ cường độ hiện tại của từng tư thế và trượt dần về tư thế mới
@@ -434,7 +438,7 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   if (umbrella) umbrella.visible = holding;
   const p = smoothPose(g, t, pose);
   const k = t + rig.seed;
-  const { walk, cook, wave, dig, pour, reach, mop, sit, eat, carry } = p;
+  const { walk, cook, wave, dig, pour, reach, mop, sit, eat, carry, ride, chop: chopping } = p;
   const chop = Math.sin(t * 9); // nhịp bổ cuốc
   const phase = t * rig.stepRate + rig.seed;
 
@@ -455,7 +459,7 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   const busy = Math.max(cook, dig, pour, reach, mop);
   const glance = Math.sin(k * 0.45) * 0.3 + Math.max(0, Math.sin(k * 0.17) - 0.8) * 2.2 * Math.sign(Math.sin(k * 0.07));
   rig.head.rotation.y = glance * (1 - walk) * (1 - busy);
-  rig.head.rotation.x = Math.max(cook * 0.3, dig * 0.25, pour * 0.35, reach * 0.45, mop * 0.25) + Math.sin(k * 0.7) * 0.04 - Math.abs(Math.sin(phase)) * 0.05 * walk;
+  rig.head.rotation.x = Math.max(cook * 0.3, chopping * 0.4, dig * 0.25, pour * 0.35, reach * 0.45, mop * 0.25) + Math.sin(k * 0.7) * 0.04 - Math.abs(Math.sin(phase)) * 0.05 * walk;
   rig.head.rotation.z = Math.sin(k * 0.33) * 0.06 - rig.root.rotation.z * 0.6;
 
   // Chân: đi thì bước luân phiên, ngồi thì duỗi ra trước (đung đưa nhẹ chân như trẻ con ngồi ghế cao)
@@ -469,7 +473,7 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   let left = -step * 0.8 + idle - cook * 0.9 - sit * 0.35;
   let right = step * 0.8 - idle - cook * (0.9 + Math.sin(t * 14) * 0.35) - sit * 0.35;
   // Hai tay hơi dang ra ngoài (tay trái ở phía −x xoay âm, tay phải ở phía +x xoay dương), đi thì dang thêm chút
-  const leftZ = -0.18 - 0.06 * walk;
+  let leftZ = -0.18 - 0.06 * walk;
   let rightZ = 0.18 + 0.06 * walk;
   right = mix(right, -1.9 + Math.max(0, Math.sin(k * 3)) * 0.9, eat); // múc rồi đưa lên miệng
   left = mix(left, -1.25 + Math.sin(phase) * 0.04 * walk, carry);
@@ -495,6 +499,20 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
     left = mix(left, -0.95 + push, mop);
     right = mix(right, -0.75 + push, mop);
   }
+  if (chopping > 0.001) {
+    // Nhịp chặt: giơ dao chậm, bổ xuống nhanh (sin bình phương cho cú bổ dứt khoát)
+    const lift = Math.max(0, Math.sin(t * 5.5)) ** 2;
+    right = mix(right, -0.75 - lift * 1.5, chopping);
+    left = mix(left, -0.95, chopping);
+    leftZ = mix(leftZ, 0.12, chopping);
+  }
+  if (ride > 0.001) {
+    // Hai tay duỗi tới trước, hơi khép vào trong để bàn tay nằm đúng hai đầu tay lái
+    left = mix(left, -1.25, ride);
+    right = mix(right, -1.25, ride);
+    leftZ = mix(leftZ, -0.04, ride);
+    rightZ = mix(rightZ, 0.04, ride);
+  }
   if (wave > 0.001) {
     right = mix(right, -2.6, wave);
     rightZ = mix(rightZ, -0.68 + Math.sin(t * 12) * 0.35, wave); // góc vẫy giữ như cũ
@@ -509,6 +527,6 @@ export function animatePerson(g: THREE.Object3D, t: number, pose: Pose = {}): vo
   rig.armL.rotation.z = leftZ;
   rig.armR.rotation.z = rightZ;
   // Nghiêng người tới trước: đi, nấu, bổ cuốc theo nhịp, cúi xuống đất; người già hơi khom
-  rig.body.rotation.x = walk * 0.08 + cook * 0.12 + dig * (0.18 + Math.max(0, -chop) * 0.22) + pour * 0.1 + reach * 0.55 + mop * 0.22 + ((g.userData.hunch as number | undefined) ?? 0);
+  rig.body.rotation.x = walk * 0.08 + cook * 0.12 + dig * (0.18 + Math.max(0, -chop) * 0.22) + pour * 0.1 + reach * 0.55 + mop * 0.22 + ride * 0.14 + chopping * 0.15 + ((g.userData.hunch as number | undefined) ?? 0);
   rig.body.rotation.y = -rig.root.rotation.y * 1.4; // vai xoay ngược hông khi bước
 }

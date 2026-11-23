@@ -9,6 +9,28 @@ Chủ dự án đã duyệt phong cách hiện tại (tông màu, kiểu nhân v
 - **Bảng màu ấm, tươi.** Màu chủ đạo: cam `0xe2703a`, gỗ `0xc98b4f` / `0xd9a066` / `0x8a5a35`, kem `0xf8e3bd`, xanh lá `0x5fae57` / `0x8fd16a`, đỏ `0xe2574c` / `0xc94a3f`.
 - **Emoji làm biểu tượng nổi** (`emojiSprite`): món trên đĩa, hàng trên sạp, sản phẩm chín, nhắc việc (💧 ⛏️ ✋). Nhờ vậy nội dung mới trong `src/data` có hình ngay.
 
+## 1b. Hướng "đồ làm tay" (đang thử, mẫu đầu: bàn gỗ quán Việt)
+
+Mục tiêu: game có chất riêng, không trông như đồ đúc hàng loạt / AI. Mẫu đầu là bộ bàn gỗ mộc quán Việt (`furniture.ts`), dựng theo ảnh bàn thật chủ dự án chụp. Công thức rút ra, áp cho các model sau:
+
+1. **Lấy đồ thật làm chuẩn.** Mỗi model bắt đầu từ ảnh đồ vật thật (chủ dự án gửi), không lấy từ game khác.
+2. **Ghép như thợ làm.** Dựng từ đúng các bộ phận của đồ thật (tấm ván, chân, thanh giằng, thanh đỡ), không phải một khối hộp to. Giữ 2–3 nét đặc trưng nhất (chân chữ A choãi, khe giữa các ván), lược phần còn lại.
+3. **Lệch có kiểm soát.** Mỗi bộ phận lệch 1–2 cm hoặc dưới 1° bằng `seeded(seed)`, seed theo id vật thể → mỗi cái hơi khác nhau nhưng cố định giữa các lần tải. Không lệch tới mức trông hỏng.
+4. **Bề mặt có vân vẽ tay.** Texture vẽ bằng canvas, nền gần trắng, nét sẫm lượn sóng, nhân với màu vật liệu → vẫn đổi màu theo bộ nội thất. Vân chạy theo thớ (`grain(.., vertical)` cho chân đứng). Vài biến thể sáng tối khác nhau cho các tấm cạnh nhau.
+5. **Chiều sâu bằng màu.** Phần khung / chân sẫm hơn mặt. Màu chọn hơi sáng hơn đồ thật một chút vì texture nhân làm tối đi.
+6. **Một hàm dựng dùng chung.** Hàm dựng + bộ vật liệu (`woodMats()` / `tintWood()`) nằm trong `ui/three/`, game và trang model cùng gọi, không chép code.
+   Mẫu thứ 2 (quán Ốc): bàn nhựa xanh có gờ viền + chân vuông thuôn (trụ 4 cạnh xoay 45°), ghế nhựa đỏ có tựa khe dọc, đĩa thiếc ống inox cắm đũa + chai lọ. Đồ nhựa / inox bề mặt trơn thì không vẽ vân; "chất tay" nằm ở hình khối đúng kiểu đồ thật và độ lệch (ghế kê lệch, đũa xoè lộn xộn).
+   Mẫu thứ 4 (quán Nhật, `furniture.ts`): bàn gỗ sồi sáng mặt liền khối + yếm + chân vuông thuôn (`buildOakTable`), ghế tựa cong (`buildOakChair`: dải tựa = nửa vòng xuyến nằm ngang kéo dày theo chiều đứng, ôm ra thành tay vịn; đệm vải dùng màu "ghế" của bộ nội thất, khung dùng vân gỗ chung `woodMats`), đồ trên bàn `buildJpSet` đặt bằng `placeCaddy`.
+   Mẫu thứ 5 (quán Hàn, `furniture.ts`): bàn nướng `buildGrillTable` (mặt gỗ xám vân chung, vỉ nướng âm giữa bàn có than hồng, chân là tủ kim loại đen có khe tản nhiệt — hút khói dưới bàn nên bỏ ống treo trần), ghế da bò chân sắt `buildLeatherChair` (lưng 3 mảng ghép xoay vào trong cho ra dáng cong), đồ trên bàn `buildKrSet` luôn sát mép (`placeCaddy(..., edge = true)`) để chừa vỉ.
+   Quầy ghế đơn Nhật / Hàn: `buildBarCounter` (Nhật: mặt gỗ sồi nhô ra phía khách, vách nan gỗ dọc, dải đèn vàng hắt dưới mép; Hàn: mặt gỗ xám, thân kim loại đen, thanh gác chân inox) + `buildBarStool` (ghế cao cùng bộ với ghế bàn). Khúc quầy nối của chữ L quán Nhật cũng dùng `buildBarCounter`.
+   Nông trại & cảnh vật, ngày lễ: giữ nguyên hàm dựng và giá trị trả về (cánh quạt, bánh xe nước, bóng đèn...), chỉ thay hình. Tán lá vẫn là khối ico màu xanh (paintSeason nhận ra để đổi màu theo mùa) — thêm cụm sẫm dưới / sáng trên bằng cách nhân màu lá, mỗi cây một dáng nhờ `seeded`. Ngôi sao (đèn ông sao, đỉnh cây thông, đèn treo Trung thu) = `side(starPts(...))` đùn dày. Giáng sinh có thêm người tuyết (`makeSnowman`, chỗ đứng thứ 2 của `FestiveSet`).
+   Trang thiết bị (`equipment.ts`): cùng vị trí đặt cũ, thay hình — chậu cây lá to (cuống + phiến lá có gân), tranh phong cảnh có đèn rọi, thanh dao gỗ 5 kiểu dao, loa thùng gỗ, chụp hút khói hình thang (`side`) có tấm lọc + đèn, tủ chén thân rỗng cửa kính có song (đĩa thấy qua kính), tủ kem nắp kính cong + kem ốc quế 3D. Xem nhanh trong quán: `?fresh&rich&do=[upgrade/buy ...]`.
+   Đồ trang trí (`props.ts`): helper dùng chung — `pot` (chậu men có đế, dải men, vành, đất + sỏi), `leaf` (lá phẳng có gân), `flower` (bông 5 cánh), `trunk` (thân uốn khúc nối các đoạn), `lathe` (bình / chum tiện tròn). Tủ có cửa kính (tủ chén, tủ nước) phải dựng thân rỗng, không thì khối đặc che đồ bên trong.
+   Món ăn & nguyên liệu: giữ kiểu đơn giản (món nhỏ trên bàn). Nguyên liệu ở `ingredients.ts` (vỏ ốc / sò / hàu / nghêu dùng chung cho món quán Ốc và con giống ở ao).
+   Mẫu thứ 3 (xe cộ, `farmkit.ts`): thân xe dựng bằng **hình nhìn ngang đùn dày** (`side(điểm, bề rộng)`, ExtrudeGeometry có cache) thay vì chồng hộp — ra ngay nắp capo, kính chắn gió nghiêng, cốp. Kính hông = hình nhìn ngang thu nhỏ đùn rộng hơn thân chút xíu (`sideGlass`), kính trước/sau = tấm phẳng trên mặt nghiêng có vệt sáng (`slopeGlass`), phụ kiện chung (đèn, cản, biển số, gương) ở `carTrim`. Người ngồi xe dùng tư thế `ride` (hai tay vươn tới tay lái) — đặt tay lái / vô lăng ngay tầm tay (~0.25 m trước vai) chứ không theo tỉ lệ xe thật, vì tay nhân vật chibi ngắn.
+   Đồ để trên bàn (khay, ống đũa) đặt bằng `placeCaddy`: bàn 1–2 người sát mép không có ghế, bàn 4+ để giữa.
+7. **Duyệt bằng link.** Trang model mở thẳng một model bằng `?xem=<tên>`, ví dụ `models-do-vat.html?xem=Quán Việt · bàn đôi`; thêm `&goc=90` để xoay vật 90° (xem hông / phía sau). Tên có dấu `+` thì viết `%2B`.
+
 ## 2. Quy ước dựng hình (giữ nguyên khi nâng cấp)
 
 | Quy ước | Chi tiết |

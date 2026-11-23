@@ -191,6 +191,56 @@ export function bubbleSprite(icons: string[], size = 0.62, bg?: string | null): 
   return sprite;
 }
 
+const speechTextures = new Map<string, { tex: THREE.Texture; w: number; h: number }>();
+
+/**
+ * Bong bóng thoại có chữ (lời rao của người bán, câu nói của đầu bếp...): nền kem bo tròn, viền nâu, đuôi nhọn chỉ
+ * xuống, chữ Mali tự xuống dòng (tối đa 2 dòng). Gốc sprite ở mũi đuôi; `size` = chiều cao một dòng chữ (m).
+ * Texture có cache theo câu. Luôn vẽ đè lên cảnh (không bị bể cá / quầy che).
+ */
+export function speechSprite(text: string, size = 0.22): THREE.Sprite {
+  let t = speechTextures.get(text);
+  if (!t) {
+    const LINE = 46;
+    const font = `600 38px Mali, system-ui, ${EMOJI_FONT}`;
+    const measure = document.createElement('canvas').getContext('2d')!;
+    measure.font = font;
+    // Xuống dòng theo chữ, mỗi dòng ≤ 360 px
+    const lines: string[] = [];
+    for (const word of text.split(' ')) {
+      const last = lines[lines.length - 1];
+      if (last != null && measure.measureText(last + ' ' + word).width <= 360) lines[lines.length - 1] = last + ' ' + word;
+      else lines.push(word);
+    }
+    const w = Math.ceil(Math.max(...lines.map((l) => measure.measureText(l).width))) + 56;
+    const h = lines.length * LINE + 40 + 26;
+    const tex = canvasTexture(w, h, (c) => {
+      c.fillStyle = '#fffaf1';
+      c.strokeStyle = '#8a5a35';
+      c.lineWidth = 6;
+      c.beginPath();
+      c.roundRect(4, 4, w - 8, h - 34, 26);
+      c.moveTo(w / 2 - 14, h - 31);
+      c.lineTo(w / 2, h - 4);
+      c.lineTo(w / 2 + 14, h - 31);
+      c.fill();
+      c.stroke();
+      c.fillRect(w / 2 - 11, h - 38, 22, 10); // che nét viền giữa thân và đuôi
+      c.font = font;
+      c.fillStyle = '#4a3626';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      lines.forEach((l, i) => c.fillText(l, w / 2, 24 + LINE / 2 + i * LINE));
+    });
+    speechTextures.set(text, (t = { tex, w, h }));
+  }
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: t.tex, transparent: true, depthWrite: false, depthTest: false }));
+  sprite.center.set(0.5, 0);
+  sprite.scale.set((size * t.w) / 46, (size * t.h) / 46, 1);
+  sprite.renderOrder = 20;
+  return sprite;
+}
+
 /** Chữ nổi (vd "+52"). Mỗi lần gọi tạo texture riêng — nhớ dispose khi bỏ. */
 /**
  * Viền đèn LED nhiều màu quanh một bảng hiệu (khung chữ nhật w × h, mặt nhìn về +z). Trả về danh sách bóng để

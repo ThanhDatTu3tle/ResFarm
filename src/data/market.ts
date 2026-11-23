@@ -2,14 +2,14 @@ import type { StallDef } from './types';
 
 /** Thêm sạp: thêm 1 mục ở đây — khu chợ 3D tự dựng thêm sạp, bảng tên (= name) và bày hàng theo `items`. */
 export const stalls: StallDef[] = [
-  { id: 'meat', name: 'Thịt bò/lợn cô Bủm', icon: '🥩', markup: 1, items: ['beef', 'pork', 'chicken'], interior: 'butcher' },
-  { id: 'produce', name: 'Tạp hóa cậu Ba', icon: '🥬', markup: 1, items: ['cabbage', 'tomato', 'onion', 'carrot', 'potato', 'chili', 'cucumber', 'mushroom', 'egg', 'milk', 'orange', 'apple', 'mango', 'banana', 'scallion'] }, // trái cây: mùa Đông vườn nghỉ vẫn mua được
-  { id: 'seafood', name: 'Hải sản Tuyết Nhung', icon: '🦐', markup: 1, items: ['fish', 'shrimp', 'squid', 'salmon', 'oc_huong', 'oc_mong_tay', 'so_diep', 'ngheu', 'hau', 'oc_bu'], standee: 'Chuyên các loại ốc', interior: 'tanks', baskets: ['oc_mong_tay', 'so_diep', 'ngheu', 'hau', 'oc_bu'] },
-  { id: 'dry', name: 'Chuyên đồ khô, mì, bún, phở', icon: '🍥', markup: 1, items: ['noodle', 'rice_noodle', 'wheat_noodle', 'rice_cake', 'tofu', 'seaweed', 'flour', 'bread', 'cheese'] },
+  { id: 'meat', name: 'Thịt bò/lợn cô Bủm', icon: '🥩', markup: 1, calls: ['Thịt heo tươi ngon đây các cô chú anh chị ơi!', 'Mua gì anh chị ơi?', 'Bò mới về sáng nay nè!', 'Gà ta chắc thịt lắm nha!', 'Lấy nhiêu cô chặt cho nè!'], items: ['beef', 'pork', 'chicken'], interior: 'butcher' },
+  { id: 'produce', name: 'Tạp hóa cậu Ba', icon: '🥬', markup: 1, calls: ['Rau mới hái sáng nay nè!', 'Cà chua đỏ au, ngọt lắm!', 'Trứng gà ta đây cô chú ơi!', 'Mua gì em lấy cho!', 'Trái cây ngọt lịm nè!'], items: ['cabbage', 'tomato', 'onion', 'carrot', 'potato', 'chili', 'cucumber', 'mushroom', 'egg', 'milk', 'orange', 'apple', 'mango', 'banana', 'scallion'] }, // trái cây: mùa Đông vườn nghỉ vẫn mua được
+  { id: 'seafood', name: 'Hải sản Tuyết Nhung', icon: '🦐', markup: 1, calls: ['Tôm cá còn tươi rói nè!', 'Ốc hương, sò điệp mới về!', 'Cân đủ, giá mềm nha!', 'Mua gì chị cân cho!', 'Hàu béo lắm nè, lựa đi!'], items: ['fish', 'shrimp', 'squid', 'salmon', 'oc_huong', 'oc_mong_tay', 'so_diep', 'ngheu', 'hau', 'oc_bu'], standee: 'Chuyên các loại ốc', interior: 'tanks', baskets: ['oc_mong_tay', 'so_diep', 'ngheu', 'hau', 'oc_bu'] },
+  { id: 'dry', name: 'Chuyên đồ khô, mì, bún, phở', icon: '🍥', markup: 1, calls: ['Bún phở mới tráng sáng nay!', 'Mì, bánh gạo đủ loại nè!', 'Phô mai, đậu phụ đây!', 'Mua gì cứ hỏi nha!'], items: ['noodle', 'rice_noodle', 'wheat_noodle', 'rice_cake', 'tofu', 'seaweed', 'flour', 'bread', 'cheese'] },
   // Tiệm ăn vặt cạnh quầy đồ khô + hàng rong trên vỉa hè: chỉ bán đồ ăn cho cả đội giờ nghỉ (không bán nguyên liệu).
   // Năng lượng hồi tăng dần: cà phê < bánh tráng < hủ tiếu < Tiệm 25caaaaa.
   {
-    id: 'snack', name: 'Tiệm 25caaaaa', icon: '🧋', markup: 1, kind: 'kiosk', items: [],
+    id: 'snack', name: 'Tiệm 25caaaaa', icon: '🧋', markup: 1, calls: ['Trà sữa mới pha đây!', 'Cả đội ghé làm ly nước nè!', 'Mời vào, mời vào!'], kind: 'kiosk', items: [],
     menu: [
       { name: 'Matcha đá xay', icon: '🍵', price: 30, energy: 16 },
       { name: 'Xiên que chiên', icon: '🍢', price: 34, energy: 18 },
@@ -18,7 +18,7 @@ export const stalls: StallDef[] = [
     ],
   },
   {
-    id: 'hutieu', name: 'Hủ tiếu gõ chú Tư', icon: '🍜', markup: 1, kind: 'cart', spot: { x: -8.5, z: 6.4 }, items: [],
+    id: 'hutieu', name: 'Hủ tiếu gõ chú Tư', icon: '🍜', markup: 1, calls: ['Hủ tiếu gõ đâyyy!', 'Cóc cóc… hủ tiếu nóng hổi!', 'Thêm trứng không con?'], kind: 'cart', spot: { x: -8.5, z: 6.4 }, items: [],
     menu: [
       { name: 'Hủ tiếu gõ', icon: '🍜', price: 22, energy: 13 },
       { name: 'Hủ tiếu khô', icon: '🥢', price: 24, energy: 14 },
@@ -26,7 +26,7 @@ export const stalls: StallDef[] = [
     ],
   },
   {
-    id: 'banhtrang', name: 'Bánh tráng trộn', icon: '🥢', markup: 1, kind: 'pole', spot: { x: 0.5, z: 6.8 }, items: [],
+    id: 'banhtrang', name: 'Bánh tráng trộn', icon: '🥢', markup: 1, calls: ['Bánh tráng trộn đây!', 'Cay cay giòn giòn nè!', 'Trộn liền tay nha!'], kind: 'pole', spot: { x: 0.5, z: 6.8 }, items: [],
     menu: [
       { name: 'Bánh tráng trộn', icon: '🥗', price: 14, energy: 9 },
       { name: 'Bánh tráng nướng', icon: '🍕', price: 16, energy: 10 },
@@ -34,7 +34,7 @@ export const stalls: StallDef[] = [
     ],
   },
   {
-    id: 'cafe', name: 'Cà phê dạo', icon: '☕', markup: 1, kind: 'bike', spot: { x: -4.2, z: 7.4 }, items: [],
+    id: 'cafe', name: 'Cà phê dạo', icon: '☕', markup: 1, calls: ['Cà phê sữa đá đây!', 'Cà phê nóng đây cô chú ơi!', 'Ghé làm ly cho tỉnh nè!'], kind: 'bike', spot: { x: -4.2, z: 7.4 }, items: [],
     menu: [
       { name: 'Cà phê sữa đá', icon: '☕', price: 8, energy: 5 },
       { name: 'Bạc xỉu', icon: '🥛', price: 9, energy: 6 },

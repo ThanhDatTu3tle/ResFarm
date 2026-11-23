@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import { makeCar, makeScooter, makeTruck, setVehicleLights } from './farmkit';
+import { CAR_COLORS, CAR_KINDS, CHROME, GLASS, TRIM, carTrim, makeCar, makeScooter, setVehicleLights, side, sideGlass, slopeGlass, wheel } from './farmkit';
 import { adultShape, animatePerson, LOOKS, makePerson } from './models';
 import { signText } from './cuisine';
+import { Chatter } from './chatter';
 import { ROAD_MID, SIDEWALK } from './street';
 import { arrivalMode } from '../../sim/systems/customers';
 import { emojiSprite, G, group, mesh } from './toon';
@@ -59,6 +60,8 @@ export class Curbside {
   private rides = new Map<number, GuestRide>();
   private through: Through[] = [];
   private guard: THREE.Group;
+  /** Bác bảo vệ nhắc khách lúc có xe máy vào bãi. */
+  private guardTalk: Chatter;
   private lanes: [number, number];
   private motoSlots: P[] = [];
   private carSlots: P[] = [];
@@ -79,6 +82,7 @@ export class Curbside {
     if (!d.hasRoad) this.buildRoad();
     this.buildLots();
     this.guard = this.buildGuard(halfW + 5.6, frontZ + 1.4);
+    this.guardTalk = new Chatter(this.guard, ['Gửi xe bên này nha!', 'Vô từ từ thôi nha!', 'Dắt xe vô trong nè!', 'Nhớ lấy vé xe nha!'], 1.95, 3, 0.2);
     this.buildThrough();
     // (chỉ bản dev) ?fullpark: lấp kín hai bãi bằng xe đậu sẵn để xem bãi đầy trông ra sao
     if (import.meta.env.DEV && new URLSearchParams(location.search).has('fullpark')) this.fillLots();
@@ -94,7 +98,7 @@ export class Curbside {
       this.root.add(g);
     });
     this.carSlots.forEach(([x, z], i) => {
-      const g = makeCar(COLORS[(i * 4 + 1) % COLORS.length]);
+      const g = makeCar(CAR_COLORS[(i * 5 + 1) % CAR_COLORS.length], CAR_KINDS[i % CAR_KINDS.length]);
       g.position.set(x, 0, z);
       g.rotation.y = parkedHeading('car');
       this.root.add(g);
@@ -181,12 +185,12 @@ export class Curbside {
 
   /** Xe chạy ngang qua trên đường: ô tô, xe tải nhỏ, xe máy nhiều màu, 2 chiều. */
   private buildThrough(): void {
-    const kinds = ['scooter', 'car', 'scooter', 'truck', 'scooter', 'car', 'scooter', 'car'] as const;
+    const kinds = ['scooter', 'car', 'scooter', 'car', 'scooter', 'car', 'scooter', 'car'] as const;
     kinds.forEach((kind, i) => {
       const dir: 1 | -1 = i % 2 ? -1 : 1;
       const color = COLORS[(i * 3 + 1) % COLORS.length];
       const rider = kind === 'scooter' ? makePerson(LOOKS[(i * 5 + 3) % LOOKS.length], 'none', adultShape(i * 11 + 4)) : null;
-      const g = kind === 'car' ? makeCar(color) : kind === 'truck' ? makeTruck(color) : makeScooter(color, rider!);
+      const g = kind === 'car' ? makeCar(CAR_COLORS[(i * 7 + 2) % CAR_COLORS.length], CAR_KINDS[(i >> 1) % CAR_KINDS.length]) : makeScooter(color, rider!);
       const lane = this.lanes[dir > 0 ? 0 : 1];
       g.position.set(-ROAD_HALF + (Math.floor(i / 2) + 0.3 + (i % 2) * 0.5) * (ROAD_HALF / 2), 0, lane + (rider ? ((i * 37) % 7) / 10 - 0.3 : 0));
       g.rotation.y = dir > 0 ? 0 : Math.PI;
@@ -300,7 +304,7 @@ export class Curbside {
       const [sx, sz] = slots[slot];
       const color = COLORS[(id * 5) % COLORS.length];
       const rider = mode === 'moto' ? makePerson(LOOKS[id % LOOKS.length], 'none', adultShape(id * 3 + 1)) : null;
-      const g = mode === 'moto' ? makeScooter(color, rider!) : makeCar(color);
+      const g = mode === 'moto' ? makeScooter(color, rider!) : makeCar(CAR_COLORS[(id * 5) % CAR_COLORS.length], CAR_KINDS[(id * 7) % CAR_KINDS.length]);
       // Chạy trên đường tới đầu bãi → rẽ vào lối đi dọc bãi → quay đầu xe vào tường quán
       const aisle = this.aisle[mode];
       const path: P[] = mode === 'moto' ? [[aisle + 12, lanes[1]], [aisle, lanes[1]], [aisle, sz], [sx, sz]] : [[aisle - 12, lanes[0]], [aisle, lanes[0]], [aisle, sz], [sx, sz]];
@@ -350,7 +354,7 @@ export class Curbside {
         budget -= step;
         if (step >= dist) ride.path.shift();
       }
-      if (ride.rider) animatePerson(ride.rider, t, { sit: true });
+      if (ride.rider) animatePerson(ride.rider, t, { sit: true, ride: true });
       if (!ride.path.length) {
         if (ride.phase === 'arrive') {
           ride.phase = 'parked';
@@ -370,7 +374,7 @@ export class Curbside {
       if (v.g.position.x < -ROAD_HALF) v.g.position.x = ROAD_HALF;
       for (const w of v.wheels) w.rotation.y += THROUGH * dt * 3;
       v.g.position.y = Math.abs(Math.sin(t * 14 + v.g.position.x)) * 0.012;
-      if (v.rider) animatePerson(v.rider, t, { sit: true });
+      if (v.rider) animatePerson(v.rider, t, { sit: true, ride: true });
     }
     setVehicleLights(night);
     // Bác bảo vệ: xe máy đang vào bãi thì quay ra vẫy tay chỉ chỗ; rảnh thì đứng ngó đường
@@ -378,28 +382,44 @@ export class Curbside {
     const face = busy ? -1.2 : -0.4 + Math.sin(t * 0.3) * 0.5;
     this.guard.rotation.y += (face - this.guard.rotation.y) * Math.min(1, dt * 3);
     animatePerson(this.guard, t, { wave: busy ? 1 : 0 });
+    this.guardTalk.update(t, busy);
   }
 }
 
-/** Minibus du lịch: thân dài trắng, sọc cam, dải kính xanh, cửa bên hông phía vỉa hè; chạy theo +x. */
+/**
+ * Minibus du lịch 16 chỗ (chạy theo +x): mũi xe dốc, kính chắn gió lớn, dãy cửa sổ hai bên, cửa trượt phía vỉa hè (−z),
+ * sọc cam + xanh ngọc dọc thân, cục lạnh trên nóc, chữ "DU LỊCH" bên hông phía đường.
+ */
 export function makeMinibus(parent: THREE.Object3D | null = null): { g: THREE.Group; wheels: THREE.Object3D[] } {
   const g = group(parent);
-  mesh(g, G.box(4.4, 1.5, 1.6), 0xf6f3ec, { p: [0, 1.15, 0] });
-  mesh(g, G.box(4.42, 0.5, 1.62), 0x7fc4ef, { p: [-0.1, 1.45, 0] }); // dải kính
-  mesh(g, G.box(4.44, 0.14, 1.64), 0xf28c28, { p: [0, 0.75, 0] }); // sọc cam
-  mesh(g, G.box(4.3, 0.12, 1.5), 0xdcd6cb, { p: [0, 1.96, 0] }); // mui
-  mesh(g, G.box(0.06, 0.55, 1.3), 0x7fc4ef, { p: [2.21, 1.4, 0] }); // kính trước
-  mesh(g, G.box(0.62, 1.1, 0.04), 0x5d6f80, { p: [1.3, 1.0, -0.81] }); // cửa lên xuống
-  for (const z of [-0.5, 0.5]) mesh(g, G.box(0.06, 0.14, 0.24), 0xfff3b0, { p: [2.21, 0.62, z], cast: false });
+  const w = 1.6;
+  const white = 0xf6f3ec;
+  mesh(g, side([[-2.2, 0.36], [2.2, 0.36], [2.24, 0.78], [2.1, 0.98], [1.7, 1.12], [1.2, 1.98], [1.05, 2.04], [-2.1, 2.04], [-2.2, 1.94]], w), white);
+  slopeGlass(g, [1.7, 1.12], [1.2, 1.98], w - 0.2);
+  // Cửa sổ: ghế lái (vát theo kính trước) + 4 ô khoang khách
+  sideGlass(g, [[1.0, 1.24], [1.56, 1.24], [1.18, 1.86], [1.0, 1.86]], w + 0.02);
+  for (const [a, b] of [[0.25, 0.86], [-0.45, 0.15], [-1.15, -0.55], [-1.98, -1.25]]) sideGlass(g, [[a, 1.24], [b, 1.24], [b, 1.86], [a, 1.86]], w + 0.02);
+  mesh(g, G.box(0.02, 0.55, w - 0.3), GLASS, { p: [-2.21, 1.55, 0], cast: false }); // kính sau
+  // Sọc dọc thân
+  mesh(g, G.box(4.3, 0.14, w + 0.02), 0xf28c28, { p: [-0.05, 0.82, 0], cast: false });
+  mesh(g, G.box(4.3, 0.05, w + 0.02), 0x3fb6a8, { p: [-0.05, 0.95, 0], cast: false });
+  mesh(g, G.box(4.42, 0.16, w + 0.02), TRIM, { p: [0, 0.44, 0], cast: false }); // ốp gầm
+  // Cửa trượt phía vỉa hè: tấm cửa, kính trên, tay nắm, ray trượt
+  const dz = -(w / 2 + 0.012);
+  mesh(g, G.box(0.62, 1.4, 0.02), 0xe9e4d8, { p: [0.62, 1.12, dz] });
+  mesh(g, G.box(0.5, 0.5, 0.025), GLASS, { p: [0.62, 1.56, dz], cast: false });
+  mesh(g, G.box(0.12, 0.03, 0.03), CHROME, { p: [0.4, 1.12, dz - 0.01], cast: false });
+  mesh(g, G.box(1.6, 0.025, 0.03), TRIM, { p: [-0.1, 1.2, dz], cast: false });
+  // Nóc: cục lạnh + thanh giá
+  mesh(g, G.box(1.1, 0.16, 0.9), 0xdcd6cb, { p: [-0.6, 2.12, 0] });
+  for (let i = 0; i < 4; i++) mesh(g, G.box(0.9, 0.02, 0.1), 0xb8b2a6, { p: [-0.6, 2.21, -0.3 + i * 0.2], cast: false });
+  for (const s of [-1, 1]) mesh(g, G.box(2.8, 0.04, 0.04), TRIM, { p: [-0.5, 2.08, s * (w / 2 - 0.08)] });
+  carTrim(g, { front: 2.24, back: -2.2, w, lightY: 0.74, bumperY: 0.44, mirror: [1.62, 1.4, w / 2 + 0.08], grille: 0.2 });
   const sign = signText('DU LỊCH', '#e2703a', 1.6, 0.3);
-  sign.position.set(-0.4, 1.0, 0.82);
+  sign.position.set(-0.5, 1.08, w / 2 + 0.02);
   g.add(sign);
   const wheels: THREE.Object3D[] = [];
-  for (const x of [-1.4, 1.3]) for (const z of [-0.8, 0.8]) {
-    const w = mesh(g, G.cyl(0.36, 0.36, 0.22, 14), 0x2a2d35, { p: [x, 0.36, z], r: [Math.PI / 2, 0, 0] });
-    mesh(w, G.cyl(0.16, 0.16, 0.24, 8), 0xcfd6dc);
-    wheels.push(w);
-  }
+  for (const x of [-1.4, 1.3]) for (const z of [-0.78, 0.78]) wheels.push(wheel(g, x, z, 0.36, 0.22));
   return { g, wheels };
 }
 
