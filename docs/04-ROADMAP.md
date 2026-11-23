@@ -254,7 +254,7 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [x] **D2 · Nhân vật cử động** *(18/11/2026)* *(Opus)* — tay chân tách rời, dáng đi, dáng ngồi, đầu bếp nấu.
 - [x] **D3 · Model món ăn** *(18/11/2026, đủ 12 món)* *(Sonnet)* — `makeDish(recipeId)` với dự phòng emoji.
 - [x] **D4 · Cây nhiều giai đoạn lớn** *(18/11/2026)* *(Sonnet)*.
-- [ ] **D5 · Gộp mesh tĩnh** *(Opus)* — chép `mergeStatic` từ `co-thu-3d`, đo draw call trước/sau.
+- [x] **D5 · Gộp mesh tĩnh** *(23/11/2026, giai đoạn 18 — `src/ui/three/merge.ts`; số đo trước/sau ở `03-DO-HOA-3D.md`)* *(Opus)* — chép `mergeStatic` từ `co-thu-3d`, đo draw call trước/sau.
 - [ ] **D6 · Đường ống glTF** *(Opus)* — `assets.ts` (tải trước, nhân bản, chuyển sang vật liệu toon), màn hình chờ tải, thứ tự dự phòng file → code → emoji. Thử với 1 model.
 - [~] **D7 · Nét viền + hiệu ứng hạt** *(Opus)* — hạt đã có; nét viền đã thử và **gỡ theo ý chủ dự án** (xem `03-DO-HOA-3D.md`).
 

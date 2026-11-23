@@ -8,6 +8,7 @@ import { guideHtml } from './tutorial';
 import { coachHtml } from './coach';
 import { billDue } from '../sim/systems/crew';
 import { tutorialJump } from '../sim/systems/tutorial';
+import { seedTakeoutDemo } from '../sim/systems/takeout';
 import { cleanOwner, type OwnerProfile, type TutorialStep } from '../sim/state';
 import { inShift } from '../sim/systems/customers';
 import { festivals, seasons } from '../data/calendar';
@@ -78,6 +79,10 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     const ev = params.get('event');
     if (ev) game.state.event = { id: ev, at: 0, status: 'scheduled', minutesLeft: defOf(ev).duration ?? 0, partyId: null, result: null };
     for (const command of JSON.parse(params.get('do') ?? '[]') as Command[]) game.dispatch(command);
+    // ?takeout: có khách gọi đặt món giao tận nơi ngay khi quán mở cửa (quán phải đủ hạng — kèm ?do nâng hạng)
+    // ?takeout=demo: dựng sẵn tình huống (1 đơn món đã ở quầy line, 1 đơn đã đóng gói, thuê sẵn 1 shipper) để thử nhanh
+    if (params.get('takeout') === 'demo') seedTakeoutDemo(game.ctx);
+    else if (params.has('takeout')) game.state.takeout.nextCall = 1;
     const weather = params.get('weather');
     if (weather && content.weathers.has(weather)) game.state.weather = { id: weather, minutesLeft: 100000 };
   }
@@ -358,6 +363,30 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   // Đơn đặt hàng + sự kiện ngẫu nhiên
   game.bus.on('helper/sick', (e) => {
     toast(`🤒 ${e.name} bị bệnh, xin nghỉ hôm nay. Quán bớt một người phục vụ.`, 'bad', undefined, 5000);
+  });
+  // Đơn giao tận nơi (giai đoạn 18)
+  game.bus.on('takeout/call', (e) => {
+    const t = game.state.takeout.orders.find((x) => x.id === e.id);
+    toast(`☎️ ${t?.client ?? 'Khách'} gọi đặt món giao tận nơi — bấm quầy cashier để nhận đơn.`, 'good', '', 4600);
+    sound.play('bell');
+  });
+  game.bus.on('takeout/missed', (e) => {
+    const t = game.state.takeout.orders.find((x) => x.id === e.id);
+    toast(`📵 ${t?.client ?? 'Khách'} chờ lâu quá nên cúp máy rồi.`, 'bad');
+  });
+  game.bus.on('takeout/packed', () => {
+    toast('🛍️ Đơn giao tận nơi đã đóng gói xong, chờ shipper chở đi.', 'good');
+    sound.play('pop');
+  });
+  game.bus.on('takeout/shipped', (e) => {
+    const name = e.who === 'shipper' ? 'Anh shipper' : (game.state.restaurant.couriers.find((c) => c.id === e.who)?.name ?? 'Shipper');
+    toast(`🛵 ${name} chở đơn đi giao, về khoảng ${clockText(Math.ceil(e.until / 10) * 10)}.`);
+  });
+  game.bus.on('takeout/done', (e) => {
+    const t = game.state.takeout.orders.find((x) => x.id === e.id);
+    toast(e.late ? `⏰ Giao trễ hẹn cho ${t?.client ?? 'khách'}: chỉ nhận +${e.money} xu.` : `🛵 Giao đúng hẹn cho ${t?.client ?? 'khách'}: +${e.money} xu, tip +${e.tip}.`, e.late ? 'bad' : 'good');
+    sound.play('coin');
+    bump(moneyEl(), 0.6);
   });
   game.bus.on('shipper/left', (e) => {
     toast(`🛵 Anh shipper chạy đi giao, về khoảng ${clockText(Math.ceil(e.until / 10) * 10)}.`);
@@ -713,6 +742,13 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       ui.mealStall = pick.id;
     } else if (pick.type === 'stain') {
       if (run({ type: 'service/mop', stainId: Number(pick.id) })) sound.play('pop');
+    } else if (pick.type === 'cashier') {
+      // Bấm quầy cashier: đang cầm món giao tận nơi thì mang tới đóng gói; không thì mở bảng Đơn hàng (nhận cuộc gọi)
+      const r = game.state.restaurant;
+      const carryingTakeout = r.waiter.carrying.some((id) => r.orders.find((o) => o.id === id)?.takeoutId != null);
+      if (carryingTakeout) {
+        if (run({ type: 'service/handoff' })) sound.play('pop');
+      } else ui.drawer = 'contracts';
     } else if (pick.type === 'pass') {
       // Bấm quầy line: bồi bàn ra lấy món nấu xong sớm nhất (tối đa 2 món)
       if (run({ type: 'service/pickup' })) sound.play('pop');
@@ -820,6 +856,9 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     } else if (action === 'calendar') ui.calendar = arg === 'close' ? null : arg === 'open' ? (ui.calendar == null ? 0 : null) : Number(arg) || 0;
     else if (action === 'pickup') {
       if (run({ type: 'service/pickup' })) sound.play('pop');
+    }
+    else if (action === 'handoff') {
+      if (run({ type: 'service/handoff' })) sound.play('pop');
     }
     else if (action === 'rename') {
       if (arg === 'close') ui.rename = null;

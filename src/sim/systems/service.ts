@@ -6,6 +6,7 @@ import type { HelperState, Order, Party, WaiterState, WaiterTask } from '../stat
 import { fail, ok, type Command, type SimContext, type System } from '../types';
 import { awayReason, dropWork, tire } from './crew';
 import { placeOrders, startBrowsing } from './customers';
+import { checkPacked } from './takeout';
 
 /**
  * PHỤC VỤ — người chơi đóng vai bồi bàn. Bấm vào khách / quầy line / bàn dơ / vết bẩn là giao việc; bồi bàn làm lần lượt:
@@ -30,7 +31,7 @@ export function taskTaken(ctx: SimContext, match: (t: WaiterTask) => boolean): b
 
 /** Đơn đã có người nhận bưng (đang trong hàng việc hoặc trên khay của ai đó). */
 export function isReserved(ctx: SimContext, orderId: number): boolean {
-  return workers(ctx).some((w) => w.carrying.includes(orderId) || w.tasks.some((t) => t.kind === 'deliver' && t.orderIds.includes(orderId)));
+  return workers(ctx).some((w) => w.carrying.includes(orderId) || w.tasks.some((t) => (t.kind === 'deliver' || t.kind === 'handoff') && t.orderIds.includes(orderId)));
 }
 
 /** Món đang nằm ở quầy ra món và chưa ai nhận bưng — thứ người chơi chọn được. */
@@ -90,6 +91,11 @@ export function passSpot(ctx: SimContext): Point {
 function targetOf(ctx: SimContext, task: WaiterTask, w: WaiterState): Point | null {
   const r = ctx.state.restaurant;
   if (task.kind === 'pickup') return passSpot(ctx);
+  if (task.kind === 'handoff') {
+    // Chưa cầm món (nhân viên thuê nhận việc từ quầy line): ra quầy line lấy trước, rồi tới quầy cashier
+    if (!task.orderIds.every((id) => w.carrying.includes(id))) return passSpot(ctx);
+    return roomOf(ctx).cashier?.stand ?? null;
+  }
   if (task.kind === 'clean') {
     const t = tableById(ctx, task.tableId);
     return t && r.dirty[t.id]?.length ? serviceSpot(t, tablePos(ctx, t), r.dirty[t.id]) : null;
@@ -126,6 +132,30 @@ function act(ctx: SimContext, task: WaiterTask, w: WaiterState): boolean {
       w.carrying.push(o.id);
     }
     bus.emit('waiter/done', { kind: 'pickup', partyId: null });
+    return true;
+  }
+  if (task.kind === 'handoff') {
+    const orders = task.orderIds.map((id) => r.orders.find((o) => o.id === id)).filter((o): o is Order => !!o);
+    if (!orders.length) return true;
+    if (!orders.every((o) => w.carrying.includes(o.id))) {
+      // Tới quầy line: xếp các món còn ở quầy lên tay rồi đi tiếp tới quầy cashier
+      for (const o of orders) {
+        if (o.status !== 'ready' || w.carrying.includes(o.id)) continue;
+        o.status = 'carrying';
+        w.carrying.push(o.id);
+      }
+      task.orderIds = orders.filter((o) => w.carrying.includes(o.id)).map((o) => o.id);
+      bus.emit('waiter/done', { kind: 'pickup', partyId: null });
+      return !task.orderIds.length;
+    }
+    // Tới quầy cashier: đặt món vào túi; đủ món của đơn thì đóng gói chờ shipper
+    for (const o of orders) {
+      o.status = 'served';
+      bus.emit('order/served', { orderId: o.id, recipeId: o.recipeId });
+    }
+    w.carrying = w.carrying.filter((id) => !task.orderIds.includes(id));
+    for (const id of new Set(orders.map((o) => o.takeoutId!))) checkPacked(ctx, id);
+    bus.emit('waiter/done', { kind: 'handoff', partyId: null });
     return true;
   }
   const party = r.parties.find((p) => p.id === task.partyId);
@@ -182,7 +212,9 @@ function swapOwners(ctx: SimContext, a: Order, b: Order): void {
 function dropOrphans(ctx: SimContext): void {
   const r = ctx.state.restaurant;
   // Chỉ dọn món đã nấu xong (ở quầy / trên tay): món mồ côi ở quầy mà để lại thì bồi bàn lấy lên lại rồi kẹt tiếp
-  const orphan = (o: Order) => (o.status === 'ready' || o.status === 'carrying') && !r.parties.some((p) => p.id === o.partyId);
+  const cooking = new Set(ctx.state.takeout.orders.filter((t) => t.status === 'cooking').map((t) => t.id));
+  const orphan = (o: Order) =>
+    (o.status === 'ready' || o.status === 'carrying') && (o.takeoutId != null ? !cooking.has(o.takeoutId) : !r.parties.some((p) => p.id === o.partyId));
   if (r.orders.some(orphan)) {
     const gone = new Set(r.orders.filter(orphan).map((o) => o.id));
     r.orders = r.orders.filter((o) => !gone.has(o.id));
@@ -190,8 +222,8 @@ function dropOrphans(ctx: SimContext): void {
   }
   for (const w of [r.waiter, ...r.helpers]) {
     if (w.carrying.some((id) => !r.orders.some((o) => o.id === id))) w.carrying = w.carrying.filter((id) => r.orders.some((o) => o.id === id));
-    for (const t of w.tasks) if (t.kind === 'deliver') t.orderIds = t.orderIds.filter((id) => r.orders.some((o) => o.id === id));
-    if (w.tasks.some((t) => t.kind === 'deliver' && !t.orderIds.length)) w.tasks = w.tasks.filter((t) => t.kind !== 'deliver' || t.orderIds.length);
+    for (const t of w.tasks) if (t.kind === 'deliver' || t.kind === 'handoff') t.orderIds = t.orderIds.filter((id) => r.orders.some((o) => o.id === id));
+    if (w.tasks.some((t) => (t.kind === 'deliver' || t.kind === 'handoff') && !t.orderIds.length)) w.tasks = w.tasks.filter((t) => (t.kind !== 'deliver' && t.kind !== 'handoff') || t.orderIds.length);
   }
 }
 
@@ -299,6 +331,21 @@ export const serviceSystem: System = {
       r.waiter.tasks.push({ kind: 'deliver', orderIds: orders.map((o) => o.id), partyId: party.id });
       return ok();
     },
+    'service/handoff'(ctx) {
+      const blocked = waiterBlocked(ctx);
+      if (blocked) return fail(blocked);
+      const r = ctx.state.restaurant;
+      const w = r.waiter;
+      if (!roomOf(ctx).cashier) return fail('Quán chưa có quầy cashier.');
+      const promised = new Set(w.tasks.flatMap((t) => (t.kind === 'deliver' || t.kind === 'handoff' ? t.orderIds : [])));
+      const mine = w.carrying.filter((id) => !promised.has(id) && r.orders.find((o) => o.id === id)?.takeoutId != null);
+      if (!mine.length) {
+        if (w.carrying.length) return fail('Món đang cầm là của khách trong quán — bấm bàn cùng màu để giao.');
+        return fail(w.tasks.some((t) => t.kind === 'pickup') ? 'Đợi lấy món ở quầy xong đã.' : 'Chưa cầm món giao tận nơi nào — lấy món 🛍️ ở quầy line trước.');
+      }
+      w.tasks.push({ kind: 'handoff', orderIds: mine });
+      return ok();
+    },
     'service/clean'(ctx, cmd) {
       const blocked = waiterBlocked(ctx);
       if (blocked) return fail(blocked);
@@ -399,7 +446,7 @@ export function autoServeCommands(ctx: SimContext): Command[] {
   }
   // Bưng theo bàn: món nào đã ra quầy của bàn nào thì giao luôn (khay có thể chưa đủ bộ)
   const byParty = new Map<number, number[]>();
-  for (const o of readyOrders(ctx)) byParty.set(o.partyId, [...(byParty.get(o.partyId) ?? []), o.id]);
+  for (const o of readyOrders(ctx)) if (o.takeoutId == null) byParty.set(o.partyId, [...(byParty.get(o.partyId) ?? []), o.id]);
   for (const [partyId, orderIds] of byParty) commands.push({ type: 'service/deliver', orderIds, partyId });
   for (const id of Object.keys(r.dirty)) if (!taskTaken(ctx, (t) => t.kind === 'clean' && t.tableId === id)) commands.push({ type: 'service/clean', tableId: id });
   return commands;

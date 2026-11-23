@@ -119,6 +119,8 @@ const migrations: Record<number, (old: any) => any> = {
   },
   // Giai đoạn 17: bồi dưỡng giá tăng dần trong ngày + nhớ ai nhịn bữa tối (sáng than đói)
   26: (s) => ({ ...s, crew: { ...(s.crew as object), revives: 0, dinnerAte: null, hungry: [] }, version: 27 }),
+  // Giai đoạn 18: đơn giao tận nơi + shipper thuê thêm
+  27: (s) => ({ ...s, takeout: { orders: [], nextCall: 0 }, restaurant: { ...(s.restaurant as object), couriers: [] }, version: 28 }),
 };
 
 export function serialize(state: GameState): string {
@@ -153,6 +155,12 @@ function reconcile(state: GameState, content: Content): GameState {
 
   const r = state.restaurant;
   r.orders = r.orders.filter((o) => content.recipes.has(o.recipeId));
+  // Đơn giao tận nơi: món của đơn không còn đang nấu thì bỏ; shipper thuê thêm luôn có mảng
+  state.takeout ??= { orders: [], nextCall: 0 };
+  r.couriers ??= [];
+  const cooking = new Set(state.takeout.orders.filter((t) => t.status === 'cooking').map((t) => t.id));
+  r.orders = r.orders.filter((o) => o.takeoutId == null || cooking.has(o.takeoutId));
+  for (const t of state.takeout.orders) t.orderIds = t.orderIds.filter((id) => t.status !== 'cooking' || r.orders.some((o) => o.id === id));
   for (const p of r.parties) p.orderIds = p.orderIds.filter((id) => r.orders.some((o) => o.id === id));
   // Quán của riêng mình: hạng, bàn mua thêm, đồ trang trí, thú cưng
   r.tier = Math.max(1, Math.min(content.room.tiers.length, Math.floor(r.tier) || 1));
@@ -187,6 +195,10 @@ function reconcile(state: GameState, content: Content): GameState {
     if (t.kind === 'clean') return tableIds.has(t.tableId);
     if (t.kind === 'mop') return r.stains.some((s) => s.id === t.stainId);
     if (t.kind === 'pickup') return true;
+    if (t.kind === 'handoff') {
+      t.orderIds = t.orderIds.filter((id) => r.orders.some((o) => o.id === id));
+      return t.orderIds.length > 0;
+    }
     if (!r.parties.some((p) => p.id === t.partyId)) return false;
     if (t.kind === 'deliver') t.orderIds = t.orderIds.filter((id) => r.orders.some((o) => o.id === id));
     return t.kind !== 'deliver' || t.orderIds.length > 0;

@@ -6,6 +6,7 @@ import type { MillType } from '../../../data';
 import { farmChecklist } from '../../../sim/systems/tutorial';
 import { buildingRect, currentWork, isAutoSlot, nextWaypoint, slotCenter, slotCenterAt, slotScale, workSpot } from '../../../sim/systems/farmer';
 import { OwnerWalker, type Spot } from '../owner';
+import { mergeStatic } from '../merge';
 import { millCenter, millCenterAt } from '../../../sim/systems/mills';
 import { dashedOutline, dashedRect, fillSacks, makeGreenhouse, grainField, hayBale, makeRiceMill, makeTractor, makeWindmill, outlineSlab, pondOutline, strawLitter } from '../farmkit';
 import { cycleTime, needsWatering, nextTier, yieldsOf } from '../../../sim/systems/farm';
@@ -150,10 +151,17 @@ export class FarmArea implements Area {
   constructor(private game: Game) {
     this.buildScenery();
     this.swayNodes = collectSway(this.root);
+    // Tối ưu: gộp mesh cảnh tĩnh (đất, đường đất, đá sỏi, đồi, nhà kho, cây, hàng rào, cột đèn)
+    mergeStatic(this.scenery);
   }
 
+  /** Cảnh tĩnh của nông trại (gộp mesh sau khi dựng). */
+  private scenery!: THREE.Group;
+
   private buildScenery(): void {
-    const r = this.root;
+    // Cảnh tĩnh vào nhóm `scenery` (gộp mesh sau khi dựng — merge.ts); bác nông dân, máy cày gắn thẳng vào root
+    const top = this.root;
+    const r = (this.scenery = group(top));
     const rnd = seeded(7);
     mesh(r, G.box(90, 0.4, 80), 0x8fd16a, { p: [4, -0.2, 8], cast: false });
     for (let i = 0; i < 22; i++) mesh(r, G.cyl(1, 1, 0.02, 12), 0x9eda7a, { p: [-18 + rnd() * 48, 0.01, -8 + rnd() * 38], s: [1 + rnd() * 2, 1, 0.8 + rnd()], cast: false });
@@ -224,14 +232,14 @@ export class FarmArea implements Area {
     farmer.position.set(home.x, 0, home.z);
     this.farmerPrev.set(home.x, home.z);
     farmer.scale.setScalar(1.15);
-    r.add(farmer);
+    top.add(farmer);
     // Máy cày: hiện dưới bác khi thu / gieo ruộng lúa và lúc chở lúa tới cối
     this.tractor.g.visible = false;
-    r.add(this.tractor.g);
+    top.add(this.tractor.g);
     // Chỗ đậu: bãi cỏ phía nam ruộng lúa mì (dưới chỗ mở rộng ruộng thứ hai), mũi hướng ra đường đất
     this.parked.g.position.set(-1.6, 0, 23.3);
     this.parked.g.rotation.y = Math.PI / 2;
-    r.add(this.parked.g);
+    top.add(this.parked.g);
   }
 
   /**
@@ -654,8 +662,11 @@ export class FarmArea implements Area {
           spot(c.x, c.z, 2.8, m.id, m.icon);
         }
       }
+      // Tối ưu: hàng trăm nét đứt + mặt mờ gộp thành vài mesh (vùng bấm, dấu ➕ giữ nguyên)
+      mergeStatic(this.expand);
     }
     for (const g of this.expand.children) {
+      if (!g.userData.bob) continue; // khối nét đứt đã gộp
       const [plus, what] = g.userData.bob as THREE.Sprite[];
       const k = Math.abs(Math.sin(env.t * 2 + g.position.x));
       plus.position.y = 0.6 + k * 0.12;

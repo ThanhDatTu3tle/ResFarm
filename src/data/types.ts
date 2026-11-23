@@ -317,6 +317,21 @@ export interface RoomDef {
   passStand?: { x: number; y: number };
   /** Khối bếp / quầy cố định: không đặt bàn, người không đi xuyên qua. */
   walls?: { x1: number; y1: number; x2: number; y2: number }[];
+  /** Quầy cashier nhận đơn giao tận nơi (chỉ có từ hạng balance.takeout.tier — layout.roomOf tính): tâm quầy + chỗ bồi bàn đứng giao món. */
+  cashier?: {
+    x: number;
+    y: number;
+    /** Chỗ bồi bàn đứng giao món (trước mặt quầy). */
+    stand: { x: number; y: number };
+    /** Chỗ nhân viên cashier đứng trực (sau quầy). */
+    staff: { x: number; y: number };
+    /** Hướng mặt quầy (phía bồi bàn đứng) trong mặt bằng: 'left' = quay về phía cửa (quầy dọc), 'down' = quay ra khu ăn (quán ốc). */
+    face: 'left' | 'down';
+    /** Ghế chờ sau lưng nhân viên cashier (khách tới sau ngồi đợi bàn), quay mặt vào trong quán. Quán ốc không có. */
+    seats: { x: number; y: number }[];
+    /** Vùng dãy ghế chờ: không đặt bàn / đồ trang trí (khác walls: người vẫn đi vào được). */
+    zone?: { x1: number; y1: number; x2: number; y2: number };
+  };
   /** Mặt bằng riêng theo phong cách quán (ghi đè các trường trên; hạng quán vẫn dùng chung `tiers`, cộng thêm phần chênh so với hạng 1). */
   variants?: Partial<Record<CuisineId, Partial<Omit<RoomDef, 'tiers' | 'variants'>>>>;
 }
@@ -450,6 +465,30 @@ export interface Balance {
    * XP = thưởng × `xpRatio`, uy tín mỗi đơn; `sellRatio` = giá bán lại hàng dư so với giá gốc.
    */
   contracts: { perDay: number; extraAtLevel: number; due: number; rewardMul: [number, number]; xpRatio: number; rep: number; sellRatio: number };
+  /**
+   * Đơn giao tận nơi (systems/takeout.ts): mở từ hạng quán `tier` (có quầy cashier ở cửa). Khách gọi điện mỗi `every` phút
+   * (khoảng), tối đa `maxOpen` đơn chưa xong cùng lúc; chuông reo `ring` phút không nhận thì khách cúp máy. Mỗi đơn 1..`dishes` món,
+   * hẹn giao trong `due` phút kể từ lúc nhận. Tiền = giá món × `priceMul` (+ tip `tip` nếu đúng hẹn); trễ hẹn chỉ nhận `lateRatio`
+   * và mất `lateRep` uy tín. Chuyến giao `trip` phút (đi + về), tốn `energy` sức; thuê shipper thêm `hireCost` xu, tối đa `maxCouriers`.
+   */
+  takeout: {
+    tier: number;
+    every: [number, number];
+    maxOpen: number;
+    ring: number;
+    dishes: number;
+    due: number;
+    priceMul: number;
+    tip: number;
+    lateRatio: number;
+    lateRep: number;
+    rep: number;
+    xpRatio: number;
+    trip: [number, number];
+    energy: [number, number];
+    hireCost: number;
+    maxCouriers: number;
+  };
   /** Món còn nấu được ít hơn số phần này thì báo "sắp hết nguyên liệu". */
   lowStockPortions: number;
   /** Biên độ giá chợ theo ngày [min, max]. */

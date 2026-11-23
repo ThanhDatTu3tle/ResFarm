@@ -16,6 +16,7 @@ import { sellPrice } from '../src/sim/systems/contracts';
 import { buildingRect, nextWaypoint, slotCenter, slotScale, workSpot } from '../src/sim/systems/farmer';
 import { millCenter, millSpot } from '../src/sim/systems/mills';
 import { moodOf } from '../src/sim/systems/customers';
+import { nextWaypoint as walkWaypoint } from '../src/sim/pathing';
 import { ownerName, type FarmSlot, type Party } from '../src/sim/state';
 
 const content = createContent();
@@ -2542,5 +2543,150 @@ describe('xỉu + bồi dưỡng tăng giá + nhịn bữa tối', () => {
     expect(fed.state.crew.hungry).toEqual([]);
     expect(fed.state.crew.dinnerAte).toBeNull();
     expect(fed.state.farm.farmer.energy).toBe(content.balance.crew.maxEnergy);
+  });
+});
+
+describe('đơn giao tận nơi (giai đoạn 18)', () => {
+  /** Quán hạng "Quán đông khách" (có quầy cashier), nhiều tiền, đủ nguyên liệu. */
+  function shop() {
+    const game = quietGame();
+    const { state } = game;
+    state.level = 9;
+    state.money = 99999;
+    state.restaurant.tier = content.balance.takeout.tier;
+    for (const id of Object.keys(state.inventory)) state.inventory[id] = 99;
+    for (const r of state.menu.active) for (const s of content.recipes.get(r).ingredients) state.inventory[s.item] = 99;
+    return game;
+  }
+  const run = (game: Game, minutes: number, until?: () => boolean) => {
+    for (let i = 0; i < minutes && !until?.(); i++) game.tick(1);
+  };
+
+  it('chưa đủ hạng thì không có quầy cashier, không có cuộc gọi', () => {
+    const game = quietGame();
+    expect(roomOf(game.ctx).cashier).toBeUndefined();
+    run(game, 200);
+    expect(game.state.takeout.orders).toEqual([]);
+    expect(game.dispatch({ type: 'courier/hire' }).ok).toBe(false);
+  });
+
+  it('khách gọi → nhận đơn → bếp nấu → bồi bàn mang ra quầy cashier → đóng gói → shipper giao → nhận tiền', () => {
+    const game = shop();
+    const { state } = game;
+    const cashier = roomOf(game.ctx).cashier!;
+    expect(cashier).toBeTruthy();
+    // Quầy cashier là khối cố định: không đặt bàn đè lên
+    expect(roomOf(game.ctx).walls!.some((w) => w.x1 < cashier.x && w.x2 > cashier.x && w.y1 < cashier.y && w.y2 > cashier.y)).toBe(true);
+    expect(cashier.x).toBeGreaterThan(roomOf(game.ctx).width / 2); // bên phải cửa
+    expect(cashier.seats.length).toBeGreaterThan(0); // dãy ghế chờ sau lưng nhân viên
+    // Đầu quầy sát tường trước; khách từ cửa vào ghế chờ phải đi vòng qua đầu trong của quầy (không xuyên quầy)
+    const room = roomOf(game.ctx);
+    const block = room.walls!.find((w) => w.x1 < cashier.x && w.x2 > cashier.x)!;
+    expect(block.y2).toBe(room.height);
+    const door = { x: room.width / 2, y: room.height - 5 };
+    let at = door;
+    let minY = at.y;
+    for (let i = 0; i < 12 && (at.x !== cashier.seats[0].x || at.y !== cashier.seats[0].y); i++) {
+      at = walkWaypoint(game.ctx, at, cashier.seats[0]);
+      minY = Math.min(minY, at.y);
+    }
+    expect(at).toEqual(cashier.seats[0]);
+    expect(minY).toBeLessThan(block.y1);
+    run(game, 200, () => state.takeout.orders.some((t) => t.status === 'calling'));
+    const t = state.takeout.orders.find((x) => x.status === 'calling')!;
+    expect(t).toBeTruthy();
+    expect(game.dispatch({ type: 'takeout/accept', id: t.id }).ok).toBe(true);
+    expect(t.status).toBe('cooking');
+    expect(t.orderIds).toHaveLength(t.dishes.length);
+    // Nấu xong hết rồi bồi bàn lấy ở quầy line, bấm quầy cashier
+    run(game, 300, () => state.restaurant.orders.filter((o) => o.takeoutId === t.id).every((o) => o.status === 'ready'));
+    const money = state.money;
+    for (let round = 0; round < 5 && t.status === 'cooking'; round++) {
+      expect(game.dispatch({ type: 'service/pickup' }).ok).toBe(true);
+      run(game, 60, () => !state.restaurant.waiter.tasks.length);
+      expect(game.dispatch({ type: 'service/handoff' }).ok).toBe(true);
+      run(game, 60, () => !state.restaurant.waiter.tasks.length);
+    }
+    expect(t.status === 'packed' || t.status === 'shipping').toBe(true);
+    expect(state.restaurant.orders.some((o) => o.takeoutId === t.id)).toBe(false);
+    run(game, 5);
+    expect(t.status).toBe('shipping');
+    expect(state.restaurant.shipper.trip?.takeoutId).toBe(t.id);
+    run(game, 60, () => t.status === 'done');
+    expect(t.status).toBe('done');
+    expect(t.late).toBe(false);
+    expect(state.money).toBe(money + t.price + Math.round(t.price * content.balance.takeout.tip));
+    expect(state.restaurant.shipper.trip).toBeNull();
+  });
+
+  it('quán ốc: quầy cashier ngay bên phải quầy line, không có ghế chờ', () => {
+    const game = newGame(42, 'oc');
+    game.state.restaurant.tier = content.balance.takeout.tier;
+    const room = roomOf(game.ctx);
+    const c = room.cashier!;
+    expect(c.face).toBe('down');
+    expect(c.seats).toEqual([]);
+    expect(c.x).toBeGreaterThan(room.pass.x);
+    expect(Math.abs(c.y - room.pass.y)).toBeLessThan(30);
+  });
+
+  it('thiếu nguyên liệu không nhận được; chuông reo quá lâu thì khách cúp máy', () => {
+    const game = shop();
+    const { state } = game;
+    run(game, 200, () => state.takeout.orders.some((t) => t.status === 'calling'));
+    const t = state.takeout.orders.find((x) => x.status === 'calling')!;
+    for (const id of Object.keys(state.inventory)) state.inventory[id] = 0;
+    expect(game.dispatch({ type: 'takeout/accept', id: t.id }).ok).toBe(false);
+    run(game, content.balance.takeout.ring + 2);
+    expect(t.status).toBe('missed');
+  });
+
+  it('giao trễ hẹn chỉ nhận một phần tiền; shipper thuê thêm nhận giao trước anh shipper gốc', () => {
+    const game = shop();
+    const { state } = game;
+    expect(game.dispatch({ type: 'courier/hire' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'courier/hire' }).ok).toBe(false); // tối đa 1
+    const courier = state.restaurant.couriers[0];
+    run(game, 200, () => state.takeout.orders.some((t) => t.status === 'calling'));
+    const t = state.takeout.orders.find((x) => x.status === 'calling')!;
+    game.dispatch({ type: 'takeout/accept', id: t.id });
+    // Giả như bếp nấu chậm: hẹn đã qua
+    t.due = state.clock.minute - 1;
+    for (let round = 0; round < 8 && t.status === 'cooking'; round++) {
+      run(game, 300, () => state.restaurant.orders.some((o) => o.takeoutId === t.id && o.status === 'ready'));
+      game.dispatch({ type: 'service/pickup' });
+      run(game, 60, () => !state.restaurant.waiter.tasks.length);
+      game.dispatch({ type: 'service/handoff' });
+      run(game, 60, () => !state.restaurant.waiter.tasks.length);
+    }
+    run(game, 3);
+    expect(courier.trip?.takeoutId).toBe(t.id);
+    expect(state.restaurant.shipper.trip).toBeNull();
+    const money = state.money;
+    run(game, 60, () => t.status === 'done');
+    expect(t.late).toBe(true);
+    expect(state.money).toBe(money + Math.round(t.price * content.balance.takeout.lateRatio));
+  });
+
+  it('nhân viên phục vụ thuê tự mang món giao tận nơi ra quầy cashier', () => {
+    const game = shop();
+    const { state } = game;
+    expect(game.dispatch({ type: 'helper/hire' }).ok).toBe(true);
+    run(game, 200, () => state.takeout.orders.some((t) => t.status === 'calling'));
+    const t = state.takeout.orders.find((x) => x.status === 'calling')!;
+    game.dispatch({ type: 'takeout/accept', id: t.id });
+    run(game, 600, () => t.status !== 'cooking');
+    expect(['packed', 'shipping', 'done']).toContain(t.status);
+  });
+
+  it('save cũ (v27) nâng lên có giao tận nơi + mảng shipper thuê', () => {
+    const game = newGame();
+    const old = JSON.parse(serialize(game.state));
+    delete old.takeout;
+    delete old.restaurant.couriers;
+    old.version = 27;
+    const loaded = deserialize(JSON.stringify(old), content)!;
+    expect(loaded.takeout).toEqual({ orders: [], nextCall: 0 });
+    expect(loaded.restaurant.couriers).toEqual([]);
   });
 });

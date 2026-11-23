@@ -58,6 +58,13 @@ export type Command =
   | { type: 'service/clean'; tableId: string }
   | { type: 'service/mop'; stainId: number }
   | { type: 'contract/deliver'; contractId: number }
+  /** Đơn giao tận nơi: nhận cuộc gọi (trừ nguyên liệu, món vào bếp) / từ chối. */
+  | { type: 'takeout/accept'; id: number }
+  | { type: 'takeout/decline'; id: number }
+  /** Bồi bàn mang các món đơn giao tận nơi đang cầm tới quầy cashier. */
+  | { type: 'service/handoff' }
+  | { type: 'courier/hire' }
+  | { type: 'courier/fire'; courierId: string }
   | { type: 'event/police'; choice: 'bribe' | 'table' }
   /** Bồi bàn ra quầy line lấy món nấu xong sớm nhất (tối đa balance.service.carryMax). */
   | { type: 'service/pickup' }
@@ -116,7 +123,13 @@ export interface SimEvents {
   /** Nhóm khách cần bồi bàn: mang menu (menu) hoặc tới ghi món (order). */
   'party/needs': { partyId: number; need: 'menu' | 'order' };
   /** Bồi bàn vừa làm xong một việc. */
-  'waiter/done': { kind: 'menu' | 'takeOrder' | 'pickup' | 'deliver' | 'clean' | 'mop'; partyId: number | null };
+  'waiter/done': { kind: 'menu' | 'takeOrder' | 'pickup' | 'deliver' | 'handoff' | 'clean' | 'mop'; partyId: number | null };
+  /** Đơn giao tận nơi: khách gọi tới · đủ món đóng gói · shipper chở đi · giao xong (về quán nhận tiền) · nhỡ cuộc gọi. */
+  'takeout/call': { id: number };
+  'takeout/packed': { id: number };
+  'takeout/shipped': { id: number; who: string; until: number };
+  'takeout/done': { id: number; money: number; tip: number; late: boolean };
+  'takeout/missed': { id: number };
   /** Bắt đầu / hết một ca mở cửa (chỉ số trong balance.shifts). Hết ca thì sàn có thêm vết bẩn. */
   'shift/started': { index: number };
   'shift/ended': { index: number };

@@ -49,6 +49,8 @@ export interface GameState {
   crew: CrewState;
   /** Đơn đặt hàng hôm nay. */
   contracts: Contract[];
+  /** Đơn giao tận nơi (từ hạng quán balance.takeout.tier). */
+  takeout: TakeoutState;
   /** Sự kiện ngẫu nhiên hôm nay (null = không có). */
   event: EventState | null;
   /** Lưu lượng khách hôm nay (hệ số nhân tốc độ khách tới, tung mỗi sáng — `balance.traffic`). */
@@ -144,7 +146,7 @@ export interface Contract {
 /** Anh shipper (giao đơn hàng bằng xe máy): bao ăn ở cùng đội quán, mỗi chuyến tốn sức. */
 export interface ShipperState extends Vitals {
   /** Đang đi giao: đơn nào, giờ về (phút trong ngày). null = đang ở quán. */
-  trip: { contractId: number; until: number } | null;
+  trip: ShipperTrip | null;
 }
 
 /** Sự kiện ngẫu nhiên hôm nay (systems/events.ts). */
@@ -197,6 +199,53 @@ export interface Order {
   fav?: boolean;
   /** Lúc món ra quầy line (ngày × 1440 + phút) — bồi bàn lấy món ra quầy trước trước. */
   readyAt?: number;
+  /** Món của đơn giao tận nơi (id TakeoutOrder): partyId = 0, bưng tới quầy cashier thay vì bàn khách. */
+  takeoutId?: number;
+}
+
+/**
+ * Đơn giao tận nơi (systems/takeout.ts).
+ * calling: chuông đang reo ở quầy cashier, chờ người chơi nhận · cooking: đã nhận, bếp nấu + bồi bàn bưng món ra quầy cashier ·
+ * packed: đủ món, đã đóng gói chờ shipper · shipping: shipper đang chở đi · done: giao xong · missed: không nhận kịp / bị từ chối.
+ */
+export interface TakeoutOrder {
+  id: number;
+  client: string;
+  icon: string;
+  /** Món khách đặt (id món, có thể trùng). */
+  dishes: string[];
+  /** Đơn bếp ứng với từng món (sau khi nhận đơn). */
+  orderIds: number[];
+  status: 'calling' | 'cooking' | 'packed' | 'shipping' | 'done' | 'missed';
+  /** calling: quá phút này chưa nhận thì khách cúp máy. */
+  expires: number;
+  /** Hẹn giao trước phút này (đặt lúc nhận đơn). */
+  due: number;
+  /** Tiền món (đã nhân priceMul), chưa tính tip. */
+  price: number;
+  /** Giao xong: đúng hẹn hay trễ. */
+  late?: boolean;
+}
+
+/** Shipper thuê thêm chuyên giao đơn giao tận nơi (giai đoạn 18). */
+export interface CourierState extends Vitals {
+  id: string;
+  name: string;
+  trip: ShipperTrip | null;
+}
+
+/** Một chuyến giao: đơn hàng (contractId) hoặc đơn giao tận nơi (takeoutId); `arrive` = lúc tới nhà khách, `until` = lúc về quán. */
+export interface ShipperTrip {
+  contractId?: number;
+  takeoutId?: number;
+  arrive?: number;
+  until: number;
+}
+
+export interface TakeoutState {
+  orders: TakeoutOrder[];
+  /** Phút trong ngày có cuộc gọi kế tiếp. */
+  nextCall: number;
 }
 
 /** Sức của một người trong đội: mỗi việc tốn năng lượng, cạn thì xỉu (đứng im tới khi được bồi dưỡng / ăn / ngủ). */
@@ -274,6 +323,8 @@ export type WaiterTask =
   | { kind: 'pickup' }
   /** Bưng cả khay: lấy các món ở quầy rồi giao một lượt cho bàn. */
   | { kind: 'deliver'; orderIds: number[]; partyId: number }
+  /** Mang các món đơn giao tận nơi đang cầm tới quầy cashier (đóng gói chờ shipper). */
+  | { kind: 'handoff'; orderIds: number[] }
   /** Dọn chén dĩa dơ ở bàn. */
   | { kind: 'clean'; tableId: string }
   /** Lau một vết bẩn trên sàn. */
@@ -337,6 +388,8 @@ export interface RestaurantState {
   shipper: ShipperState;
   /** Nhân viên phục vụ thuê thêm (mỗi bậc hạng quán thêm 1 chỗ). */
   helpers: HelperState[];
+  /** Shipper thuê thêm chuyên giao đơn giao tận nơi (giai đoạn 18). */
+  couriers: CourierState[];
 }
 
 export interface FarmSlot {
@@ -415,7 +468,7 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 27;
+export const SAVE_VERSION = 28;
 
 export interface OwnerProfile {
   gender: 'male' | 'female';
@@ -539,6 +592,7 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
       tier: 1,
       waiter: { ...roomFor(content, cuisine).waiterHome, tasks: [], carrying: [], energy: b.crew.maxEnergy, fainted: false },
       shipper: { energy: b.crew.shipperMaxEnergy, fainted: false, trip: null },
+      couriers: [],
       helpers: [],
       dirty: {},
       stains: [],
@@ -560,6 +614,7 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
     weather: { id: content.weathers.all()[0].id, minutesLeft: 0 },
     crew: { restaurantAway: null, farmerAway: null, pending: [], meals: [], bill: [], farmerWaiting: false, farmerBack: null, farmerLunchDay: 0, revives: 0, dinnerAte: null, hungry: [] },
     contracts: [],
+    takeout: { orders: [], nextCall: 0 },
     event: null,
     stats: { today: emptyStats(), total: emptyStats(), season: emptyStats(), year: emptyStats() },
   };

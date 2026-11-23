@@ -49,6 +49,8 @@ export function crewMembers(ctx: SimContext): CrewMember[] {
     // Nhân viên bệnh nghỉ ở nhà: không đi làm, không ra chợ ăn cùng đội
     ...r.helpers.filter((h) => !h.sick).map((h): CrewMember => ({ who: h.id, name: isManager(ctx, h.id) ? `${h.name} (quản lý)` : h.name, icon: isManager(ctx, h.id) ? '🤵' : '🧑‍🍳', role: 'helper', group: 'restaurant', vitals: h })),
     { who: 'shipper', name: 'Anh shipper', icon: '🛵', role: 'shipper', group: 'restaurant', vitals: r.shipper },
+    // Shipper thuê thêm (giao tận nơi, giai đoạn 18)
+    ...r.couriers.map((c): CrewMember => ({ who: c.id, name: `${c.name} (shipper)`, icon: '🛵', role: 'shipper', group: 'restaurant', vitals: c })),
     { who: 'farmer', name: 'Bác nông dân', icon: '👨‍🌾', role: 'farmer', group: 'farm', vitals: state.farm.farmer },
   ];
 }
@@ -56,7 +58,7 @@ export function crewMembers(ctx: SimContext): CrewMember[] {
 /** Năng lượng tối đa của một người: đầu bếp ít hơn (nấu tốn sức), bồi bàn / nhân viên / bác nông dân nhiều hơn. */
 export function maxEnergyOf(ctx: SimContext, who: string): number {
   const b = ctx.content.balance.crew;
-  return ctx.content.staff.has(who) ? b.chefMaxEnergy : who === 'shipper' ? b.shipperMaxEnergy : b.maxEnergy;
+  return ctx.content.staff.has(who) ? b.chefMaxEnergy : who === 'shipper' || who.startsWith('courier') ? b.shipperMaxEnergy : b.maxEnergy;
 }
 
 export function memberOf(ctx: SimContext, who: string): CrewMember | undefined {

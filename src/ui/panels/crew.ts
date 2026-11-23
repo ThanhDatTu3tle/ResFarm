@@ -1,6 +1,7 @@
 import { awayReason, crewMembers, maxEnergyOf, reviveCostOf, reviveEnergyOf, type CrewMember } from '../../sim/systems/crew';
 import { kitchenTierOf, nextChefDef, uncookedDishes } from '../../sim/systems/kitchen';
 import { maxHelpers } from '../../sim/systems/helpers';
+import { takeoutOpen } from '../../sim/systems/takeout';
 import type { Game } from '../../sim/game';
 import type { HelperJob, HelperState } from '../../sim/state';
 import { clockText, coins } from '../format';
@@ -53,12 +54,14 @@ export const crewPanel: Panel = {
             ? `<button class="primary wide"${cmd({ type: 'crew/revive', who: m.who })}${state.money >= reviveCostOf(ctx) ? '' : ' disabled'}>💊 Bồi dưỡng nhanh (+${reviveEnergyOf(ctx, m.who)} ⚡) · ${coins(reviveCostOf(ctx))}</button>`
             : '';
         const helper = m.role === 'helper' ? state.restaurant.helpers.find((h) => h.id === m.who) : undefined;
+        const courier = state.restaurant.couriers.find((c) => c.id === m.who);
+        const fireCourier = courier ? `<div class="row end"><button class="mini ghost"${cmd({ type: 'courier/fire', courierId: courier.id })}${courier.trip ? ' disabled' : ''}>Cho nghỉ việc</button></div>` : '';
         return `<div class="card helper${m.vitals.fainted ? ' fainted' : ''}${low ? ' low' : ''}" data-key="${m.who}">
           <div class="row"><span class="big">${m.vitals.fainted ? '😵' : m.icon}</span>
             <div class="grow"><b>${esc(m.name)}</b> <span class="pill">${ROLE[m.role]}</span><div class="muted">${status}</div>
               <div class="energy">⚡ ${bar(m.vitals.energy / max)}<em>${Math.round(m.vitals.energy)}/${max}</em></div></div>
           </div>
-          ${revive}${helper ? helperControls(helper) : ''}${m.role === 'chef' ? chefControls(game, m.who) : ''}
+          ${revive}${helper ? helperControls(helper) : ''}${m.role === 'chef' ? chefControls(game, m.who) : ''}${fireCourier}
         </div>`;
       })
       .join('');
@@ -73,16 +76,25 @@ export const crewPanel: Panel = {
     const team = r.helpers.length >= 2 ? `<p class="muted">🤵 ${esc(r.helpers[0].name)} làm quản lý. Từ 2 nhân viên, mỗi người giữ một bàn: mang menu bàn nào thì ghi món, bưng món, dọn bàn đó.</p>` : '';
     return `<p class="muted">Đầu bếp tối đa ${b.chefMaxEnergy} ⚡, bồi bàn / nhân viên / bác nông dân ${b.maxEnergy} ⚡. Đầu bếp nấu 1 món tốn ${b.chefPerDish}; phục vụ (menu, ghi món, bưng, lau sàn — dọn bàn không tốn) và bác nông dân (cuốc, gieo, tưới, thu hoạch) mỗi việc tốn ${b.waiterPerTask}; anh shipper mỗi chuyến giao tốn ${b.shipperTrip.energy[0]}–${b.shipperTrip.energy[1]}. Ai cạn cũng xỉu: bồi dưỡng nhanh hồi một nửa sức, ${b.reviveCost} xu lần đầu trong ngày, mỗi lần sau thêm ${b.reviveStep} xu.
       Nghỉ trưa: bác ra chợ ${clockText(b.farmerLunch.from)}–${clockText(b.farmerLunch.to)}, đội quán ra chợ khi hết ca sáng và quán vắng khách, ${clockText(b.lunchBack)} về. Tối sau ca cuối cả đội ra chợ ăn tối. Ngủ qua đêm là đầy sức.</p>
-      ${uncookedNote(game)}${team}${rows}${sick}${chefHire(game)}${hire}`;
+      ${uncookedNote(game)}${team}${rows}${sick}${chefHire(game)}${hire}${courierHire(game)}`;
   },
 };
+
+/** Thuê shipper giao tận nơi (từ hạng balance.takeout.tier, có quầy cashier). */
+function courierHire(game: Game): string {
+  const { state, content, ctx } = game;
+  const b = content.balance.takeout;
+  if (!takeoutOpen(ctx)) return `<div class="muted">🛵 Nâng quán lên hạng ${esc(content.room.tiers[b.tier - 1].name)} để có quầy cashier nhận đơn giao tận nơi và thuê thêm shipper.</div>`;
+  if (state.restaurant.couriers.length >= b.maxCouriers) return '';
+  return `<button class="wide"${cmd({ type: 'courier/hire' })}${state.money >= b.hireCost ? '' : ' disabled'}>🛵 Thuê shipper giao tận nơi · ${coins(b.hireCost)}</button>`;
+}
 
 /** Đang có việc trong tay không. */
 function busy(game: Game, m: CrewMember): boolean {
   const { state } = game;
   if (m.role === 'chef') return state.restaurant.staff.some((s) => s.id === m.who && s.orderId != null);
   if (m.role === 'farmer') return state.farm.farmer.tasks.length > 0;
-  if (m.role === 'shipper') return !!state.restaurant.shipper.trip;
+  if (m.role === 'shipper') return !!(m.who === 'shipper' ? state.restaurant.shipper.trip : state.restaurant.couriers.find((c) => c.id === m.who)?.trip);
   const w = m.role === 'waiter' ? state.restaurant.waiter : state.restaurant.helpers.find((h) => h.id === m.who);
   return !!w?.tasks.length;
 }

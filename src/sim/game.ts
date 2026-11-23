@@ -5,6 +5,7 @@ import { clockSystem } from './systems/clock';
 import { festivalSystem } from './systems/festival';
 import { eventSystem } from './systems/events';
 import { contractSystem } from './systems/contracts';
+import { takeoutSystem } from './systems/takeout';
 import { calendarOf } from './calendar';
 import { customerSystem } from './systems/customers';
 import { decorSystem } from './systems/decor';
@@ -26,7 +27,7 @@ import { achievementSystem } from './systems/achievements';
 import { fail, ok, type Command, type CommandHandlers, type CommandResult, type SimContext, type SimEvents, type System } from './types';
 
 /** Thứ tự ở đây là thứ tự update mỗi bước. System mới thêm vào mảng này. */
-export const defaultSystems: System[] = [clockSystem, crewSystem, weatherSystem, festivalSystem, eventSystem, contractSystem, customerSystem, kitchenSystem, serviceSystem, farmSystem, farmerSystem, millSystem, marketSystem, progressionSystem, decorSystem, questSystem, homeSystem, helperSystem, gardenerSystem, achievementSystem, tutorialSystem];
+export const defaultSystems: System[] = [clockSystem, crewSystem, weatherSystem, festivalSystem, eventSystem, contractSystem, takeoutSystem, customerSystem, kitchenSystem, serviceSystem, farmSystem, farmerSystem, millSystem, marketSystem, progressionSystem, decorSystem, questSystem, homeSystem, helperSystem, gardenerSystem, achievementSystem, tutorialSystem];
 
 /** System vẫn chạy khi ngày hướng dẫn dừng giờ (để bác nông dân đi gieo trồng theo hướng dẫn). */
 const FROZEN_OK = new Set(['farmer', 'gardeners', 'tutorial']);

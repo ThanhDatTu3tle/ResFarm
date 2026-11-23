@@ -13,6 +13,7 @@ import { Chatter } from '../chatter';
 import { makePlasticSet, makeTeaKiosk } from '../kiosk';
 import { animateCartVendor, equipCartVendor, makeStreetCart, type StreetKind } from '../streetcarts';
 import { makeBillboard, type Billboard } from '../billboard';
+import { mergeStatic } from '../merge';
 import { BusStopScene, makeCityBus, type CityBus } from '../busstop';
 
 /**
@@ -128,10 +129,17 @@ export class MarketArea implements Area {
       this.centers.set(def.id, { x: def.spot!.x, z: def.spot!.z });
     });
     this.swayNodes = collectSway(this.root);
+    // Tối ưu: gộp mesh của cảnh tĩnh (đất, vỉa hè, đường, dãy nhà, cột đèn, cây, thùng, biển LED)
+    mergeStatic(this.scenery);
   }
 
+  /** Cảnh tĩnh của chợ (gộp mesh sau khi dựng). */
+  private scenery!: THREE.Group;
+
   private buildScenery(): void {
-    const r = this.root;
+    // Cảnh tĩnh vào nhóm `scenery` (gộp mesh sau khi dựng — merge.ts); vật cử động (cờ, xe, người) gắn thẳng vào root
+    const top = this.root;
+    const r = (this.scenery = group(top));
     const rnd = seeded(23);
     mesh(r, G.box(80, 0.4, 70), 0xe6d3ad, { p: [0, -0.2, 0], cast: false });
     // Vỉa hè lát gạch (rộng gấp đôi trước), viền bó vỉa
@@ -195,7 +203,7 @@ export class MarketArea implements Area {
     const flagColors = [0xe2574c, 0xf2b23e, 0x5fae57, 0x4a9bd8, 0x9a6bd1];
     for (let i = 0; i <= 36; i++) {
       const t = i / 36;
-      const flag = mesh(r, G.cone(0.2, 0.42, 3), flagColors[i % flagColors.length], { p: [-LAMP_X + t * LAMP_X * 2, 4.35 - Math.sin(t * Math.PI) * 0.9, 1.4], r: [Math.PI, 0, 0], cast: false });
+      const flag = mesh(top, G.cone(0.2, 0.42, 3), flagColors[i % flagColors.length], { p: [-LAMP_X + t * LAMP_X * 2, 4.35 - Math.sin(t * Math.PI) * 0.9, 1.4], r: [Math.PI, 0, 0], cast: false });
       flag.userData.phase = i * 0.7;
       this.flags.push(flag);
     }
@@ -222,7 +230,7 @@ export class MarketArea implements Area {
     r.add(this.billboard.g);
     // Trạm xe buýt bên phải cây trước Tiệm 25caaaaa: khách ngồi chờ, xe buýt ghé đón / trả khách
     this.busStop = new BusStopScene(
-      r,
+      top,
       BUS_STOP,
       (i) => {
         const s = randomShape(700 + i, i % 3, LOOKS[(i * 7 + 3) % LOOKS.length]);
@@ -241,16 +249,19 @@ export class MarketArea implements Area {
       // Mỗi làn 4 xe cách đều nhau (cùng tốc độ nên giữ nguyên khoảng cách)
       g.position.set(-ROAD_HALF + (Math.floor(i / 2) + 0.25 + (i % 2) * 0.5) * (ROAD_HALF / 2), 0, LANES[i % 2 ? 1 : 0] + (kind === 'scooter' ? (rnd() - 0.5) * 0.8 : 0));
       g.rotation.y = dir > 0 ? 0 : Math.PI;
-      r.add(g);
+      top.add(g);
       const wheels: THREE.Object3D[] = [];
       g.traverse((o) => o instanceof THREE.Mesh && o.geometry.type === 'CylinderGeometry' && o.rotation.x !== 0 && wheels.push(o));
+      // Tối ưu: gộp thân xe (bánh xe quay nên giữ riêng; người lái xe máy tự bỏ qua)
+      for (const w of wheels) w.userData.keep = true;
+      mergeStatic(g);
       this.vehicles.push({ g, speed: VEHICLE_SPEED, dir, wheels, rider, len: kind === 'car' ? 2.7 : 1.7 });
     });
     // Xe buýt: chạy làn gần chợ (+x), ghé trạm rồi đi; ra khỏi đầu đường thì "về bến" một lúc mới quay lại
     const bus = makeCityBus();
     bus.g.visible = false;
     bus.g.position.set(-ROAD_HALF, 0, LANES[0]);
-    r.add(bus.g);
+    top.add(bus.g);
     this.bus = bus;
     this.vehicles.push({ g: bus.g, speed: 0, dir: 1, wheels: bus.wheels, rider: null, len: bus.length, bus: { phase: 'away', until: 0, doors: 0, depart: -1 } });
 
@@ -260,7 +271,7 @@ export class MarketArea implements Area {
       const g = makePerson(walker.look!, 'none', walker.shape);
       addUmbrella(g, UMBRELLA_COLORS[i % UMBRELLA_COLORS.length]); // trời mưa thì bung dù
       g.position.z = 2.2 + i * 1.05;
-      r.add(g);
+      top.add(g);
       this.walkers.push({ g, range: 6 + rnd() * 6, speed: 0.12 + rnd() * 0.1, phase: rnd() * 6 });
     }
   }
@@ -348,6 +359,7 @@ export class MarketArea implements Area {
     g.add(vendor);
     this.vendors.push(vendor);
     this.chatters.push(new Chatter(vendor, def.calls ?? [], 1.95, index, 0.34));
+    mergeStatic(g);
   }
 
   /** Bày hàng: thùng nhỏ + biểu tượng mặt hàng, dàn ngang quanh (x, z) trong group g. */
@@ -389,6 +401,7 @@ export class MarketArea implements Area {
       set.g.position.set(tx, 0, tz);
       set.g.userData.pick = { type: 'stall', id: def.id } satisfies Pick;
       this.root.add(set.g);
+      mergeStatic(set.g);
       for (const st of set.seats) this.kioskSeats.push({ x: tx + st.x, z: tz + st.z, face: st.face }); // ngồi quay mặt vào bàn
     }
   }
@@ -410,6 +423,7 @@ export class MarketArea implements Area {
     g.add(vendor);
     this.vendors.push(vendor);
     this.chatters.push(new Chatter(vendor, def.calls ?? [], 1.95, index, 0.34));
+    mergeStatic(g);
   }
 
   /** Hàng rong trên vỉa hè: xe hủ tiếu gõ, gánh bánh tráng trộn, xe đạp cà phê. */
@@ -437,6 +451,7 @@ export class MarketArea implements Area {
     g.add(vendor);
     this.vendors.push(vendor);
     this.chatters.push(new Chatter(vendor, def.calls ?? [], cart.seat ? 1.6 : 1.95, index, 0.34));
+    mergeStatic(g);
   }
 
   private eaters = new Map<string, THREE.Group>();
