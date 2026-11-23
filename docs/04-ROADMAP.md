@@ -290,7 +290,7 @@ Online chia 3 mức, khó dần và pháp lý nặng dần. **Làm theo thứ t�
 ### Việc cụ thể
 
 - [x] **F1 · Chế độ xem quán chỉ đọc từ một file save** *(24/11/2026, giai đoạn 19 — Cài đặt → "🏡 Thăm quán từ file save" → `?visit`; bản chụp cất trong sessionStorage, sim đứng yên, mọi lệnh bị chặn; dev: `?visit=jp&at=1200`)* *(Opus — làm trước, chưa cần máy chủ)* — nạp một file save (vd từ E2 xuất / nhập save) vào state riêng, dựng quán + nông trại của "người khác", dừng sim của mình, giờ trong ngày theo mình / mùa theo bản chụp, dải tên chủ quán ở góc, nút "← Về quán mình". Kiểm tra: mở save quán khác phong cách (Nhật / Hàn / Việt / Ốc), khác mùa, khác hạng.
-- [ ] **F2 · Hoạt cảnh cho quán đang thăm** *(Opus)* — khách ảo vào ngồi, nhân viên đi lại, không đụng kinh tế.
+- [x] **F2 · Hoạt cảnh cho quán đang thăm** *(24/11/2026, giai đoạn 19 — dùng chung vòng chiếu lại của "Xem trước": `prepareVisit` đưa bản chụp về 07:00, quán tự phục vụ rồi tua lại mỗi 90 phút game; trời / đèn theo `stage.clockMinute` = giờ người thăm)* *(Opus)* — khách ảo vào ngồi, nhân viên đi lại, không đụng kinh tế.
 - [ ] **F3 · Máy chủ + tài khoản** *(Opus, cần chủ dự án quyết nhà cung cấp)* — đăng nhập, tải bản chụp lên / xuống, danh sách bạn bè (mã mời). Kèm **nút xoá tài khoản trong game** (CH Play / App Store bắt buộc) và cập nhật chính sách quyền riêng tư.
 - [ ] **F4 · Tim, sticker, quà** *(Opus)* — hàng chờ trên máy chủ, nhận khi mở game, giới hạn quà.
 - [ ] **F5 · Chợ chung (mức 2)** — để dành. Điều kiện trước khi làm: đã có người chơi thật, đã hỏi luật sư, đã có doanh nghiệp / hộ kinh doanh.

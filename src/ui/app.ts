@@ -71,12 +71,9 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   const game = new Game(content, saved ? { state: saved } : { seed: params.has('seed') ? Number(params.get('seed')) : preview ? 11 : undefined, cuisine, tutorial, owner: opts.owner ?? paramOwner(params) });
   // Ván mới: tên quán người chơi đặt ở bước chọn quán (trống / sai thì giữ tên mặc định)
   if (!saved && opts.shopName) game.dispatch({ type: 'profile/rename', name: opts.shopName });
-  if (visit) {
-    // Giờ trong ngày theo người đi thăm (?at=phút), mùa / năm giữ theo bản chụp của chủ quán
-    const at = Number(params.get('at'));
-    if (Number.isFinite(at) && at >= 0 && at < 24 * 60) game.state.clock.minute = Math.floor(at);
-    game.state.clock.phase = 'open';
-  }
+  // Giờ trong ngày theo người đi thăm (?at=phút) — chỉ để vẽ trời / đèn; mùa / năm giữ theo bản chụp của chủ quán
+  const visitAt = visit ? Number(params.get('at')) : NaN;
+  if (visit) prepareVisit(game);
   if (import.meta.env.DEV && !visit) {
     // ?tut=market — nhảy tới một bước của ngày hướng dẫn (intro / serve / hard / market / cook / farm / morning / lunch / done)
     const tut = params.get('tut');
@@ -116,13 +113,13 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       game.tick(1);
       if (billDue(game.ctx)) game.dispatch({ type: 'crew/pay' });
     }
-  } else if (preview) {
-    // Xem trước: tua tới giữa ca sáng, bồi bàn tự phục vụ để quán có khách đang ngồi ăn
+  } else if (preview || visit) {
+    // Xem trước / thăm quán (F2): tua tới giữa ca sáng, bồi bàn tự phục vụ để quán có khách đang ngồi ăn
     for (let m = 0; m < 110; m++) {
       previewAuto(game);
       game.tick(1);
     }
-  } else if (!visit) game.tick(Number(params.get('ff')) || 0);
+  } else game.tick(Number(params.get('ff')) || 0);
 
   root.innerHTML = `
     <section id="stage">
@@ -170,6 +167,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   const stall = new StallArea(game);
   const areas: Area[] = [greenhouse, farm, restaurant, market, stall];
   const stage = new Stage($('scene') as HTMLCanvasElement, game, areas);
+  if (visit) stage.clockMinute = Number.isFinite(visitAt) && visitAt >= 0 && visitAt < 24 * 60 ? visitAt : 10 * 60;
   const ui: UiState = {
     area: areas.find((a) => a.id === params.get('area'))?.id ?? 'restaurant',
     drawer: panels.find((p) => p.id === params.get('tab'))?.id ?? null,
@@ -261,6 +259,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
 
   // ---------- Âm thanh ----------
   const sound = new Sound();
+  if (visit) sound.play = () => {}; // thăm quán: hoạt cảnh của quán bạn không phát chuông / tiếng thông báo
   // Trình duyệt chỉ cho phát tiếng sau thao tác đầu tiên
   // pointerdown chưa đủ để iOS cho phát tiếng (cần touchend / click): nghe cả mấy loại thao tác
   for (const type of ['pointerdown', 'touchend', 'click', 'keydown'] as const) root.addEventListener(type, () => sound.unlock(), { capture: true });
@@ -507,7 +506,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     restaurant = next;
   };
   // Xem trước: chỉ chiếu lại một đoạn ~1,5 giờ của ca sáng (08:50 → 10:20) rồi tua về đầu — không bao giờ tới giờ đội ra chợ / gọi món
-  const previewLoop = preview ? { snap: structuredClone(game.state), from: game.state.clock.minute } : null;
+  // Thăm quán (F2) cũng chiếu lại như vậy: quán bạn có khách ra vào, nhân viên đi lại — chỉ là hoạt cảnh, không lưu
+  const previewLoop = preview || visit ? { snap: structuredClone(game.state), from: game.state.clock.minute } : null;
   const rewindPreview = () => {
     if (!previewLoop) return;
     const s = game.state as unknown as Record<string, unknown>;
@@ -1134,7 +1134,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     last = now;
     // Mở bảng Cài đặt, bảng gọi món cho đội hay hoá đơn ăn uống thì game tạm dừng; đóng lại chạy tiếp ở tốc độ đã chọn
     // Sắp xếp bàn ghế, mở Siêu thị (mua đồ nâng cấp) cũng tạm dừng để người chơi thong thả
-    const speed = visit || game.state.bankrupt || !!policePending(game.ctx) || ui.settings || ui.editLayout || ui.drawer === 'shop' || ui.calendar != null || ui.rename != null || ui.importSave != null || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
+    const speed = visit ? 1 : game.state.bankrupt || !!policePending(game.ctx) || ui.settings || ui.editLayout || ui.drawer === 'shop' || ui.calendar != null || ui.rename != null || ui.importSave != null || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
     game.tick(dt * speed * content.balance.minutesPerSecond);
     // Xem trước nội thất chỉ khi bảng Siêu thị còn mở
     if (ui.drawer !== 'shop') ui.decorPreview = null;
@@ -1158,7 +1158,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     if ((domTimer += dt) >= 1 / DOM_FPS) {
       domTimer = 0;
       // Xem trước: quán tự chạy (tự phục vụ, đội tự gọi món, tự trả tiền) — người xem chỉ ngắm
-      if (preview) previewAuto(game);
+      if (preview || visit) previewAuto(game);
       if (previewLoop && game.state.clock.minute - previewLoop.from >= PREVIEW_LOOP_MINUTES) rewindPreview();
       renderDom();
     }
@@ -1226,10 +1226,24 @@ function demoVisit(content: Content, cuisine: CuisineId): GameState {
   return g.state;
 }
 
+/**
+ * F2: đưa bản chụp quán đang thăm về đầu ca sáng để chiếu lại cho có không khí (ván tạm, không bao giờ lưu):
+ * đội đang ở chợ / bảng gọi món / hoá đơn / sự kiện / ngày hướng dẫn của ván đó bỏ qua; khách đang ngồi giữ nguyên.
+ */
+function prepareVisit(game: Game): void {
+  const s = game.state;
+  s.clock.minute = 7 * 60;
+  s.clock.phase = 'open';
+  s.crew = { ...s.crew, restaurantAway: null, farmerAway: null, pending: [], meals: [], bill: [], farmerWaiting: false, farmerBack: null };
+  s.event = null;
+  s.tutorial = null;
+  s.bankrupt = false;
+}
+
 /** Thanh trên cùng khi thăm quán: quán của ai, mùa / năm của chủ quán, chuyển khu, nút về quán mình. */
 function visitBarHtml(state: GameState): string {
   const cal = calendarOf(state.clock.day);
-  return `<div id="visit-bar">
+  return `<div id="preview-fade"></div><div id="visit-bar">
     <div class="vb-text"><b>🏡 Quán của ${esc(ownerName(state.owner))}</b><span>${esc(state.profile.name)} · Mùa ${esc(seasons[cal.season]?.name ?? '')}, năm ${cal.year}</span></div>
     <div class="vb-areas"><button data-ui="area:farm">🌾 Vườn</button><button data-ui="area:restaurant">🏠 Quán</button><button data-ui="area:market">🧺 Chợ</button></div>
     <button class="primary" data-ui="visit:home">← Về quán mình</button>
