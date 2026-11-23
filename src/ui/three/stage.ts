@@ -154,6 +154,8 @@ export class Stage {
   private camTween: { fromT: THREE.Vector3; toT: THREE.Vector3; fromP: THREE.Vector3; toP: THREE.Vector3; k: number } | null = null;
   private raycaster = new THREE.Raycaster();
   private firstFrame = true;
+  /** Giờ trong ngày để vẽ trời / đèn (phút từ 00:00) thay cho giờ của sim — chế độ thăm quán (F2): sim chạy một đoạn ca, trời theo giờ người đi thăm. */
+  clockMinute: number | null = null;
   private controls: OrbitControls;
   private dragging: Pick | null = null;
   private lastAspect = 0;
@@ -432,7 +434,7 @@ export class Stage {
     const { state, content } = this.game;
     const env = this.env;
     env.t += dt;
-    const m = state.clock.minute;
+    const m = this.clockMinute ?? state.clock.minute;
     env.day = smooth(330, 420, m) * (1 - smooth(1050, 1170, m));
     env.night = 1 - env.day;
     const target = content.weathers.get(state.weather.id).visual;

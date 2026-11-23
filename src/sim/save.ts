@@ -127,6 +127,40 @@ export function serialize(state: GameState): string {
   return JSON.stringify(state);
 }
 
+/** Đánh dấu file save xuất ra (E2) để nhận ra đúng file của game khi mở lại. */
+export const SAVE_FILE_KIND = 'quan-nha-vuon/save';
+
+/**
+ * Nội dung file save để tải về máy (E2 — chuyển máy, giữ phòng mất dữ liệu, gửi bạn bè thăm quán).
+ * Bọc state trong { kind, version, save } để lúc mở lại phân biệt được file của game với JSON bất kỳ.
+ */
+export function exportSave(state: GameState): string {
+  return JSON.stringify({ kind: SAVE_FILE_KIND, version: state.version, save: state });
+}
+
+export type SaveFileResult = { ok: true; state: GameState; raw: string } | { ok: false; reason: string };
+
+/**
+ * Đọc một file save người chơi chọn: nhận file bọc của exportSave lẫn chuỗi save thô (localStorage).
+ * Trả state đã nâng cấp lên phiên bản hiện tại + chuỗi save thô (để ghi vào bộ nhớ), hoặc lý do hiện cho người chơi.
+ */
+export function readSaveFile(text: string, content: Content): SaveFileResult {
+  let data: any;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return { ok: false, reason: 'File này không phải file save của Quán Nhà Vườn.' };
+  }
+  if (data && typeof data === 'object' && data.kind === SAVE_FILE_KIND) data = data.save;
+  const looksLikeSave = !!data && typeof data === 'object' && typeof data.version === 'number' && !!data.clock && !!data.profile && typeof data.cuisine === 'string';
+  if (!looksLikeSave) return { ok: false, reason: 'File này không phải file save của Quán Nhà Vườn.' };
+  if (data.version > SAVE_VERSION) return { ok: false, reason: 'File save từ bản game mới hơn — tải lại trang để cập nhật game rồi mở lại.' };
+  const raw = JSON.stringify(data);
+  const state = deserialize(raw, content);
+  if (!state) return { ok: false, reason: 'File save quá cũ hoặc bị hỏng, không mở được.' };
+  return { ok: true, state, raw };
+}
+
 /** Trả null nếu save hỏng hoặc không nâng cấp được (khi đó tạo game mới). */
 export function deserialize(raw: string | null, content: Content): GameState | null {
   if (!raw) return null;

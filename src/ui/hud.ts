@@ -19,6 +19,7 @@ import { clockText, coins } from './format';
 import { panels, type UiState } from './panels';
 import { festivalOf, isSeasonEnd, isYearEnd, nextFestival, seasonPriceFactor } from '../sim/calendar';
 import { OWNER_NAME_MAX, type DayStats } from '../sim/state';
+import { onlineEnabled } from './online';
 
 /**
  * HUD trên cảnh 3D: bên trái là tiền + uy tín + huy hiệu cấp, bên phải là "đồng hồ" (vòng ngày đêm, lịch,
@@ -175,7 +176,7 @@ function sideButtons(game: Game, ui: UiState): string {
       const badge = p.badge?.(game) ?? 0;
       return `<button class="round${ui.drawer === p.id ? ' on' : ''}" data-key="side-${p.id}"${uiAttr(`drawer:${p.id}`)} title="${esc(p.label)}" aria-label="${esc(p.label)}">${p.icon}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
     })
-    .join('');
+    .join('') + (onlineEnabled ? `<button class="round" data-key="side-friends"${uiAttr('friends:open')} title="Bạn bè" aria-label="Bạn bè">🤝</button>` : '');
 }
 
 /** Tổng kết mùa / năm ở màn hết ngày cuối mùa (ngày 14) — doanh thu, chi, lãi, khách. */
@@ -317,6 +318,15 @@ export function settingsHtml(ui: UiState, prefs: { music: boolean; sfx: boolean 
         <h3>Âm thanh</h3>
         ${toggle('music', prefs.music, '🎵', 'Nhạc nền')}
         ${toggle('sfx', prefs.sfx, '🔊', 'Hiệu ứng âm thanh')}
+      </section>
+
+      <section>
+        <h3>💾 Lưu game</h3>
+        <p class="muted">Ván tự lưu trong trình duyệt này. Tải file save về để chuyển sang máy khác hoặc giữ phòng trình duyệt xoá dữ liệu.</p>
+        <div class="save-actions"><button${uiAttr('saveExport')}>⬇️ Tải ván này về</button><button${uiAttr('saveImport')}>📂 Mở file save</button></div>
+        <p class="muted">Thăm quán bạn bè — chỉ xem, ván của bạn đứng yên chờ bạn về.</p>
+        <button class="wide"${uiAttr('friends:open')}>🤝 Bạn bè — kết bạn, thăm quán nhau</button>
+        <button class="wide"${uiAttr('visitFile')}>🏡 Thăm quán từ file save</button>
       </section>
 
       <section>

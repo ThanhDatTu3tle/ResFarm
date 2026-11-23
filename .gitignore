@@ -4,3 +4,6 @@ dist
 notes
 # Skill Claude Code của bên thứ ba (nặng, cài lại theo docs/00-DOC-TRUOC.md)
 .claude/skills/
+# Máy chủ bạn bè (Supabase) — không đẩy lên GitHub
+.env
+.env.local

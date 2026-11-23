@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createContent, type CuisineId } from '../src/data';
 import { Game } from '../src/sim/game';
 import { modifier } from '../src/sim/helpers';
-import { deserialize, serialize } from '../src/sim/save';
+import { deserialize, exportSave, readSaveFile, serialize } from '../src/sim/save';
 import { canPlaceTable, roomOf, seatSpots, serviceSpot, tablePos } from '../src/sim/layout';
 import { activeTables, findSeats, spawnParty } from '../src/sim/systems/customers';
 import { priceOf } from '../src/sim/systems/market';
@@ -418,6 +418,26 @@ describe('lưu / tải', () => {
   it('save hỏng trả về null', () => {
     expect(deserialize('{oops', content)).toBeNull();
     expect(deserialize(null, content)).toBeNull();
+  });
+
+  it('xuất / nhập file save (E2): mở lại được, chặn file lạ và file từ bản mới hơn', () => {
+    const a = newGame(9, 'jp');
+    a.dispatch({ type: 'profile/rename', name: 'Quán Thử' });
+    a.tick(300);
+    const file = readSaveFile(exportSave(a.state), content);
+    expect(file.ok).toBe(true);
+    if (!file.ok) return;
+    expect(file.state.profile.name).toBe('Quán Thử');
+    expect(file.state.cuisine).toBe('jp');
+    expect(serialize(new Game(content, { state: deserialize(file.raw, content)! }).state)).toBe(serialize(a.state));
+    // Chuỗi save thô (chép từ localStorage) cũng mở được
+    expect(readSaveFile(serialize(a.state), content).ok).toBe(true);
+    for (const bad of ['{oops', '[]', '{"hello":1}', JSON.stringify({ kind: 'khac', save: {} })]) expect(readSaveFile(bad, content).ok).toBe(false);
+    const newer = JSON.parse(serialize(a.state));
+    newer.version += 1;
+    const res = readSaveFile(JSON.stringify(newer), content);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toContain('mới hơn');
   });
 });
 
