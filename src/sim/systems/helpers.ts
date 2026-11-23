@@ -124,9 +124,10 @@ function pickFocused(ctx: SimContext, h: HelperState): void {
       return;
     }
   }
+  if (can('serve') && takeHandoff(ctx, h)) return;
   if (can('serve')) {
     // Món của bàn không ai giữ (người chơi tự phục vụ bàn đó) vẫn bưng giúp
-    const ready = readyOrders(ctx).filter((o) => !heldByOther(ctx, h, o.partyId));
+    const ready = readyOrders(ctx).filter((o) => o.takeoutId == null && !heldByOther(ctx, h, o.partyId));
     if (ready.length) {
       const partyId = ready[0].partyId;
       h.tasks.push({ kind: 'deliver', orderIds: ready.filter((o) => o.partyId === partyId).map((o) => o.id), partyId });
@@ -147,6 +148,15 @@ function pickFocused(ctx: SimContext, h: HelperState): void {
   }
 }
 
+/** Món giao tận nơi đã ra quầy line (chưa ai nhận): nhân viên mang ra quầy cashier (tối đa carryMax món một lượt). */
+function takeHandoff(ctx: SimContext, h: HelperState): boolean {
+  if (!roomOf(ctx).cashier) return false;
+  const ready = readyOrders(ctx).filter((o) => o.takeoutId != null).slice(0, ctx.content.balance.service.carryMax);
+  if (!ready.length) return false;
+  h.tasks.push({ kind: 'handoff', orderIds: ready.map((o) => o.id) });
+  return true;
+}
+
 /** Số nhân viên thuê được ở hạng quán hiện tại (hạng 1: 0, mỗi bậc +1). */
 export function maxHelpers(ctx: SimContext): number {
   return Math.min(4, Math.max(0, ctx.state.restaurant.tier - 1) + kitchenTierOf(ctx).helpers);
@@ -160,9 +170,10 @@ function find(ctx: SimContext, id: string): HelperState | undefined {
 function pickTask(ctx: SimContext, h: HelperState): void {
   const r = ctx.state.restaurant;
   const can = (job: HelperJob) => h.jobs[job];
+  if (can('serve') && takeHandoff(ctx, h)) return;
   if (can('serve')) {
     // Bưng hết món đã ra quầy của một bàn trong một lượt
-    const ready = readyOrders(ctx);
+    const ready = readyOrders(ctx).filter((o) => o.takeoutId == null);
     if (ready.length) {
       const partyId = ready[0].partyId;
       h.tasks.push({ kind: 'deliver', orderIds: ready.filter((o) => o.partyId === partyId).map((o) => o.id), partyId });

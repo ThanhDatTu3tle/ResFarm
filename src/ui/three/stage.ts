@@ -14,6 +14,8 @@ export type Pick =
   | { type: 'party'; id: string }
   /** Quầy ra món. */
   | { type: 'pass'; id: string }
+  /** Quầy cashier nhận đơn giao tận nơi (giai đoạn 18). */
+  | { type: 'cashier'; id: string }
   /** Cối chế biến ở nông trại (id = MillState.id). */
   | { type: 'mill'; id: string }
   /** Chỗ trống mua thêm được ở nông trại: id = loại ô (SlotType) hoặc loại cối (MillType). */

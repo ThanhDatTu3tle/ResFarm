@@ -253,3 +253,77 @@ export function makeShipperBike(): THREE.Group {
   mesh(box, G.box(0.03, 0.03, 0.3), 0x2a2d35, { p: [0.2, 0.36, 0], cast: false }); // dây ràng
   return bike;
 }
+
+/**
+ * Nhân viên trực quầy cashier (giai đoạn 18) — trang phục theo văn hoá quán:
+ * quán Việt áo dài (tà trước / tà sau dài, cổ đứng, quần trắng), quán Hàn hanbok (áo jeogori ngắn + nơ goreum đỏ,
+ * váy chima phồng từ ngực chấm đất), quán Nhật kimono (áo dài tới mắt cá, đai obi + nơ sau lưng, cổ chéo trắng,
+ * tay áo rộng), quán ốc vỉa hè: áo thun quần jean, đeo túi bao tử đựng tiền.
+ */
+export function makeCashierStaff(cuisine: string): THREE.Group {
+  const skin = 0xffd9b8;
+  const whiteLegs = (rig: Rig, color: number) => {
+    for (const leg of [rig.legL, rig.legR]) (leg.children[0] as THREE.Mesh).material = toon(color);
+  };
+  if (cuisine === 'vn') {
+    const red = 0xc8323a;
+    const gold = 0xf2c14e;
+    const g = makePerson({ shirt: red, hair: 0x1f1a17, skin }, 'none', { hair: 'long', width: 0.92 });
+    const rig = g.userData.rig as Rig;
+    whiteLegs(rig, 0xf6f3ec);
+    // Tà trước + tà sau dài tới bắp chân, xẻ hai bên hông
+    for (const sz of [-1, 1]) mesh(rig.body, G.box(0.28, 0.27, 0.025), red, { p: [0, -0.08, sz * 0.165], r: [sz * 0.06, 0, 0] });
+    mesh(rig.body, G.cyl(0.1, 0.11, 0.07, 12), red, { p: [0, 0.5, 0] }); // cổ đứng
+    mesh(rig.body, G.torus(0.105, 0.012, 4, 14), gold, { p: [0, 0.53, 0], r: [Math.PI / 2, 0, 0], cast: false });
+    // Hoa văn vàng trên ngực + vạt
+    for (const [x, y] of [[0.06, 0.34], [-0.05, 0.26], [0.08, 0.16], [-0.07, -0.02], [0.05, -0.1]] as const) mesh(rig.body, G.sphere(0.025, 6, 5), gold, { p: [x, y, y > 0.05 ? 0.2 : 0.18], cast: false });
+    rimify(g);
+    return g;
+  }
+  if (cuisine === 'kr') {
+    const g = makePerson({ shirt: 0xfff1c2, hair: 0x2a1f1a, skin }, 'none', { hair: 'bun', width: 0.9 });
+    const rig = g.userData.rig as Rig;
+    // Tay áo sọc màu (saekdong)
+    for (const arm of [rig.armL, rig.armR]) for (const [y, c] of [[-0.08, 0xe86a8a], [-0.14, 0x6cb8f6], [-0.2, 0x7ed36f]] as const) mesh(arm, G.torus(0.062, 0.018, 4, 10), c, { p: [0, y, 0], r: [Math.PI / 2, 0, 0], cast: false });
+    // Váy chima phồng từ dưới ngực chấm đất (che chân), dải ngực
+    mesh(rig.body, G.cone(0.42, 0.72, 16), 0xe8607e, { p: [0, 0.0, 0] });
+    mesh(rig.body, G.cyl(0.205, 0.205, 0.06, 16), 0xd94c6c, { p: [0, 0.35, 0] });
+    // Nơ goreum đỏ trước ngực
+    mesh(rig.body, G.sphere(0.04, 8, 6), 0xc9343a, { p: [0.04, 0.44, 0.19], cast: false });
+    for (const [x, r] of [[0.02, 0.15], [0.08, -0.1]] as const) mesh(rig.body, G.box(0.04, 0.22, 0.015), 0xc9343a, { p: [x, 0.32, 0.2], r: [0, 0, r], cast: false });
+    // Trâm cài tóc (binyeo)
+    mesh(rig.head, G.cyl(0.012, 0.012, 0.34, 5), 0xf2c14e, { p: [0, 0.36, -0.2], r: [0, 0, Math.PI / 2], cast: false });
+    for (const leg of [rig.legL, rig.legR]) leg.visible = false;
+    rimify(g);
+    return g;
+  }
+  if (cuisine === 'jp') {
+    const indigo = 0x3f6fb0;
+    const g = makePerson({ shirt: indigo, hair: 0x1f1a17, skin: 0xffe1c7 }, 'none', { hair: 'bun', width: 0.9 });
+    const rig = g.userData.rig as Rig;
+    // Thân kimono dài tới mắt cá (che chân), hoa anh đào điểm trên vải
+    mesh(rig.body, G.cyl(0.215, 0.23, 0.34, 14), indigo, { p: [0, -0.13, 0] });
+    for (const [x, y, z] of [[0.1, -0.05, 0.19], [-0.12, -0.18, 0.18], [0.05, -0.24, 0.2], [-0.08, 0.3, 0.19], [0.13, 0.4, 0.15]] as const) mesh(rig.body, G.sphere(0.03, 6, 5), 0xf4b6c8, { p: [x, y, z], s: [1, 1, 0.4], cast: false });
+    // Đai obi đỏ + nơ sau lưng
+    mesh(rig.body, G.cyl(0.225, 0.225, 0.13, 16), 0xd9433a, { p: [0, 0.16, 0] });
+    mesh(rig.body, G.box(0.26, 0.14, 0.08), 0xf2c14e, { p: [0, 0.18, -0.24] });
+    mesh(rig.body, G.box(0.12, 0.2, 0.06), 0xd9433a, { p: [0, 0.12, -0.27], cast: false });
+    // Cổ áo chéo trắng
+    for (const s of [-1, 1]) mesh(rig.body, G.box(0.04, 0.2, 0.02), 0xf6f3ec, { p: [s * 0.035, 0.4, 0.19], r: [0.1, 0, -s * 0.45], cast: false });
+    // Tay áo rộng thõng xuống
+    for (const arm of [rig.armL, rig.armR]) mesh(arm, G.box(0.13, 0.22, 0.2), indigo, { p: [0, -0.16, 0] });
+    // Trâm hoa trên búi tóc
+    mesh(rig.head, G.sphere(0.045, 8, 6), 0xf08fb0, { p: [0.12, 0.42, -0.12], cast: false });
+    for (const leg of [rig.legL, rig.legR]) leg.visible = false;
+    rimify(g);
+    return g;
+  }
+  // Quán ốc vỉa hè: giản dị — áo thun, quần jean, túi bao tử đựng tiền thối
+  const g = makePerson({ shirt: 0x4a9bd8, hair: 0x3a2a1e, skin: 0xf2c49b }, 'none', { hair: 'pony' });
+  const rig = g.userData.rig as Rig;
+  whiteLegs(rig, 0x3a4a6a);
+  mesh(rig.body, G.box(0.26, 0.1, 0.08), 0x2a2d35, { p: [0.04, 0.05, 0.2], r: [0, 0, -0.12] });
+  mesh(rig.body, G.box(0.44, 0.025, 0.42), 0x2a2d35, { p: [0, 0.07, 0], r: [0, 0, -0.12], cast: false });
+  rimify(g);
+  return g;
+}

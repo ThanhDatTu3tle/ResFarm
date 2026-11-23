@@ -3579,3 +3579,34 @@ button.quest-claim {
     height: 26px;
   }
 }
+
+/* Giai đoạn 18: đơn giao tận nơi trong bảng Đơn hàng */
+#panel h3.section {
+  margin: 10px 0 4px;
+  font-size: 14px;
+  color: var(--ink, #3b2a1e);
+}
+#panel h3.section:first-child {
+  margin-top: 0;
+}
+.card.takeout.calling {
+  border-color: #2f9e5a;
+  box-shadow: 0 0 0 2px rgba(47, 158, 90, 0.25);
+  animation: takeout-ring 1.2s ease-in-out infinite;
+}
+.card.takeout.done,
+.card.takeout.missed {
+  opacity: 0.6;
+}
+.card.takeout b.bad {
+  color: #d9433a;
+}
+@keyframes takeout-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(47, 158, 90, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(47, 158, 90, 0.45);
+  }
+}

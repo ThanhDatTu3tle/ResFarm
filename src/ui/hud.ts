@@ -1,5 +1,5 @@
 import { seasons, weekdays } from '../data/calendar';
-import { partyColor } from './colors';
+import { partyColor, TAKEOUT_COLOR } from './colors';
 import { defOf } from '../sim/systems/events';
 import { canAfford, craftableCount } from '../sim/helpers';
 import type { RecipeDef } from '../data';
@@ -250,6 +250,14 @@ export function serviceHtml(game: Game): string {
     carryHintShown = false;
     markHint('carry');
   }
+  // Đơn giao tận nơi (giai đoạn 18): luôn nhắc — việc mới, khác giao món cho bàn
+  const takeoutCarried = carried.filter((o) => o.takeoutId != null);
+  if (takeoutCarried.length) {
+    const chips = takeoutCarried.map((o) => `<span class="carry-dish" style="--c:${TAKEOUT_COLOR}" title="${esc(content.recipes.get(o.recipeId).name)}">${content.recipes.get(o.recipeId).icon}</span>`).join('');
+    return `<div class="service-card carrying" data-key="carry-takeout"><div class="carry-dishes">${chips}</div><span>Món <b>giao tận nơi</b> 🛍️ — bấm quầy cashier ở cửa để đóng gói</span><button class="mini"${uiAttr('handoff')}>🛍️ Mang ra quầy</button></div>`;
+  }
+  const calling = state.takeout.orders.filter((t) => t.status === 'calling').length;
+  if (calling && !carried.length) return `<button class="service-card pass-hint" data-key="takeout-call"${uiAttr('drawer:contracts')}>☎️ Có ${calling} khách gọi đặt món giao tận nơi — bấm quầy cashier (hoặc ở đây) để nhận đơn</button>`;
   if (carried.length && hintSeen('carry')) return '';
   if (!carried.length && hintSeen('pass')) return '';
   if (carried.length) {

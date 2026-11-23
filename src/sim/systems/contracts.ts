@@ -29,13 +29,14 @@ export const contractSystem: System = {
   init: rollContracts,
   onDayStart(ctx) {
     // Qua đêm mà shipper còn đang đi: coi như giao xong
-    if (ctx.state.restaurant.shipper.trip) finishTrip(ctx);
+    if (ctx.state.restaurant.shipper.trip?.contractId != null) finishTrip(ctx);
     rollContracts(ctx);
   },
   update(ctx) {
     // Anh shipper giao xong thì về, nhận thưởng đơn đó
     const s = ctx.state.restaurant.shipper;
-    if (s.trip && ctx.state.clock.minute >= s.trip.until) finishTrip(ctx);
+    // (chuyến giao tận nơi do takeout.ts lo)
+    if (s.trip?.contractId != null && ctx.state.clock.minute >= s.trip.until) finishTrip(ctx);
     const due = ctx.content.balance.contracts.due;
     if (ctx.state.clock.minute < due) return;
     for (const c of ctx.state.contracts) {

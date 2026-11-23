@@ -42,14 +42,14 @@ export function roomOf(ctx: SimContext): RoomDef {
   const tier = def.tiers[ctx.state.restaurant.tier - 1] ?? def.tiers[0];
   const extra = widthExtra(ctx);
   const dh = tier.height - def.height;
-  if (!dh && !extra) return base;
+  if (!dh && !extra) return withCashier(ctx, base);
   const plan = base.plan ?? 'back';
   // Bếp dọc tường sau (mặc định): nới về phía Đông thì quầy ra món, chỗ bồi bàn đứng dời sang phải theo phần rộng thêm.
   // Bếp sát cửa (quán Việt): phòng sâu thêm thì bếp + quầy ra món đi theo mặt tiền.
   const dx = plan === 'back' ? extra : 0;
   const dy = plan === 'front' ? dh : 0;
   const move = (p: Point): Point => ({ x: p.x + dx, y: p.y + dy });
-  return {
+  return withCashier(ctx, {
     ...base,
     width: base.width + extra,
     height: base.height + dh,
@@ -58,7 +58,34 @@ export function roomOf(ctx: SimContext): RoomDef {
     passStand: base.passStand && move(base.passStand),
     waiterHome: move(base.waiterHome),
     walls: base.walls?.map((w) => ({ ...w, y1: w.y1 + dy, y2: w.y2 + dy })),
-  };
+  });
+}
+
+/**
+ * Giai đoạn 18: từ hạng balance.takeout.tier có quầy cashier nhận đơn giao tận nơi (bồi bàn mang món tới đây đóng gói).
+ *  - Quán trong nhà: quầy DỌC bên PHẢI cửa ra vào, đầu quầy sát tường trước; mặt quầy quay về phía cửa (bồi bàn đứng đó),
+ *    nhân viên cashier đứng sau quầy, sau lưng nhân viên là dãy ghế chờ dọc tường trước (khách tới sau ngồi đợi bàn,
+ *    đi vòng qua đầu trong của quầy — pathing.ts).
+ *  - Quán ốc vỉa hè: quầy ngang ngay bên phải quầy line (bưng món), mặt quay ra khu ăn; không có ghế chờ.
+ * Quầy + chỗ nhân viên + dãy ghế là khối cố định (walls): không đặt bàn đè lên, người đi vòng qua.
+ */
+function withCashier(ctx: SimContext, room: RoomDef): RoomDef {
+  if (ctx.state.restaurant.tier < ctx.content.balance.takeout.tier) return room;
+  if (ctx.state.cuisine === 'oc') {
+    const x = Math.min(room.width - 45, room.pass.x + 78);
+    const y = room.pass.y + 5;
+    const block = { x1: x - 38, y1: y - 50, x2: x + 38, y2: y + 17 };
+    return { ...room, walls: [...(room.walls ?? []), block], cashier: { x, y, stand: { x, y: y + 52 }, staff: { x, y: y - 32 }, face: 'down', seats: [] } };
+  }
+  const H = room.height;
+  const x = room.width / 2 + 90;
+  const y = H - 48; // đầu quầy chạm tường trước
+  const seats: Point[] = [];
+  for (let i = 0; i < 5 && x + 80 + i * 31 <= room.width - 70; i++) seats.push({ x: x + 80 + i * 31, y: H - 26 });
+  const walls = [...(room.walls ?? []), { x1: x - 20, y1: H - 98, x2: x + 60, y2: H }];
+  // Dãy ghế chờ: chỉ cấm đặt bàn (blockerOf), không chặn đường đi — khách phải đi tới tận ghế
+  const zone = seats.length ? { x1: x + 62, y1: H - 50, x2: seats[seats.length - 1].x + 18, y2: H } : undefined;
+  return { ...room, walls, cashier: { x, y, stand: { x: x - 48, y }, staff: { x: x + 38, y }, face: 'left', seats, zone } };
 }
 
 /** Phần quán rộng thêm về phía Đông so với hạng 1 (toạ độ 2D). */
@@ -213,6 +240,7 @@ export function blockerOf(ctx: SimContext, rect: Rect, skip: string): string | n
   const area = room.dining;
   if (rect.x1 < area.x1 || rect.y1 < area.y1 || rect.x2 > area.x2 || rect.y2 > area.y2) return 'Nằm ngoài khu vực ăn uống.';
   if (room.walls?.some((w) => overlaps(rect, w))) return 'Vướng quầy bếp.';
+  if (room.cashier?.zone && overlaps(rect, room.cashier.zone)) return 'Vướng ghế chờ cạnh quầy cashier.';
   if (overlaps(rect, entranceOf(ctx))) return 'Vướng lối ra vào (chỗ khách xếp hàng).';
   for (const t of activeTables(ctx)) {
     if (t.id === skip) continue;

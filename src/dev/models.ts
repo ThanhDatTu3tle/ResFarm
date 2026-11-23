@@ -7,7 +7,7 @@ import { regulars } from '../data/regulars';
 import type { HairStyle, PersonBuild } from '../data';
 import { cleanOwner, OWNER_OUTFITS, type OwnerProfile } from '../sim/state';
 import { adultShape, animateCreature, animatePerson, FARMER_SHAPE, LOOKS, makeAnimals, makeBush, makeCrate, makeCrop, makeDish, hasCropModel, makeLampPost, makePerson, makeTree, type Pose } from '../ui/three/models';
-import { makeHelperPerson, makeOwner, makePet, makePolice, makeRegular, makeShipper, makeShipperBike, makeWaiter } from '../ui/three/people';
+import { makeCashierStaff, makeHelperPerson, makeOwner, makePet, makePolice, makeRegular, makeShipper, makeShipperBike, makeWaiter } from '../ui/three/people';
 import { buildSeat, counterExtras, makeShopfront, seatStyle, shopkeeper, tableExtras } from '../ui/three/cuisine';
 import { makeProp } from '../ui/three/props';
 import { grainField, hayBale, CAR_COLORS, CAR_KINDS, makeCar, makeFruitTree, makeGreenhouse, makeRiceMill, makeScooter, makeTractor, makeWindmill } from '../ui/three/farmkit';
@@ -19,6 +19,7 @@ import { makePlasticSet, makeTeaKiosk } from '../ui/three/kiosk';
 import { makeCharcoalGrill, makeSnailTable } from '../ui/three/snailstall';
 import { makeBusShelter, makeCityBus } from '../ui/three/busstop';
 import { makeBillboard } from '../ui/three/billboard';
+import { makeCashierCounter } from '../ui/three/cashier';
 import { logoBoard } from '../ui/three/areas/stall';
 import { animateCartVendor, equipCartVendor, makeStreetCart, type StreetKind } from '../ui/three/streetcarts';
 import { buildBarCounter, buildBarStool, buildCaddy, buildChopstickSet, buildGrillTable, buildJpSet, buildKrSet, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, woodMats } from '../ui/three/furniture';
@@ -59,6 +60,11 @@ function peopleSections(): Section[] {
     { name: 'Bếp phụ (thuê thêm)', make: () => makePerson({ shirt: 0xf6f0e4, hair: 0x6b4a2f, skin: 0xffd9b8 }, 'chef', { width: 0.95 }) },
     { name: 'Nhân viên phục vụ', make: () => makeHelperPerson(1, false, adultShape) },
     { name: 'Quản lý (mặc vest)', make: () => makeHelperPerson(2, true, adultShape) },
+    // Giai đoạn 18: nhân viên trực quầy cashier giao tận nơi, trang phục theo quán
+    { name: 'Cashier · Quán Việt (áo dài)', make: () => makeCashierStaff('vn') },
+    { name: 'Cashier · Quán Hàn (hanbok)', make: () => makeCashierStaff('kr') },
+    { name: 'Cashier · Quán Nhật (kimono)', make: () => makeCashierStaff('jp') },
+    { name: 'Cashier · Quán Ốc (giản dị)', make: () => makeCashierStaff('oc') },
     { name: 'Bác nông dân', make: () => makePerson(LOOKS[2], 'straw', FARMER_SHAPE) },
     { name: 'Người làm vườn', make: () => makePerson(LOOKS[5], 'straw', adultShape(7)) },
     { name: 'Anh shipper', make: makeShipper },
@@ -226,7 +232,9 @@ function thingSections(): Section[] {
   const equip = content.upgrades
     .all()
     .filter((u) => !['sign', 'irrigation'].includes(u.id))
-    .map((u) => ({ name: `${u.icon} ${u.name}`, note: 'Trang thiết bị', make: () => equipment(u.id) }));
+    .map((u): Entry => ({ name: `${u.icon} ${u.name}`, note: 'Trang thiết bị', make: () => equipment(u.id) }));
+  // Giai đoạn 18: quầy cashier giao tận nơi (từ hạng Quán đông khách) — đang reo, có 2 túi chờ shipper
+  equip.push({ name: '🛵 Quầy cashier giao tận nơi', note: 'Từ hạng Quán đông khách', make: () => { const c = makeCashierCounter(); c.update(0, true, 3); c.g.userData.tick = (t: number) => c.update(t, true, 3); return c.g; } });
   return [
     { title: 'Mặt tiền quán (màn chọn quán)', entries: CUISINES.map((c) => ({ name: cuName(c), make: () => makeShopfront(c).g })) },
     { title: 'Bàn & ghế theo quán', desc: 'Màu theo bộ bàn ghế mặc định của từng quán; mua nội thất khác thì đổi màu.', entries: tables },
