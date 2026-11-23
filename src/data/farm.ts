@@ -39,10 +39,11 @@ export const slotTypes: SlotTypeDef[] = [
   // Nhà lồng / nhà màng phía nam ao: luống bên trong (2 dãy, lối đi ở giữa). Nới rộng = nhà dài thêm về phía đông, +4 luống mỗi lần.
   // Cây trong nhà kính không cần cuốc / tưới (có tưới nhỏ giọt) và lớn nhanh hơn 30%.
   { id: 'gplot', name: 'Luống nhà kính', icon: '🏡', initial: 6, max: 20, batch: 4, basePrice: 700, priceGrowth: 1.6, level: 3, growMul: 1.3, layout: { x: 0, z: 0, cols: 2, dx: 1.9, dz: 2.8, size: 1.5, tierGrowth: 0 }, building: { x: 4, z: 23.8, width: 5.2, colLength: 1.9, endLength: 0.8, door: { x: 3.3, z: 23.8 } } },
-  // Vườn cây ăn quả: 4 gốc cạnh chuồng (phía đông), 6 gốc cạnh ao (phía đông, 2 hàng × 3 cột — cột thứ ba x = 27.2
+  // Vườn cây ăn quả: 4 gốc cạnh chuồng (phía đông), 6 gốc cạnh ao (phía đông, 3 hàng × 2 cột — hàng giữa z = 14.65
   // là 2 chỗ thêm, để ở cuối danh sách cho save cũ giữ nguyên vị trí cây); có sẵn 1 cam + 1 táo. Cây lâu năm, không cần cuốc / tưới.
-  // Mỗi gốc có lối riêng: hàng trên đứng ở khe giữa 2 dãy chuồng / trước dãy chuồng, cụm cạnh ao đứng phía bắc hoặc phía nam (tránh ao).
-  { id: 'orchard', name: 'Cây ăn quả', icon: '🌳', initial: 2, max: 10, basePrice: 260, priceGrowth: 1.3, level: 1, initialPlants: ['orange_tree', 'apple_tree'], layout: { x: 19.6, z: -0.8, cols: 2, dx: 3.8, dz: 5.2, size: 2.6, tierGrowth: 0, spots: [{ x: 19.6, z: -0.8 }, { x: 23.4, z: -0.8 }, { x: 19.6, z: 4.4 }, { x: 23.4, z: 4.4 }, { x: 19.6, z: 10.0, work: 'back' }, { x: 23.4, z: 10.0, work: 'back' }, { x: 19.6, z: 19.3 }, { x: 23.4, z: 19.3 }, { x: 27.2, z: 10.0, work: 'back' }, { x: 27.2, z: 19.3 }] } },
+  // Mỗi gốc có lối riêng: hàng trên đứng ở khe giữa 2 dãy chuồng / trước dãy chuồng, cụm cạnh ao đứng phía bắc hoặc phía nam; tới cụm này bác đi lối phụ
+  // phía đông ao (balance.farmer.side) nên không chạy ngang xuyên ao.
+  { id: 'orchard', name: 'Cây ăn quả', icon: '🌳', initial: 2, max: 10, basePrice: 260, priceGrowth: 1.3, level: 1, initialPlants: ['orange_tree', 'apple_tree'], layout: { x: 19.6, z: -0.8, cols: 2, dx: 3.8, dz: 5.2, size: 2.6, tierGrowth: 0, spots: [{ x: 19.6, z: -0.8 }, { x: 23.4, z: -0.8 }, { x: 19.6, z: 4.4 }, { x: 23.4, z: 4.4 }, { x: 19.6, z: 10.0, work: 'back' }, { x: 23.4, z: 10.0, work: 'back' }, { x: 19.6, z: 19.3 }, { x: 23.4, z: 19.3 }, { x: 19.6, z: 14.65, work: 'back' }, { x: 23.4, z: 14.65, work: 'back' }] } },
   { id: 'paddy', name: 'Ruộng lúa nước', icon: '🌾', initial: 1, max: 2, basePrice: 300, priceGrowth: 1.5, level: 2, mill: 'ricemill', layout: { x: -5.8, z: 15.4, cols: 1, dx: 0, dz: 4.6, size: 3.8, tierGrowth: 0, work: 'back' } },
 ];
 

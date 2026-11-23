@@ -128,6 +128,7 @@ export function coachHtml(game: Game, ui: UiState): string {
         </div>
       </div>`;
   }
+  return ''; // bước lạ (vd. ?tut= gõ sai ở bản dev): không hiện gì, khỏi in chữ "undefined"
 }
 
 /** Dòng nhắc trong bảng gọi món của đội ở ngày hướng dẫn. */

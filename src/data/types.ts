@@ -422,6 +422,11 @@ export interface Balance {
     home: { x: number; z: number };
     /** Toạ độ x các lối đi dọc (mét): bác chỉ chạy dọc trên các lối này, còn lại đi ngang theo khe giữa các hàng ô. */
     lanes: number[];
+    /**
+     * Lối dọc phụ bên kia vật cản lớn (ao): mọi chỗ ở phía đông x thuộc lối này; bác chỉ vào / ra lối phụ qua hàng trống
+     * joinZ (đi ngang từ lối chính), nên không phải chạy ngang xuyên ao để tới những gốc cây cùng hàng với ao.
+     */
+    side?: { x: number; joinZ: number }[];
     /** Tốc độ chạy: mét mỗi phút game. */
     speed: number;
     /** Thời gian làm một việc (cuốc, tưới, gieo, thu) khi đã tới nơi, phút game. */

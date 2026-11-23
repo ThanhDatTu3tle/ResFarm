@@ -80,7 +80,28 @@ const EPS = 1e-6;
  * mép trái ruộng). Trả về điểm kế tiếp phải tới; trả đúng `spot` khi đã có thể đi thẳng tới nơi.
  * Không lưu đường đi: tính lại từ vị trí hiện tại mỗi bước nên đổi việc giữa chừng vẫn đúng.
  */
-export function nextWaypoint(pos: { x: number; z: number }, spot: { x: number; z: number }, lanes: number[]): { x: number; z: number } {
+export function nextWaypoint(pos: { x: number; z: number }, spot: { x: number; z: number }, lanes: number[], side: { x: number; joinZ: number }[] = []): { x: number; z: number } {
+  // Lối phụ (balance.farmer.side): khu phía đông lối phụ chỉ vào / ra qua hàng trống joinZ
+  for (const s of side) {
+    const inPos = pos.x >= s.x - EPS;
+    const inSpot = spot.x >= s.x - EPS;
+    if (!inPos && !inSpot) continue;
+    const onJoin = Math.abs(pos.z - s.joinZ) < EPS;
+    if (inPos && inSpot) {
+      // Trong khu: cùng hàng thì đi thẳng, không thì ra lối phụ rồi chạy dọc
+      if (Math.abs(pos.z - spot.z) < EPS) return spot;
+      if (Math.abs(pos.x - s.x) > EPS) return { x: s.x, z: pos.z };
+      return { x: s.x, z: spot.z };
+    }
+    if (inSpot) {
+      // Vào khu: tới hàng joinZ theo lối chính, rồi chạy ngang tới lối phụ
+      if (onJoin) return { x: s.x, z: s.joinZ };
+      return nextWaypoint(pos, { x: lanes[0] ?? pos.x, z: s.joinZ }, lanes);
+    }
+    // Ra khỏi khu: theo lối phụ tới hàng joinZ, từ đó đi tiếp như thường (chạy ngang về lối chính)
+    if (!onJoin) return Math.abs(pos.x - s.x) > EPS ? { x: s.x, z: pos.z } : { x: s.x, z: s.joinZ };
+    return Math.abs(spot.z - s.joinZ) < EPS ? spot : { x: lanes[0] ?? spot.x, z: s.joinZ };
+  }
   if (Math.abs(pos.z - spot.z) < EPS || !lanes.length) return spot; // cùng một hàng: đi ngang thẳng tới
   // Chọn lối dọc cho tổng quãng ngang ngắn nhất; bằng nhau thì chọn lối gần chỗ đang đứng (đỡ chạy ngang qua ruộng)
   const cost = (l: number) => Math.abs(pos.x - l) + Math.abs(l - spot.x);
@@ -270,7 +291,7 @@ export const farmerSystem: System = {
         f.work = null;
         continue;
       }
-      const target = nextWaypoint(f, spot, content.balance.farmer.lanes);
+      const target = nextWaypoint(f, spot, content.balance.farmer.lanes, content.balance.farmer.side);
       const speed = walkSpeed(ctx, task, content.balance.farmer.speed);
       const dx = target.x - f.x;
       const dz = target.z - f.z;

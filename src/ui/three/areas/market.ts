@@ -10,6 +10,8 @@ import { FestiveSet } from '../festive';
 import { OwnerWalker, randIn, type Spot } from '../owner';
 import { CAR_COLORS, CAR_KINDS, makeCar, makeScooter, setVehicleLights } from '../farmkit';
 import { Chatter } from '../chatter';
+import { makePlasticSet, makeTeaKiosk } from '../kiosk';
+import { animateCartVendor, equipCartVendor, makeStreetCart, type StreetKind } from '../streetcarts';
 
 /**
  * KHU CHỢ — mỗi StallDef trong src/data/market.ts thành một sạp có mái bạt sọc, tự bày hàng theo `items`.
@@ -301,7 +303,6 @@ export class MarketArea implements Area {
     board.add(name);
   }
 
-  /** Tiệm nhỏ ăn vặt / trà sữa trong dãy chợ: nhà hộp sơn hồng, mái hiên, quầy kính, ly trà sữa. */
   /** 3 bộ bàn ghế nhựa mini trên khoảng trống trước tiệm (bấm cũng là vào tiệm). */
   private plasticTables(def: StallDef, x: number): void {
     this.kioskId = def.id;
@@ -311,45 +312,27 @@ export class MarketArea implements Area {
       [x + 0.2, 5.0, 0xf2b23e, 0xe2574c],
     ];
     for (const [tx, tz, top, stool] of sets) {
-      const t = group(this.root, { p: [tx, 0, tz] });
-      t.userData.pick = { type: 'stall', id: def.id } satisfies Pick;
-      mesh(t, G.box(0.75, 0.05, 0.75), top, { p: [0, 0.58, 0] });
-      for (const [lx, lz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) mesh(t, G.box(0.05, 0.56, 0.05), top, { p: [lx * 0.32, 0.28, lz * 0.32] });
-      for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
-        const sx = Math.sin(a) * 0.7;
-        const sz = Math.cos(a) * 0.7;
-        mesh(t, G.cyl(0.18, 0.2, 0.32, 10), stool, { p: [sx, 0.16, sz] });
-        // Ngồi quay mặt vào bàn
-        this.kioskSeats.push({ x: tx + sx, z: tz + sz, face: a + Math.PI });
-      }
+      const set = makePlasticSet(top, stool);
+      set.g.position.set(tx, 0, tz);
+      set.g.userData.pick = { type: 'stall', id: def.id } satisfies Pick;
+      this.root.add(set.g);
+      for (const st of set.seats) this.kioskSeats.push({ x: tx + st.x, z: tz + st.z, face: st.face }); // ngồi quay mặt vào bàn
     }
   }
 
   private buildKiosk(game: Game, def: StallDef, x: number, color: number, index: number): void {
     const g = group(this.root, { p: [x, 0, STALL_Z - 0.4] });
     g.userData.pick = { type: 'stall', id: def.id } satisfies Pick;
-    const W = 4.6;
-    mesh(g, G.box(W, 3.2, 2.6), 0xf6c9d6, { p: [0, 1.6, -0.6] });
-    mesh(g, G.box(W + 0.2, 0.25, 2.8), 0xffffff, { p: [0, 3.3, -0.6] });
-    // Ô cửa bán hàng + quầy
-    mesh(g, G.box(W - 0.8, 1.5, 0.1), 0x5a3b2a, { p: [0, 1.75, 0.71] });
-    mesh(g, G.box(W - 0.6, 0.9, 0.7), 0xffffff, { p: [0, 0.45, 1.0] });
-    mesh(g, G.box(W - 0.5, 0.08, 0.8), 0xf28cb1, { p: [0, 0.92, 1.0] });
+    // Tiệm dựng ở kiosk.ts (xem cả ở trang model đồ vật); ở đây gắn biển logo, bảng tên, món bày, bàn ghế, người bán
+    const kiosk = makeTeaKiosk();
+    g.add(kiosk.g);
+    this.bulbs.push(...kiosk.bulbs);
     this.plasticTables(def, x);
-    // Mái hiên sọc
-    const awning = group(g, { p: [0, 2.75, 1.05], r: [0.45, 0, 0] });
-    for (let i = 0; i < 8; i++) mesh(awning, G.box(W / 8, 0.06, 1.1), i % 2 ? 0xffffff : 0xf28cb1, { p: [-W / 2 + (i + 0.5) * (W / 8), 0, 0] });
-    // Biển logo Tiệm 25caaaaa trên nóc + ly matcha to
-    logoBoard(g, [-0.55, 4.35, -0.2], 1.75);
-    for (const sx of [-1.2, 0.1]) mesh(g, G.box(0.08, 0.9, 0.08), 0xf28fb0, { p: [sx, 3.5, -0.25] });
-    const cup = group(g, { p: [W / 2 - 0.7, 3.45, -0.3] });
-    mesh(cup, G.cyl(0.32, 0.24, 0.8, 14), new THREE.MeshToonMaterial({ color: 0x8cbf5a, transparent: true, opacity: 0.92 }), { p: [0, 0.4, 0] });
-    mesh(cup, G.cyl(0.34, 0.34, 0.08, 14), 0xffffff, { p: [0, 0.82, 0] });
-    mesh(cup, G.cyl(0.03, 0.03, 0.5, 6), 0xf28cb1, { p: [0.08, 1.05, 0], r: [0, 0, -0.2] });
-    this.nameBoard(g, def, W - 0.4, [0, 3.12, 0.75], color); // trên mép mái hiên cho khỏi bị che
-    this.showItems(game, g, def, 0.96, W - 1.2, 1.0, index);
+    logoBoard(g, kiosk.logo.p, kiosk.logo.w);
+    this.nameBoard(g, def, kiosk.board.w, kiosk.board.p, color); // trên mép mái hiên cho khỏi bị che
+    this.showItems(game, g, def, kiosk.items.y, kiosk.items.w, kiosk.items.z, index);
     const vendor = makePerson(LOOKS[(index * 3 + 1) % LOOKS.length], 'none', adultShape(index * 3 + 1));
-    vendor.position.set(0, 0, 0.2);
+    vendor.position.set(...kiosk.vendorAt);
     vendor.scale.setScalar(1.2);
     g.add(vendor);
     this.vendors.push(vendor);
@@ -360,63 +343,27 @@ export class MarketArea implements Area {
   private buildStreetVendor(game: Game, def: StallDef, index: number): void {
     const g = group(this.root, { p: [def.spot!.x, 0, def.spot!.z] });
     g.userData.pick = { type: 'stall', id: def.id } satisfies Pick;
-    const wood = 0xb9733f;
-    let vendorAt: V3 = [0, 0, -0.9];
-    let hat: 'none' | 'straw' = 'none';
-    if (def.kind === 'cart') {
-      // Xe đẩy: thùng gỗ, tủ kính, nồi nước lèo bốc khói, 2 bánh xe, bảng tên đỏ trên mái
-      mesh(g, G.box(2.2, 0.9, 0.9), wood, { p: [0, 0.75, 0] });
-      mesh(g, G.box(1.2, 0.6, 0.8), new THREE.MeshToonMaterial({ color: 0xcfefff, transparent: true, opacity: 0.45 }), { p: [-0.4, 1.5, 0], cast: false });
-      mesh(g, G.cyl(0.32, 0.3, 0.45, 14), 0xbfc5cc, { p: [0.6, 1.42, 0] });
-      for (const sx of [-0.7, 0.7]) {
-        const wheel = mesh(g, G.cyl(0.32, 0.32, 0.08, 14), 0x3a3a3a, { p: [sx, 0.32, 0.5], r: [Math.PI / 2, 0, 0] });
-        wheel.castShadow = true;
-      }
-      for (const sx of [-1, 1]) mesh(g, G.cyl(0.03, 0.03, 1.2, 6), 0x8a5a35, { p: [sx * 1.0, 1.8, -0.35] });
-      mesh(g, G.box(2.3, 0.08, 1.1), 0xd93a32, { p: [0, 2.42, -0.1] });
-      this.nameBoard(g, def, 1.9, [0, 2.0, 0.5], 0xd93a32);
-      this.showItems(game, g, def, 1.2, 1.1, 0.5, index + 5);
+    // Xe / gánh dựng ở streetcarts.ts (xem cả ở trang model đồ vật); ở đây gắn bảng tên, món bày, khói, người bán
+    const cart = makeStreetCart(def.kind as StreetKind);
+    g.add(cart.g);
+    this.nameBoard(g, def, cart.board.w, cart.board.p, cart.board.color);
+    this.showItems(game, g, def, cart.items.y, cart.items.w, cart.items.z, index + 5);
+    if (cart.steam) {
       const steam = emojiSprite('♨️', 0.4);
-      steam.position.set(0.6, 1.95, 0);
+      steam.position.set(...cart.steam);
       g.add(steam);
       this.steams.push(steam);
-      // Ghế nhựa thấp cho khách ngồi lề đường
-      for (const [sx, sz] of [[-1.6, 0.9], [1.6, 0.9]]) mesh(g, G.box(0.35, 0.3, 0.35), 0x4a9bd8, { p: [sx, 0.15, sz] });
-    } else if (def.kind === 'pole') {
-      // Gánh hàng: đòn gánh tre + hai thúng tròn đặt dưới đất, người bán đội nón lá
-      for (const sx of [-0.85, 0.85]) {
-        mesh(g, G.cyl(0.42, 0.34, 0.35, 14), 0xc9a066, { p: [sx, 0.2, 0.2] });
-        mesh(g, G.cyl(0.4, 0.4, 0.04, 14), 0xf3e9d2, { p: [sx, 0.39, 0.2], cast: false });
-        for (let k = 0; k < 3; k++) mesh(g, G.cyl(0.005, 0.005, 1.1, 4), 0x8a5a35, { p: [sx + Math.cos(k * 2.1) * 0.35, 0.95, 0.2 + Math.sin(k * 2.1) * 0.35], r: [Math.sin(k * 2.1) * 0.3, 0, -Math.cos(k * 2.1) * 0.3] });
-      }
-      mesh(g, G.cyl(0.04, 0.04, 2.3, 6), 0xd9c27a, { p: [0, 1.48, 0.2], r: [0, 0, Math.PI / 2] });
-      for (const sx of [-0.6, 0.6]) mesh(g, G.box(0.3, 0.25, 0.3), 0xe2574c, { p: [sx, 0.12, 1.1] }); // ghế nhựa
-      this.showItems(game, g, def, 0.45, 1.8, 0.2, index + 5);
-      this.nameBoard(g, def, 1.7, [0, 0.95, 1.6], 0x5fae57);
-      vendorAt = [0, 0, -0.55];
-      hat = 'straw';
-    } else {
-      // Xe đạp cà phê: 2 bánh, khung, thùng gỗ phía sau, dù che
-      for (const sx of [-0.75, 0.75]) mesh(g, G.torus(0.33, 0.04, 6, 18), 0x3a3a3a, { p: [sx, 0.36, 0] });
-      mesh(g, G.cyl(0.03, 0.03, 1.5, 6), 0x2f6f8f, { p: [0, 0.6, 0], r: [0, 0, Math.PI / 2] });
-      mesh(g, G.box(0.9, 0.6, 0.7), 0x6b4a2f, { p: [0.55, 0.95, 0] });
-      for (let i = 0; i < 4; i++) mesh(g, G.cyl(0.07, 0.06, 0.2, 10), 0xffffff, { p: [0.3 + i * 0.17, 1.35, 0.15] });
-      mesh(g, G.cyl(0.02, 0.02, 1.7, 6), 0x8a5a35, { p: [0.55, 1.9, 0] });
-      mesh(g, G.cone(1.0, 0.45, 10), 0xf2b23e, { p: [0.55, 2.85, 0] });
-      this.nameBoard(g, def, 1.6, [0.55, 0.95, 0.4], 0x6b4a2f);
-      this.showItems(game, g, def, 1.45, 0.9, -0.15, index + 5);
-      const steam = emojiSprite('☕', 0.36);
-      steam.position.set(-0.2, 1.4, 0.2);
-      g.add(steam);
-      vendorAt = [-0.4, 0, -0.75];
     }
+    const vendorAt = cart.vendorAt;
+    const hat = cart.hat;
     const vendor = makePerson(LOOKS[(index * 3 + 5) % LOOKS.length], hat, adultShape(index * 3 + 5));
     addUmbrella(vendor, UMBRELLA_COLORS[(index + 3) % UMBRELLA_COLORS.length]); // hàng rong đứng ngoài vỉa hè
     vendor.position.set(...vendorAt);
     vendor.scale.setScalar(1.15);
+    equipCartVendor(def.kind as StreetKind, vendor);
     g.add(vendor);
     this.vendors.push(vendor);
-    this.chatters.push(new Chatter(vendor, def.calls ?? [], 1.95, index, 0.34));
+    this.chatters.push(new Chatter(vendor, def.calls ?? [], cart.seat ? 1.6 : 1.95, index, 0.34));
   }
 
   private eaters = new Map<string, THREE.Group>();
@@ -500,7 +447,7 @@ export class MarketArea implements Area {
       animatePerson(w.g, env.t, { walk: 1 });
     }
     // Người bán: thở, chớp mắt, thỉnh thoảng vẫy tay mời khách
-    this.vendors.forEach((v, i) => animatePerson(v, env.t, { wave: Math.max(0, Math.min(1, (Math.sin(env.t * 0.45 + i * 2.1) - 0.85) * 8)) }));
+    this.vendors.forEach((v, i) => animateCartVendor(v, env.t, Math.max(0, Math.min(1, (Math.sin(env.t * 0.45 + i * 2.1) - 0.85) * 8))));
     for (const c of this.chatters) c.update(env.t);
     blinkLeds(this.leds, env.t);
     for (const f of this.flags) f.rotation.z = Math.sin(env.t * (2 + env.wind * 5) + f.userData.phase) * (0.1 + env.wind * 0.5);

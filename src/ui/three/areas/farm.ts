@@ -838,7 +838,7 @@ export class FarmArea implements Area {
     const counts: Partial<Record<SlotType, number>> = {};
     if (!this.owner) {
       const home = content.balance.farmer.home;
-      this.owner = new OwnerWalker(this.game, this.root, { x: home.x + 0.8, z: home.z }, () => this.ownerSpot(), (from, to) => nextWaypoint(from, to, content.balance.farmer.lanes), 0.8, 1.0).withMarker(1.1);
+      this.owner = new OwnerWalker(this.game, this.root, { x: home.x + 0.8, z: home.z }, () => this.ownerSpot(), (from, to) => nextWaypoint(from, to, content.balance.farmer.lanes, content.balance.farmer.side), 0.8, 1.0).withMarker(1.1);
     }
     this.owner.update(env.t, dt);
 

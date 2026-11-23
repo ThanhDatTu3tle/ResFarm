@@ -637,7 +637,7 @@ describe('bác nông dân đi theo lối', () => {
     const points = [from];
     let pos = from;
     for (let i = 0; i < 6; i++) {
-      pos = nextWaypoint(pos, to, lanes);
+      pos = nextWaypoint(pos, to, lanes, content.balance.farmer.side);
       points.push(pos);
       if (pos === to) break;
     }
@@ -657,7 +657,7 @@ describe('bác nông dân đi theo lối', () => {
           const vertical = Math.abs(p.x - q.x) < 1e-6 && Math.abs(p.z - q.z) > 1e-6;
           const horizontal = Math.abs(p.z - q.z) < 1e-6;
           expect(vertical || horizontal).toBe(true);
-          if (vertical) expect(lanes.some((l) => Math.abs(l - p.x) < 1e-6)).toBe(true);
+          if (vertical) expect([...lanes, ...(content.balance.farmer.side ?? []).map((s) => s.x)].some((l) => Math.abs(l - p.x) < 1e-6)).toBe(true);
         }
       }
     }
@@ -798,7 +798,7 @@ describe('ruộng tự động + cối chế biến', () => {
       for (const b of spots) {
         let pos = a;
         for (let i = 0; i < 6 && pos !== b; i++) {
-          const next = nextWaypoint(pos, b, lanes);
+          const next = nextWaypoint(pos, b, lanes, content.balance.farmer.side);
           for (const r of rects) {
             // Đoạn thẳng ngang/dọc cắt phần trong của ô?
             const x1 = Math.min(pos.x, next.x), x2 = Math.max(pos.x, next.x), z1 = Math.min(pos.z, next.z), z2 = Math.max(pos.z, next.z);

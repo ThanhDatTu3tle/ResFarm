@@ -15,6 +15,9 @@ import { makeMai, makeStarLantern, makeSnowman, makeXmasTree } from '../ui/three
 import { makeGuard, makeMinibus } from '../ui/three/curbside';
 import { buildEquipment } from '../ui/three/equipment';
 import { makeIngredient } from '../ui/three/ingredients';
+import { makePlasticSet, makeTeaKiosk } from '../ui/three/kiosk';
+import { logoBoard } from '../ui/three/areas/stall';
+import { animateCartVendor, equipCartVendor, makeStreetCart, type StreetKind } from '../ui/three/streetcarts';
 import { buildBarCounter, buildBarStool, buildCaddy, buildChopstickSet, buildGrillTable, buildJpSet, buildKrSet, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, woodMats } from '../ui/three/furniture';
 import { G, group, mesh, toon } from '../ui/three/toon';
 
@@ -184,6 +187,13 @@ function thingSections(): Section[] {
       },
     },
   ];
+  const street: Entry[] = [
+    { name: 'Xe hủ tiếu gõ chú Tư', make: () => streetVendor('cart', 9) },
+    { name: 'Gánh bánh tráng trộn', make: () => streetVendor('pole', 12) },
+    { name: 'Xe đạp cà phê dạo', make: () => streetVendor('bike', 15) },
+    { name: 'Tiệm 25caaaaa', make: teaKiosk },
+    { name: 'Bàn nhựa + 4 ghế đẩu (trước Tiệm 25caaaaa)', make: () => makePlasticSet(0xe2574c, 0x3f7fd9).g },
+  ];
   const farm: Entry[] = [
     { name: 'Cối xay gió', make: () => makeWindmill().g },
     { name: 'Nhà xay lúa (guồng nước)', make: () => makeRiceMill(toon(0x7fd3f0)).g },
@@ -210,6 +220,7 @@ function thingSections(): Section[] {
     { title: 'Đồ trang trí (Siêu thị)', entries: content.props.all().map((p) => ({ name: p.name, note: p.cuisine ? cuName(p.cuisine) : undefined, emoji: p.icon, make: () => makeProp(p.model ?? '', p.icon) })) },
     { title: 'Trang thiết bị trong quán', desc: 'Biển hiệu đèn LED (viền đèn quanh biển tên) và Hệ thống tưới (ở nông trại) không có model riêng.', entries: equip },
     { title: 'Xe cộ', entries: vehicles },
+    { title: 'Hàng rong & Tiệm 25caaaaa (chợ)', desc: 'Trong chợ có thêm bảng tên và món bày (emoji) theo thực đơn của từng hàng.', entries: street },
     { title: 'Nông trại & cảnh vật', entries: farm },
     { title: 'Trang trí ngày lễ', entries: festive },
   ];
@@ -320,9 +331,36 @@ const thumbScene = new THREE.Scene();
 lightUp(thumbScene);
 const thumbCam = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
 
-/** Người ngồi trên xe (xe máy, máy cày): ngồi + hai tay nắm tay lái. */
+/** Người ngồi trên xe (xe máy, máy cày): ngồi + hai tay nắm tay lái. Người bán hàng rong làm động tác riêng (gõ, trộn). */
 function animateRiders(obj: THREE.Object3D, t: number): void {
-  obj.traverse((o) => o !== obj && o.userData.rig && animatePerson(o as THREE.Group, t, { sit: true, ride: true }));
+  obj.traverse((o) => {
+    if (o === obj || !o.userData.rig) return;
+    if (o.userData.cartKind) animateCartVendor(o as THREE.Group, t, 0);
+    else animatePerson(o as THREE.Group, t, { sit: true, ride: true });
+  });
+}
+
+/** Tiệm 25caaaaa như ngoài chợ: tiệm + biển logo + cô bán sau quầy (không có bảng tên / emoji món). */
+function teaKiosk(): THREE.Group {
+  const k = makeTeaKiosk();
+  logoBoard(k.g, k.logo.p, k.logo.w);
+  const v = makePerson(LOOKS[4], 'none', adultShape(4));
+  v.position.set(...k.vendorAt);
+  v.scale.setScalar(1.2);
+  k.g.add(v);
+  for (const b of k.bulbs) b.emissiveIntensity = 1.2;
+  return k.g;
+}
+
+/** Hàng rong vỉa hè chợ + người bán (như trong cảnh chợ, không có bảng tên / emoji món). */
+function streetVendor(kind: StreetKind, look: number): THREE.Group {
+  const cart = makeStreetCart(kind);
+  const v = makePerson(LOOKS[look % LOOKS.length], cart.hat, adultShape(look));
+  v.position.set(...cart.vendorAt);
+  v.scale.setScalar(1.15);
+  equipCartVendor(kind, v);
+  cart.g.add(v);
+  return cart.g;
 }
 
 function snapshot(make: () => THREE.Object3D): string {
