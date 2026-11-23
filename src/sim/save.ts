@@ -108,6 +108,15 @@ const migrations: Record<number, (old: any) => any> = {
     for (const id of ['counter', 'medium', 'pair', 'pair2']) delete layout[id];
     return { ...s, restaurant: { ...r, layout, waiter: { ...r.waiter, x: -1 }, helpers: r.helpers.map((h) => ({ ...h, x: -1 })) }, version: 25 };
   },
+  // Giai đoạn 17: ao chia nhiều ô nuôi (mỗi ô một loại): bậc t có 3 + 2·(t − 1) ô — bù thêm ô trống cùng bậc với ao cũ
+  25: (s) => {
+    const farm = s.farm as { slots: { type: string; tier: number }[] };
+    const ponds = farm.slots.filter((x) => x.type === 'pond');
+    const tier = Math.max(1, ...ponds.map((p) => p.tier));
+    const slots = [...farm.slots];
+    for (let i = ponds.length; i < Math.min(9, 3 + 2 * (tier - 1)); i++) slots.push({ ...createSlot('pond', i), tier });
+    return { ...s, farm: { ...farm, slots }, version: 26 };
+  },
 };
 
 export function serialize(state: GameState): string {

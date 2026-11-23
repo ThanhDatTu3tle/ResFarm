@@ -9,6 +9,7 @@ import { signText } from '../cuisine';
 import { FestiveSet } from '../festive';
 import { OwnerWalker, randIn, type Spot } from '../owner';
 import { CAR_COLORS, CAR_KINDS, makeCar, makeScooter, setVehicleLights } from '../farmkit';
+import { Chatter } from '../chatter';
 
 /**
  * KHU CHỢ — mỗi StallDef trong src/data/market.ts thành một sạp có mái bạt sọc, tự bày hàng theo `items`.
@@ -45,6 +46,8 @@ export class MarketArea implements Area {
   private bobbers: { obj: THREE.Object3D; y: number; phase: number; amp: number }[] = [];
   private walkers: { g: THREE.Group; range: number; speed: number; phase: number }[] = [];
   private vendors: THREE.Group[] = [];
+  /** Lời rao của từng người bán (StallDef.calls), bật lệch giờ nhau. */
+  private chatters: Chatter[] = [];
   private flags: THREE.Object3D[] = [];
   /** Bóng LED nhấp nháy quanh bảng tên sạp hải sản. */
   private leds: THREE.MeshBasicMaterial[] = [];
@@ -269,6 +272,7 @@ export class MarketArea implements Area {
     vendor.scale.setScalar(1.25);
     g.add(vendor);
     this.vendors.push(vendor);
+    this.chatters.push(new Chatter(vendor, def.calls ?? [], 1.95, index, 0.34));
   }
 
   /** Bày hàng: thùng nhỏ + biểu tượng mặt hàng, dàn ngang quanh (x, z) trong group g. */
@@ -349,6 +353,7 @@ export class MarketArea implements Area {
     vendor.scale.setScalar(1.2);
     g.add(vendor);
     this.vendors.push(vendor);
+    this.chatters.push(new Chatter(vendor, def.calls ?? [], 1.95, index, 0.34));
   }
 
   /** Hàng rong trên vỉa hè: xe hủ tiếu gõ, gánh bánh tráng trộn, xe đạp cà phê. */
@@ -411,6 +416,7 @@ export class MarketArea implements Area {
     vendor.scale.setScalar(1.15);
     g.add(vendor);
     this.vendors.push(vendor);
+    this.chatters.push(new Chatter(vendor, def.calls ?? [], 1.95, index, 0.34));
   }
 
   private eaters = new Map<string, THREE.Group>();
@@ -495,6 +501,7 @@ export class MarketArea implements Area {
     }
     // Người bán: thở, chớp mắt, thỉnh thoảng vẫy tay mời khách
     this.vendors.forEach((v, i) => animatePerson(v, env.t, { wave: Math.max(0, Math.min(1, (Math.sin(env.t * 0.45 + i * 2.1) - 0.85) * 8)) }));
+    for (const c of this.chatters) c.update(env.t);
     blinkLeds(this.leds, env.t);
     for (const f of this.flags) f.rotation.z = Math.sin(env.t * (2 + env.wind * 5) + f.userData.phase) * (0.1 + env.wind * 0.5);
     sway(this.swayNodes, env);

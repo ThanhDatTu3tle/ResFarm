@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CAR_COLORS, CAR_KINDS, CHROME, GLASS, TRIM, carTrim, makeCar, makeScooter, setVehicleLights, side, sideGlass, slopeGlass, wheel } from './farmkit';
 import { adultShape, animatePerson, LOOKS, makePerson } from './models';
 import { signText } from './cuisine';
+import { Chatter } from './chatter';
 import { ROAD_MID, SIDEWALK } from './street';
 import { arrivalMode } from '../../sim/systems/customers';
 import { emojiSprite, G, group, mesh } from './toon';
@@ -59,6 +60,8 @@ export class Curbside {
   private rides = new Map<number, GuestRide>();
   private through: Through[] = [];
   private guard: THREE.Group;
+  /** Bác bảo vệ nhắc khách lúc có xe máy vào bãi. */
+  private guardTalk: Chatter;
   private lanes: [number, number];
   private motoSlots: P[] = [];
   private carSlots: P[] = [];
@@ -79,6 +82,7 @@ export class Curbside {
     if (!d.hasRoad) this.buildRoad();
     this.buildLots();
     this.guard = this.buildGuard(halfW + 5.6, frontZ + 1.4);
+    this.guardTalk = new Chatter(this.guard, ['Gửi xe bên này nha!', 'Vô từ từ thôi nha!', 'Dắt xe vô trong nè!', 'Nhớ lấy vé xe nha!'], 1.95, 3, 0.2);
     this.buildThrough();
     // (chỉ bản dev) ?fullpark: lấp kín hai bãi bằng xe đậu sẵn để xem bãi đầy trông ra sao
     if (import.meta.env.DEV && new URLSearchParams(location.search).has('fullpark')) this.fillLots();
@@ -378,6 +382,7 @@ export class Curbside {
     const face = busy ? -1.2 : -0.4 + Math.sin(t * 0.3) * 0.5;
     this.guard.rotation.y += (face - this.guard.rotation.y) * Math.min(1, dt * 3);
     animatePerson(this.guard, t, { wave: busy ? 1 : 0 });
+    this.guardTalk.update(t, busy);
   }
 }
 

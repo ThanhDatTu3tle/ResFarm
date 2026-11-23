@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clam, halfShell, razorClam, snailShell } from './ingredients';
 import { G, group, mesh, seeded, toon, type Place } from './toon';
 
 /** Các model dùng chung giữa nhiều khu: người, cây, con vật, rau củ. Mọi model nhìn về +z, chân ở y = 0. */
@@ -96,6 +97,7 @@ const CROPS: Record<string, CropStyle> = {
   potato: { shape: 'bush', leaf: 0x6aa84f, fruit: 0xb98a55 },
   onion: { shape: 'stalk', leaf: 0x7cc35c, fruit: 0xe3b5d6 },
   carrot: { shape: 'root', leaf: 0x58b04f, fruit: 0xf28c28 },
+  cucumber: { shape: 'bush', leaf: 0x5fae57, fruit: 0x3f7a35 },
 };
 
 /** Giai đoạn lớn của cây: 0 = mầm, 1 = cây non (chưa có quả), 2 = trưởng thành. */
@@ -229,7 +231,23 @@ const ANIMALS: Record<string, { count: number; make: () => THREE.Group }> = {
   cattle: { count: 1, make: () => makeCow(0xb5733c, 0x8a5226) },
   fish_fry: { count: 3, make: () => makeFish(0xf2913d) },
   shrimp_fry: { count: 4, make: () => makeFish(0xf4978e) },
+  salmon_fry: { count: 3, make: () => makeFish(0xf28c5a) },
+  // Ốc / sò / nghêu / hàu giống: dùng chung vỏ với nguyên liệu, phóng to cho thấy rõ trong ao
+  oc_huong_fry: { count: 4, make: () => shellfish((g) => snailShell(g, 0xf3dcb4, 0xc98a4f, 1, 1.3)) },
+  oc_mong_tay_fry: { count: 4, make: () => shellfish((g) => razorClam(g)) },
+  so_diep_fry: { count: 4, make: () => shellfish((g) => halfShell(g, 'scallop')) },
+  ngheu_fry: { count: 4, make: () => shellfish((g) => clam(g)) },
+  hau_fry: { count: 4, make: () => shellfish((g) => halfShell(g, 'oyster')) },
+  oc_bu_fry: { count: 4, make: () => shellfish((g) => snailShell(g, 0x5a5a3a, 0x3b3a2a, 1.2, 0.8)) },
 };
+
+/** Con giống có vỏ trong ao: vỏ phóng to 2.2 lần. */
+function shellfish(build: (g: THREE.Group) => unknown): THREE.Group {
+  const g = group(null);
+  build(group(g, { s: 2.2 }));
+  g.userData.shell = true; // ao cho bò chậm, không nhảy như cá
+  return g;
+}
 
 export function makeAnimals(producerId: string): THREE.Group[] | null {
   const def = ANIMALS[producerId];
@@ -257,6 +275,8 @@ function halfEgg(g: THREE.Group, x: number, y: number, z: number): void {
   mesh(g, G.sphere(0.045, 10, 8), EGG_WHITE, { p: [x, y, z], s: [1, 0.75, 1.2] });
   mesh(g, G.sphere(0.024, 8, 6), YOLK, { p: [x, y + 0.03, z], s: [1, 0.4, 1], cast: false });
 }
+
+const glassy = (c: number, o = 0.7) => toon(c, { transparent: true, opacity: o });
 
 function riceMound(g: THREE.Group, x = 0, z = 0): void {
   mesh(g, G.sphere(0.1, 14, 10), RICE, { p: [x, 0.02, z], s: [1.1, 0.75, 1] });
@@ -576,6 +596,106 @@ const DISHES: Record<string, (g: THREE.Group) => void> = {
     }
     mesh(g, G.cyl(0.02, 0.02, 0.015, 10), 0xf28c28, { p: [0.06, 0.11, -0.04] });
     mesh(g, G.box(0.035, 0.03, 0.035), 0xf3dc9a, { p: [-0.06, 0.11, -0.04] });
+  },
+  // ----- Món tráng miệng / trái cây (thêm ở Giai đoạn 17) -----
+  fruit_plate: (g) => {
+    for (const [x, z, r] of [[-0.05, -0.02, 0.3], [0.03, -0.06, -0.4]]) {
+      const w = group(g, { p: [x, 0, z], r: [0, r, 0] }); // miếng dưa hấu tam giác
+      mesh(w, G.prism(), 0xe5463c, { p: [0, 0.012, 0], s: [0.1, 0.08, 0.03] });
+      mesh(w, G.box(0.1, 0.012, 0.032), 0x4f9e4a, { p: [0, 0.006, 0] });
+      for (const dx of [-0.02, 0.015]) mesh(w, G.sphere(0.004, 4, 3), 0x2a1f1a, { p: [dx, 0.04, 0.016], cast: false });
+    }
+    for (const [x, z] of [[0.07, 0.05], [0.02, 0.07]]) {
+      mesh(g, G.cyl(0.035, 0.035, 0.015, 12), 0xf28c28, { p: [x, 0.015, z], r: [0.5, 0, 0.2] }); // lát cam
+      mesh(g, G.cyl(0.028, 0.028, 0.016, 12), 0xffc46b, { p: [x, 0.015, z], r: [0.5, 0, 0.2], cast: false });
+    }
+    for (let i = 0; i < 5; i++) mesh(g, G.sphere(0.017, 8, 6), 0x8e4fa8, { p: [-0.08 + (i % 3) * 0.02, 0.02 + (i > 2 ? 0.02 : 0), 0.06 + (i % 2) * 0.015], cast: false }); // nho
+  },
+  che_chuoi: (g) => {
+    bowl(g, 0xfbf3e2, 0xf3e9d2, 0.13);
+    for (const [x, z] of [[0.03, 0.02], [-0.03, -0.01], [0.0, -0.05], [-0.04, 0.04]]) mesh(g, G.cyl(0.022, 0.022, 0.012, 10), 0xf6e3a0, { p: [x, 0.1, z], cast: false }); // chuối
+    for (let i = 0; i < 6; i++) mesh(g, G.sphere(0.008, 5, 4), glassy(0xe9f3ff), { p: [Math.cos(i) * 0.06, 0.1, Math.sin(i) * 0.06], cast: false }); // bột báng
+    for (const [x, z] of [[0.05, -0.04], [0.01, 0.06], [-0.06, 0.0]]) mesh(g, G.sphere(0.009, 5, 4), 0xc9944a, { p: [x, 0.104, z], s: [1, 0.6, 1.3], cast: false }); // đậu phộng
+  },
+  fruit_sando: (g) => {
+    for (const [x, r] of [[-0.05, 0.3], [0.06, -0.4]]) {
+      const s = group(g, { p: [x, 0, 0], r: [0, r, 0] }); // sandwich tam giác dựng đứng, lộ mặt cắt
+      mesh(s, G.prism(), 0xfff3d6, { s: [0.11, 0.1, 0.07] });
+    }
+    for (const [x, c] of [[-0.05, 0xe5463c], [0.06, 0x7cc35c]] as const) {
+      mesh(g, G.box(0.01, 0.05, 0.06), 0xffffff, { p: [x, 0.04, 0.04], cast: false }); // kem
+      mesh(g, G.sphere(0.014, 6, 5), c, { p: [x + 0.008, 0.045, 0.045], s: [0.4, 1, 1], cast: false });
+      mesh(g, G.sphere(0.012, 6, 5), 0xf28c28, { p: [x + 0.008, 0.03, 0.025], s: [0.4, 1, 1], cast: false });
+    }
+  },
+  hwachae: (g) => {
+    mesh(g, G.cyl(0.12, 0.08, 0.09, 16), glassy(0xffffff, 0.45), { p: [0, 0.045, 0], cast: false }); // bát thuỷ tinh
+    mesh(g, G.cyl(0.11, 0.11, 0.01, 16), glassy(0xf6a6c1, 0.85), { p: [0, 0.08, 0], cast: false });
+    for (const [x, z, c] of [[0.04, 0.02, 0xe5463c], [-0.04, 0.03, 0xf2c43e], [0.0, -0.05, 0x7cc35c], [-0.05, -0.03, 0xe5463c]] as const) mesh(g, G.sphere(0.022, 8, 6), c, { p: [x, 0.085, z], cast: false });
+    for (const [x, z] of [[0.05, -0.04], [-0.01, 0.06]]) mesh(g, G.box(0.025, 0.025, 0.025), glassy(0xe9f6ff, 0.8), { p: [x, 0.09, z], r: [0.3, 0.5, 0], cast: false }); // đá
+  },
+  tom_nuong: (g) => {
+    for (const [z, r] of [[-0.05, 0.1], [0.0, -0.05], [0.05, 0.08]]) {
+      const s = group(g, { p: [0, 0.02, z], r: [0, r, 0] });
+      mesh(s, G.cyl(0.004, 0.004, 0.24, 4), 0xc9a066, { r: [0, 0, Math.PI / 2] }); // xiên tre
+      mesh(s, G.torus(0.025, 0.013, 6, 10, Math.PI * 1.4), 0xe2643a, { p: [0.02, 0.01, 0], r: [Math.PI / 2, 0, 0] });
+      for (const x of [0.0, 0.04]) mesh(s, G.box(0.004, 0.006, 0.03), 0x5a2a1a, { p: [x, 0.025, 0], cast: false }); // vết nướng
+    }
+    mesh(g, G.sphere(0.025, 8, 6), 0x9fd07a, { p: [-0.1, 0.015, 0.06], s: [1, 0.6, 0.6] }); // chanh
+  },
+  ngheu_hap_thai: (g) => {
+    bowl(g, 0xf3e3a0, 0xf3e9d2, 0.15);
+    for (const [x, z, r] of [[0.04, 0.03, 0.3], [-0.05, 0.02, 1.8], [0.0, -0.05, -0.6], [0.06, -0.04, 2.6], [-0.04, -0.05, 1]]) clam(group(g, { p: [x, 0.09, z], r: [0, r, 0] }), 0.7, true);
+    for (const [x, z, r] of [[-0.02, 0.06, 0.4], [0.05, 0.06, -0.6]]) mesh(g, G.box(0.06, 0.008, 0.008), 0xd9e6a0, { p: [x, 0.11, z], r: [0, r, 0], cast: false }); // sả
+    mesh(g, G.torus(0.01, 0.004, 4, 8), 0xd92b2b, { p: [0.0, 0.11, 0.0], r: [Math.PI / 2, 0, 0], cast: false });
+  },
+  hau_nuong_mo_hanh: (g) => {
+    for (const [x, z, r] of [[-0.06, 0.03, 0.4], [0.06, 0.03, -0.4], [0.0, -0.06, 0]]) {
+      const s = halfShell(group(g, { p: [x, 0, z], r: [0, r, 0] }), 'oyster', 0.8);
+      mesh(s, G.sphere(0.04, 8, 6), 0xd9d0bf, { p: [0, 0.035, 0], s: [1, 0.3, 1.2], cast: false });
+      for (let k = 0; k < 4; k++) mesh(s, G.box(0.015, 0.006, 0.006), 0x5fae57, { p: [Math.cos(k * 1.7) * 0.025, 0.045, Math.sin(k * 1.7) * 0.03], cast: false }); // mỡ hành
+      mesh(s, G.sphere(0.008, 4, 3), 0xc9944a, { p: [0.01, 0.048, -0.01], cast: false });
+    }
+  },
+  mi_xao_oc_mong_tay: (g) => {
+    for (let i = 0; i < 4; i++) mesh(g, G.torus(0.03 + i * 0.022, 0.007, 4, 14), 0xe8b84a, { p: [0, 0.02 + (i % 2) * 0.008, 0], r: [Math.PI / 2 + (i % 2) * 0.15, 0, i], cast: false });
+    for (const [x, z, r] of [[0.05, 0.03, 0.4], [-0.05, 0.04, -0.6], [0.0, -0.06, 1.2]]) mesh(g, G.capsule(0.012, 0.05), 0xf6d8b0, { p: [x, 0.04, z], r: [Math.PI / 2, 0, r] }); // thịt ốc móng tay
+    for (const [x, z] of [[-0.03, -0.03], [0.06, -0.03]]) mesh(g, G.box(0.04, 0.006, 0.02), 0x5fae57, { p: [x, 0.045, z], r: [0, x * 20, 0], cast: false });
+  },
+  oc_bu_nhoi_thit: (g) => {
+    for (const [x, z, r] of [[-0.06, 0.03, 0.4], [0.06, 0.03, -0.4], [0.0, -0.06, 0]]) {
+      const o = group(g, { p: [x, 0, z], r: [0, r, 0] });
+      snailShell(o, 0x5a5a3a, 0x3b3a2a, 0.8, 0.8);
+      mesh(o, G.box(0.006, 0.1, 0.03), 0x4f9e4a, { p: [0.03, 0.08, 0.03], r: [0.3, 0, -0.4] }); // lá gừng cắm miệng ốc
+    }
+    mesh(g, G.cyl(0.025, 0.02, 0.025, 10), 0xffffff, { p: [0.09, 0.012, -0.08] });
+    mesh(g, G.cyl(0.022, 0.022, 0.004, 10), 0xc9944a, { p: [0.09, 0.025, -0.08], cast: false }); // chén nước mắm gừng
+  },
+  so_diep_nuong_mo_hanh: (g) => {
+    for (const [x, z, r] of [[-0.06, 0.03, 0.4], [0.06, 0.03, -0.4], [0.0, -0.06, 0]]) {
+      const s = halfShell(group(g, { p: [x, 0, z], r: [0, r, 0] }), 'scallop', 0.8);
+      mesh(s, G.cyl(0.025, 0.025, 0.02, 10), 0xfaf3e6, { p: [0, 0.03, 0.01] });
+      for (let k = 0; k < 4; k++) mesh(s, G.box(0.015, 0.006, 0.006), 0x5fae57, { p: [Math.cos(k * 1.7) * 0.03, 0.045, Math.sin(k * 1.7) * 0.03], cast: false });
+    }
+  },
+  hau_nuong_pho_mai: (g) => {
+    for (const [x, z, r] of [[-0.06, 0.03, 0.4], [0.06, 0.03, -0.4], [0.0, -0.06, 0]]) {
+      const s = halfShell(group(g, { p: [x, 0, z], r: [0, r, 0] }), 'oyster', 0.8);
+      mesh(s, G.sphere(0.045, 10, 6), 0xf6d34e, { p: [0, 0.035, 0], s: [1, 0.35, 1.2], cast: false }); // phô mai chảy
+      for (const [dx, dz] of [[0.01, 0.01], [-0.02, -0.02]]) mesh(s, G.sphere(0.01, 5, 4), 0xc98330, { p: [dx, 0.05, dz], s: [1, 0.4, 1], cast: false }); // vết cháy
+    }
+  },
+  so_diep_nuong_pho_mai: (g) => {
+    for (const [x, z, r] of [[-0.06, 0.03, 0.4], [0.06, 0.03, -0.4], [0.0, -0.06, 0]]) {
+      const s = halfShell(group(g, { p: [x, 0, z], r: [0, r, 0] }), 'scallop', 0.8);
+      mesh(s, G.sphere(0.045, 10, 6), 0xf6d34e, { p: [0, 0.032, 0], s: [1, 0.35, 1], cast: false });
+      mesh(s, G.sphere(0.01, 5, 4), 0xc98330, { p: [0.01, 0.045, 0.01], s: [1, 0.4, 1], cast: false });
+    }
+  },
+  oc_huong_sot_pho_mai: (g) => {
+    mesh(g, G.cyl(0.13, 0.13, 0.012, 16), 0xf6c34e, { p: [0, 0.006, 0], cast: false }); // sốt phô mai
+    for (const [x, z, r] of [[-0.05, 0.03, 0.4], [0.05, 0.04, -0.4], [0.0, -0.05, 1.2], [-0.06, -0.04, 2], [0.07, -0.03, 0.8]]) snailShell(group(g, { p: [x, 0.005, z], r: [0.4, r, 0.3] }), 0xf3dcb4, 0xc98a4f, 0.55, 1.3);
+    for (const [x, z] of [[0.0, 0.07], [0.03, 0.0]]) mesh(g, G.box(0.02, 0.005, 0.006), 0x5fae57, { p: [x, 0.02, z], cast: false });
   },
 };
 

@@ -35,7 +35,7 @@ function slotDetail(game: Game, slot: FarmSlot): string {
   const next = nextTier(ctx, slot);
   const upgrade = next
     ? `<div class="row"><div class="grow"><b>Nới rộng ${esc(type.name.toLowerCase())}</b>
-        <div class="muted">Bậc ${slot.tier} → ${slot.tier + 1} · sản lượng ×${next.yieldMul}</div></div>
+        <div class="muted">Bậc ${slot.tier} → ${slot.tier + 1} · sản lượng ×${next.yieldMul}${type.perTier ? ` · nuôi thêm ${type.perTier} loại` : ''}</div></div>
         <button${cmd({ type: 'farm/upgradeSlot', slotId: slot.id })}${state.level >= next.level && state.money >= next.cost ? '' : ' disabled'}>${state.level >= next.level ? coins(next.cost) : `🔒 Cấp ${next.level}`}</button></div>`
     : '';
 
@@ -126,13 +126,14 @@ function slotSection(game: Game, type: SlotTypeDef, uiState: UiState): string {
   const price = slotPrice(ctx, type.id);
   const levelOk = state.level >= type.level;
   const buy =
-    slots.length >= type.max
+    slots.length >= type.max || type.perTier
       ? ''
       : `<button class="mini"${cmd({ type: 'farm/buySlot', slotType: type.id })}${levelOk && state.money >= price ? '' : ' disabled'}>${levelOk ? `${type.building ? `+ Nới dài nhà (thêm ${type.batch} luống)` : '+ Thêm ô'} · ${coins(price)}` : `🔒 Cấp ${type.level}`}</button>`;
   const detail = selected && selected.type === type.id ? slotDetail(game, selected) : '';
   const note = type.building
     ? '<p class="muted">Trong nhà kính: không cần cuốc, có tưới nhỏ giọt, cây lớn nhanh hơn 30%. Bấm vào nhà kính trên nông trại để vào trong.</p>'
-    : type.mill ? `<p class="muted">Bấm thu hoạch là xong: bác lái máy cày thu, tự gieo lại và chở lúa tới ${esc(game.content.mills.get(type.mill).name.toLowerCase())}.</p>` : '';
+    : type.mill ? `<p class="muted">Bấm thu hoạch là xong: bác lái máy cày thu, tự gieo lại và chở lúa tới ${esc(game.content.mills.get(type.mill).name.toLowerCase())}.</p>`
+    : type.perTier ? `<p class="muted">Mỗi góc ao nuôi một loại (${slots.length}/${type.max} loại). Nới rộng ao để nuôi thêm ${type.perTier} loại. Bấm vào góc ao trên nông trại để thả giống.</p>` : '';
   // Không còn lưới ô: người chơi bấm thẳng ô trên cảnh 3D (bảng tự hiện chi tiết ô đó). Ở đây chỉ tóm tắt số ô.
   const n = (f: (s: FarmSlot) => boolean) => slots.filter(f).length;
   const ready = n((s) => !!s.producerId && s.stage === 'ready');

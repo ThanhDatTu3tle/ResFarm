@@ -14,6 +14,7 @@ import { grainField, hayBale, CAR_COLORS, CAR_KINDS, makeCar, makeFruitTree, mak
 import { makeMai, makeStarLantern, makeSnowman, makeXmasTree } from '../ui/three/festive';
 import { makeGuard, makeMinibus } from '../ui/three/curbside';
 import { buildEquipment } from '../ui/three/equipment';
+import { makeIngredient } from '../ui/three/ingredients';
 import { buildBarCounter, buildBarStool, buildCaddy, buildChopstickSet, buildGrillTable, buildJpSet, buildKrSet, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, woodMats } from '../ui/three/furniture';
 import { G, group, mesh, toon } from '../ui/three/toon';
 
@@ -272,8 +273,8 @@ function foodSections(): Section[] {
     { title: 'Vật nuôi (nguồn nguyên liệu)', entries: animals },
     {
       title: 'Nguyên liệu trong kho',
-      desc: 'Nguyên liệu chưa có model 3D riêng: trong kho, chợ, quầy line đều hiện bằng biểu tượng.',
-      entries: content.items.all().map((i) => ({ name: i.name, emoji: i.icon })),
+      desc: 'Model nguyên liệu (src/ui/three/ingredients.ts): bày trên khay / rổ hàng trong quầy chợ. Kho và quầy line vẫn hiện biểu tượng.',
+      entries: content.items.all().map((i) => ({ name: i.name, emoji: i.icon, make: makeIngredient(i.id) ? () => makeIngredient(i.id)! : undefined })),
     },
   ];
 }

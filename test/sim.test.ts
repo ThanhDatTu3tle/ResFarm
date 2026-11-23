@@ -251,6 +251,7 @@ describe('nông trại', () => {
     const game = quietGame();
     Object.assign(game.state, { money: 5000, level: 5 });
     game.state.clock.day = 3 * DAYS_PER_SEASON; // ngày cuối mùa Thu
+    expect(game.dispatch({ type: 'farm/buySlot', slotType: 'pen' }).ok).toBe(true); // ván mới chỉ có 1 chuồng
     expect(game.dispatch({ type: 'farm/plant', slotId: 'pen-0', producerId: 'hen' }).ok).toBe(true);
     expect(game.dispatch({ type: 'farm/plant', slotId: 'pen-1', producerId: 'pig' }).ok).toBe(true);
     let culled = 0;
@@ -605,12 +606,12 @@ describe('bác nông dân', () => {
 
   it('thu hoạch hết: xếp mọi ô chín theo đường ngắn, thu đủ, ô nào đã có việc thì không xếp lại', () => {
     const game = fresh();
-    for (const id of ['field-0', 'field-8', 'field-2']) {
+    for (const id of ['field-0', 'field-5', 'field-2']) {
       Object.assign(game.state.farm.slots.find((s) => s.id === id)!, { tilled: true, producerId: 'cabbage', stage: 'ready' });
     }
-    game.dispatch({ type: 'farmer/do', kind: 'harvest', slotId: 'field-8' });
+    game.dispatch({ type: 'farmer/do', kind: 'harvest', slotId: 'field-5' });
     expect(game.dispatch({ type: 'farmer/doAll', kind: 'harvest' }).ok).toBe(true);
-    expect(game.state.farm.farmer.tasks.map((t) => t.slotId)).toEqual(['field-8', 'field-2', 'field-0']);
+    expect(game.state.farm.farmer.tasks.map((t) => t.slotId)).toEqual(['field-5', 'field-2', 'field-0']);
     const before = game.state.inventory.cabbage ?? 0;
     untilIdle(game);
     expect((game.state.inventory.cabbage ?? 0) - before).toBe(3 * content.producers.get('cabbage').yields[0].qty);
@@ -775,7 +776,8 @@ describe('ruộng tự động + cối chế biến', () => {
     for (const t of content.slotTypes.all()) while (game.dispatch({ type: 'farm/buySlot', slotType: t.id }).ok);
     for (const m of content.mills.all()) while (game.dispatch({ type: 'mill/buy', millType: m.id }).ok);
     for (const s of game.state.farm.slots) s.tier = (content.slotTypes.get(s.type).tiers?.length ?? 0) + 1; // ao to nhất
-    const rects = game.state.farm.slots.filter((s) => !content.slotTypes.get(s.type).building).map((s) => {
+    // Ô nuôi của ao (perTier) chung một mặt ao: chỉ tính một lần
+    const rects = game.state.farm.slots.filter((s, _, all) => !content.slotTypes.get(s.type).building && (!content.slotTypes.get(s.type).perTier || s === all.find((x) => x.type === s.type))).map((s) => {
       const c = slotCenter(game.ctx, s);
       const h = (content.slotTypes.get(s.type).layout.size * slotScale(game.ctx, s)) / 2;
       return { id: s.id, x1: c.x - h, x2: c.x + h, z1: c.z - h, z2: c.z + h };
@@ -810,14 +812,47 @@ describe('ruộng tự động + cối chế biến', () => {
   });
 });
 
+describe('ao nhiều loại', () => {
+  it('ao có sẵn 3 ô nuôi (mỗi loại một ô), nới rộng thêm 2 ô mỗi bậc, tối đa 9; không mua ô lẻ', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 1e6, level: 10 });
+    const ponds = () => game.state.farm.slots.filter((s) => s.type === 'pond');
+    expect(ponds()).toHaveLength(3);
+    expect(game.state.farm.slots.filter((s) => s.type === 'field')).toHaveLength(6);
+    expect(game.state.farm.slots.filter((s) => s.type === 'pen')).toHaveLength(1);
+    expect(game.dispatch({ type: 'farm/buySlot', slotType: 'pond' }).ok).toBe(false);
+    expect(game.dispatch({ type: 'farm/plant', slotId: 'pond-0', producerId: 'fish_fry' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'farm/plant', slotId: 'pond-1', producerId: 'fish_fry' }).ok).toBe(false); // trùng loại
+    expect(game.dispatch({ type: 'farm/plant', slotId: 'pond-1', producerId: 'shrimp_fry' }).ok).toBe(true);
+    for (const n of [5, 7, 9]) {
+      expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'pond-2' }).ok).toBe(true);
+      expect(ponds()).toHaveLength(n);
+      expect(new Set(ponds().map((p) => p.tier)).size).toBe(1); // cả mặt ao cùng bậc
+    }
+    expect(game.dispatch({ type: 'farm/upgradeSlot', slotId: 'pond-0' }).ok).toBe(false); // đã tối đa
+  });
+
+  it('save cũ (v25): ao bậc 2 được bù thành 5 ô nuôi cùng bậc', () => {
+    const game = quietGame();
+    const old = JSON.parse(serialize(game.state));
+    old.version = 25;
+    old.farm.slots = old.farm.slots.filter((s: { type: string; id: string }) => s.type !== 'pond' || s.id === 'pond-0');
+    old.farm.slots.find((s: { id: string }) => s.id === 'pond-0').tier = 2;
+    const loaded = deserialize(JSON.stringify(old), content)!;
+    const ponds = loaded.farm.slots.filter((s) => s.type === 'pond');
+    expect(ponds.map((p) => p.id)).toEqual(['pond-0', 'pond-1', 'pond-2', 'pond-3', 'pond-4']);
+    expect(ponds.every((p) => p.tier === 2)).toBe(true);
+  });
+});
+
 describe('nhà kính', () => {
-  it('8 luống có sẵn, nới dài thêm 4 luống mỗi lần (tối đa 20), rau trồng được không cần cuốc, lớn nhanh hơn ruộng', () => {
+  it('6 luống có sẵn, nới dài thêm 4 luống mỗi lần (tối đa 20), rau trồng được không cần cuốc, lớn nhanh hơn ruộng', () => {
     const game = quietGame();
     Object.assign(game.state, { money: 1e6, level: 10 });
     const plots = () => game.state.farm.slots.filter((s) => s.type === 'gplot');
-    expect(plots()).toHaveLength(8);
+    expect(plots()).toHaveLength(6);
     expect(game.dispatch({ type: 'farm/buySlot', slotType: 'gplot' }).ok).toBe(true);
-    expect(plots()).toHaveLength(12);
+    expect(plots()).toHaveLength(10);
     while (game.dispatch({ type: 'farm/buySlot', slotType: 'gplot' }).ok);
     expect(plots()).toHaveLength(20);
     // Cà chua trồng thẳng (không cuốc) trong nhà kính và cả ngoài ruộng đã cuốc: nhà kính chín trước

@@ -155,6 +155,11 @@ export interface SlotTypeDef {
    * tự gieo lại giống cũ rồi chở hết sản lượng tới cối loại này để chế biến.
    */
   mill?: MillType;
+  /**
+   * Ô không mua lẻ mà thêm theo bậc nới rộng: mỗi lần nới rộng (tiers) mọi ô loại này cùng lên bậc và có thêm bấy nhiêu ô
+   * mới (ao cá: mỗi ô nuôi = một loại hải sản, chung một mặt ao).
+   */
+  perTier?: number;
   /** Mua thêm theo lô: mỗi lần mua thêm bấy nhiêu ô cùng lúc (luống nhà kính: nhà dài thêm, thêm 4 luống). */
   batch?: number;
   /** Hệ số tốc độ lớn riêng của loại ô (nhà kính lớn nhanh hơn ngoài trời). */
@@ -202,6 +207,8 @@ export interface StallDef {
   interior?: 'trays' | 'tanks' | 'butcher';
   /** Sạp bể nước: các mặt hàng này bày trong rổ quanh người bán (còn lại thả trong bể). */
   baskets?: string[];
+  /** Lời rao của người bán: lâu lâu bật thành bong bóng thoại trên đầu (ngoài chợ + bên trong sạp). Chỉ là hình ảnh. */
+  calls?: string[];
   /**
    * Kiểu hàng quán (hình 3D): 'stall' sạp mái bạt trong dãy chợ (mặc định), 'kiosk' tiệm nhỏ trong dãy chợ,
    * 'cart' xe đẩy, 'pole' gánh hàng rong, 'bike' xe đạp bán dạo — ba kiểu sau đứng trên vỉa hè ở `spot`.

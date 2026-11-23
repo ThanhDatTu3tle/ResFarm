@@ -15,13 +15,14 @@ import { adultShape, animateCreature, animatePerson, LOOKS, makeBush, makeDish, 
 import { buildSeat, counterExtras, decorateInterior, seatStyle, signText, tableExtras, type InteriorAnimator } from '../cuisine';
 import { buildStreetGround, buildStreetKitchen, standingSign, streetSpots } from '../street';
 import { HOLD_MS, type Area, type Env, type Pick } from '../stage';
-import { Bar3D, blinkLeds, bubbleSprite, emojiSprite, G, group, ledFrame, mesh, textSprite, toon, paintSeason } from '../toon';
+import { Bar3D, blinkLeds, bubbleSprite, emojiSprite, G, group, ledFrame, mesh, speechSprite, textSprite, toon, paintSeason } from '../toon';
 import { easeOutBack, wobble } from '../../ease';
 import { Particles } from '../fx';
 import { FestiveSet } from '../festive';
 import { nextWaypoint } from '../../../sim/pathing';
 import { OwnerWalker, type Spot } from '../owner';
 import { Curbside } from '../curbside';
+import { Chatter } from '../chatter';
 import { buildEquipment, type EquipDims, type EquipView } from '../equipment';
 import { buildBarCounter, buildBarStool, buildGrillTable, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, tintWood, woodMats } from '../furniture';
 
@@ -191,6 +192,12 @@ export class RestaurantArea implements Area {
   /** Gọi khi một nhóm khách trả tiền: vị trí thế giới của bàn + số tiền (app.ts cho xu bay về HUD). */
   onPaid: (world: THREE.Vector3, amount: number) => void = () => {};
   private partyFx = new Map<number, PartyFx>();
+  /** Theo dõi "ai được phục vụ trước": pha + số món đã ra của từng nhóm ở khung hình trước. */
+  private prevPhase = new Map<number, string>();
+  private prevServed = new Map<number, number>();
+  /** Câu than phiền đang hiện trên đầu nhóm khách (bong bóng chữ) + lúc than gần nhất (không than dồn dập). */
+  private complaints = new Map<number, { sprite: THREE.Sprite; at: number }>();
+  private lastComplaint = new Map<number, number>();
   /** Đĩa trên quầy ra món theo id đơn. */
   private passPlates = new Map<number, THREE.Group>();
   /** Chỗ đặt đĩa trên quầy line theo hạng bếp. */
@@ -198,7 +205,7 @@ export class RestaurantArea implements Area {
   private passBell!: THREE.Sprite;
   private waiter!: { g: THREE.Group; ring: THREE.Mesh; hand: THREE.Group; handKey: string; lastX: number; lastZ: number };
   /** smoke: giây còn lại tới lần phả khói bếp kế tiếp; yaw: hướng đứng; puff: chỗ khói bốc (mặc định: sát tường sau). */
-  private chefs: { g: THREE.Group; icon: THREE.Sprite; iconFor: string; bar: Bar3D; smoke: number; yaw: number; puff?: [number, number] }[] = [];
+  private chefs: { g: THREE.Group; icon: THREE.Sprite; iconFor: string; bar: Bar3D; smoke: number; yaw: number; puff?: [number, number]; wok: Wok; talk: Chatter }[] = [];
   private fx = new Particles(this.root);
   private tables = new Map<string, TableView>();
   private drag: { kind: 'table' | 'prop'; id: string; x: number; y: number } | null = null;
@@ -621,7 +628,7 @@ export class RestaurantArea implements Area {
       const icon = emojiSprite('🍳', 0.5);
       icon.position.set(0, 2.3, 0);
       g.add(icon);
-      this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2, yaw: 0 });
+      this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2, yaw: 0, ...chefKit(g, i) });
     });
   }
 
@@ -645,7 +652,7 @@ export class RestaurantArea implements Area {
     const icon = emojiSprite('🍳', 0.5);
     icon.position.set(0, 2.3, 0);
     g.add(icon);
-    this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2, yaw, puff });
+    this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2, yaw, puff, ...chefKit(g, i) });
   }
 
   /** Bếp + chảo trên mặt bàn bếp ở (x, z) — đầu bếp đứng trước nó. */
@@ -805,7 +812,7 @@ export class RestaurantArea implements Area {
       const icon = emojiSprite('🍳', 0.5);
       icon.position.set(0, 2.3, 0);
       g.add(icon);
-      this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2, yaw: 0 });
+      this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2, yaw: 0, ...chefKit(g, i) });
     });
   }
 
@@ -960,6 +967,72 @@ export class RestaurantArea implements Area {
   }
 
   // ---------- Phục vụ ----------
+
+  /**
+   * Khách vào trước mà bị "qua mặt": khi một nhóm vừa được mang menu / được ghi món / có món ra, nếu còn nhóm vào
+   * TRƯỚC (id nhỏ hơn — tới quán trước) vẫn đang chờ đúng bước đó, nhóm vào trước than một câu (bong bóng chữ trên
+   * đầu, ~4 giây; mỗi nhóm cách nhau ít nhất 15 giây mới than tiếp). Chỉ là hình ảnh, không đổi kiên nhẫn trong sim.
+   */
+  private checkFairness(env: Env): void {
+    const parties = this.game.state.restaurant.parties;
+    const orders = this.game.state.restaurant.orders;
+    const servedOf = (p: { orderIds: number[] }) => p.orderIds.filter((id) => orders.find((o) => o.id === id)?.status === 'served').length;
+    const firstOrder = (p: { orderIds: number[] }) => (p.orderIds.length ? Math.min(...p.orderIds) : Infinity);
+    for (const p of parties) {
+      const was = this.prevPhase.get(p.id);
+      const served = servedOf(p);
+      const wasServed = this.prevServed.get(p.id) ?? served;
+      if (was && !this.firstFrame) {
+        let victim: (typeof parties)[number] | undefined;
+        let lines: readonly string[] = [];
+        if (was === 'seated' && p.phase === 'browsing') {
+          victim = parties.find((q) => q.id < p.id && q.phase === 'seated' && q.tableId && !(q.walking ?? 0));
+          lines = COMPLAIN.menu;
+        } else if (was === 'readyToOrder' && p.phase === 'waitingFood') {
+          victim = parties.find((q) => q.id < p.id && q.phase === 'readyToOrder');
+          lines = COMPLAIN.order;
+        } else if (served > wasServed) {
+          victim = parties.find((q) => q.id !== p.id && q.phase === 'waitingFood' && firstOrder(q) < firstOrder(p) && servedOf(q) === 0);
+          lines = COMPLAIN.food;
+        }
+        if (victim) this.complain(victim.id, lines, env.t);
+      }
+      this.prevPhase.set(p.id, p.phase);
+      this.prevServed.set(p.id, served);
+    }
+    // Hiện / tắt bong bóng than phiền (bật nảy lúc mới hiện)
+    for (const [id, c] of this.complaints) {
+      const fx = this.partyFx.get(id);
+      const age = env.t - c.at;
+      if (!fx || age > 4.2) {
+        c.sprite.parent?.remove(c.sprite);
+        c.sprite.material.dispose();
+        this.complaints.delete(id);
+        continue;
+      }
+      const k = Math.min(1, age / 0.18) * (1 + Math.sin(Math.min(1, age / 0.3) * Math.PI) * 0.15) * Math.min(1, (4.2 - age) / 0.25);
+      c.sprite.scale.copy(c.sprite.userData.base as THREE.Vector3).multiplyScalar(Math.max(0.01, k));
+    }
+    for (const id of [...this.prevPhase.keys()]) {
+      if (parties.some((p) => p.id === id)) continue;
+      this.prevPhase.delete(id);
+      this.prevServed.delete(id);
+      this.lastComplaint.delete(id);
+    }
+  }
+
+  private complain(partyId: number, lines: readonly string[], t: number): void {
+    const fx = this.partyFx.get(partyId);
+    if (!fx || t - (this.lastComplaint.get(partyId) ?? -99) < 15) return;
+    this.lastComplaint.set(partyId, t);
+    const old = this.complaints.get(partyId);
+    if (old) old.sprite.parent?.remove(old.sprite);
+    const sprite = speechSprite(lines[Math.floor(Math.random() * lines.length)], 0.2);
+    sprite.position.y = 0.85; // trên bong bóng biểu tượng của nhóm
+    sprite.userData.base = sprite.scale.clone();
+    fx.holder.add(sprite);
+    this.complaints.set(partyId, { sprite, at: t });
+  }
 
   /** Dựng lại bong bóng khi nội dung đổi; bong bóng chờ người chơi bấm thì nhún nhảy cho dễ thấy. */
   private updateBubbles(fx: PartyFx, party: import('../../../sim/state').Party, env: Env, arrived: boolean): void {
@@ -1651,6 +1724,8 @@ export class RestaurantArea implements Area {
       // Đang nấu thì đảo chảo; rảnh thì thỉnh thoảng vẫy tay chào khách
       const idleWave = Math.max(0, Math.min(1, (Math.sin(env.t * 0.4 + i * 2.5) - 0.88) * 9));
       animatePerson(chef.g, env.t, { cook: order ? 1 : 0, wave: order ? 0 : idleWave });
+      tossWok(chef.wok, chef.g, env.t + i * 0.7, !!order);
+      chef.talk.update(env.t, !!order);
       if (!order) return;
       // Khói bếp bốc lên từ chảo khi đang nấu
       if ((chef.smoke -= dt) <= 0) {
@@ -1788,6 +1863,7 @@ export class RestaurantArea implements Area {
         });
       }
     }
+    this.checkFairness(env);
     this.firstFrame = false;
 
     // Dọn những thứ không còn trong state
@@ -1873,3 +1949,49 @@ function faintPose(g: THREE.Object3D, fainted: boolean, dt: number): void {
   g.rotation.z += ((fainted ? Math.PI / 2 : 0) - g.rotation.z) * Math.min(1, dt * 6);
   if (fainted) g.position.y = 0.2;
 }
+
+/** Chảo cầm tay của đầu bếp (chỉ hiện lúc đang nấu) + mấy miếng đồ ăn nảy trong chảo. */
+interface Wok {
+  g: THREE.Group;
+  bits: THREE.Object3D[];
+}
+
+/** Câu nói lúc đang nấu (bật lâu lâu trên đầu đầu bếp, rảnh tay thì im). */
+const CHEF_LINES = ['Xèo xèo… thơm chưa!', 'Lửa lớn lên nào!', 'Món ra liền đây!', 'Nêm thêm chút nữa…', 'Nóng hổi đây!', 'Xóc chảo nè!'];
+
+/** Gắn chảo vào tay phải đầu bếp + bộ lời thoại. */
+function chefKit(g: THREE.Group, i: number): { wok: Wok; talk: Chatter } {
+  const hand = g.userData.rig.armR as THREE.Object3D;
+  const w = group(hand, { p: [0, -0.3, 0] });
+  mesh(w, G.box(0.035, 0.03, 0.2), 0x3a2a1e, { p: [0, 0, 0.08] }); // cán chảo
+  const pan = group(w, { p: [0, 0, 0.3] });
+  mesh(pan, G.cyl(0.17, 0.09, 0.07, 14), 0x2a2d35, { p: [0, 0.03, 0] });
+  mesh(pan, G.cyl(0.15, 0.15, 0.01, 14), 0x3b3f46, { p: [0, 0.065, 0], cast: false });
+  const bits = [0x7cc35c, 0xe5463c, 0xf2c14e, 0xb5674a].map((c, k) => mesh(pan, G.box(0.05, 0.03, 0.04), c, { p: [Math.cos(k * 1.6) * 0.06, 0.09, Math.sin(k * 1.6) * 0.06], cast: false }));
+  w.visible = false;
+  return { wok: { g: w, bits }, talk: new Chatter(g, CHEF_LINES, 2.55, 50 + i, 0.17) };
+}
+
+/**
+ * Xóc chảo: chảo giữ thăng bằng (bù góc tay đang đảo), hất lên theo nhịp, đồ ăn bay lên rồi rơi lại vào chảo.
+ * Gọi sau animatePerson (đọc góc tay vừa đặt).
+ */
+function tossWok(w: Wok, chef: THREE.Group, t: number, cooking: boolean): void {
+  w.g.visible = cooking;
+  if (!cooking) return;
+  const arm = chef.userData.rig.armR as THREE.Object3D;
+  const flick = Math.max(0, Math.sin(t * 7));
+  w.g.rotation.x = -arm.rotation.x - flick * 0.35; // bù góc tay cho chảo nằm ngang, mép trước hất lên
+  w.bits.forEach((b, k) => {
+    const up = Math.max(0, Math.sin(t * 7 - 0.6 - k * 0.25));
+    b.position.y = 0.09 + up * up * 0.22;
+    b.rotation.set(up * 3 + k, up * 2, 0);
+  });
+}
+
+/** Câu than phiền khi bàn vào sau được phục vụ trước (checkFairness). */
+const COMPLAIN = {
+  menu: ['Ủa, bàn tui vô trước mà chưa có menu nữa!', 'Ê, tới trước mà sao chưa đưa menu?', 'Bàn kia mới vô mà có menu rồi kìa!'],
+  order: ['Chời, chọn xong nãy giờ mà chưa ai ghi món!', 'Bàn tui gọi trước mà, ghi giùm cái!', 'Sao ghi món bàn kia trước vậy ta?'],
+  food: ['Chời ơi người ta vô trước mà sao giờ chưa có đồ ăn nữa!', 'Ủa, bàn sau có món trước luôn hả?', 'Tui gọi trước mà, đói quá trời!'],
+} as const;

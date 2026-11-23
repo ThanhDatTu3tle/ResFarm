@@ -327,8 +327,14 @@ export class FarmArea implements Area {
       mesh(g, G.cyl(s / 2, s / 2 + 0.05, 0.08, 18), 0x9ed47a, { p: [0, 0.03, 0], cast: false });
       mesh(g, G.cyl(0.75, 0.85, 0.16, 14), 0x8a5a3a, { p: [0, 0.07, 0] });
       for (let i = 0; i < 9; i++) mesh(g, G.ico(0.1, 0), 0xa9aaa0, { p: [Math.cos((i / 9) * Math.PI * 2) * 0.88, 0.08, Math.sin((i / 9) * Math.PI * 2) * 0.88], s: [1, 0.6, 1] });
+    } else if (slot.type === 'pond' && pondIndex(this.game, slot) > 0) {
+      // Ô nuôi thứ 2 trở đi: chung mặt ao của ô đầu, chỉ có vùng bấm (đĩa trong suốt) ở góc ao của mình
+      const c = pondSector(pondIndex(this.game, slot), s);
+      const hit = mesh(g, G.cyl(s * 0.17, s * 0.17, 0.05, 14), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }), { p: [c.x, 0.26, c.z], cast: false, receive: false });
+      hit.userData.pick = { type: 'slot', id: slot.id } satisfies Pick;
     } else if (slot.type === 'pond') {
       // Ao: bờ đá, mặt nước, lá súng, cầu gỗ nhỏ, bụi lau (bán kính theo cỡ ao trong layout)
+      // Ô nuôi đầu tiên vẽ cả mặt ao + vùng bấm góc của mình (bấm chỗ khác trên mặt nước cũng ra ô này)
       // Hình méo tự nhiên (không tròn): bề ngang = size, bề dọc ~ 0.78 size; bờ đá to hơn mặt nước một chút
       const R = s / 2;
       const shape = pondOutline(R, R * 0.78, 3);
@@ -360,14 +366,17 @@ export class FarmArea implements Area {
       g.add(sign);
     }
 
-    const ring = mesh(g, G.box(1, 0.04, 1), this.ringMat, { p: [0, 0.01, 0], s: [s + 0.35, 1, s + 0.35], cast: false, receive: false });
+    // Ao: mỗi ô nuôi một góc ao — vòng chọn, thanh tiến độ, con vật dời ra góc đó
+    const sector = slot.type === 'pond' ? pondSector(pondIndex(this.game, slot), s) : { x: 0, z: 0 };
+    const ringSize = slot.type === 'pond' ? s * 0.4 : s + 0.35;
+    const ring = mesh(g, G.box(1, 0.04, 1), this.ringMat, { p: [sector.x, slot.type === 'pond' ? 0.25 : 0.01, sector.z], s: [ringSize, 1, ringSize], cast: false, receive: false });
     const bar = new Bar3D(1.1);
     const top = slot.type === 'orchard' ? 3.3 : slot.type === 'pen' ? 2.2 : slot.type === 'wheat' || slot.type === 'paddy' ? 1.4 : 1.3;
-    bar.group.position.set(0, top, 0);
+    bar.group.position.set(sector.x, top, sector.z);
     const drop = emojiSprite('💧', 0.6);
     const hoe = emojiSprite('⛏️', 0.6);
     g.add(bar.group, drop, hoe);
-    return { ...view, g, content: group(g, { p: [0, slot.type === 'field' || slot.type === 'wheat' ? 0.2 : slot.type === 'paddy' ? 0.15 : 0.1, 0] }), producerId: undefined, tier: 1, movers: [], ready: null, bar, ring, type: slot.type, drop, hoe, prev: null, kickAt: -99, popAt: -99, ripeAt: -99, cropStage: 2 };
+    return { ...view, g, content: group(g, { p: [sector.x, slot.type === 'field' || slot.type === 'wheat' ? 0.2 : slot.type === 'paddy' ? 0.15 : 0.1, sector.z] }), producerId: undefined, tier: 1, movers: [], ready: null, bar, ring, type: slot.type, drop, hoe, prev: null, kickAt: -99, popAt: -99, ripeAt: -99, cropStage: 2 };
   }
 
   /** Dựng lại thứ đang trồng/nuôi trong ô khi producer hoặc bậc của ô đổi. */
@@ -402,7 +411,7 @@ export class FarmArea implements Area {
       if (animals.length) {
         animals.forEach((a, i) => {
           const angle = (i / animals.length) * Math.PI * 2 + 0.6;
-          const room = layout.size / (view.type === 'pen' ? 3.3 : 3); // ô to hơn thì con vật đi rộng hơn
+          const room = layout.size / (view.type === 'pen' ? 3.3 : 7); // ô to hơn thì con vật đi rộng hơn; ao: gọn trong góc của ô nuôi
           const radius = (animals.length > 1 ? 0.75 : 0.2) * room;
           const x = Math.cos(angle) * radius + (view.type === 'pen' ? 0.25 * room : 0);
           const z = Math.sin(angle) * radius + (view.type === 'pen' ? 0.35 * room : 0);
@@ -622,7 +631,7 @@ export class FarmArea implements Area {
         }
       }
       // Ao: không đào ao mới mà nới rộng — viền đứt khúc theo hình ao ở bậc kế tiếp
-      for (const slot of state.farm.slots.filter((s) => s.type === 'pond' && nextTier(ctx, s))) {
+      for (const slot of state.farm.slots.filter((s) => s.type === 'pond' && nextTier(ctx, s)).slice(0, 1)) {
         const { layout } = content.slotTypes.get(slot.type);
         const c = slotCenter(ctx, slot);
         const R = (layout.size * (1 + layout.tierGrowth * slot.tier)) / 2;
@@ -902,9 +911,10 @@ export class FarmArea implements Area {
           m.g.position.set(m.x + Math.sin(a) * 0.35, Math.abs(Math.sin(env.t * 3 + m.phase)) * 0.04, m.z + Math.cos(a * 0.8) * 0.3);
           m.g.rotation.y = Math.atan2(Math.cos(a), -Math.sin(a * 0.8) * 0.8) + Math.sin(env.t * 0.5 + m.phase) * 0.3;
         } else {
-          const a = env.t * 0.9 + m.phase;
-          const lane = 0.45 + ((m.phase * 7) % 5) * 0.1;
-          m.g.position.set(Math.cos(a) * lane, 0.12 + Math.max(0, Math.sin(env.t * 1.3 + m.phase * 2) - 0.75) * 1.6, Math.sin(a) * lane);
+          const shell = !!m.g.userData.shell;
+          const a = env.t * (shell ? 0.08 : 0.9) + m.phase;
+          const lane = (shell ? 0.25 : 0.35) + ((m.phase * 7) % 5) * 0.06;
+          m.g.position.set(Math.cos(a) * lane, (shell ? 0.13 : 0.12) + (shell ? 0 : Math.max(0, Math.sin(env.t * 1.3 + m.phase * 2) - 0.75) * 1.6), Math.sin(a) * lane);
           m.g.rotation.y = -a;
         }
       }
@@ -947,4 +957,19 @@ export class FarmArea implements Area {
       paintSeason(this.root, env.season);
     }
   }
+}
+
+/** Thứ tự của ô nuôi trong ao (0 = ô đầu, ô vẽ mặt ao). */
+function pondIndex(game: Game, slot: FarmSlot): number {
+  return Math.max(0, game.state.farm.slots.filter((s) => s.type === 'pond').indexOf(slot));
+}
+
+/**
+ * Góc ao của ô nuôi thứ i (toạ độ trong ô, chưa nhân cỡ theo bậc): 9 chỗ xếp vòng quanh tâm ao (hình bầu dục như mặt ao),
+ * chỗ đầu ở phía trước (gần camera) rồi đi theo chiều kim đồng hồ.
+ */
+function pondSector(i: number, size: number): { x: number; z: number } {
+  const R = size / 2;
+  const a = Math.PI / 2 + (i / 9) * Math.PI * 2;
+  return { x: Math.cos(a) * R * 0.55, z: Math.sin(a) * R * 0.55 * 0.78 };
 }

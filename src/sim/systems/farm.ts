@@ -66,6 +66,8 @@ export const farmSystem: System = {
       if (!canPlantNow(ctx, def, slot.type)) return fail(`${def.name} chỉ trồng ngoài trời vào mùa ${seasonNames(def.seasons ?? [])} — trồng trong nhà kính thì quanh năm.`);
       if (ctx.content.slotTypes.get(slot.type).needsTilling && !slot.tilled) return fail('Đất chưa tơi xốp, cuốc đất trước đã.');
       if (ctx.state.level < def.level) return fail(`Cần cấp ${def.level}.`);
+      // Ao chia ô nuôi: mỗi loại hải sản chỉ nuôi ở một ô
+      if (ctx.content.slotTypes.get(slot.type).perTier && slotsOfType(ctx, slot.type).some((s) => s !== slot && s.producerId === def.id)) return fail(`Ao đã nuôi ${def.name.toLowerCase()} rồi, chọn loại khác nhé.`);
       if (!spend(ctx, def.cost)) return fail('Không đủ tiền.');
       Object.assign(slot, { producerId: def.id, lastProducerId: def.id, stage: 'growing', progress: 0, cyclesDone: 0 });
       return ok();
@@ -91,6 +93,7 @@ export const farmSystem: System = {
       const def = ctx.content.slotTypes.get(cmd.slotType);
       const owned = slotsOfType(ctx, cmd.slotType).length;
       if (ctx.state.level < def.level) return fail(`Cần cấp ${def.level}.`);
+      if (def.perTier) return fail(`Nới rộng ${def.name.toLowerCase()} để có thêm chỗ nuôi.`);
       if (owned >= def.max) return fail(def.building ? 'Nhà kính đã dài tối đa.' : 'Đã đạt số ô tối đa.');
       if (!spend(ctx, slotPrice(ctx, cmd.slotType))) return fail('Không đủ tiền.');
       // Ô chỉ được thêm, không bao giờ bị xoá, nên `owned` là chỉ số duy nhất. Loại mua theo lô thì thêm cả lô.
@@ -105,7 +108,14 @@ export const farmSystem: System = {
       if (!next) return fail('Ô này đã lớn tối đa.');
       if (ctx.state.level < next.level) return fail(`Cần cấp ${next.level}.`);
       if (!spend(ctx, next.cost)) return fail('Không đủ tiền.');
-      slot.tier++;
+      const def = ctx.content.slotTypes.get(slot.type);
+      if (def.perTier) {
+        // Ao: cả mặt ao lên bậc (mọi ô nuôi) + thêm ô nuôi mới
+        const all = slotsOfType(ctx, slot.type);
+        for (const s of all) s.tier++;
+        const n = Math.min(def.perTier, def.max - all.length);
+        for (let i = 0; i < n; i++) ctx.state.farm.slots.push({ ...createSlot(slot.type, all.length + i), tier: slot.tier });
+      } else slot.tier++;
       return ok();
     },
   },
