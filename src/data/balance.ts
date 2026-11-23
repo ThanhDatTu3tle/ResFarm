@@ -92,8 +92,13 @@ export const balance: Balance = {
     chefPerDish: 2,
     waiterPerTask: 1,
     farmerPerTask: 1,
+    // Bồi dưỡng nhanh (ai xỉu cũng được: đầu bếp, bồi bàn, nhân viên, shipper, bác nông dân): 50 xu lần đầu trong ngày,
+    // mỗi lần sau +25 xu (50 → 75 → 100…), hồi một nửa năng lượng tối đa
     reviveCost: 50,
-    reviveEnergy: 15,
+    reviveStep: 25,
+    reviveRatio: 0.5,
+    // Tối qua nhịn đói (hết tiền, không có món) thì sáng dậy chỉ còn 60% sức
+    hungryWakeRatio: 0.6,
     restEnergy: 10,
     lunchBack: 14 * 60,
     farmerLunch: { from: 12 * 60, to: 13 * 60 },

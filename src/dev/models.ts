@@ -16,6 +16,9 @@ import { makeGuard, makeMinibus } from '../ui/three/curbside';
 import { buildEquipment } from '../ui/three/equipment';
 import { makeIngredient } from '../ui/three/ingredients';
 import { makePlasticSet, makeTeaKiosk } from '../ui/three/kiosk';
+import { makeCharcoalGrill, makeSnailTable } from '../ui/three/snailstall';
+import { makeBusShelter, makeCityBus } from '../ui/three/busstop';
+import { makeBillboard } from '../ui/three/billboard';
 import { logoBoard } from '../ui/three/areas/stall';
 import { animateCartVendor, equipCartVendor, makeStreetCart, type StreetKind } from '../ui/three/streetcarts';
 import { buildBarCounter, buildBarStool, buildCaddy, buildChopstickSet, buildGrillTable, buildJpSet, buildKrSet, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, woodMats } from '../ui/three/furniture';
@@ -193,6 +196,16 @@ function thingSections(): Section[] {
     { name: 'Xe đạp cà phê dạo', make: () => streetVendor('bike', 15) },
     { name: 'Tiệm 25caaaaa', make: teaKiosk },
     { name: 'Bàn nhựa + 4 ghế đẩu (trước Tiệm 25caaaaa)', make: () => makePlasticSet(0xe2574c, 0x3f7fd9).g },
+    { name: 'Trạm xe buýt', make: () => makeBusShelter().g },
+    { name: 'Xe buýt 25 (mở cửa)', make: () => { const b = makeCityBus(); b.setDoors(1); return b.g; } },
+    { name: 'Biển LED quảng cáo', note: 'Quảng cáo ở src/data/ads.ts', make: () => { const b = makeBillboard(); b.g.userData.tick = (t: number) => b.update(t, 0.3); return b.g; } },
+  ];
+  // Quán Ốc: bàn ốc của bếp trưởng (dài ra theo hạng bếp) + bếp nướng than của bếp phó — lửa động qua userData.tick
+  const ticking = <T extends { g: THREE.Group }>(o: T, tick: (t: number) => void): THREE.Group => ((o.g.userData.tick = tick), o.g);
+  const snail: Entry[] = [
+    { name: 'Bàn ốc + bếp ga (Bếp nhỏ)', make: () => { const t = makeSnailTable(1); return ticking(t, (s) => t.update(s)); } },
+    { name: 'Bàn ốc nối dài (Bếp đôi trở lên)', make: () => { const t = makeSnailTable(2); return ticking(t, (s) => t.update(s)); } },
+    { name: 'Bếp nướng than (bếp phó)', make: () => { const k = makeCharcoalGrill(); return ticking(k, (s) => k.update(s, 0.5, 0)); } },
   ];
   const farm: Entry[] = [
     { name: 'Cối xay gió', make: () => makeWindmill().g },
@@ -220,7 +233,8 @@ function thingSections(): Section[] {
     { title: 'Đồ trang trí (Siêu thị)', entries: content.props.all().map((p) => ({ name: p.name, note: p.cuisine ? cuName(p.cuisine) : undefined, emoji: p.icon, make: () => makeProp(p.model ?? '', p.icon) })) },
     { title: 'Trang thiết bị trong quán', desc: 'Biển hiệu đèn LED (viền đèn quanh biển tên) và Hệ thống tưới (ở nông trại) không có model riêng.', entries: equip },
     { title: 'Xe cộ', entries: vehicles },
-    { title: 'Hàng rong & Tiệm 25caaaaa (chợ)', desc: 'Trong chợ có thêm bảng tên và món bày (emoji) theo thực đơn của từng hàng.', entries: street },
+    { title: 'Bếp Quán Ốc', desc: 'Bàn ốc dài thêm khi nâng hạng bếp (chỗ cho đầu bếp thứ 3); bếp nướng có lưỡi lửa và tàn lửa bay.', entries: snail },
+    { title: 'Hàng rong, Tiệm 25caaaaa, trạm xe buýt, biển LED (chợ)', desc: 'Trong chợ có thêm bảng tên và món bày (emoji) theo thực đơn của từng hàng.', entries: street },
     { title: 'Nông trại & cảnh vật', entries: farm },
     { title: 'Trang trí ngày lễ', entries: festive },
   ];
@@ -333,6 +347,7 @@ const thumbCam = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
 
 /** Người ngồi trên xe (xe máy, máy cày): ngồi + hai tay nắm tay lái. Người bán hàng rong làm động tác riêng (gõ, trộn). */
 function animateRiders(obj: THREE.Object3D, t: number): void {
+  (obj.userData.tick as ((t: number) => void) | undefined)?.(t);
   obj.traverse((o) => {
     if (o === obj || !o.userData.rig) return;
     if (o.userData.cartKind) animateCartVendor(o as THREE.Group, t, 0);

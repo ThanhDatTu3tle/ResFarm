@@ -1224,7 +1224,7 @@ describe('nhân viên phục vụ thuê thêm', () => {
     expect(game.dispatch({ type: 'crew/revive', who: h.id }).ok).toBe(true);
     expect(game.state.money).toBe(money - content.balance.crew.reviveCost);
     expect(h.fainted).toBe(false);
-    expect(h.energy).toBe(content.balance.crew.reviveEnergy);
+    expect(h.energy).toBe(content.balance.crew.maxEnergy / 2);
   });
 
   it('giai đoạn 15: từ 2 nhân viên — người đầu làm quản lý, mỗi người giữ một bàn; có ngày 1 người bệnh nghỉ; đi chậm hơn bồi bàn', async () => {
@@ -2092,6 +2092,31 @@ describe('bưng món theo màu bàn', () => {
     expect(game.dispatch({ type: 'service/serve', partyId: b.id }).ok).toBe(false); // món đang cầm không phải của b
   });
 
+  it('khách giận bỏ về lúc bồi bàn đang bưng món của họ: món trên tay tự bỏ đi', () => {
+    const { game, b, oB, oA1 } = setup();
+    game.dispatch({ type: 'service/pickup' });
+    walk(game);
+    expect(game.state.restaurant.waiter.carrying).toEqual([oB.id, oA1.id]);
+    // Bàn b chờ quá lâu → bỏ về; món của b trên tay bồi bàn mất theo, món của a vẫn cầm
+    b.wait = 1e6;
+    game.tick(1);
+    expect(game.state.restaurant.parties.some((p) => p.id === b.id)).toBe(false);
+    expect(game.state.restaurant.waiter.carrying).toEqual([oA1.id]);
+  });
+
+  it('món trên tay không còn chủ (đơn mồ côi) thì bồi bàn tự bỏ, không kẹt tay', () => {
+    const { game, b, oB, oA1 } = setup();
+    game.dispatch({ type: 'service/pickup' });
+    walk(game);
+    // Nhóm b biến mất mà đơn vẫn còn (vd save cũ, đổi chủ món) — trước đây bồi bàn cầm mãi không giao được
+    const r = game.state.restaurant;
+    r.parties = r.parties.filter((p) => p.id !== b.id);
+    game.tick(1);
+    expect(r.waiter.carrying).toEqual([oA1.id]);
+    expect(r.orders.some((o) => o.id === oB.id)).toBe(false);
+    expect(game.dispatch({ type: 'service/pickup' }).ok).toBe(true); // tay còn chỗ, lấy tiếp được
+  });
+
   it('gọi món thì bàn được gán màu, hai bàn đang chờ không trùng màu', () => {
     const game = quietGame();
     const a = seatParty(game, 'pair', 2);
@@ -2466,5 +2491,56 @@ describe('bữa ăn của đội', () => {
     game.tick(content.balance.crew.eatMinutes + 1);
     for (const s of game.state.restaurant.staff) expect(s.energy).toBe(content.balance.crew.chefMaxEnergy);
     expect(game.state.restaurant.waiter.energy).toBe(content.balance.crew.maxEnergy);
+  });
+});
+
+describe('xỉu + bồi dưỡng tăng giá + nhịn bữa tối', () => {
+  const toSummary = (game: Game) => {
+    for (let i = 0; i < 400 && game.state.clock.phase !== 'summary'; i++) game.tick(5);
+    expect(game.state.clock.phase).toBe('summary');
+  };
+
+  it('đầu bếp, bác nông dân, shipper xỉu được bồi dưỡng: 50 xu lần đầu, mỗi lần sau +25, hồi nửa sức; sang ngày tính lại', () => {
+    const game = newGame();
+    const { state } = game;
+    state.money = 1000;
+    const b = content.balance.crew;
+    const chef = state.restaurant.staff[0];
+    const who = [
+      { id: chef.id, v: chef, max: b.chefMaxEnergy },
+      { id: 'farmer', v: state.farm.farmer, max: b.maxEnergy },
+      { id: 'shipper', v: state.restaurant.shipper, max: b.shipperMaxEnergy },
+    ];
+    who.forEach(({ id, v, max }, i) => {
+      Object.assign(v, { energy: 0, fainted: true });
+      const money = state.money;
+      expect(game.dispatch({ type: 'crew/revive', who: id }).ok).toBe(true);
+      expect(money - state.money).toBe(b.reviveCost + b.reviveStep * i);
+      expect(v.fainted).toBe(false);
+      expect(v.energy).toBe(Math.round(max * b.reviveRatio));
+    });
+    expect(game.dispatch({ type: 'crew/revive', who: 'farmer' }).ok).toBe(false); // đang khoẻ
+    toSummary(game);
+    game.dispatch({ type: 'day/next' });
+    expect(state.crew.revives).toBe(0);
+  });
+
+  it('hết tiền, cả đội nhịn bữa tối thì sáng hôm sau than đói; có ăn thì không', () => {
+    const broke = newGame();
+    broke.state.money = 0;
+    toSummary(broke);
+    broke.dispatch({ type: 'day/next' });
+    expect(broke.state.crew.hungry).toEqual(expect.arrayContaining(['waiter', 'farmer', 'shipper', broke.state.restaurant.staff[0].id]));
+    const r = content.balance.crew.hungryWakeRatio;
+    expect(broke.state.farm.farmer.energy).toBe(Math.round(content.balance.crew.maxEnergy * r));
+    expect(broke.state.restaurant.shipper.energy).toBe(Math.round(content.balance.crew.shipperMaxEnergy * r));
+    expect(broke.state.restaurant.staff[0].energy).toBe(Math.round(content.balance.crew.chefMaxEnergy * r));
+    const fed = newGame();
+    fed.state.money = 5000;
+    toSummary(fed);
+    fed.dispatch({ type: 'day/next' });
+    expect(fed.state.crew.hungry).toEqual([]);
+    expect(fed.state.crew.dinnerAte).toBeNull();
+    expect(fed.state.farm.farmer.energy).toBe(content.balance.crew.maxEnergy);
   });
 });

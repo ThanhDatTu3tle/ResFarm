@@ -258,6 +258,12 @@ export interface CrewState {
   farmerBack: number | null;
   /** Ngày đã quyết định giờ nghỉ trưa của bác (đi hay ở lại làm vì còn khoẻ) — mỗi ngày một lần. */
   farmerLunchDay: number;
+  /** Số lần bồi dưỡng nhanh hôm nay (giá tăng dần — reviveCostOf); sang ngày về 0. */
+  revives: number;
+  /** Ai đã có món trong bữa tối hôm nay; null = chưa tới bữa tối. */
+  dinnerAte: string[] | null;
+  /** Ai tối qua không được ăn (hết tiền): sáng nay than đói trên đầu — chỉ là hình, không trừ năng lượng. */
+  hungry: string[];
 }
 
 /** Việc của bồi bàn, làm lần lượt theo thứ tự người chơi giao. */
@@ -409,7 +415,7 @@ export interface DayStats {
   guestsLost: number;
 }
 
-export const SAVE_VERSION = 26;
+export const SAVE_VERSION = 27;
 
 export interface OwnerProfile {
   gender: 'male' | 'female';
@@ -552,7 +558,7 @@ export function createInitialState(content: Content, seed: number, cuisine: Cuis
     regulars: {},
     profile: { name: DEFAULT_SHOP_NAME, pets: [], petsOut: [] },
     weather: { id: content.weathers.all()[0].id, minutesLeft: 0 },
-    crew: { restaurantAway: null, farmerAway: null, pending: [], meals: [], bill: [], farmerWaiting: false, farmerBack: null, farmerLunchDay: 0 },
+    crew: { restaurantAway: null, farmerAway: null, pending: [], meals: [], bill: [], farmerWaiting: false, farmerBack: null, farmerLunchDay: 0, revives: 0, dinnerAte: null, hungry: [] },
     contracts: [],
     event: null,
     stats: { today: emptyStats(), total: emptyStats(), season: emptyStats(), year: emptyStats() },

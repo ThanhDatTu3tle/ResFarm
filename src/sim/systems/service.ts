@@ -174,6 +174,27 @@ function swapOwners(ctx: SimContext, a: Order, b: Order): void {
   [a.fav, b.fav] = [b.fav, a.fav];
 }
 
+/**
+ * Dọn món mồ côi: đơn mà nhóm khách đã không còn trong quán (giận bỏ về, save cũ, đổi chủ món…) thì bỏ đi, và món nào
+ * trên tay bồi bàn / nhân viên không còn đơn thì đổ luôn — nếu không người phục vụ cầm mãi, không giao được cho ai.
+ * Việc "giao" chỉ còn món đã mất thì cũng bỏ.
+ */
+function dropOrphans(ctx: SimContext): void {
+  const r = ctx.state.restaurant;
+  // Chỉ dọn món đã nấu xong (ở quầy / trên tay): món mồ côi ở quầy mà để lại thì bồi bàn lấy lên lại rồi kẹt tiếp
+  const orphan = (o: Order) => (o.status === 'ready' || o.status === 'carrying') && !r.parties.some((p) => p.id === o.partyId);
+  if (r.orders.some(orphan)) {
+    const gone = new Set(r.orders.filter(orphan).map((o) => o.id));
+    r.orders = r.orders.filter((o) => !gone.has(o.id));
+    for (const s of r.staff) if (s.orderId != null && gone.has(s.orderId)) s.orderId = null;
+  }
+  for (const w of [r.waiter, ...r.helpers]) {
+    if (w.carrying.some((id) => !r.orders.some((o) => o.id === id))) w.carrying = w.carrying.filter((id) => r.orders.some((o) => o.id === id));
+    for (const t of w.tasks) if (t.kind === 'deliver') t.orderIds = t.orderIds.filter((id) => r.orders.some((o) => o.id === id));
+    if (w.tasks.some((t) => t.kind === 'deliver' && !t.orderIds.length)) w.tasks = w.tasks.filter((t) => t.kind !== 'deliver' || t.orderIds.length);
+  }
+}
+
 /** Món đang chờ ở quầy line chưa ai nhận, xếp theo lúc ra quầy (sớm trước). */
 export function passQueue(ctx: SimContext): Order[] {
   return readyOrders(ctx).sort((a, b) => (a.readyAt ?? 0) - (b.readyAt ?? 0) || a.id - b.id);
@@ -194,6 +215,7 @@ export function addStains(ctx: SimContext): void {
 export const serviceSystem: System = {
   id: 'service',
   update(ctx, dt) {
+    dropOrphans(ctx);
     if (ctx.state.crew.restaurantAway) return; // cả đội đang ở chợ
     for (const w of workers(ctx)) if (!w.fainted) stepWorker(ctx, w, dt);
   },

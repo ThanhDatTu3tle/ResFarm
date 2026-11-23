@@ -12,7 +12,9 @@ import { fail, ok, type SimContext, type System } from '../types';
 /**
  * CẢ ĐỘI — đầu bếp, bồi bàn (người chơi điều khiển), nhân viên thuê, bác nông dân.
  *  - Năng lượng: tối đa `maxEnergyOf` (đầu bếp balance.crew.chefMaxEnergy, còn lại balance.crew.maxEnergy); mỗi việc tốn (nấu 1 món, phục vụ 1 việc, 1 việc đồng áng).
- *    Cạn thì xỉu: đứng im tới khi được bồi dưỡng (reviveCost xu), ăn ở chợ, hoặc ngủ qua đêm (đầy lại).
+ *    Cạn thì xỉu (ai cũng vậy: đầu bếp, bồi bàn, nhân viên, shipper, bác nông dân): đứng im tới khi được bồi dưỡng
+ *    (reviveCostOf — 50 xu lần đầu trong ngày, mỗi lần sau đắt thêm; hồi một nửa năng lượng), ăn ở chợ, hoặc ngủ qua đêm (đầy lại).
+ *  - Bữa tối ai không có món (hết tiền) thì sáng hôm sau than đói (crew.hungry) và dậy chỉ còn 60% sức (hungryWakeRatio).
  *  - Giờ nghỉ: hết ca sáng, quán vắng khách thì đội quán ra chợ, về lúc crew.lunchBack; bác nông dân ra chợ
  *    crew.farmerLunch.from, về lúc .to. Hết ca cuối (tối) cả đội ra chợ ăn tối, không quay lại.
  *    Trong lúc ở chợ, việc ở quán / nông trại tạm ngưng (lệnh bị từ chối kèm lời nhắc — awayReason).
@@ -71,6 +73,17 @@ export function awayReason(ctx: SimContext, group: CrewGroup): string | null {
   const hh = `${String(Math.floor(back / 60)).padStart(2, '0')}:${String(back % 60).padStart(2, '0')}`;
   if (group === 'farm') return kind === 'lunch' ? `🍜 Bác nông dân đang ăn trưa ở chợ, ${hh} mới về nông trại.` : '🌙 Bác nông dân đã nghỉ, đang ăn tối ở chợ.';
   return kind === 'lunch' ? `🍜 Cả đội đang nghỉ trưa ở chợ, ${hh} mới về quán.` : '🌙 Quán đã đóng cửa, cả đội đang ăn tối ở chợ.';
+}
+
+/** Giá bồi dưỡng nhanh lần tới hôm nay: reviveCost, mỗi lần đã bồi dưỡng trong ngày đắt thêm reviveStep. */
+export function reviveCostOf(ctx: SimContext): number {
+  const b = ctx.content.balance.crew;
+  return b.reviveCost + b.reviveStep * ctx.state.crew.revives;
+}
+
+/** Bồi dưỡng xong còn bao nhiêu năng lượng (một phần năng lượng tối đa của người đó). */
+export function reviveEnergyOf(ctx: SimContext, who: string): number {
+  return Math.round(maxEnergyOf(ctx, who) * ctx.content.balance.crew.reviveRatio);
 }
 
 /** Trừ năng lượng sau một việc; cạn thì xỉu (phát crew/fainted). Trả true nếu vừa xỉu. */
@@ -134,6 +147,8 @@ function serveMeal(ctx: SimContext, p: PendingMeal, stallId: string, dish: Staff
 function addMeal(ctx: SimContext, p: PendingMeal, stallId: string, dish: StaffDishDef): void {
   const until = Math.min(p.back, ctx.state.clock.minute + ctx.content.balance.crew.eatMinutes);
   ctx.state.crew.meals.push({ who: p.who, name: p.name, stallId, dish: dish.name, icon: dish.icon, price: dish.price, energy: dish.energy, until, kind: p.kind });
+  const ate = ctx.state.crew.dinnerAte;
+  if (p.kind === 'dinner' && ate && !ate.includes(p.who)) ate.push(p.who);
 }
 
 /**
@@ -196,6 +211,7 @@ function depart(ctx: SimContext, group: CrewGroup, kind: BreakKind): void {
   const { state, content } = ctx;
   const b = content.balance.crew;
   const r = state.restaurant;
+  if (kind === 'dinner') state.crew.dinnerAte ??= []; // bắt đầu bữa tối: ghi ai có món (onDayStart tính ai nhịn)
   if (group === 'farm') {
     state.crew.farmerAway = kind;
     state.crew.farmerWaiting = true;
@@ -335,6 +351,11 @@ export const crewSystem: System = {
   onDayStart(ctx) {
     const { state } = ctx;
     finishAll(ctx);
+    // Tối qua ai không có món (hết tiền) thì sáng nay than đói; bồi dưỡng tính giá lại từ đầu
+    const ate = state.crew.dinnerAte;
+    state.crew.hungry = ate ? crewMembers(ctx).filter((m) => !ate.includes(m.who)).map((m) => m.who) : [];
+    state.crew.dinnerAte = null;
+    state.crew.revives = 0;
     // Hoá đơn tối qua chưa trả thì tự trả (không vượt số tiền đang có)
     if (state.crew.bill.length) payBill(ctx);
     checkBankrupt(ctx);
@@ -342,8 +363,11 @@ export const crewSystem: System = {
     state.crew.farmerAway = null;
     state.crew.farmerWaiting = false;
     state.crew.farmerBack = null;
-    // Ngủ một đêm: ai cũng đầy năng lượng
-    for (const m of crewMembers(ctx)) Object.assign(m.vitals, { energy: maxEnergyOf(ctx, m.who), fainted: false });
+    // Ngủ một đêm: ai cũng đầy năng lượng — trừ người tối qua nhịn đói, chỉ còn hungryWakeRatio
+    for (const m of crewMembers(ctx)) {
+      const ratio = state.crew.hungry.includes(m.who) ? ctx.content.balance.crew.hungryWakeRatio : 1;
+      Object.assign(m.vitals, { energy: Math.round(maxEnergyOf(ctx, m.who) * ratio), fainted: false });
+    }
     Object.assign(state.restaurant.waiter, roomOf(ctx).waiterHome);
     for (const h of state.restaurant.helpers) Object.assign(h, roomOf(ctx).waiterHome);
   },
@@ -391,9 +415,10 @@ export const crewSystem: System = {
       if (!m || !m.vitals.fainted) return fail('Người này vẫn khoẻ.');
       const reason = awayReason(ctx, m.group);
       if (reason) return fail(reason);
-      if (!spend(ctx, ctx.content.balance.crew.reviveCost)) return fail('Không đủ tiền bồi dưỡng.');
+      if (!spend(ctx, reviveCostOf(ctx))) return fail('Không đủ tiền bồi dưỡng.');
+      ctx.state.crew.revives++;
       m.vitals.fainted = false;
-      m.vitals.energy = ctx.content.balance.crew.reviveEnergy;
+      m.vitals.energy = reviveEnergyOf(ctx, m.who);
       return ok();
     },
     'day/end'(ctx) {

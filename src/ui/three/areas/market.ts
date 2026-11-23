@@ -12,6 +12,8 @@ import { CAR_COLORS, CAR_KINDS, makeCar, makeScooter, setVehicleLights } from '.
 import { Chatter } from '../chatter';
 import { makePlasticSet, makeTeaKiosk } from '../kiosk';
 import { animateCartVendor, equipCartVendor, makeStreetCart, type StreetKind } from '../streetcarts';
+import { makeBillboard, type Billboard } from '../billboard';
+import { BusStopScene, makeCityBus, type CityBus } from '../busstop';
 
 /**
  * KHU CHỢ — mỗi StallDef trong src/data/market.ts thành một sạp có mái bạt sọc, tự bày hàng theo `items`.
@@ -26,6 +28,16 @@ const LANES = [11.8, 14.8];
 const ROAD_HALF = 26;
 /** Mọi xe trên đường chạy cùng một tốc độ (m/giây thực) để không xe nào xuyên qua xe khác. */
 const VEHICLE_SPEED = 3.8;
+/** Phanh / tăng tốc (m/s²) khi xe giữ khoảng cách hoặc xe buýt ghé trạm. */
+const BRAKE = 4;
+const ACCEL = 2.2;
+/** Hai cột đèn lớn treo dây cờ: ngoài rìa dãy sạp (sạp ngoài cùng tâm ±11.8, rộng 5 m). */
+const LAMP_X = 15;
+/** Trạm xe buýt (phải cây trước Tiệm 25caaaaa) và biển LED (trái cây trước sạp thịt), mét. */
+const BUS_STOP = { x: 15.0, z: 7.6 };
+/** Cửa giữa xe buýt dừng lệch bấy nhiêu so với tâm trạm (ngay trước băng ghế). */
+const BUS_DOOR_DX = -0.5;
+const BILLBOARD = { x: -15.6, z: 6.6 };
 
 const STALL_COLORS = [0xe2574c, 0x5fae57, 0x4a9bd8, 0xf2a23a, 0x9a6bd1];
 const STALL_SPACING = 5.9;
@@ -54,7 +66,24 @@ export class MarketArea implements Area {
   /** Bóng LED nhấp nháy quanh bảng tên sạp hải sản. */
   private leds: THREE.MeshBasicMaterial[] = [];
   /** Xe trên đường: chạy theo làn, ra khỏi đầu đường thì vòng lại đầu kia. */
-  private vehicles: { g: THREE.Group; speed: number; dir: 1 | -1; wheels: THREE.Object3D[]; rider: THREE.Group | null }[] = [];
+  private vehicles: {
+    g: THREE.Group;
+    speed: number;
+    dir: 1 | -1;
+    wheels: THREE.Object3D[];
+    rider: THREE.Group | null;
+    /** Chiều dài xe (m) để giữ khoảng cách. */
+    len: number;
+    /** Chỉ xe buýt: về bến (ẩn) → chạy → dừng đón khách (mở cửa) → chạy tiếp. */
+    bus?: { phase: 'away' | 'drive' | 'dwell' | 'leave'; until: number; doors: number; depart: number };
+  }[] = [];
+  private bus: CityBus | null = null;
+  private busStop: BusStopScene | null = null;
+  private billboard: Billboard | null = null;
+  /** Bóng các cột đèn ngoài vỉa hè (hai cột treo dây cờ + đèn đường sát mặt đường) + đèn hắt + quầng sáng. */
+  private brightBulbs: THREE.MeshToonMaterial[] = [];
+  private nearLights: THREE.PointLight[] = [];
+  private halos: THREE.Sprite[] = [];
   /** Tâm từng hàng quán (để camera lướt tới khi bấm). */
   private centers = new Map<string, { x: number; z: number }>();
   /** Ghế đẩu nhựa ở mấy bộ bàn trước Tiệm 25caaaaa: người trong đội ăn ở tiệm thì ngồi đây. */
@@ -135,18 +164,38 @@ export class MarketArea implements Area {
 
     // Cột đèn + dây cờ
     // Đèn đường dọc mép vỉa hè
-    for (const lx of [-18, -6, 6, 18]) this.bulbs.push(makeLampPost(r, { p: [lx, 0, SIDEWALK.z2 - 0.4], s: 1.3 }));
-    for (const lx of [-10.3, 10.3]) {
-      this.bulbs.push(makeLampPost(r, { p: [lx, 0, 1.4], s: 1.25 }));
+    // (−18 dời ra −20 nhường chỗ biển LED, 18 dời ra 19.3 nhường chỗ trạm xe buýt)
+    // Cột đèn sáng rực: bóng đèn + đèn hắt xuống đất + quầng sáng quanh bóng (cao bóng ≈ 2.76 × s)
+    const brightLamp = (x: number, z: number, s: number, lightZ: number | null) => {
+      this.brightBulbs.push(makeLampPost(r, { p: [x, 0, z], s }));
+      if (lightZ != null) {
+        const near = new THREE.PointLight(0xffd08a, 0, 13, 1.1);
+        near.position.set(x, 2.65 * s, lightZ);
+        this.nearLights.push(near);
+        r.add(near);
+      }
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTexture(), color: 0xffd58a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+      halo.position.set(x, 2.76 * s, z);
+      halo.scale.setScalar(1.8);
+      this.halos.push(halo);
+      r.add(halo);
+    };
+    // Đèn đường sát mặt đường (−18 dời ra −20 nhường chỗ biển LED, 18 dời ra 19.3 nhường chỗ trạm xe buýt); đèn hắt
+    // hơi lùi vào vỉa hè cho sáng chỗ người đi
+    // (đèn hắt chỉ cho hai cột giữa — bớt đèn điểm cho máy yếu; hai cột ngoài vẫn có bóng rực + quầng sáng)
+    for (const lx of [-20, -6, 6, 19.3]) brightLamp(lx, SIDEWALK.z2 - 0.4, 1.3, Math.abs(lx) < 10 ? SIDEWALK.z2 - 1.6 : null);
+    // Hai cột đèn lớn treo dây cờ: đứng ngoài rìa dãy sạp (không che sạp thịt / Tiệm 25caaaaa, không cản bấm sạp)
+    for (const lx of [-LAMP_X, LAMP_X]) {
+      brightLamp(lx, 1.4, 1.25, 2.2);
       const light = new THREE.PointLight(0xffc27a, 0, 0, 0);
-      light.position.set(lx * 0.6, 3.4, 5);
+      light.position.set(lx * 0.6, 3.6, 5);
       this.lights.push(light);
       r.add(light);
     }
     const flagColors = [0xe2574c, 0xf2b23e, 0x5fae57, 0x4a9bd8, 0x9a6bd1];
-    for (let i = 0; i <= 26; i++) {
-      const t = i / 26;
-      const flag = mesh(r, G.cone(0.2, 0.42, 3), flagColors[i % flagColors.length], { p: [-10.3 + t * 20.6, 4.35 - Math.sin(t * Math.PI) * 0.7, 1.4], r: [Math.PI, 0, 0], cast: false });
+    for (let i = 0; i <= 36; i++) {
+      const t = i / 36;
+      const flag = mesh(r, G.cone(0.2, 0.42, 3), flagColors[i % flagColors.length], { p: [-LAMP_X + t * LAMP_X * 2, 4.35 - Math.sin(t * Math.PI) * 0.9, 1.4], r: [Math.PI, 0, 0], cast: false });
       flag.userData.phase = i * 0.7;
       this.flags.push(flag);
     }
@@ -166,9 +215,26 @@ export class MarketArea implements Area {
       mesh(r, G.torus(0.37, 0.03, 6, 14), 0x5f6b77, { p: [bx, 0.55, bz], r: [Math.PI / 2, 0, 0] });
     }
 
+    // Biển LED quảng cáo lớn bên trái cây trước sạp thịt (quảng cáo ở src/data/ads.ts)
+    this.billboard = makeBillboard(undefined, 3.8);
+    this.billboard.g.position.set(BILLBOARD.x, 0, BILLBOARD.z);
+    this.billboard.g.rotation.y = 0.35; // xoay vào giữa chợ cho camera nhìn rõ mặt màn
+    r.add(this.billboard.g);
+    // Trạm xe buýt bên phải cây trước Tiệm 25caaaaa: khách ngồi chờ, xe buýt ghé đón / trả khách
+    this.busStop = new BusStopScene(
+      r,
+      BUS_STOP,
+      (i) => {
+        const s = randomShape(700 + i, i % 3, LOOKS[(i * 7 + 3) % LOOKS.length]);
+        return makePerson(s.look!, 'none', s.shape);
+      },
+      animatePerson,
+    );
+
     // Xe cộ: ô tô, xe tải nhỏ, xe máy chạy hai chiều
     const kinds: ['car' | 'scooter', number][] = [['car', CAR_COLORS[0]], ['scooter', 0x4a9bd8], ['car', CAR_COLORS[5]], ['scooter', 0xe2703a], ['car', CAR_COLORS[8]], ['scooter', 0x5fae57], ['car', CAR_COLORS[3]], ['scooter', 0x9a6bd1]];
     kinds.forEach(([kind, color], i) => {
+      if (i === 6) return; // làn gần chợ bớt 1 xe: nhường chỗ cho xe buýt
       const dir: 1 | -1 = i % 2 ? -1 : 1;
       const rider = kind === 'scooter' ? makePerson(LOOKS[(i * 5 + 2) % LOOKS.length], 'none', adultShape(i * 5 + 2)) : null;
       const g = kind === 'car' ? makeCar(color, CAR_KINDS[(i >> 1) % CAR_KINDS.length]) : makeScooter(color, rider!);
@@ -178,8 +244,15 @@ export class MarketArea implements Area {
       r.add(g);
       const wheels: THREE.Object3D[] = [];
       g.traverse((o) => o instanceof THREE.Mesh && o.geometry.type === 'CylinderGeometry' && o.rotation.x !== 0 && wheels.push(o));
-      this.vehicles.push({ g, speed: VEHICLE_SPEED, dir, wheels, rider }); // mọi xe cùng tốc độ: không chạy xuyên qua nhau
+      this.vehicles.push({ g, speed: VEHICLE_SPEED, dir, wheels, rider, len: kind === 'car' ? 2.7 : 1.7 });
     });
+    // Xe buýt: chạy làn gần chợ (+x), ghé trạm rồi đi; ra khỏi đầu đường thì "về bến" một lúc mới quay lại
+    const bus = makeCityBus();
+    bus.g.visible = false;
+    bus.g.position.set(-ROAD_HALF, 0, LANES[0]);
+    r.add(bus.g);
+    this.bus = bus;
+    this.vehicles.push({ g: bus.g, speed: 0, dir: 1, wheels: bus.wheels, rider: null, len: bus.length, bus: { phase: 'away', until: 0, doors: 0, depart: -1 } });
 
     // Người đi chợ qua lại trên vỉa hè rộng
     for (let i = 0; i < 7; i++) {
@@ -429,10 +502,8 @@ export class MarketArea implements Area {
       s.position.y = (s.userData.y0 ??= s.position.y) + ((env.t * 0.6) % 0.5);
       s.material.opacity = 1 - ((env.t * 0.6) % 0.5) * 1.6;
     }
+    this.updateTraffic(env.t, dt);
     for (const v of this.vehicles) {
-      v.g.position.x += v.dir * v.speed * dt;
-      if (v.g.position.x > ROAD_HALF) v.g.position.x = -ROAD_HALF;
-      if (v.g.position.x < -ROAD_HALF) v.g.position.x = ROAD_HALF;
       for (const w of v.wheels) w.rotation.y += v.speed * dt * 3;
       v.g.position.y = Math.abs(Math.sin(env.t * 14 + v.speed)) * 0.015;
       if (v.rider) animatePerson(v.rider, env.t, { sit: true, ride: true });
@@ -454,8 +525,108 @@ export class MarketArea implements Area {
     sway(this.swayNodes, env);
 
     for (const bulb of this.bulbs) bulb.emissiveIntensity = env.night * 1.6;
+    for (const bulb of this.brightBulbs) bulb.emissiveIntensity = 0.25 + env.night * 3;
+    for (const light of this.nearLights) light.intensity = env.night * 3.2;
+    for (const h of this.halos) {
+      h.material.opacity = env.night * (0.75 + Math.sin(env.t * 2.3) * 0.05);
+      h.visible = env.night > 0.02;
+    }
+    this.billboard?.update(env.t, env.night);
+    this.busStop?.update(env.t);
     this.houseWindowMat.emissiveIntensity = env.night * 1.2;
     this.houseWindowMat.color.setHex(0xbfe6ff).lerp(new THREE.Color(0xfff1c2), env.night);
-    for (const light of this.lights) light.intensity = env.night * 0.9;
+    for (const light of this.lights) light.intensity = env.night * 1.4;
   }
+
+  /**
+   * Xe chạy theo làn, giữ khoảng cách với xe phía trước (tính vòng qua hai đầu đường): khoảng trống còn `gap` thì
+   * chạy tối đa √(2·BRAKE·gap) — xe trước dừng (xe buýt ghé trạm) thì xe sau phanh kịp, không tông. Xe buýt có lịch riêng.
+   */
+  private updateTraffic(t: number, dt: number): void {
+    const span = ROAD_HALF * 2;
+    const live = this.vehicles.filter((v) => v.g.visible);
+    for (const v of this.vehicles) {
+      const b = v.bus;
+      if (b && this.bus) {
+        if (b.phase === 'away') {
+          // Về bến: hết giờ chờ và đầu đường trống thì xuất bến
+          // Mỗi giờ trong game một chuyến: xuất bến lúc HH:45 để tới trạm khoảng đúng giờ (đi ~15 phút game)
+          const minute = this.game.state.clock.minute;
+          if (b.depart < 0 || b.depart - minute > 60) b.depart = nextDeparture(minute);
+          const clear = !live.some((o) => o !== v && o.dir === 1 && (o.g.position.x < -ROAD_HALF + v.len + 1.5 || o.g.position.x > ROAD_HALF - 3));
+          if (minute < b.depart || !clear) continue;
+          b.depart = nextDeparture(minute + 1);
+          b.phase = 'drive';
+          v.g.position.x = -ROAD_HALF + v.len / 2;
+          v.speed = VEHICLE_SPEED;
+          v.g.visible = true;
+        }
+        if (b.phase === 'dwell') {
+          v.speed = 0;
+          b.doors = Math.min(1, b.doors + dt * 4);
+          if (t >= b.until) b.phase = 'leave';
+          this.bus.setDoors(b.doors);
+          continue;
+        }
+        if (b.doors > 0) this.bus.setDoors((b.doors = Math.max(0, b.doors - dt * 5)));
+      }
+      let target = VEHICLE_SPEED;
+      // Xe phía trước cùng chiều gần nhất
+      let gap = Infinity;
+      for (const o of live) {
+        if (o === v || o.dir !== v.dir || !o.g.visible) continue;
+        const d = ((((o.g.position.x - v.g.position.x) * v.dir) % span) + span) % span;
+        gap = Math.min(gap, d - (v.len + o.len) / 2 - 0.9);
+      }
+      target = Math.min(target, Math.sqrt(2 * BRAKE * Math.max(0, gap)));
+      // Xe buýt: phanh dừng đúng chỗ cửa giữa trước trạm
+      if (b && b.phase === 'drive' && this.bus) {
+        const stopX = BUS_STOP.x + BUS_DOOR_DX - this.bus.door.x;
+        const left = stopX - v.g.position.x;
+        if (left <= 0.05 && v.speed < 0.6) {
+          v.g.position.x = stopX;
+          const door = { x: stopX + this.bus.door.x, z: LANES[0] + this.bus.door.z };
+          const open = this.busStop?.onBusStop(door, t) ?? 1.5;
+          b.phase = 'dwell';
+          b.until = t + open;
+          v.speed = 0;
+          continue;
+        }
+        target = Math.min(target, Math.sqrt(2 * BRAKE * Math.max(0, left)));
+      }
+      // Tăng tốc từ từ, phanh ngay
+      v.speed = target > v.speed ? Math.min(target, v.speed + ACCEL * dt) : target;
+      v.g.position.x += v.dir * v.speed * dt;
+      if (b && v.g.position.x > ROAD_HALF - v.len / 2) {
+        // Hết đường: về bến, chờ chuyến giờ sau
+        Object.assign(b, { phase: 'away', doors: 0 });
+        v.g.visible = false;
+        continue;
+      }
+      if (v.g.position.x > ROAD_HALF) v.g.position.x -= span;
+      if (v.g.position.x < -ROAD_HALF) v.g.position.x += span;
+    }
+  }
+}
+
+/** Phút game của chuyến xe buýt kế tiếp (xuất bến lúc HH:45, tới trạm ~ đúng giờ), tính từ phút `m` trở đi. */
+function nextDeparture(m: number): number {
+  const lead = 15;
+  return Math.ceil((m + lead) / 60) * 60 - lead;
+}
+
+/** Quầng sáng tròn mờ quanh bóng đèn (dùng chung). */
+let halo: THREE.Texture | null = null;
+function haloTexture(): THREE.Texture {
+  if (halo) return halo;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const x = c.getContext('2d')!;
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.35, 'rgba(255,255,255,0.45)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, 64, 64);
+  return (halo = new THREE.CanvasTexture(c));
 }

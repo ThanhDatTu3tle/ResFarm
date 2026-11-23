@@ -14,6 +14,7 @@ import { isReserved, needOf } from '../../../sim/systems/service';
 import { adultShape, animateCreature, animatePerson, LOOKS, makeBush, makeDish, makePerson, randomShape } from '../models';
 import { buildSeat, counterExtras, decorateInterior, seatStyle, signText, tableExtras, type InteriorAnimator } from '../cuisine';
 import { buildStreetGround, buildStreetKitchen, standingSign, streetSpots } from '../street';
+import { buildNeighborhood } from '../neighborhood';
 import { HOLD_MS, type Area, type Env, type Pick } from '../stage';
 import { Bar3D, blinkLeds, bubbleSprite, emojiSprite, G, group, ledFrame, mesh, speechSprite, textSprite, toon, paintSeason } from '../toon';
 import { easeOutBack, wobble } from '../../ease';
@@ -22,7 +23,7 @@ import { FestiveSet } from '../festive';
 import { nextWaypoint } from '../../../sim/pathing';
 import { OwnerWalker, type Spot } from '../owner';
 import { Curbside } from '../curbside';
-import { Chatter } from '../chatter';
+import { Chatter, HUNGRY_UNTIL, updateHunger } from '../chatter';
 import { buildEquipment, type EquipDims, type EquipView } from '../equipment';
 import { buildBarCounter, buildBarStool, buildGrillTable, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, tintWood, woodMats } from '../furniture';
 
@@ -144,6 +145,8 @@ interface TableView {
 export class RestaurantArea implements Area {
   id = 'restaurant';
   label: string;
+  /** Nội thất đang xem trước ở bảng Siêu thị (app.ts đặt mỗi khung hình); null = màu theo đồ đang dùng. */
+  previewDecor: string | null = null;
   icon = '🏠';
   root = new THREE.Group();
   view: Area['view'];
@@ -233,6 +236,8 @@ export class RestaurantArea implements Area {
   private interior: InteriorAnimator;
   /** Quán ốc vỉa hè (không tường, xe đẩy + bếp nướng dưới sạp dù — xem street.ts). */
   private street: boolean;
+  /** Cập nhật xóm quanh quán (cửa sổ sáng đèn khi tối). */
+  private neighborhood: (night: number) => void = () => {};
   /** Quán ốc về đêm tối hơn hẳn (chỉ còn dây đèn vàng, lửa than) — Stage đọc. */
   nightDark = 0;
   /** Ông / bà chủ đi chậm quanh khu ăn quan sát. */
@@ -290,6 +295,8 @@ export class RestaurantArea implements Area {
     }
     this.buildKitchen();
     this.curb = new Curbside(this.root, { halfW: this.halfW, frontZ: this.frontZ, backZ: this.backZ, door: this.door, hasRoad: this.street });
+    // Xóm quanh quán: dãy nhà sau hẻm, nhà mặt tiền + cây xanh hai bên ngoài bãi xe (neighborhood.ts)
+    this.neighborhood = buildNeighborhood(this.root, { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, street: this.street });
     this.interior = decorateInterior(game.state.cuisine, this.root, {
       halfW: this.halfW,
       backZ: this.backZ,
@@ -386,7 +393,14 @@ export class RestaurantArea implements Area {
     this.shipper.bike.visible = !s.trip;
     this.shipper.person.visible = !s.trip && !away;
     // Kiệt sức: ngồi bệt; còn lại đứng chờ, thỉnh thoảng vẫy
+    updateHunger(this.shipper.person, this.hungry('shipper') && !s.fainted && this.shipper.person.visible, env.t, 40);
     if (this.shipper.person.visible) animatePerson(this.shipper.person, env.t, { sit: s.fainted, wave: s.fainted ? 0 : Math.max(0, Math.min(1, (Math.sin(env.t * 0.4) - 0.85) * 7)) });
+  }
+
+  /** Người này tối qua nhịn đói (crew.hungry) và đang là buổi sáng (tới 09:00): hiện bong bóng than đói. */
+  private hungry(who: string): boolean {
+    const { state, content } = this.game;
+    return state.crew.hungry.includes(who) && state.clock.minute < content.balance.shifts[0].from + HUNGRY_UNTIL;
   }
 
   /** Chỗ đứng ngẫu nhiên trong khu ăn (không vướng bàn ghế, đồ trang trí, lối vào) — toạ độ mét. */
@@ -796,7 +810,7 @@ export class RestaurantArea implements Area {
   private buildStreetChefs(): void {
     const staff = this.game.state.restaurant.staff.map((s) => this.game.content.staff.get(s.id));
     this.rainShelter = { x1: 0, x2: 0, z1: 0, z2: 0, y: 0 };
-    this.streetAnim = buildStreetKitchen(this.root, this.dims(), this.mats, staff.length, this.rainShelter);
+    this.streetAnim = buildStreetKitchen(this.root, this.dims(), this.mats, staff.length, this.rainShelter, this.game.state.restaurant.kitchenTier);
     this.buildPass();
     this.buildWaiter();
     const spots = streetSpots(this.dims()).chefs;
@@ -1139,6 +1153,7 @@ export class RestaurantArea implements Area {
     this.waiter.g.visible = !this.game.state.crew.restaurantAway;
     this.moveWorker(w, this.waiter, env, dt, w.fainted);
     faintPose(this.waiter.g, w.fainted, dt);
+    updateHunger(this.waiter.g, this.hungry('waiter') && !w.fainted && this.waiter.g.visible, env.t, 20);
     (this.waiter.ring.material as THREE.MeshBasicMaterial).opacity = 1;
     this.waiter.ring.scale.setScalar(1 + Math.sin(env.t * 4) * 0.06);
     this.updateHelpers(env, dt);
@@ -1229,6 +1244,7 @@ export class RestaurantArea implements Area {
       // Bệnh nghỉ ở nhà hôm nay: không có mặt ở quán
       v.g.visible = !away && !h.sick;
       this.moveWorker(h, v, env, dt, h.fainted);
+      updateHunger(v.g, this.hungry(h.id) && !h.fainted && v.g.visible, env.t, 30 + h.look);
       const max = this.game.content.balance.crew.maxEnergy;
       v.bar.set(h.energy / max, true);
       v.bar.group.visible = !h.fainted;
@@ -1555,7 +1571,7 @@ export class RestaurantArea implements Area {
     if (this.nameSign) this.root.remove(this.nameSign.g);
     this.signLeds = [];
     if (this.street) {
-      // Quán ốc: bảng tên chân đứng bên trái xe đẩy
+      // Quán ốc: bảng tên chân đứng bên trái bàn ốc
       const at = streetSpots(this.dims()).sign;
       const sign = standingSign(name, this.mats.trim);
       sign.position.set(at.x, 0, at.z);
@@ -1656,7 +1672,9 @@ export class RestaurantArea implements Area {
     this.updatePolice(env);
 
     // Màu theo nội thất đang dùng
-    const colors = (slot: 'floor' | 'wall' | 'furniture') => content.decor.get(state.decor.equipped[slot]).colors;
+    // Đang xem trước một món ở Siêu thị (previewDecor) thì tô bằng màu món đó thay cho món đang dùng cùng loại
+    const pv = this.previewDecor && content.decor.has(this.previewDecor) ? content.decor.get(this.previewDecor) : null;
+    const colors = (slot: 'floor' | 'wall' | 'furniture') => (pv?.slot === slot ? pv : content.decor.get(state.decor.equipped[slot])).colors;
     const floor = colors('floor');
     const wall = colors('wall');
     const furn = colors('furniture');
@@ -1703,6 +1721,7 @@ export class RestaurantArea implements Area {
 
     // Ánh sáng trong nhà
     for (const lamp of this.lamps) lamp.intensity = this.street ? env.night * 1.4 : 0.25 + env.night * 1.5;
+    this.neighborhood(env.night);
     this.bulbMat.emissiveIntensity = 0.3 + env.night * 1.4;
     this.windowMat.opacity = 0.18 + env.day * 0.15;
 
@@ -1713,6 +1732,7 @@ export class RestaurantArea implements Area {
       if (!chef) return;
       chef.g.visible = !chefsAway;
       faintPose(chef.g, s.fainted, dt);
+      updateHunger(chef.g, this.hungry(s.id) && !s.fainted && !chefsAway, env.t, i, 2.8);
       if (s.fainted) {
         chef.icon.visible = chef.bar.group.visible = false;
         return;

@@ -264,25 +264,76 @@ function plasticLeg(parent: THREE.Object3D, mat: THREE.Material, x: number, z: n
   mesh(tilt, G.cyl(rt, rb, h, 4), mat, { p: [0, -h / 2, 0], r: [0, Math.PI / 4, 0] });
 }
 
+const archCache = new Map<string, THREE.ExtrudeGeometry>();
+
 /**
- * Bàn nhựa vuông kiểu quán vỉa hè: mặt mỏng có gờ viền dày bọc quanh, 4 chân vuông thuôn choãi nhẹ, không thanh giằng.
- * `mats.top` mặt bàn, `mats.base` gờ + chân.
+ * Tấm hông bàn nhựa đúc: dải diềm trên + hai chân bản rộng ở hai đầu, giữa là vòm cong (mặt cắt trong mặt x-y,
+ * đáy ở y = 0, cao h, dài w, dày t). Ghép 4 tấm quanh mặt bàn thành 4 chân chữ L như bàn nhựa Song Long.
+ */
+function archPanel(w: number, h: number, t: number): THREE.ExtrudeGeometry {
+  const key = `${w.toFixed(2)},${h.toFixed(2)},${t}`;
+  let geo = archCache.get(key);
+  if (geo) return geo;
+  const leg = Math.min(0.13, w * 0.16); // bề ngang chân ở chân đế
+  const apron = 0.1; // diềm trên
+  const r = Math.min(0.16, (w - leg * 2) / 2 - 0.01); // bán kính bo vòm ở hai góc
+  const top = h - apron;
+  const sh = new THREE.Shape();
+  sh.moveTo(-w / 2, 0);
+  sh.lineTo(-w / 2 + leg, 0);
+  // chân thuôn dần lên (mép trong hơi xiên) rồi bo cong thành vòm
+  sh.lineTo(-w / 2 + leg + 0.02, top - r);
+  sh.quadraticCurveTo(-w / 2 + leg + 0.02, top, -w / 2 + leg + 0.02 + r, top);
+  sh.lineTo(w / 2 - leg - 0.02 - r, top);
+  sh.quadraticCurveTo(w / 2 - leg - 0.02, top, w / 2 - leg - 0.02, top - r);
+  sh.lineTo(w / 2 - leg, 0);
+  sh.lineTo(w / 2, 0);
+  sh.lineTo(w / 2, h);
+  sh.lineTo(-w / 2, h);
+  sh.closePath();
+  geo = new THREE.ExtrudeGeometry(sh, { depth: t, bevelEnabled: false, curveSegments: 6 });
+  geo.translate(0, 0, -t / 2);
+  archCache.set(key, geo);
+  return geo;
+}
+
+/**
+ * Bàn nhựa chữ nhật kiểu quán ốc (như bàn nhựa đúc Song Long): mặt dày bo viền, có gân chìm chạy quanh mặt bàn,
+ * bốn hông là tấm nhựa liền có vòm cong — chân là bản rộng hình chữ L ở bốn góc, hơi choãi ra; miếng đệm chân sẫm màu.
+ * `mats.top` mặt bàn + hông, `mats.base` gân chìm, lòng bàn, đệm chân.
  */
 export function buildPlasticTable(g: THREE.Object3D, w: number, d: number, top: number, mats: { top: THREE.Material; base: THREE.Material }, seed = 1): void {
   const rnd = seeded(seed * 3301 + 17);
   const jit = (a: number) => (rnd() * 2 - 1) * a;
-  const t = group(g, { r: [0, jit(0.035), 0] });
-  mesh(t, G.box(w, 0.035, d), mats.top, { p: [0, top - 0.0175, 0] });
-  // Gờ viền ôm mép (nhựa đúc), hơi lồi ra ngoài mặt bàn
-  const rim = 0.06;
-  for (const sz of [-1, 1]) mesh(t, G.box(w + 0.02, rim, 0.03), mats.top, { p: [0, top - rim / 2, sz * (d / 2 - 0.005)] });
-  for (const sx of [-1, 1]) mesh(t, G.box(0.03, rim, d + 0.02), mats.top, { p: [sx * (w / 2 - 0.005), top - rim / 2, 0] });
-  // Lòng dưới mặt bàn sẫm hơn (gân nhựa)
-  mesh(t, G.box(w - 0.1, 0.02, d - 0.1), mats.base, { p: [0, top - 0.045, 0], cast: false });
-  const h = top - 0.03;
-  const ix = w / 2 - 0.07;
-  const iz = d / 2 - 0.07;
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) plasticLeg(t, mats.base, sx * ix, sz * iz, h, 0.05, 0.034, sx, sz, 0.05 + jit(0.012));
+  const t = group(g, { r: [0, jit(0.03), 0] });
+  const T = 0.04; // dày mặt bàn
+  // Mặt bàn + gờ viền bo tròn quanh mép
+  mesh(t, G.box(w - 0.04, T, d - 0.04), mats.top, { p: [0, top - T / 2, 0] });
+  for (const sz of [-1, 1]) mesh(t, G.cyl(0.025, 0.025, w - 0.04, 6), mats.top, { p: [0, top - 0.022, sz * (d / 2 - 0.022)], r: [0, 0, Math.PI / 2] });
+  for (const sx of [-1, 1]) mesh(t, G.cyl(0.025, 0.025, d - 0.04, 6), mats.top, { p: [sx * (w / 2 - 0.022), top - 0.022, 0], r: [Math.PI / 2, 0, 0] });
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) mesh(t, G.sphere(0.025, 6, 4), mats.top, { p: [sx * (w / 2 - 0.022), top - 0.022, sz * (d / 2 - 0.022)], cast: false });
+  // Gân chìm chạy quanh mặt bàn (khung chữ nhật mảnh sẫm hơn) + logo tròn ở cạnh trước
+  const iw = w - 0.2;
+  const id = d - 0.2;
+  for (const sz of [-1, 1]) mesh(t, G.box(iw, 0.004, 0.012), mats.base, { p: [0, top + 0.001, sz * (id / 2)], cast: false, receive: false });
+  for (const sx of [-1, 1]) mesh(t, G.box(0.012, 0.004, id), mats.base, { p: [sx * (iw / 2), top + 0.001, 0], cast: false, receive: false });
+  mesh(t, G.box(0.11, 0.02, 0.004), 0xf2b33a, { p: [0, top - 0.06, d / 2 - 0.035], cast: false, receive: false });
+  // Bốn hông vòm: tấm trước / sau dài theo w, hai tấm bên dài theo d; hơi choãi (nghiêng ra ngoài) quanh mép trên
+  const h = top - T;
+  const lean = 0.06 + jit(0.01);
+  const inset = 0.035;
+  for (const sz of [-1, 1]) {
+    const hinge = group(t, { p: [0, h, sz * (d / 2 - inset)], r: [-sz * lean, 0, 0] });
+    mesh(hinge, archPanel(w - inset * 2, h, 0.025), mats.top, { p: [0, -h, 0] });
+  }
+  for (const sx of [-1, 1]) {
+    const hinge = group(t, { p: [sx * (w / 2 - inset), h, 0], r: [0, 0, sx * lean] });
+    mesh(hinge, archPanel(d - inset * 2, h, 0.025), mats.top, { p: [0, -h, 0], r: [0, Math.PI / 2, 0] });
+  }
+  // Lòng dưới mặt bàn sẫm hơn + đệm chân ở bốn góc (chân choãi nên đệm lệch ra ngoài chút)
+  mesh(t, G.box(w - 0.14, 0.015, d - 0.14), mats.base, { p: [0, h - 0.01, 0], cast: false });
+  const spread = Math.sin(lean) * h;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) mesh(t, G.box(0.1, 0.02, 0.1), mats.base, { p: [sx * (w / 2 - inset - 0.04 + spread), 0.01, sz * (d / 2 - inset - 0.04 + spread)], cast: false });
 }
 
 /**

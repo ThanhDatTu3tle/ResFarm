@@ -1,15 +1,17 @@
 import * as THREE from 'three';
 import { signText } from './cuisine';
 import type { Env, RainShelter } from './stage';
-import { emojiSprite, G, group, mesh, toon } from './toon';
+import { makeCharcoalGrill, makeSnailTable } from './snailstall';
+import { G, group, mesh, toon } from './toon';
 
 /**
  * QUÁN ỐC VỈA HÈ (CuisineId 'oc'): quán không có tường, WC, kho — thay cho phòng (buildRoom) và gian bếp (buildKitchen)
  * của RestaurantArea. Mặt bằng sim giữ nguyên (bàn, quầy ra món, chỗ bồi bàn đứng), chỉ khác hình:
  *  - nền bê tông lát ô (màu theo "Sàn nhà": bê tông → gạch lề đường đỏ → gạch hoa), bó vỉa, phố phía sau, đường phía trước;
  *  - sạp dù lớn che khu bếp (màu sọc theo "Sơn tường"), mái cao để nhìn rõ bên trong;
- *  - xe đẩy ốc (bếp trưởng), bếp nướng than có ánh lửa (bếp phó), bàn sơ chế cho đầu bếp thuê thêm;
- *  - bảng tên chân đứng bên trái xe đẩy (RestaurantArea.updateNameSign).
+ *  - bàn bày rổ ốc + bếp ga chảo xào (bếp trưởng; bếp lên hạng thì bàn dài ra, thêm chỗ cho đầu bếp thứ 3), bếp nướng than
+ *    có lưỡi lửa + tàn lửa (bếp phó), bàn sơ chế cho đầu bếp thứ 4 — hình ở snailstall.ts;
+ *  - bảng tên chân đứng bên trái bàn ốc (RestaurantArea.updateNameSign).
  *  - mưa thì mái sạp kéo dài ra che hết sân (bạt hơi trong).
  * Dây đèn vàng ở cuisine.ts (decorateInterior).
  */
@@ -28,6 +30,11 @@ export interface StreetMats {
   trim: THREE.Material;
 }
 
+/** Bàn ốc nối dài thêm bấy nhiêu mét về bên trái khi bếp lên hạng (không lấn ra mép sạp). */
+function tableExt(d: StreetDims): number {
+  return Math.max(0.8, Math.min(1.6, -2.2 - 1.2 + d.halfW - 1.6));
+}
+
 /** Vị trí khu bếp vỉa hè (mét, toạ độ cảnh quán). */
 export function streetSpots(d: StreetDims) {
   const z = d.kitchenZ - 0.85; // mép trước xe đẩy / bếp nướng
@@ -38,10 +45,10 @@ export function streetSpots(d: StreetDims) {
     chefs: [
       { x: -2.2, z: z - 1.0 },
       { x: 0.55, z: z - 1.0 },
+      { x: -2.2 - 1.2 - tableExt(d) / 2, z: z - 1.0 },
       { x: 2.35, z: z - 1.0 },
-      { x: -4.1, z: z - 1.0 },
     ],
-    sign: { x: -4.25, z: d.kitchenZ - 0.2 },
+    sign: { x: -2.2 - 1.2 - tableExt(d) - 0.75, z: d.kitchenZ - 0.15 },
   };
 }
 
@@ -93,8 +100,8 @@ export function buildStreetGround(r: THREE.Object3D, d: StreetDims, mats: Street
   }
 }
 
-/** Sạp dù che bếp, xe đẩy ốc, bếp nướng than, bàn sơ chế (theo số đầu bếp). Trả về hàm cập nhật (lửa than lập loè). */
-export function buildStreetKitchen(r: THREE.Object3D, d: StreetDims, mats: StreetMats, chefs: number, shelter: RainShelter): (env: Env, dt: number) => void {
+/** Sạp dù che bếp, bàn ốc (dài theo hạng bếp), bếp nướng than, bàn sơ chế (đầu bếp thứ 4). Trả về hàm cập nhật (lửa lập loè). */
+export function buildStreetKitchen(r: THREE.Object3D, d: StreetDims, mats: StreetMats, chefs: number, shelter: RainShelter, tier = 1): (env: Env, dt: number) => void {
   const s = streetSpots(d);
   const STEEL = 0xc8d0d5;
 
@@ -137,77 +144,35 @@ export function buildStreetKitchen(r: THREE.Object3D, d: StreetDims, mats: Stree
   Object.assign(shelter, { x1: x1 - 0.3, x2: x2 + 0.3, z1: z1 - 0.5, z2: z2 + 0.4, y: top - 0.1 });
   let awnT = -1;
 
-  // ---- Xe đẩy ốc (bếp trưởng): thân inox, bánh xe, tủ kính trên có ốc / sò, tấm bảng đỏ chữ "ỐC", tay đẩy
-  const cart = group(r, { p: [s.cart.x, 0, s.cart.z] });
-  mesh(cart, G.box(2.0, 0.75, 0.9), STEEL, { p: [0, 0.62, 0] });
-  mesh(cart, G.box(2.06, 0.05, 0.96), 0xe9eef2, { p: [0, 1.01, 0] });
-  for (const sx of [-1, 1]) {
-    mesh(cart, G.cyl(0.24, 0.24, 0.08, 16), 0x2a2d35, { p: [sx * 0.7, 0.24, 0.47], r: [Math.PI / 2, 0, 0] });
-    mesh(cart, G.cyl(0.08, 0.08, 0.1, 8), 0x8a8f99, { p: [sx * 0.7, 0.24, 0.48], r: [Math.PI / 2, 0, 0], cast: false });
-  }
-  const panel = group(cart, { p: [0, 0.62, 0.46] });
-  mesh(panel, G.box(1.7, 0.5, 0.02), 0xd9433a);
-  const word = signText('ỐC · SÒ · HÀU', '#ffe7a3', 1.6, 0.4);
-  word.position.z = 0.02;
-  panel.add(word);
-  // Tủ kính trên xe: khung + kính mờ + các khay hải sản
-  const glass = toon(0xdff3ff, { transparent: true, opacity: 0.32 });
-  mesh(cart, G.box(1.9, 0.45, 0.7), glass, { p: [0, 1.27, -0.05], cast: false, receive: false });
-  for (const sx of [-1, 1]) mesh(cart, G.box(0.04, 0.47, 0.72), STEEL, { p: [sx * 0.95, 1.27, -0.05], cast: false });
-  mesh(cart, G.box(1.94, 0.04, 0.74), STEEL, { p: [0, 1.5, -0.05], cast: false });
-  const trays = ['🐚', '🦪', '🦐', '🐌'];
-  trays.forEach((icon, i) => {
-    const x = -0.68 + i * 0.45;
-    mesh(cart, G.box(0.4, 0.05, 0.55), i % 2 ? 0xd9433a : 0xffffff, { p: [x, 1.07, -0.05], cast: false });
-    for (let k = 0; k < 2; k++) {
-      const sp = emojiSprite(icon, 0.22);
-      sp.position.set(x + (k - 0.5) * 0.14, 1.17, -0.05 + (k % 2) * 0.1);
-      cart.add(sp);
-    }
-  });
-  mesh(cart, G.cyl(0.03, 0.03, 0.8, 6), 0x8a8f99, { p: [1.25, 1.0, 0], r: [Math.PI / 2, 0, 0] }); // tay đẩy
-  for (const sz of [-1, 1]) mesh(cart, G.box(0.25, 0.03, 0.03), 0x8a8f99, { p: [1.1, 1.0, sz * 0.38], cast: false });
-  // Nồi nước chấm + chén trên xe
-  mesh(cart, G.cyl(0.16, 0.14, 0.2, 12), 0xcfd6dc, { p: [-0.75, 1.62, -0.2] });
-  for (let k = 0; k < 3; k++) mesh(cart, G.cyl(0.07, 0.05, 0.05, 10), 0xffffff, { p: [0.3 + k * 0.17, 1.55, 0.2], cast: false });
+  // ---- Bàn ốc (bếp trưởng): bàn inox bày rổ ốc / sò / nghêu, bếp ga + chảo xào ở đầu phải; bếp lên hạng thì bàn dài
+  // ra về bên trái làm chỗ cho đầu bếp thứ 3 (xem snailstall.ts)
+  const table = makeSnailTable(tier, tableExt(d));
+  table.g.position.set(s.cart.x, 0, s.cart.z);
+  r.add(table.g);
 
-  // ---- Bếp nướng than (bếp phó): thùng inox chân cao, than hồng, vỉ nướng, hàu đang nướng
-  const grill = group(r, { p: [s.grill.x, 0, s.grill.z] });
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) mesh(grill, G.box(0.06, 0.75, 0.06), 0x3b3f46, { p: [sx * 0.65, 0.375, sz * 0.25] });
-  mesh(grill, G.box(1.45, 0.3, 0.65), 0x3b3f46, { p: [0, 0.88, 0] });
-  const coals = new THREE.MeshBasicMaterial({ color: 0xff7a2a });
-  mesh(grill, G.box(1.3, 0.04, 0.5), coals, { p: [0, 1.04, 0], cast: false });
-  for (let k = 0; k < 9; k++) mesh(grill, G.ico(0.06, 0), coals, { p: [-0.55 + k * 0.14, 1.07, (k % 3 - 1) * 0.12], cast: false });
-  for (let k = 0; k < 9; k++) mesh(grill, G.box(0.02, 0.02, 0.6), 0x9aa1a8, { p: [-0.6 + k * 0.15, 1.12, 0], cast: false }); // vỉ nướng
-  for (let k = 0; k < 4; k++) {
-    const sp = emojiSprite(k % 2 ? '🦪' : '🍤', 0.26);
-    sp.position.set(-0.45 + k * 0.3, 1.22, 0);
-    grill.add(sp);
-  }
-  const fire = new THREE.PointLight(0xff8a3a, 0, 4.5, 1.6);
-  fire.position.set(0, 1.4, 0.2);
-  grill.add(fire);
-  // Thùng đá + rổ nghêu cạnh bếp
+  // ---- Bếp nướng than (bếp phó): than hồng, lưỡi lửa liếm qua vỉ, tàn lửa bay
+  const grill = makeCharcoalGrill();
+  grill.g.position.set(s.grill.x, 0, s.grill.z);
+  r.add(grill.g);
+  // Thùng đá cạnh bếp nướng
   mesh(r, G.box(0.6, 0.45, 0.45), 0xffffff, { p: [s.grill.x + 1.05, 0.23, s.grill.z - 0.5] });
-  mesh(r, G.cyl(0.28, 0.22, 0.22, 12), 0xc99a52, { p: [s.cart.x - 1.3, 0.11, s.cart.z - 0.3] });
-  const basket = emojiSprite('🦪', 0.24);
-  basket.position.set(s.cart.x - 1.3, 0.3, s.cart.z - 0.3);
-  r.add(basket);
+  mesh(r, G.box(0.62, 0.05, 0.47), 0x3f7fd9, { p: [s.grill.x + 1.05, 0.47, s.grill.z - 0.5], cast: false });
 
-  // ---- Bàn sơ chế cho đầu bếp thuê thêm
-  for (let i = 2; i < Math.min(chefs, s.chefs.length); i++) {
+  // ---- Đầu bếp thứ 4: bàn sơ chế inox nhỏ bên phải, có rổ ốc đang lặt
+  for (let i = 3; i < Math.min(chefs, s.chefs.length); i++) {
     const c = s.chefs[i];
     const t = group(r, { p: [c.x, 0, c.z + 0.9] });
     mesh(t, G.box(1.1, 0.06, 0.6), STEEL, { p: [0, 0.92, 0] });
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) mesh(t, G.cyl(0.03, 0.03, 0.9, 6), 0x8a8f99, { p: [sx * 0.48, 0.45, sz * 0.25] });
-    mesh(t, G.cyl(0.25, 0.25, 0.06, 14), 0xb98a55, { p: [0, 0.98, 0] }); // thớt
+    mesh(t, G.cyl(0.22, 0.22, 0.05, 14), 0xb98a55, { p: [0.25, 0.97, 0] }); // thớt
+    mesh(t, G.box(0.4, 0.12, 0.36), 0xe2382e, { p: [-0.25, 1.01, 0] }); // rổ ốc
+    mesh(t, G.sphere(0.17, 8, 5), 0xd9c7a3, { p: [-0.25, 1.06, 0], s: [1, 0.3, 0.9], cast: false });
   }
 
   return (env, dt) => {
-    // Than hồng lập loè; buổi tối ánh lửa hắt rõ hơn
-    const flick = 0.75 + Math.sin(env.t * 11) * 0.12 + Math.sin(env.t * 23 + 1.3) * 0.08;
-    coals.color.setRGB(1, 0.42 + flick * 0.12, 0.12);
-    fire.intensity = (0.6 + env.night * 2.2) * flick;
+    // Lửa bếp nướng + bếp ga lập loè; buổi tối ánh lửa hắt rõ hơn
+    grill.update(env.t, env.night, dt);
+    table.update(env.t);
     // Mái kéo dài theo mưa
     // Theo giờ thực env.t (không theo dt: khung hình thưa vẫn kéo đủ), ~1.5 s là bung hết
     const step = awnT < 0 ? 1 : Math.min(1, Math.max(0, env.t - awnT) * 2.5);

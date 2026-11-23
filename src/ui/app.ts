@@ -24,7 +24,7 @@ import { coins } from './format';
 import { Sound } from './audio';
 import { calendarHtml } from './calendar';
 import { billHtml, buyHtml, lowStock, mealHtml, moneyText, periodSummaryHtml, renameHtml, tomorrowFestivalHtml, SIDE_PANELS, hudHtml, questHtml, serviceAlerts, serviceHtml, settingsHtml, SPEEDS } from './hud';
-import { memberOf } from '../sim/systems/crew';
+import { memberOf, reviveCostOf } from '../sim/systems/crew';
 import { farmerBlocked } from '../sim/systems/farmer';
 import { autoServeCommands, needOf } from '../sim/systems/service';
 import { resale } from '../sim/systems/home';
@@ -214,6 +214,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   let pauseHintAt = -1e9;
   const run = (command: Command) => {
     const result = game.dispatch(command);
+    if (result.ok && (command.type === 'decor/buy' || command.type === 'decor/equip')) ui.decorPreview = null; // mua / đổi rồi thì thôi xem trước
     if (!result.ok) {
       toast(result.reason, 'bad');
       sound.play('error');
@@ -308,7 +309,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   game.bus.on('day/ended', () => sound.play('dayEnd'));
   game.bus.on('crew/fainted', (e) => {
     const m = memberOf(game.ctx, e.who);
-    toast(`😵 ${m?.name ?? 'Nhân viên'} kiệt sức xỉu rồi! Bồi dưỡng ${content.balance.crew.reviveCost} xu ở bảng Nhân viên, hoặc đợi giờ nghỉ ra chợ ăn.`, 'bad', '', 4200);
+    toast(`😵 ${m?.name ?? 'Nhân viên'} kiệt sức xỉu rồi! Bồi dưỡng ${reviveCostOf(game.ctx)} xu ở bảng Nhân viên, hoặc đợi giờ nghỉ ra chợ ăn.`, 'bad', '', 4200);
     sound.play('sad');
   });
   game.bus.on('crew/left', (e) => {
@@ -795,6 +796,11 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       ui.drawer = ui.drawer === arg || !arg ? null : arg;
       if (ui.drawer === 'farm') ui.farmFocus = null; // mở từ nút: xem cả nông trại
     } else if (action === 'farmFocus') ui.farmFocus = arg || null;
+    else if (action === 'decorPreview') {
+      // Xem trước nội thất ở Siêu thị: tô quán bằng màu món đó (bấm lần nữa / "Thôi" thì về như cũ), đang ở khu khác thì về quán
+      ui.decorPreview = !arg || ui.decorPreview === arg ? null : arg;
+      if (ui.decorPreview && ui.area !== 'restaurant') setArea('restaurant');
+    }
     else if (action === 'itemTip') ui.itemTip = ui.itemTip === arg ? null : arg;
     else if (action === 'speed') ui.speed = Number(arg);
     else if (action === 'settings') ui.settings = arg === 'close' ? false : !ui.settings;
@@ -969,6 +975,9 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     // Sắp xếp bàn ghế, mở Siêu thị (mua đồ nâng cấp) cũng tạm dừng để người chơi thong thả
     const speed = game.state.bankrupt || !!policePending(game.ctx) || ui.settings || ui.editLayout || ui.drawer === 'shop' || ui.calendar != null || ui.rename != null || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
     game.tick(dt * speed * content.balance.minutesPerSecond);
+    // Xem trước nội thất chỉ khi bảng Siêu thị còn mở
+    if (ui.drawer !== 'shop') ui.decorPreview = null;
+    restaurant.previewDecor = ui.decorPreview ?? null;
     stage.env.selectedSlot = ui.selectedSlot;
     stage.env.editLayout = ui.editLayout;
     stage.env.editSelected = ui.editSelected;

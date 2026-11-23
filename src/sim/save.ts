@@ -117,6 +117,8 @@ const migrations: Record<number, (old: any) => any> = {
     for (let i = ponds.length; i < Math.min(9, 3 + 2 * (tier - 1)); i++) slots.push({ ...createSlot('pond', i), tier });
     return { ...s, farm: { ...farm, slots }, version: 26 };
   },
+  // Giai đoạn 17: bồi dưỡng giá tăng dần trong ngày + nhớ ai nhịn bữa tối (sáng than đói)
+  26: (s) => ({ ...s, crew: { ...(s.crew as object), revives: 0, dinnerAte: null, hungry: [] }, version: 27 }),
 };
 
 export function serialize(state: GameState): string {

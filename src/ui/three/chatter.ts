@@ -54,3 +54,23 @@ export class Chatter {
     }
   }
 }
+
+/** Câu than đói buổi sáng của người tối qua không được ăn (crew.hungry). */
+export const HUNGRY_LINES = ['Đói bụng quá…', 'Tối qua chưa được ăn gì hết 😢', 'Mệt rã rời, bụng réo nãy giờ…', 'Có gì lót dạ không chủ ơi?', 'Đói run cả tay luôn nè…'];
+
+/**
+ * Bong bóng than đói trên đầu một người trong đội: chỉ buổi sáng (tới HUNGRY_UNTIL phút sau giờ mở ca đầu) và chỉ khi
+ * người đó có trong crew.hungry, đang có mặt, không xỉu. Chatter tạo lần đầu cần tới, giữ trong host.userData.
+ */
+export function updateHunger(host: THREE.Object3D, active: boolean, t: number, seed: number, height = 2.6): void {
+  let c = host.userData.hungerTalk as Chatter | undefined;
+  if (!c) {
+    if (!active) return;
+    c = new Chatter(host, HUNGRY_LINES, height, 300 + seed, 0.19);
+    host.userData.hungerTalk = c;
+  }
+  c.update(t, active);
+}
+
+/** Than đói tới bao lâu sau giờ mở ca đầu (phút game) — 07:00 → 09:00. */
+export const HUNGRY_UNTIL = 120;
