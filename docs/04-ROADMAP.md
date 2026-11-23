@@ -265,7 +265,42 @@ Mọi nhiệm vụ đều kết thúc bằng: `npm run typecheck` sạch, `npm t
 - [ ] **E3 · Chia nhỏ gói JS** *(Sonnet)* — tách Three.js thành chunk riêng để cache tốt hơn.
 - [ ] **E4 · Biểu tượng app + ảnh chờ** *(Sonnet)* — thêm icon vào `manifest.webmanifest` để "Thêm vào màn hình chính" có hình.
 - [ ] **E5 · Đa ngôn ngữ** *(Opus, chỉ khi cần)* — tách chữ khỏi data và panel.
-- [ ] **E6 · Chơi cùng bạn bè** *(Opus, quyết định lớn)* — xem `05-TRIEN-KHAI-CHI-PHI.md` mục "Những thứ sẽ tốn phí". Cần chủ dự án quyết định hình thức trước.
+- [ ] **E6 · Chơi cùng bạn bè** *(Opus, quyết định lớn)* — đã chốt hướng: xem mục **F** bên dưới (bắt đầu từ F1). Chi phí máy chủ ở `05-TRIEN-KHAI-CHI-PHI.md` mục "Những thứ sẽ tốn phí".
+
+## F. Định hướng online (chốt 23/11/2026)
+
+Online chia 3 mức, khó dần và pháp lý nặng dần. **Làm theo thứ tự, chỉ mức 1 là việc gần**; mức 2–3 để dành.
+
+| Mức | Nội dung | Độ khó | Ghi chú |
+| --- | --- | --- | --- |
+| 1 · Thăm nhau (bất đồng bộ) | Chia sẻ bản chụp quán + nông trại; người khác vào xem (chỉ đọc), thả tim, để sticker, tặng quà nhỏ | Dễ – vừa | Không cần hai người online cùng lúc. Backend kiểu Supabase / Firebase (đăng nhập + database + lưu file), đầu miễn phí |
+| 2 · Chợ chung kiểu rao vặt | Đăng bán nông sản, người khác mua; hàng + tiền chuyển qua máy chủ | Vừa – khó | Save đang nằm trên máy người chơi (sửa được) → hàng và ví **dùng để giao dịch** phải do máy chủ giữ và kiểm tra từng lệnh (có thể chạy lại code `src/sim` trên server), giới hạn số lượng / ngày, giá sàn – trần |
+| 3 · Chợ thời gian thực | Thấy nhau đi lại, mặc cả trực tiếp | Khó | Máy chủ chạy liên tục, đồng bộ vị trí, lag / rớt mạng. Để ngỏ |
+
+### Thiết kế đã chốt cho mức 1
+
+- **Giờ của mình dừng lại khi đi thăm** — sim không tick (như tạm dừng), về lại thì chạy tiếp.
+- **Giờ trong ngày lấy theo người đi thăm** (ánh sáng / bầu trời liền mạch); khi thăm thì bỏ qua giờ mở cửa — quán luôn sáng đèn.
+- **Mùa + năm lấy theo bản chụp của chủ quán** (cây trồng, món theo mùa, đồ trang trí là nội dung của họ — dựng theo mùa người thăm sẽ ra lúa xanh giữa tuyết). Góc màn hình hiện dòng kiểu "🏡 Quán của … · Mùa Thu, năm 2". *(Nếu sau này muốn theo mùa người thăm 100% thì cây lệch mùa vẽ ở dạng trung tính.)*
+- **Bản chụp nạp vào một `GameState` riêng**, tách hẳn state của mình: không ghi save, không dispatch lệnh kinh tế. Quán có khách ảo / nhân viên đi lại cho sinh động nhưng chỉ là hoạt cảnh (không tính tiền).
+- **Tương tác của khách thăm** (tim, sticker, quà) đi vào hàng chờ trên máy chủ; chủ quán mở game lần sau mới nhận ("Lan ghé quán lúc 9h tối, tặng 3 bó rau muống 🌿"). Quà có giới hạn (vd mỗi người / mỗi ngày một lần, quà nhỏ) để chống lập tài khoản phụ chuyển đồ.
+- **Không chat tự do** — chỉ câu / sticker soạn sẵn; tên quán qua bộ lọc từ cấm. Nhẹ pháp lý, an toàn cho trẻ em.
+- **Tiền trong game không bao giờ quy đổi ra tiền thật** (không rút, không bán vật phẩm / tài khoản lấy tiền).
+
+### Việc cụ thể
+
+- [ ] **F1 · Chế độ xem quán chỉ đọc từ một file save** *(Opus — làm trước, chưa cần máy chủ)* — nạp một file save (vd từ E2 xuất / nhập save) vào state riêng, dựng quán + nông trại của "người khác", dừng sim của mình, giờ trong ngày theo mình / mùa theo bản chụp, dải tên chủ quán ở góc, nút "← Về quán mình". Kiểm tra: mở save quán khác phong cách (Nhật / Hàn / Việt / Ốc), khác mùa, khác hạng.
+- [ ] **F2 · Hoạt cảnh cho quán đang thăm** *(Opus)* — khách ảo vào ngồi, nhân viên đi lại, không đụng kinh tế.
+- [ ] **F3 · Máy chủ + tài khoản** *(Opus, cần chủ dự án quyết nhà cung cấp)* — đăng nhập, tải bản chụp lên / xuống, danh sách bạn bè (mã mời). Kèm **nút xoá tài khoản trong game** (CH Play / App Store bắt buộc) và cập nhật chính sách quyền riêng tư.
+- [ ] **F4 · Tim, sticker, quà** *(Opus)* — hàng chờ trên máy chủ, nhận khi mở game, giới hạn quà.
+- [ ] **F5 · Chợ chung (mức 2)** — để dành. Điều kiện trước khi làm: đã có người chơi thật, đã hỏi luật sư, đã có doanh nghiệp / hộ kinh doanh.
+
+### Pháp lý cần hỏi luật sư trước khi mở online cho người chơi (chưa phải kết luận)
+
+- Nghị định 147/2024/NĐ-CP về trò chơi điện tử: game có tương tác nhiều người qua máy chủ (G1) cần giấy phép + duyệt nội dung và phải là doanh nghiệp; G2–G4 nhẹ hơn. Mức 1 rơi vào loại nào — cần xác nhận.
+- Dữ liệu cá nhân: Nghị định 13/2023 + Luật Bảo vệ dữ liệu cá nhân (hiệu lực 2026); GDPR nếu có người chơi châu Âu; chỉ thu đúng dữ liệu cần.
+- Nội dung người chơi tạo ra: store đòi nút báo cáo / chặn người chơi.
+- Trẻ em: COPPA (Mỹ), chính sách "Gia đình" của Google Play.
 
 ## Nhật ký
 
