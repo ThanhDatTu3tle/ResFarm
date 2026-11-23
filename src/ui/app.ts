@@ -17,6 +17,9 @@ import { createContent, type Content, type CuisineId, type MillType } from '../d
 import { Game } from '../sim/game';
 import { deserialize, serialize } from '../sim/save';
 import { downloadSave, pickSaveFile, saveSummaryHtml, SAVE_KEY, storeSave } from './savefile';
+import { addFriend, deleteMe, friendSnapshot, inviteLink, listFriends, onlineEnabled, pushSnapshot, qrSvg, removeFriend, setSharing, signIn, takeInvite, usedBefore } from './online';
+import { friendsHtml, newFriendsView } from './friends';
+import { readSaveFile } from '../sim/save';
 import { needsWatering } from '../sim/systems/farm';
 import { buildingRect, queuedKinds, slotCenter, slotCenterAt } from '../sim/systems/farmer';
 import { millCenter, millCenterAt } from '../sim/systems/mills';
@@ -139,6 +142,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     <div id="bankrupt"></div>
     <div id="rename"></div>
     <div id="importsave"></div>
+    <div id="friends"></div>
     <div id="service"></div>
     <div id="buy"></div>
     <div id="guide"></div>
@@ -579,6 +583,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     morph($('hud'), hudHtml(game, ui, money.value));
     morph($('settings'), settingsHtml(ui, sound.prefs));
     morph($('importsave'), importSaveHtml());
+    morph($('friends'), friendsHtml(friends, content, onlineEnabled || (import.meta.env.DEV && params.get('friends') === 'demo')));
     morph($('calendar'), calendarHtml(game, ui));
     morph($('bankrupt'), state.bankrupt ? bankruptHtml() : policePending(game.ctx) ? policeHtml() : '');
     morph($('rename'), renameHtml(ui));
@@ -990,15 +995,12 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       void pickSaveFile(content).then((res) => {
         if (!res) return;
         if (!res.ok) return toast(`🏡 ${res.reason}`, 'bad', '', 4200);
-        try {
-          sessionStorage.setItem(VISIT_KEY, res.raw);
-        } catch {
-          return toast('Trình duyệt không cho lưu tạm dữ liệu, không mở được quán này.', 'bad', '', 4200);
-        }
-        save();
-        leaving = true;
-        location.href = `${location.pathname}?visit&at=${Math.floor(game.state.clock.minute)}`;
+        goVisit(res.raw);
       });
+    } else if (action === 'friends') {
+      void friendsAction(arg);
+      if (arg === 'close') renderDom();
+      return;
     } else if (action === 'visit' && arg === 'home') {
       // Về quán mình: ván của mình chạy tiếp từ đúng chỗ đã lưu
       try {
@@ -1042,6 +1044,177 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     renderDom();
   });
   window.addEventListener('pagehide', save);
+  // ---------- F3 · Bạn bè online (Supabase, lớp A) ----------
+  const friends = newFriendsView();
+  /** Sang thăm quán từ một bản chụp (file save hoặc quán bạn trên máy chủ): lưu ván mình rồi mở chế độ thăm. */
+  const goVisit = (raw: string) => {
+    try {
+      sessionStorage.setItem(VISIT_KEY, raw);
+    } catch {
+      return toast('Trình duyệt không cho lưu tạm dữ liệu, không mở được quán này.', 'bad', '', 4200);
+    }
+    save();
+    leaving = true;
+    location.href = `${location.pathname}?visit&at=${Math.floor(game.state.clock.minute)}`;
+  };
+  const friendError = (e: unknown) => (e as Error)?.message || 'Có lỗi, thử lại sau.';
+  const friendName = (f: { owner_name: string; shop_name: string }) => (f.owner_name || 'chủ quán') + (f.shop_name ? ' (' + f.shop_name + ')' : '');
+  /** Kết nối + tải danh sách bạn + mã QR. */
+  const loadFriends = async () => {
+    friends.status = 'loading';
+    friends.error = '';
+    renderDom();
+    try {
+      friends.me = await signIn();
+      friends.friends = await listFriends();
+      friends.qr = await qrSvg(inviteLink(friends.me.friend_code)).catch(() => '');
+      friends.status = 'ready';
+    } catch (e) {
+      friends.status = 'error';
+      friends.error = friendError(e);
+    }
+    renderDom();
+  };
+  /** Chạy một thao tác với máy chủ: khoá nút trong lúc chờ, lỗi thì hiện trong bảng. */
+  const busy = async (job: () => Promise<void>) => {
+    if (friends.busy) return;
+    friends.busy = true;
+    friends.error = '';
+    renderDom();
+    try {
+      await job();
+    } catch (e) {
+      friends.error = friendError(e);
+    }
+    friends.busy = false;
+    renderDom();
+  };
+  let lastPush = 0;
+  /** Đang bật "cho ghé thăm": đẩy bản chụp quán mới (hết ngày, trước khi đi thăm bạn…); lỗi thì im lặng, lần sau đẩy lại. */
+  const syncSnapshot = async (force = false) => {
+    const me = friends.me;
+    if (!me?.sharing || visit || preview || fresh) return;
+    if (!force && performance.now() - lastPush < 60_000) return;
+    lastPush = performance.now();
+    try {
+      me.snapshot_at = await pushSnapshot(me, game.state);
+    } catch {
+      /* mất mạng / máy chủ bận: bỏ qua */
+    }
+  };
+  async function friendsAction(arg: string): Promise<void> {
+    const [what, id] = arg.split(':');
+    const me = friends.me;
+    if (what === 'open') {
+      friends.open = true;
+      friends.removeId = null;
+      friends.confirmDelete = false;
+      if (onlineEnabled && (!me || friends.status !== 'ready')) await loadFriends();
+      else if (onlineEnabled) await busy(async () => void (friends.friends = await listFriends()));
+    } else if (what === 'close') {
+      friends.open = false;
+      friends.showQr = false;
+    } else if (what === 'retry') await loadFriends();
+    else if (what === 'refresh') await busy(async () => void (friends.friends = await listFriends()));
+    else if (what === 'qr') {
+      friends.showQr = !friends.showQr;
+      renderDom();
+    } else if (!me) return;
+    else if (what === 'copy') {
+      try {
+        await navigator.clipboard.writeText(inviteLink(me.friend_code));
+        toast('📋 Đã chép link mời — dán gửi cho bạn bè nhé.', 'good');
+      } catch {
+        friends.showQr = true;
+        renderDom();
+        toast('Trình duyệt không cho chép — link nằm dưới mã QR.', 'bad');
+      }
+    } else if (what === 'share') {
+      const url = inviteLink(me.friend_code);
+      const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> };
+      if (nav.share) await nav.share({ title: 'Quán Nhà Vườn', text: 'Kết bạn với mình trong Quán Nhà Vườn (mã ' + me.friend_code + ') rồi ghé thăm quán nhau nhé!', url }).catch(() => {});
+      else await friendsAction('copy');
+    } else if (what === 'sharing') {
+      await busy(async () => {
+        save();
+        friends.me = await setSharing(me, !me.sharing, game.state);
+        lastPush = performance.now();
+        toast(friends.me.sharing ? '🏡 Đã mở cửa cho bạn bè ghé thăm.' : '🔒 Đã đóng cửa với khách thăm.', 'good');
+      });
+    } else if (what === 'add') {
+      const input = root.querySelector<HTMLInputElement>('[data-friend-code]');
+      const code = (input?.value ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!code) return;
+      await busy(async () => {
+        const f = await addFriend(code);
+        if (input) input.value = '';
+        friends.friends = await listFriends();
+        toast('🤝 Đã kết bạn với ' + friendName(f) + '!', 'good', '', 3600);
+      });
+    } else if (what === 'remove' && id) {
+      if (friends.removeId !== id) {
+        friends.removeId = id;
+        renderDom();
+        return;
+      }
+      friends.removeId = null;
+      await busy(async () => {
+        await removeFriend(id);
+        friends.friends = await listFriends();
+      });
+    } else if (what === 'visit' && id) {
+      await busy(async () => {
+        await syncSnapshot(true);
+        const res = readSaveFile(await friendSnapshot(id), content);
+        if (!res.ok) throw new Error(res.reason);
+        goVisit(res.raw);
+      });
+    } else if (what === 'delete') {
+      friends.confirmDelete = true;
+      renderDom();
+    } else if (what === 'deleteNo') {
+      friends.confirmDelete = false;
+      renderDom();
+    } else if (what === 'deleteYes') {
+      await busy(async () => {
+        await deleteMe();
+        Object.assign(friends, newFriendsView());
+        toast('🗑 Đã gỡ hết dữ liệu online của bạn.', 'good');
+      });
+    }
+  }
+  if (import.meta.env.DEV && params.get('friends') === 'demo') {
+    // Chỉ bản dev: ?friends=demo — bảng Bạn bè với dữ liệu mẫu (không cần máy chủ) để xem giao diện
+    Object.assign(friends, { open: true, status: 'ready', me: { id: 'me', friend_code: 'K7Q2MX', sharing: true, snapshot_at: new Date(Date.now() - 3600e3).toISOString() } });
+    friends.friends = [
+      { id: 'a', owner_name: 'Lan', shop_name: 'Quán Nhà Lan', cuisine: 'jp', game_day: 31, sharing: true, snapshot_at: new Date(Date.now() - 600e3).toISOString() },
+      { id: 'b', owner_name: 'Anh Tuấn', shop_name: 'Ốc Cô Ba', cuisine: 'oc', game_day: 12, sharing: true, snapshot_at: new Date(Date.now() - 2 * 86400e3).toISOString() },
+      { id: 'c', owner_name: 'Minh', shop_name: 'Tiệm Mì Hàn', cuisine: 'kr', game_day: 4, sharing: false, snapshot_at: null },
+    ];
+    void qrSvg(inviteLink('K7Q2MX')).then((svg) => (friends.qr = svg));
+  } else if (import.meta.env.DEV && params.has('friends')) void friendsAction('open'); // ?friends: mở sẵn bảng Bạn bè
+  if (onlineEnabled && !visit && !preview) {
+    // Hết ngày: đẩy quán mới cho bạn bè (khi đang bật cho ghé thăm)
+    game.bus.on('day/started', () => void syncSnapshot(true));
+    // Mở game bằng link mời: kết bạn luôn rồi mở bảng Bạn bè
+    const invite = takeInvite();
+    if (invite) {
+      void (async () => {
+        try {
+          friends.me = await signIn();
+          const f = await addFriend(invite);
+          toast('🤝 Đã kết bạn với ' + friendName(f) + '!', 'good', '', 4200);
+        } catch (e) {
+          toast('🤝 ' + friendError(e), 'bad', '', 4200);
+        }
+        await friendsAction('open');
+      })();
+    } else if (usedBefore() && !fresh) {
+      // Đã từng dùng tính năng bạn bè trên máy này: đăng nhập lại ngầm để hết ngày tự đẩy quán
+      void signIn().then((me) => void (friends.me = me), () => {});
+    }
+  }
+
   /** E2: hộp xác nhận mở ván từ file save — so ván đang chơi với ván trong file. */
   function importSaveHtml(): string {
     if (!ui.importSave) return '';
@@ -1134,7 +1307,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     last = now;
     // Mở bảng Cài đặt, bảng gọi món cho đội hay hoá đơn ăn uống thì game tạm dừng; đóng lại chạy tiếp ở tốc độ đã chọn
     // Sắp xếp bàn ghế, mở Siêu thị (mua đồ nâng cấp) cũng tạm dừng để người chơi thong thả
-    const speed = visit ? 1 : game.state.bankrupt || !!policePending(game.ctx) || ui.settings || ui.editLayout || ui.drawer === 'shop' || ui.calendar != null || ui.rename != null || ui.importSave != null || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
+    const speed = visit ? 1 : game.state.bankrupt || !!policePending(game.ctx) || ui.settings || ui.editLayout || ui.drawer === 'shop' || ui.calendar != null || ui.rename != null || ui.importSave != null || friends.open || ui.mealOpen || billDue(game.ctx) ? 0 : ui.speed;
     game.tick(dt * speed * content.balance.minutesPerSecond);
     // Xem trước nội thất chỉ khi bảng Siêu thị còn mở
     if (ui.drawer !== 'shop') ui.decorPreview = null;

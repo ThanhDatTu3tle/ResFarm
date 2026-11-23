@@ -19,6 +19,7 @@ Viết 17/11/2026, cập nhật 18/11/2026 sau phiên làm Giai đoạn 1 (xem `
 | `05-TRIEN-KHAI-CHI-PHI.md` | Deploy, chi phí, những thứ sẽ phát sinh phí về sau | Khi deploy hoặc cân nhắc tính năng online |
 | `06-KINH-NGHIEM-THIET-KE.md` | Nguyên tắc thiết kế cozy game, roadmap xếp theo giai đoạn (mã F*), cách dùng các skill Three.js | Khi chọn tính năng hoặc làm đồ hoạ |
 | `07-NHAT-KY.md` | Nhật ký từng phiên làm việc: đã làm gì, quyết định gì, còn dở gì | Đầu mỗi phiên, để nối tiếp |
+| `08-ONLINE-SUPABASE.md` | Bạn bè online: cài máy chủ Supabase, biến môi trường, cơ chế kết bạn / thăm quán, quyền riêng tư | Khi đụng tới tính năng Bạn bè |
 
 ## Tình trạng hiện tại (18/11/2026)
 

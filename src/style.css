@@ -3773,3 +3773,129 @@ button.quest-claim {
     font-size: 12px;
   }
 }
+
+/* F3: bảng Bạn bè (Supabase) */
+.dialog.friends {
+  gap: 8px;
+  width: min(520px, calc(100vw - 32px));
+  max-height: 92vh;
+  max-height: 92dvh;
+  overflow-y: auto;
+  text-align: left;
+  border: 3px solid var(--wood);
+  box-shadow: 0 4px 0 var(--wood-dark);
+}
+.dialog.friends h3 {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.friend-add input::placeholder {
+  letter-spacing: 0;
+  text-transform: none;
+}
+.friends-err {
+  margin: 4px 0 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #fde3df;
+  color: #9a2e22;
+  font-size: 13px;
+}
+.friends-wait {
+  text-align: center;
+  padding: 16px 0;
+}
+.friend-me {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  border: 2px solid var(--wood);
+  background: linear-gradient(135deg, #fff4dc, #ffe9d0);
+}
+.fm-code {
+  display: flex;
+  flex-direction: column;
+}
+.fm-code small {
+  color: var(--muted);
+  font-weight: 700;
+}
+.fm-code b {
+  font-size: 24px;
+  letter-spacing: 3px;
+}
+.fm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+  justify-content: flex-end;
+}
+.fm-actions button {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+.fm-qr {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.fm-qr svg {
+  width: 180px;
+  height: 180px;
+  background: #fff;
+  border-radius: 10px;
+}
+.fm-qr small {
+  font-size: 11px;
+  color: var(--muted);
+  word-break: break-all;
+  text-align: center;
+}
+.dialog.friends .toggle-row > span {
+  text-align: left;
+}
+.dialog.friends .toggle-row small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.friend-add {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+.friend-add input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 15px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border-radius: 10px;
+  border: 2px solid var(--wood);
+  background: #fffdf8;
+  color: var(--text);
+}
+.friend-list .friend {
+  border-bottom: 1px dashed rgba(138, 90, 53, 0.25);
+}
+.friend-list .friend .closed {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.friends-foot {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
