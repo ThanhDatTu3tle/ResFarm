@@ -226,9 +226,25 @@ export function entranceOf(ctx: SimContext): Rect {
   return { x1: room.width / 2 - 50, y1: room.dining.y2 - 48, x2: room.width / 2 + 240, y2: room.height + 100 };
 }
 
-/** Đồ trang trí đang bày (không tính đồ cất kho). */
+/** Đồ trang trí đang bày DƯỚI SÀN (không tính đồ cất kho, không tính tranh treo tường). */
 export function placedProps(ctx: SimContext): PropState[] {
-  return ctx.state.restaurant.props.filter((p) => !p.stored);
+  return ctx.state.restaurant.props.filter((p) => !p.stored && !ctx.content.props.get(p.def).wall);
+}
+
+/** Tranh đang treo (PropState.x = số thứ tự khung trong roomOf(ctx).art). */
+export function wallProps(ctx: SimContext): PropState[] {
+  return ctx.state.restaurant.props.filter((p) => !p.stored && ctx.content.props.get(p.def).wall);
+}
+
+/** Khung tranh trống đầu tiên (dò từ `from`, vòng lại), bỏ qua tranh `skip`; null = tường hết chỗ. */
+export function freeArtSlot(ctx: SimContext, skip = '', from = 0): number | null {
+  const n = roomOf(ctx).art?.length ?? 0;
+  const used = new Set(wallProps(ctx).filter((p) => p.uid !== skip).map((p) => p.x));
+  for (let k = 0; k < n; k++) {
+    const i = (from + k) % n;
+    if (!used.has(i)) return i;
+  }
+  return null;
 }
 
 /**

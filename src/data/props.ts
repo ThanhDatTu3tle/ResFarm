@@ -24,6 +24,16 @@ export const props: PropDef[] = [
   { id: 'onggi', name: 'Chum tương onggi', icon: '🏺', model: 'onggi', cost: 160, level: 1, cuisine: 'kr', w: 44, h: 36, modifiers: { dishPrice: 1.02 } },
   { id: 'kr_neon', name: 'Biển đèn neon đứng', icon: '🔆', model: 'neon', cost: 240, level: 2, cuisine: 'kr', w: 40, h: 30, modifiers: { tip: 1.04 } },
   { id: 'pine', name: 'Cây thông chậu sứ', icon: '🌲', model: 'pine', cost: 380, level: 3, cuisine: 'kr', w: 46, h: 46, modifiers: { spawnRate: 1.05 } },
+  // Tranh treo tường (giai đoạn 20): treo vào khung trên tường, không chiếm chỗ dưới sàn
+  { id: 'art_phoco', name: 'Tranh phố cổ', icon: '🏘️', model: 'art_phoco', cost: 180, level: 1, cuisine: 'vn', w: 60, h: 8, wall: true, modifiers: { patience: 1.03 } },
+  { id: 'art_dongho', name: 'Tranh gà Đông Hồ', icon: '🐓', model: 'art_dongho', cost: 240, level: 2, cuisine: 'vn', w: 46, h: 8, wall: true, modifiers: { tip: 1.03 } },
+  { id: 'art_dongque', name: 'Tranh đồng quê', icon: '🌾', model: 'art_dongque', cost: 320, level: 3, cuisine: 'vn', w: 60, h: 8, wall: true, modifiers: { spawnRate: 1.03 } },
+  { id: 'art_fuji', name: 'Tranh sóng và núi Phú Sĩ', icon: '🗻', model: 'art_fuji', cost: 180, level: 1, cuisine: 'jp', w: 60, h: 8, wall: true, modifiers: { patience: 1.03 } },
+  { id: 'art_enso', name: 'Tranh cuộn thư pháp', icon: '📜', model: 'art_enso', cost: 240, level: 2, cuisine: 'jp', w: 36, h: 8, wall: true, modifiers: { tip: 1.03 } },
+  { id: 'art_koi', name: 'Tranh cá chép koi', icon: '🎏', model: 'art_koi', cost: 320, level: 3, cuisine: 'jp', w: 50, h: 8, wall: true, modifiers: { spawnRate: 1.03 } },
+  { id: 'art_tiger', name: 'Tranh hổ và chim ác là', icon: '🐯', model: 'art_tiger', cost: 180, level: 1, cuisine: 'kr', w: 46, h: 8, wall: true, modifiers: { patience: 1.03 } },
+  { id: 'art_peony', name: 'Tranh hoa mẫu đơn', icon: '🌺', model: 'art_peony', cost: 240, level: 2, cuisine: 'kr', w: 36, h: 8, wall: true, modifiers: { tip: 1.03 } },
+  { id: 'art_hanok', name: 'Tranh mái hanok dưới trăng', icon: '🌕', model: 'art_hanok', cost: 320, level: 3, cuisine: 'kr', w: 60, h: 8, wall: true, modifiers: { spawnRate: 1.03 } },
   // Quà của khách quen (không bán)
   { id: 'gift_teddy', name: 'Gấu bông của Bé Na', icon: '🧸', model: 'teddy', cost: 0, level: 1, w: 40, h: 36, giftOnly: true, modifiers: { tip: 1.05 } },
   { id: 'gift_claw', name: 'Máy gắp thú của Cu Tí', icon: '🕹️', model: 'claw', cost: 0, level: 1, w: 44, h: 44, giftOnly: true, modifiers: { spawnRate: 1.05 } },

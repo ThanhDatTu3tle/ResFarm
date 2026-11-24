@@ -54,6 +54,8 @@ Tham số URL để thử nhanh (ghép được với nhau):
 | `?stall=seafood` | (chỉ bản dev) mở thẳng bên trong một quầy chợ (`meat` / `produce` / `seafood` / `dry` / `snack`) |
 | `?event=critic` | (chỉ bản dev) ép sự kiện ngẫu nhiên xảy ra ngay khi quán mở (`critic` / `inspector` / `tour_bus` / `outage` / `big_tippers`) |
 | `?rich` | (chỉ bản dev) nhiều tiền + cấp 9, để thử mua sắm |
+| `?max` | (chỉ bản dev) quán "tối thượng": mua / nâng / thuê hết qua lệnh thật (hạng quán, bếp, nhân viên, trang thiết bị, món, nội thất đắt nhất, thú cưng, đồ trang trí, bàn tới khi hết chỗ, nông trại đủ ô + cối + người làm vườn + dụng cụ, kho đầy) — `maxOut` trong app.ts |
+| `?tier=3` | (chỉ bản dev) quán vừa lên hạng 1–5: cấp đủ mở hạng, bếp nâng theo cấp, thuê đủ đầu bếp + nhân viên; bàn / nội thất như ván mới — `tierUp` trong app.ts |
 | `?edit` | (chỉ bản dev) mở sẵn chế độ sắp xếp bàn |
 | `?event=tour_bus` | (chỉ bản dev) minibus du lịch tới ngay khi mở cửa, đoàn khách ngồi kín bàn |
 | `?fullpark` | (chỉ bản dev) lấp kín bãi xe máy + bãi ô tô bằng xe đậu sẵn (xem bãi đầy) |
@@ -198,6 +200,8 @@ src/ui/three/fx.ts         Particles: hạt emoji bung ra trong cảnh 3D
 - **Hình cho nội dung mới**: thứ gì chưa có model riêng đều hiện bằng `emojiSprite(icon)` — món ăn trên đĩa, hàng trên sạp, sản phẩm chín, producer lạ. Nên thêm data là thấy ngay trong cảnh 3D; dựng model riêng là việc làm đẹp sau.
 - **Panel**: mỗi panel là hàm thuần `(game, ui) → chuỗi HTML`. `morph()` vá DOM tại chỗ nên không cần quản lý cập nhật thủ công. Nút bấm gắn `cmd({...})` cho lệnh sim (có kiểm tra kiểu), `ui('tên:tham số')` cho hành động thuần giao diện (xử lý trong `app.ts`). Phần tử trong danh sách nên có `data-key`.
 - **Toạ độ quán**: `RoomDef`/`TableDef` dùng toạ độ 2D (hiện 720×600, 55 đơn vị = 1 mét); `areas/restaurant.ts` quy đổi sang mét bằng `wx()`/`wz()` và tự dựng phòng theo `content.room`.
+- **Tranh treo tường**: đồ trang trí có `wall: true` (data/props.ts, mỗi quán Việt / Nhật / Hàn 3 bức) không chiếm chỗ dưới sàn — treo vào khung `RoomDef.art` (tường sau theo x 2D, tường bên theo tỉ lệ dọc tường), `PropState.x` = số thứ tự khung. Sim: `wallProps` / `freeArtSlot` (layout.ts), `placedProps` không tính tranh; `prop/rotate` với tranh = sang khung trống kế tiếp, `prop/move` bị chặn. Hình vẽ canvas ở `src/ui/three/paintings.ts`.
+- **Nét vẽ tay (màu sáp)**: `src/ui/three/crayon.ts`. Vân sáp gắn vào mọi vật liệu toon qua `crayonize` (`toon()` / `toonRim()` tự gọi; vật liệu toon tạo tay thì nhớ bọc `crayonize`). Viền lem là lượt hậu kỳ `CrayonPass` (dò mép từ độ sâu) — stage, màn mở đầu, trang model đều vẽ qua nó. Bật / tắt trong Cài đặt → Màn hình (localStorage `quan-nha-vuon/crayon`, mặc định bật). Trang model có `?gan=2` để kéo camera lại gần.
 - **Mobile**: màn hình ngang thấp có CSS thu gọn (`@media (max-height: 540px)`); thiết bị cảm ứng cầm dọc hiện lớp phủ `#rotate` mời xoay ngang. Trình duyệt không cho web tự ép xoay ngang (trừ khi toàn màn hình trên Android, hoặc cài lên màn hình chính qua `public/manifest.webmanifest`).
 
 ## Công thức cho các việc thường gặp

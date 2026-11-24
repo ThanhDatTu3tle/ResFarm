@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { crayonize } from './crayon';
 
 /**
  * Bộ đồ nghề dựng hình phong cách hoạt hình (toon), cùng kiểu với dự án co-thu-3d:
@@ -14,9 +15,9 @@ const matCache = new Map<number, THREE.MeshToonMaterial>();
 
 /** Vật liệu toon theo màu. Không truyền opts thì dùng chung (cache) — đừng sửa trực tiếp vật liệu dùng chung. */
 export function toon(color: number, opts?: THREE.MeshToonMaterialParameters): THREE.MeshToonMaterial {
-  if (opts) return new THREE.MeshToonMaterial({ color, gradientMap, ...opts });
+  if (opts) return crayonize(new THREE.MeshToonMaterial({ color, gradientMap, ...opts }));
   let m = matCache.get(color);
-  if (!m) matCache.set(color, (m = new THREE.MeshToonMaterial({ color, gradientMap })));
+  if (!m) matCache.set(color, (m = crayonize(new THREE.MeshToonMaterial({ color, gradientMap }))));
   return m;
 }
 
@@ -31,7 +32,7 @@ export function toonRim(color: number): THREE.MeshToonMaterial {
   if (m) return m;
   m = new THREE.MeshToonMaterial({ color, gradientMap });
   m.userData.rim = true;
-  m.onBeforeCompile = (shader) => {
+  crayonize(m, '-rim', (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <opaque_fragment>',
       `{
@@ -40,8 +41,7 @@ export function toonRim(color: number): THREE.MeshToonMaterial {
       }
       #include <opaque_fragment>`,
     );
-  };
-  m.customProgramCacheKey = () => 'toon-rim';
+  });
   rimCache.set(color, m);
   return m;
 }

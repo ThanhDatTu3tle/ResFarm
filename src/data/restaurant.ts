@@ -9,6 +9,8 @@ export const room: RoomDef = {
   height: 480,
   kitchenDepth: 100,
   dining: { x1: 15, y1: 200, x2: 605, y2: 465 },
+  // Tường sau kín bếp: treo tranh ở hai đầu tường bên (giữa hai cửa sổ hẹp quá, không vừa tranh ngang)
+  art: [{ wall: 'left', at: 0.92 }, { wall: 'right', at: 0.92 }, { wall: 'left', at: 0.11 }],
   // Bếp gọn ở phía phải tường sau; phía trái là lối đi vào WC và kho hàng (chỉ là cảnh, xem areas/restaurant.ts).
   // Quầy ra món ở góc phải, giữa bếp và khu ăn; bồi bàn đứng chờ ngay trước quầy
   pass: { x: 510, y: 135 },
@@ -20,6 +22,8 @@ export const room: RoomDef = {
       // cạnh ngắn quay ra cửa (2 ghế đơn). WC + kho ở góc phải cuối quán.
       // Quầy ra món (quầy line) ở giữa tường sau, trước cửa sổ cạnh kho — bồi bàn bấm / tới lấy món dễ.
       plan: 'L',
+      // Tường sau + tường trái kín quầy chữ L: tranh treo dọc tường phải
+      art: [{ wall: 'right', at: 0.5 }, { wall: 'right', at: 0.1 }, { wall: 'right', at: 0.92 }],
       width: 460,
       height: 560,
       dining: { x1: 15, y1: 15, x2: 445, y2: 545 },
@@ -36,6 +40,8 @@ export const room: RoomDef = {
       // Bếp nấu ngay cửa bên trái (kiểu quán phở: nồi nước dùng, tủ kính bánh phở nhìn ra đường), dài nửa quán.
       // Quầy ra món ở đầu trong của bếp; phía sau là lối đi vào WC + kho. Không có quầy ghế đơn.
       plan: 'front',
+      // Tường bắc (tường sau) còn trống giữa cửa kho và cửa sổ: 3 khung tranh
+      art: [{ wall: 'back', at: 300 }, { wall: 'back', at: 212 }, { wall: 'back', at: 390 }],
       dining: { x1: 175, y1: 25, x2: 605, y2: 465 },
       pass: { x: 80, y: 222 },
       passStand: { x: 80, y: 188 },

@@ -4,6 +4,7 @@ import { adultShape, animatePerson, LOOKS, makePerson } from './models';
 import { signText } from './cuisine';
 import { Chatter } from './chatter';
 import { ROAD_MID, SIDEWALK } from './street';
+import { terrazzoSidewalk } from './floortex';
 import { arrivalMode } from '../../sim/systems/customers';
 import { emojiSprite, G, group, mesh } from './toon';
 import { mergeAdded } from './merge';
@@ -50,6 +51,8 @@ export interface CurbDims {
   door: P;
   /** Quán ốc đã tự vẽ vỉa hè + đường (street.ts). */
   hasRoad: boolean;
+  /** Vỉa hè lát gạch terrazzo rãnh cong (quán Việt). */
+  terrazzo?: boolean;
 }
 
 /** Đầu xe hướng vào tường quán: bãi xe máy bên phải → quay sang trái (−x), bãi ô tô bên trái → quay sang phải (+x). */
@@ -116,6 +119,8 @@ export class Curbside {
     const r = this.root;
     const { frontZ } = this.d;
     mesh(r, G.box(70, 0.2, SIDEWALK), 0xcfcbc2, { p: [0, -0.1, frontZ + SIDEWALK / 2], cast: false });
+    // Quán Việt: vỉa hè lát gạch terrazzo rãnh cong (floortex.ts)
+    if (this.d.terrazzo) terrazzoSidewalk(r, 70, SIDEWALK - 0.12, frontZ + SIDEWALK / 2 - 0.06);
     mesh(r, G.box(70, 0.22, 0.25), 0xe6e2da, { p: [0, -0.05, frontZ + SIDEWALK], cast: false });
     mesh(r, G.box(70, 0.18, 7), 0x5c5f66, { p: [0, -0.14, frontZ + ROAD_MID], cast: false });
     for (let x = -30; x <= 30; x += 3) mesh(r, G.box(1.4, 0.02, 0.15), 0xf3efe6, { p: [x, -0.04, frontZ + ROAD_MID], cast: false });

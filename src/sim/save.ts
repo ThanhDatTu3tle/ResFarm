@@ -245,6 +245,8 @@ function reconcile(state: GameState, content: Content): GameState {
 
   // Nội thất: luôn sở hữu món mặc định của quán; slot nào đang dùng món không hợp lệ thì quay về mặc định.
   const allowed = new Set(decorFor(content, state.cuisine).map((d) => d.id));
+  // Món không còn bán cho quán này (vd sàn gỗ óc chó / đá cẩm thạch ở quán Việt từ giai đoạn 20): trả lại tiền đã mua
+  for (const id of state.decor.owned) if (!allowed.has(id) && content.decor.has(id)) state.money += content.decor.get(id).cost;
   state.decor.owned = state.decor.owned.filter((id) => allowed.has(id));
   for (const def of defaultDecor(content, state.cuisine)) {
     if (!state.decor.owned.includes(def.id)) state.decor.owned.push(def.id);

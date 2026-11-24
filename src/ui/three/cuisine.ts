@@ -69,6 +69,41 @@ function hoiAnLantern(parent: THREE.Object3D, x: number, y: number, z: number, c
   return g;
 }
 
+/**
+ * Đèn chụp nón vải (quán Việt): chụp hình nón rộng màu kem treo bằng dây từ trần, bóng đèn ấm bên trong, viền gỗ ở
+ * mép chụp, chóp đồng và quả dọi nhọn treo dưới. Gốc ở điểm treo trên trần (đung đưa quanh đó); tối thì chụp + bóng sáng lên.
+ */
+function coneLamp(parent: THREE.Object3D, x: number, y: number, z: number): THREE.Group {
+  const g = group(parent, { p: [x, y, z] });
+  const R = 0.55;
+  const Hs = 0.36;
+  const cy = -0.72;
+  mesh(g, G.cyl(0.008, 0.008, -cy - Hs / 2, 4), 0x3a2a1e, { p: [0, (cy + Hs / 2) / 2, 0], cast: false }); // dây treo
+  const shade = toon(0xf3e2bf, { emissive: 0xffc878, emissiveIntensity: 0.12, side: THREE.DoubleSide });
+  shade.userData.glowBase = 0.12;
+  shade.userData.night = true; // tối thì chụp vải sáng ấm như có đèn bên trong
+  mesh(g, new THREE.ConeGeometry(R, Hs, 20, 1, true), shade, { p: [0, cy, 0], cast: false });
+  // Gân nón lá: các nan mảnh chạy từ đỉnh xuống vành, nằm sát mặt ngoài chụp (nhìn ra ngay là cái nón)
+  const ribs = 18;
+  const top = new THREE.Vector3(0, cy + Hs / 2, 0);
+  const up = new THREE.Vector3(0, 1, 0);
+  for (let i = 0; i < ribs; i++) {
+    const ang = (i / ribs) * Math.PI * 2;
+    const rim = new THREE.Vector3(Math.cos(ang) * R * 1.015, cy - Hs / 2, Math.sin(ang) * R * 1.015);
+    const dir = rim.clone().sub(top);
+    const rib = mesh(g, G.cyl(0.008, 0.008, 1, 4), 0xb8955a, { p: [(top.x + rim.x) / 2, (top.y + rim.y) / 2, (top.z + rim.z) / 2], s: [1, dir.length(), 1], cast: false });
+    rib.quaternion.setFromUnitVectors(up, dir.normalize());
+  }
+  mesh(g, G.cyl(0.035, 0.05, 0.06, 8), 0xb8892f, { p: [0, cy + Hs / 2, 0], cast: false }); // chóp đồng
+  mesh(g, G.torus(R, 0.014, 4, 24), 0x7a4a2a, { p: [0, cy - Hs / 2, 0], r: [Math.PI / 2, 0, 0], cast: false }); // viền gỗ mép chụp
+  const bulb = glowMat(0xffe2a8, 0.35);
+  bulb.userData.night = true;
+  mesh(g, G.sphere(0.08, 10, 8), bulb, { p: [0, cy - 0.06, 0], cast: false }); // bóng đèn
+  mesh(g, G.cyl(0.006, 0.006, 0.22, 4), 0x3a2a1e, { p: [0, cy - Hs / 2 - 0.08, 0], cast: false });
+  mesh(g, G.cone(0.025, 0.09, 6), 0xb8892f, { p: [0, cy - Hs / 2 - 0.22, 0], r: [Math.PI, 0, 0], cast: false }); // quả dọi
+  return g;
+}
+
 /** Rèm noren: các dải vải chàm treo trên thanh gỗ, giữa có hình tròn trắng. */
 function noren(parent: THREE.Object3D, x: number, y: number, z: number, width: number, panels = 3, color = 0x2f3f75): THREE.Group {
   const g = group(parent, { p: [x, y, z] });
@@ -260,20 +295,12 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
       for (const bx of [-0.2, 0, 0.2]) mesh(crate, G.cyl(0.04, 0.05, 0.28, 8), 0x5fd08a, { p: [bx, 0.82, 0] });
     }
   } else {
-    // Dãy đèn lồng Hội An nhiều màu, quạt trần, chữ Phúc, mành tre (không đặt bàn thờ ở quán nào)
-    const colors = [0xd9433a, 0xf2b23e, 0x9a4fc4, 0xe2703a, 0x3f9f6a];
+    // Đèn chụp nón vải, quạt trần (không đặt bàn thờ ở quán nào)
     // Chỉ giữ dãy đèn trước gian bếp + 2 quạt trần (đã bỏ 3 đèn lồng to treo giữa quán)
-    for (let i = 0; i < 9; i++) swingers.push(hoiAnLantern(r, -d.halfW + 0.9 + i * ((d.halfW * 2 - 1.8) / 8), 3.7, d.kitchenZ + 0.3, colors[i % colors.length], 0.7));
+    // Dãy đèn chụp nón vải treo trước gian bếp (thay đèn lồng Hội An), số đèn theo bề ngang quán
+    const nLamps = Math.max(3, Math.round((d.halfW * 2 - 1.8) / 2));
+    for (let i = 0; i < nLamps; i++) swingers.push(coneLamp(r, -d.halfW + 1.3 + i * ((d.halfW * 2 - 2.6) / (nLamps - 1)), 4.15, d.kitchenZ + 0.3));
     for (const x of [-d.halfW * 0.3, d.halfW * 0.3]) spinners.push(ceilingFan(r, x, 4.05, -0.4));
-    // Chữ Phúc trên giấy đỏ hình thoi
-    const fu = group(r, { p: [d.corridorX ?? (-d.halfW + d.kitchenX1) / 2, 3.3, back + 0.05], r: [0, 0, Math.PI / 4] }); // giữa hai cửa WC / kho
-    mesh(fu, G.box(0.75, 0.75, 0.02), 0xd9433a, { cast: false });
-    const word = signText('Phúc', '#f2c94c', 0.7, 0.4);
-    word.position.set(0, 0, 0.02);
-    word.rotation.z = -Math.PI / 4;
-    fu.add(word);
-    // Mành tre cuộn trên các cửa sổ
-    mesh(r, G.cyl(0.1, 0.1, 2.5, 8), 0xd9b56a, { p: [d.halfW - 2, 3.45, back + 0.2], r: [0, 0, Math.PI / 2] });
     for (const [x, z] of [[d.halfW - 0.7, d.frontZ - 0.8]]) {
       mesh(r, G.cyl(0.35, 0.28, 0.5), 0xc8623e, { p: [x, 0.25, z] });
       makeBush(r, { p: [x, 0.45, z], s: 1.1 }, 0x4f9e4a);

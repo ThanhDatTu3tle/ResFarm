@@ -20,6 +20,7 @@ import { panels, type UiState } from './panels';
 import { festivalOf, isSeasonEnd, isYearEnd, nextFestival, seasonPriceFactor } from '../sim/calendar';
 import { OWNER_NAME_MAX, type DayStats } from '../sim/state';
 import { onlineEnabled } from './online';
+import { crayonEnabled } from './three/crayon';
 
 /**
  * HUD trên cảnh 3D: bên trái là tiền + uy tín + huy hiệu cấp, bên phải là "đồng hồ" (vòng ngày đêm, lịch,
@@ -335,6 +336,7 @@ export function settingsHtml(ui: UiState, prefs: { music: boolean; sfx: boolean 
 
       <section>
         <h3>Màn hình</h3>
+        ${toggle('crayon', crayonEnabled(), '🖍️', 'Nét vẽ tay (màu sáp)')}
         <button class="wide"${uiAttr('fullscreen')}>⛶ Bật/tắt toàn màn hình</button>
       </section>
 

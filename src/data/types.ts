@@ -313,6 +313,11 @@ export interface RoomDef {
    * 'L' = quầy bếp chữ L ở góc trái-sau, quán xoay mặt hẹp ra đường (quán Nhật) · 'front' = bếp sát cửa bên trái (quán Việt).
    */
   plan?: 'back' | 'L' | 'front';
+  /**
+   * Chỗ treo tranh (đồ trang trí `wall`): `back` = tường sau, `at` là toạ độ x 2D; `left` / `right` = tường bên,
+   * `at` là tỉ lệ dọc tường tính từ tường sau (0..1). Thứ tự = thứ tự treo.
+   */
+  art?: { wall: 'back' | 'left' | 'right'; at: number }[];
   /** Chỗ bồi bàn đứng lấy món ở quầy ra món (mặc định: ngay trước quầy, pass.y + 30). */
   passStand?: { x: number; y: number };
   /** Khối bếp / quầy cố định: không đặt bàn, người không đi xuyên qua. */
@@ -350,8 +355,16 @@ export interface DecorDef {
   isDefault?: boolean;
   /** Chỉ dành cho quán phong cách này; bỏ trống = quán nào cũng mua được. */
   cuisine?: CuisineId;
+  /** Chỉ dành cho các quán này (dùng khi một món hợp nhiều quán, vd quán Việt + quán ốc). */
+  cuisines?: CuisineId[];
+  /** Không bán cho các quán này (món dùng chung nhưng không hợp chất quán, vd sàn gỗ óc chó ở quán Việt). */
+  exclude?: CuisineId[];
   /** Màu cho tầng hiển thị, dạng 0xRRGGBB; tên khoá theo slot (xem decor.ts). */
   colors: Record<string, number>;
+  /** Sàn có hoa văn (tầng hiển thị vẽ texture thay cho sọc hai màu): 'encaustic' = gạch bông — `a` nền, `b` hoa văn · 'ngocdo' = gạch men ngọc đỏ · 'terracotta' = gạch xưa. */
+  pattern?: 'encaustic' | 'ngocdo' | 'terracotta';
+  /** Bàn ghế có model riêng (tầng hiển thị dựng lại bàn ghế khi đổi): 'oak_vn' = gỗ chân tiện, ghế con tiện · 'luxury_vn' = ghế bành mây. */
+  style?: 'oak_vn' | 'luxury_vn';
   /** Hệ số gameplay khi đang dùng món này. */
   modifiers?: Partial<Record<ModifierKey, number>>;
 }
@@ -637,6 +650,8 @@ export interface PropDef {
   modifiers?: Partial<Record<ModifierKey, number>>;
   /** true = không bán ở Siêu thị, chỉ có khi khách quen tặng. */
   giftOnly?: boolean;
+  /** true = tranh treo tường: không chiếm chỗ dưới sàn, treo vào một khung trên tường (RoomDef.art), tối đa bằng số khung. */
+  wall?: boolean;
 }
 
 /** Thú cưng của quán (F5). */

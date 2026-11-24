@@ -44,8 +44,11 @@ export interface UiState {
   rename: string | null;
   /** Hộp đổi tên đang đổi tên gì: quán (biển hiệu) hay chủ quán (tên trên đầu nhân vật). */
   renameKind: 'shop' | 'owner';
-  /** Nội thất (DecorDef id) đang xem trước trong quán ở bảng Siêu thị — chưa mua, chỉ tô lại màu; đóng bảng là thôi. */
-  decorPreview?: string | null;
+  /**
+   * Nội thất đang xem trước trong quán ở bảng Siêu thị, mỗi loại (sàn / tường / bàn ghế) một món (DecorDef id) — xem cùng lúc
+   * để phối màu; chưa mua, chỉ tô lại màu; đóng bảng là thôi.
+   */
+  decorPreview?: Partial<Record<string, string>> | null;
 }
 
 /**
