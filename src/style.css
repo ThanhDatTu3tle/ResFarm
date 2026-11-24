@@ -896,6 +896,22 @@ button.danger {
 #panel .card > .row > .btns {
   margin-left: auto;
 }
+/* Danh sách giống (bảng Nông trại): nút giá ngắn, luôn nằm cùng hàng với chữ cho gọn — đỡ phải cuộn */
+#panel .card > .row.seed-row {
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 3px 0;
+}
+#panel .card > .row.seed-row > .grow {
+  flex: 1 1 0;
+}
+#panel .card > .row.seed-row > button {
+  flex: none;
+  padding: 4px 10px;
+}
+#panel .card > .row.seed-row .muted {
+  font-size: 12px;
+}
 #panel .card > .row > .btns {
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -2166,11 +2182,23 @@ button.quest-claim {
   display: none !important;
 }
 
+/* Hàng 1: Đổi tên quán + Tên chủ quán chia đôi; hàng 2: Chụp ảnh quán trải hết bề ngang */
 .shop-actions {
-  justify-content: flex-end;
-  flex-wrap: wrap; /* 3 nút: màn hẹp xuống dòng thay vì lòi ra ngoài thẻ */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
   margin-top: 6px;
+}
+#panel .shop-actions > button,
+.shop-actions > button {
+  margin: 0;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shop-actions > button:last-child {
+  grid-column: 1 / -1;
 }
 
 /* ---------- Chừa tai thỏ / Dynamic Island, góc bo màn hình và logo Netlify góc dưới phải ---------- */
@@ -3631,66 +3659,6 @@ button.quest-claim {
   }
 }
 
-/* E2: xuất / nhập file save (Cài đặt + màn mở đầu) */
-.save-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.save-actions button {
-  flex: 1 1 140px;
-}
-.save-compare {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin: 8px 0;
-}
-.save-compare > div {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.save-compare small {
-  color: var(--muted);
-  font-weight: 700;
-}
-.save-compare > div:last-child .save-sum {
-  opacity: 0.75;
-}
-.save-sum {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 2px solid var(--wood);
-  background: #fffaf1;
-  font-size: 13px;
-}
-.save-sum b {
-  font-size: 15px;
-}
-@media (max-width: 560px) {
-  .save-compare {
-    grid-template-columns: 1fr;
-  }
-}
-.title-menu .file-btn {
-  padding: 6px 14px;
-  font-size: 14px;
-  background: rgba(255, 250, 241, 0.9);
-}
-.title-menu .file-msg {
-  margin: 0;
-  padding: 4px 10px;
-  border-radius: 8px;
-  background: #fde3df;
-  color: #9a2e22;
-  font-size: 13px;
-  text-align: center;
-}
-
 /* F1: thăm quán người khác (?visit) — chỉ xem: ẩn HUD, ngăn kéo, mọi bảng / hộp thoại của ván đó */
 #app.visiting #hud,
 #app.visiting #tools,
@@ -3898,4 +3866,65 @@ button.quest-claim {
 .friends-foot {
   flex-wrap: wrap;
   justify-content: space-between;
+}
+
+/* ---------- Giai đoạn 20: HUD gọn — cụm cấp + tiền + uy tín + 🏆 chung một khung; đồng hồ sát lề phải, nút tròn xuống dưới đồng hồ ---------- */
+.hud-stats {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 5px 3px 3px;
+  border-radius: 999px;
+  border: 2px solid var(--wood);
+  background: var(--card);
+  box-shadow: 0 2px 0 var(--wood-dark);
+}
+.hud-stats .level-badge {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.hud-stats .hud-stack {
+  gap: 0;
+}
+.hud-stats .stat {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 1px 4px;
+}
+.hud-stats .stat.money {
+  min-width: 0;
+  justify-content: flex-start;
+}
+.hud-stats button.round.trophy {
+  width: 38px;
+  height: 38px;
+  font-size: 18px;
+  box-shadow: none;
+}
+.hud-right {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+/* Màn thấp không đủ chỗ cho cả cột dưới đồng hồ: chia 2 cột (app.ts bật class two-col khi đo thấy thiếu chỗ) */
+.side-col.two-col {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  direction: rtl;
+  gap: 6px;
+}
+.side-col.two-col > * {
+  direction: ltr;
+}
+@media (max-height: 540px) {
+  .hud-stats button.round.trophy {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+  .hud-right {
+    gap: 6px;
+  }
 }

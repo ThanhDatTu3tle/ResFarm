@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createContent, type CuisineId } from '../src/data';
 import { Game } from '../src/sim/game';
 import { modifier } from '../src/sim/helpers';
-import { deserialize, exportSave, readSaveFile, serialize } from '../src/sim/save';
+import { deserialize, readSnapshot, serialize } from '../src/sim/save';
 import { canPlaceTable, roomOf, seatSpots, serviceSpot, tablePos } from '../src/sim/layout';
 import { activeTables, findSeats, spawnParty } from '../src/sim/systems/customers';
 import { priceOf } from '../src/sim/systems/market';
@@ -420,22 +420,20 @@ describe('lưu / tải', () => {
     expect(deserialize(null, content)).toBeNull();
   });
 
-  it('xuất / nhập file save (E2): mở lại được, chặn file lạ và file từ bản mới hơn', () => {
+  it('đọc bản chụp quán bạn bè (F3): mở lại được, chặn dữ liệu lạ và bản game mới hơn', () => {
     const a = newGame(9, 'jp');
     a.dispatch({ type: 'profile/rename', name: 'Quán Thử' });
     a.tick(300);
-    const file = readSaveFile(exportSave(a.state), content);
+    const file = readSnapshot(serialize(a.state), content);
     expect(file.ok).toBe(true);
     if (!file.ok) return;
     expect(file.state.profile.name).toBe('Quán Thử');
     expect(file.state.cuisine).toBe('jp');
     expect(serialize(new Game(content, { state: deserialize(file.raw, content)! }).state)).toBe(serialize(a.state));
-    // Chuỗi save thô (chép từ localStorage) cũng mở được
-    expect(readSaveFile(serialize(a.state), content).ok).toBe(true);
-    for (const bad of ['{oops', '[]', '{"hello":1}', JSON.stringify({ kind: 'khac', save: {} })]) expect(readSaveFile(bad, content).ok).toBe(false);
+    for (const bad of ['{oops', '[]', 'null', '{"hello":1}', JSON.stringify({ kind: 'khac', save: {} })]) expect(readSnapshot(bad, content).ok).toBe(false);
     const newer = JSON.parse(serialize(a.state));
     newer.version += 1;
-    const res = readSaveFile(JSON.stringify(newer), content);
+    const res = readSnapshot(JSON.stringify(newer), content);
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.reason).toContain('mới hơn');
   });
@@ -2312,6 +2310,20 @@ describe('chuỗi nhiệm vụ dài + sổ thành tựu', () => {
     expect(game.state.stats.today.revenue).toBe(revenue);
     expect(game.dispatch({ type: 'achievement/claim', id: 'harvest_50' }).ok).toBe(false);
     expect(game.dispatch({ type: 'achievement/claim', id: 'serve_1000' }).ok).toBe(false);
+  });
+
+  it('thành tựu kết bạn: giữ số bạn nhiều nhất từng có, đủ 3 thì đạt', () => {
+    const game = newGame(3);
+    expect(game.dispatch({ type: 'achievement/friends', count: -1 }).ok).toBe(false);
+    game.dispatch({ type: 'achievement/friends', count: 2 });
+    game.tick(1);
+    expect(game.state.achievements.done).not.toContain('friends_3');
+    game.dispatch({ type: 'achievement/friends', count: 3 });
+    game.dispatch({ type: 'achievement/friends', count: 1 }); // huỷ bớt bạn không mất mốc
+    expect(game.state.achievements.counts.friends).toBe(3);
+    game.tick(1);
+    expect(game.state.achievements.done).toContain('friends_3');
+    expect(game.dispatch({ type: 'achievement/claim', id: 'friends_3' }).ok).toBe(true);
   });
 
   it('thu hoạch đếm vào thành tựu dù nhiệm vụ đang làm là loại khác', () => {

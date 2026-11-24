@@ -2,8 +2,6 @@ import * as THREE from 'three';
 import { guideHtml } from './tutorial';
 import type { Content, CuisineId } from '../data';
 import { esc } from './dom';
-import { pickSaveFile, saveSummaryHtml, storeSave } from './savefile';
-import type { GameState } from '../sim/state';
 import { animatePerson, makeBush, makeTree } from './three/models';
 import { makeShopfront, shopkeeper } from './three/cuisine';
 import { G, group, mesh, seeded } from './three/toon';
@@ -113,10 +111,6 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
   let focus: CuisineId = 'vn';
   /** Trang hướng dẫn đang mở (null = đóng). */
   let guide: number | null = null;
-  /** E2: file save vừa chọn ở màn mở đầu, chờ xác nhận thay ván cũ (null = không có). */
-  let pendingImport: { raw: string; state: GameState } | null = null;
-  /** Lỗi khi mở file save (hiện dưới các nút). */
-  let fileMsg: string | null = null;
   // ?pick=oc: mở thẳng bước chọn quán (quay về từ màn xem trước — "Chọn quán khác"; bản dev dùng để chụp giao diện)
   // ?choose=oc: quay về từ xem trước — "Chọn quán này": sang luôn bước chọn chủ quán
   const query = new URLSearchParams(location.search);
@@ -160,10 +154,8 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
           ${opts.hasSave ? `<button class="primary big" data-title="continue">▶ Chơi tiếp</button>` : ''}
           <button class="${opts.hasSave ? '' : 'primary '}big" data-title="new">✨ Ván mới</button>
           <button class="big guide-btn" data-title="guide:0">📘 Hướng dẫn chơi</button>
-          <button class="file-btn" data-title="openfile">📂 Mở file save</button>
-          ${fileMsg ? `<p class="file-msg">${esc(fileMsg)}</p>` : opts.hasSave ? '' : `<p class="muted">Tiến trình tự lưu trong trình duyệt này.</p>`}
+          ${opts.hasSave ? '' : `<p class="muted">Tiến trình tự lưu trong trình duyệt này.</p>`}
         </div>
-        ${pendingImport ? importHtml(pendingImport.state) : ''}
         ${guide != null ? guideHtml(guide, (a) => ` data-title="${a}"`, opts.hasSave ? 'Xong' : 'Mở quán thôi!') : ''}`;
     } else if (step === 'owner' || (step === 'confirm' && pickedOwner)) {
       const female = owner.gender === 'female';
@@ -196,12 +188,6 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
           <button class="primary big" data-title="owner" style="--accent:${c.accent}"><span class="flag">${FLAGS[focus]}</span> Chọn ${esc(c.name)} →</button></div>`;
     }
   };
-  const importHtml = (state: GameState) => `<div class="backdrop"><div class="dialog import-save"><h2>📂 Mở ván từ file?</h2>
-          <div class="save-compare">
-            <div><small>Ván trong file</small>${saveSummaryHtml(state, content)}</div>
-            <div><small>Ván đang lưu — sẽ bị thay</small><div class="save-sum">Ván cũ trên trình duyệt này sẽ bị <b>xoá</b>.</div></div>
-          </div>
-          <div class="dialog-foot"><button data-title="importcancel">Giữ ván cũ</button><button class="primary" data-title="importok">Mở ván trong file</button></div></div></div>`;
   const confirmHtml = (name: string) => `<div class="backdrop"><div class="dialog"><h2>Bắt đầu ván mới?</h2>
           <p>Ván đang chơi trên trình duyệt này sẽ bị <b>xoá</b> và không lấy lại được.</p>
           <div class="dialog-foot"><button data-title="cancel">Giữ ván cũ</button><button class="danger" data-title="confirm">Xoá và mở ${esc(name)}</button></div></div></div>`;
@@ -237,30 +223,6 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
     if (!el) return;
     const [action, arg] = el.dataset.title!.split(':');
     if (action === 'continue') return finish(null);
-    // E2: mở file save — chưa có ván thì vào chơi luôn, có rồi thì hỏi trước
-    if (action === 'openfile') {
-      void pickSaveFile(content).then((res) => {
-        if (!res) return;
-        fileMsg = res.ok ? null : res.reason;
-        if (res.ok) {
-          if (opts.hasSave) pendingImport = { raw: res.raw, state: res.state };
-          else if (storeSave(res.raw)) return finish(null);
-          else fileMsg = 'Trình duyệt không cho lưu dữ liệu, không mở được ván này.';
-        }
-        render();
-      });
-      return;
-    }
-    if (action === 'importcancel') {
-      pendingImport = null;
-      return render();
-    }
-    if (action === 'importok' && pendingImport) {
-      if (storeSave(pendingImport.raw)) return finish(null);
-      pendingImport = null;
-      fileMsg = 'Trình duyệt không cho lưu dữ liệu, không mở được ván này.';
-      return render();
-    }
     // Xem trước quán đang chọn: mở ván tạm của quán đó (không đụng tới save)
     if (action === 'preview') {
       location.href = `${location.pathname}?preview=${focus}`;

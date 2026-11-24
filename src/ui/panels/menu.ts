@@ -1,20 +1,26 @@
 import { recipesFor, type RecipeDef } from '../../data';
 import type { Game } from '../../sim/game';
 import { craftableCount, stockOf } from '../../sim/helpers';
-import { cmd, esc } from '../dom';
+import { cmd, esc, ui as uiAttr } from '../dom';
+import { itemTipHtml } from '../sources';
 import { coins, duration, qty } from '../format';
-import type { Panel } from './types';
+import type { Panel, UiState } from './types';
 import { isSeasonalDish, seasonalPrice, seasonNames } from '../../sim/calendar';
 
-function ingredients(game: Game, recipe: RecipeDef): string {
-  return recipe.ingredients
+/** Tag nguyên liệu của món — bấm để xem nguyên liệu đó kiếm ở đâu (chợ / trồng / nuôi / chế biến), tooltip ngay dưới. */
+function ingredients(game: Game, recipe: RecipeDef, ui: UiState): string {
+  const prefix = `m-${recipe.id}:`;
+  const chips = recipe.ingredients
     .map((ing) => {
       const item = game.content.items.get(ing.item);
       const have = stockOf(game.ctx, ing.item);
       const label = item.infinite ? '' : ` ${have}/${ing.qty}`;
-      return `<span class="chip ${have >= ing.qty ? '' : 'bad'}" title="${esc(item.name)}">${item.icon}${label}</span>`;
+      const key = prefix + ing.item;
+      return `<button class="chip item-chip ${have >= ing.qty ? '' : 'bad'}${ui.itemTip === key ? ' on' : ''}" title="Bấm để xem ${esc(item.name)} kiếm ở đâu"${uiAttr(`itemTip:${key}`)}>${item.icon}${label}</button>`;
     })
     .join('');
+  const tipItem = ui.itemTip?.startsWith(prefix) ? ui.itemTip.slice(prefix.length) : null;
+  return `<div class="chips">${chips}</div>${tipItem && game.content.items.has(tipItem) ? itemTipHtml(game, tipItem) : ''}`;
 }
 
 export const menuPanel: Panel = {
@@ -26,7 +32,7 @@ export const menuPanel: Panel = {
     const { state, content, ctx } = game;
     return state.menu.active.filter((id) => craftableCount(ctx, content.recipes.get(id).ingredients) < content.balance.lowStockPortions).length;
   },
-  render(game) {
+  render(game, ui) {
     const { state, content, ctx } = game;
     const recipes = recipesFor(content, state.cuisine);
 
@@ -42,7 +48,7 @@ export const menuPanel: Panel = {
               ${seasonBadge(game, r)}<div class="muted">${priceText(game, r)} · nấu ${duration(r.cookTime)} · còn nấu được <b class="${can ? '' : 'bad-text'}">${qty(can)}</b> phần</div></div>
             <button class="${active ? 'on' : ''}"${cmd({ type: 'menu/setActive', recipeId: r.id, active: !active })}>${active ? 'Đang bán' : 'Tạm ngưng'}</button>
           </div>
-          <div class="chips">${ingredients(game, r)}</div></div>`;
+          ${ingredients(game, r, ui)}</div>`;
       })
       .join('');
 
@@ -57,7 +63,7 @@ export const menuPanel: Panel = {
               ${seasonBadge(game, r)}<div class="muted">Bán ${priceText(game, r)} · nấu ${duration(r.cookTime)}</div></div>
             <button${cmd({ type: 'menu/unlock', recipeId: r.id })}${canBuy ? '' : ' disabled'}>${levelOk ? `Học món · ${coins(r.unlock.cost)}` : `🔒 Cấp ${r.unlock.level}`}</button>
           </div>
-          <div class="chips">${ingredients(game, r)}</div></div>`;
+          ${ingredients(game, r, ui)}</div>`;
       })
       .join('');
 

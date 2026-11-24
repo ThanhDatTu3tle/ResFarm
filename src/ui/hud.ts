@@ -109,10 +109,13 @@ export function hudHtml(game: Game, ui: UiState, moneyShown: number): string {
 
   return `<div class="hud-left">
       <div class="hud-top">
-        ${levelBadge(state.level, state.xp / xpForLevel(state.level))}
-        <div class="hud-stack">
-          <span class="stat money" data-key="money"><span class="num">${moneyText(moneyShown)}</span>${COIN}</span>
-          <span class="stat rep" title="Uy tín của quán">⭐ ${state.reputation.toFixed(1)}</span>
+        <div class="hud-stats">
+          ${levelBadge(state.level, state.xp / xpForLevel(state.level))}
+          <div class="hud-stack">
+            <span class="stat money" data-key="money"><span class="num">${moneyText(moneyShown)}</span>${COIN}</span>
+            <span class="stat rep" title="Uy tín của quán">⭐ ${state.reputation.toFixed(1)}</span>
+          </div>
+          ${trophyButton(game, ui)}
         </div>
         ${questCard(game)}
       </div>
@@ -168,7 +171,16 @@ export function moneyText(amount: number): string {
 }
 
 /** Bảng mở bằng nút tròn dọc bên phải dưới bánh răng (chỉ icon); các bảng còn lại nằm ở thanh dưới. */
-export const SIDE_PANELS = ['farm', 'farmhands', 'restaurant', 'market', 'crew', 'shop', 'achievements'];
+export const SIDE_PANELS = ['farm', 'farmhands', 'restaurant', 'crew'];
+/** Bảng không có nút trên thanh dưới: Thành tựu (nút 🏆 cạnh tiền / uy tín), Chợ (bấm sạp ngoài chợ mới mở). */
+export const OFF_BAR = [...SIDE_PANELS, 'achievements', 'market'];
+
+/** Nút 🏆 Thành tựu nằm chung cụm cấp + tiền + uy tín (góc trái trên). */
+function trophyButton(game: Game, ui: UiState): string {
+  const p = panels.find((x) => x.id === 'achievements')!;
+  const badge = p.badge?.(game) ?? 0;
+  return `<button class="round trophy${ui.drawer === p.id ? ' on' : ''}" data-key="hud-trophy"${uiAttr(`drawer:${p.id}`)} title="${esc(p.label)}" aria-label="${esc(p.label)}">${p.icon}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
+}
 
 function sideButtons(game: Game, ui: UiState): string {
   return SIDE_PANELS.map((id) => panels.find((p) => p.id === id)!)
@@ -320,14 +332,6 @@ export function settingsHtml(ui: UiState, prefs: { music: boolean; sfx: boolean 
         ${toggle('sfx', prefs.sfx, '🔊', 'Hiệu ứng âm thanh')}
       </section>
 
-      <section>
-        <h3>💾 Lưu game</h3>
-        <p class="muted">Ván tự lưu trong trình duyệt này. Tải file save về để chuyển sang máy khác hoặc giữ phòng trình duyệt xoá dữ liệu.</p>
-        <div class="save-actions"><button${uiAttr('saveExport')}>⬇️ Tải ván này về</button><button${uiAttr('saveImport')}>📂 Mở file save</button></div>
-        <p class="muted">Thăm quán bạn bè — chỉ xem, ván của bạn đứng yên chờ bạn về.</p>
-        <button class="wide"${uiAttr('friends:open')}>🤝 Bạn bè — kết bạn, thăm quán nhau</button>
-        <button class="wide"${uiAttr('visitFile')}>🏡 Thăm quán từ file save</button>
-      </section>
 
       <section>
         <h3>Màn hình</h3>

@@ -84,6 +84,8 @@ export type Command =
   | { type: 'gardener/setJob'; gardenerId: string; job: GardenerJob; on: boolean }
   | { type: 'tool/buy'; toolId: string }
   | { type: 'achievement/claim'; id: string }
+  /** UI báo số bạn bè online hiện có (sim không biết mạng): giữ số lớn nhất từng có cho thành tựu kết bạn. */
+  | { type: 'achievement/friends'; count: number }
   | { type: 'tutorial/next' }
   | { type: 'tutorial/skip' }
   | { type: 'crew/revive'; who: string }

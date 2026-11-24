@@ -31,6 +31,12 @@ export const achievementSystem: System = {
       ctx.bus.emit('achievement/claimed', { id: def.id, money: def.reward.money ?? 0 });
       return ok();
     },
+    'achievement/friends'(ctx, cmd) {
+      if (!Number.isInteger(cmd.count) || cmd.count < 0) return fail('Số bạn không hợp lệ.');
+      const c = ctx.state.achievements.counts;
+      c.friends = Math.max(c.friends ?? 0, cmd.count);
+      return ok();
+    },
   },
 };
 

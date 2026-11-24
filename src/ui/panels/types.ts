@@ -1,5 +1,4 @@
 import type { Game } from '../../sim/game';
-import type { GameState } from '../../sim/state';
 
 /** Trạng thái thuần giao diện (không lưu vào save). */
 export interface UiState {
@@ -21,7 +20,7 @@ export interface UiState {
    * trong cảnh 3D. null = hiện tất cả (mở từ nút Nông trại).
    */
   farmFocus: string | null;
-  /** Tooltip nguồn nguyên liệu đang mở (bấm tag nguyên liệu ở bảng Đơn hàng): "<id đơn>:<id món>". */
+  /** Tooltip nguồn nguyên liệu đang mở (bấm tag nguyên liệu): bảng Đơn hàng "<id đơn>:<id nguyên liệu>", Thực đơn "m-<id món>:<id nguyên liệu>". */
   itemTip?: string | null;
   /** Bàn (id) hoặc đồ trang trí (uid) đang chọn ở chế độ sắp xếp — thanh trên cùng hiện nút xoay / cất / bán. */
   editSelected: string | null;
@@ -45,8 +44,6 @@ export interface UiState {
   rename: string | null;
   /** Hộp đổi tên đang đổi tên gì: quán (biển hiệu) hay chủ quán (tên trên đầu nhân vật). */
   renameKind: 'shop' | 'owner';
-  /** E2: file save vừa chọn, đang chờ người chơi xác nhận thay ván (null = không có hộp). */
-  importSave: { raw: string; state: GameState } | null;
   /** Nội thất (DecorDef id) đang xem trước trong quán ở bảng Siêu thị — chưa mua, chỉ tô lại màu; đóng bảng là thôi. */
   decorPreview?: string | null;
 }

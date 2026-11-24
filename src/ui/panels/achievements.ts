@@ -4,6 +4,7 @@ import { achievementValue, claimableAchievements } from '../../sim/systems/achie
 import { cmd, esc } from '../dom';
 import { coins } from '../format';
 import type { Panel } from './types';
+import { onlineEnabled } from '../online';
 
 /** Sổ thành tựu: huy hiệu đã đạt (sáng) / chưa đạt (mờ, có thanh tiến độ); đạt rồi bấm nhận thưởng. */
 export const achievementsPanel: Panel = {
@@ -14,7 +15,9 @@ export const achievementsPanel: Panel = {
   render(game: Game) {
     const a = game.state.achievements;
     const reward = (r: { money?: number; xp?: number }) => [r.money ? coins(r.money) : '', r.xp ? `${r.xp} XP` : ''].filter(Boolean).join(' · ');
-    const cards = achievements
+    // Bản không nối máy chủ bạn bè: ẩn thành tựu kết bạn (không làm được)
+    const list = achievements.filter((d) => d.stat !== 'friends' || onlineEnabled);
+    const cards = list
       .map((d) => {
         const done = a.done.includes(d.id);
         const claimed = a.claimed.includes(d.id);
@@ -29,7 +32,7 @@ export const achievementsPanel: Panel = {
           <span class="badge-icon">${d.icon}</span><b>${esc(d.name)}</b><small>${esc(d.desc)}</small>${foot}</div>`;
       })
       .join('');
-    return `<p class="muted">Đã đạt <b>${a.done.length}/${achievements.length}</b> huy hiệu. Thưởng thành tựu không tính vào doanh thu ngày.</p>
+    return `<p class="muted">Đã đạt <b>${a.done.filter((id) => list.some((d) => d.id === id)).length}/${list.length}</b> huy hiệu. Thưởng thành tựu không tính vào doanh thu ngày.</p>
       <div class="badge-grid">${cards}</div>`;
   },
 };

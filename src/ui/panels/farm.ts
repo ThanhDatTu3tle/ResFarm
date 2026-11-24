@@ -77,7 +77,7 @@ function slotDetail(game: Game, slot: FarmSlot): string {
       const btn = !inSeason
         ? `<button disabled title="Chỉ gieo ngoài trời vào mùa ${seasonNames(p.seasons ?? [])}">Trái mùa</button>`
         : `<button${cmd({ type: 'farmer/do', kind: 'plant', slotId: slot.id, producerId: p.id })}${levelOk && state.money >= p.cost ? '' : ' disabled'}>${levelOk ? coins(p.cost) : `🔒 Cấp ${p.level}`}</button>`;
-      return `<div class="row${inSeason ? '' : ' off-season'}" data-key="${p.id}"><span class="big">${p.icon}</span>
+      return `<div class="row seed-row${inSeason ? '' : ' off-season'}" data-key="${p.id}"><span class="big">${p.icon}</span>
         <div class="grow"><b>${esc(p.name)}</b> ${seasonTag}
           <div class="muted">${farmTime(p.growTime)} → ${yieldsText(game, slot, p)}${p.cycles === 1 ? '' : `, rồi ${farmTime(p.regrowTime ?? p.growTime)} một lứa`}${p.diesInWinter ? ' · tới mùa Đông hết lứa' : ''}</div></div>
         ${btn}</div>`;
