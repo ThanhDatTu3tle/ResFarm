@@ -2208,8 +2208,8 @@ button.quest-claim {
   --pad-r: calc(env(safe-area-inset-right, 0px) + 16px);
   --pad-b: calc(env(safe-area-inset-bottom, 0px) + 12px);
   --pad-l: calc(env(safe-area-inset-left, 0px) + 16px);
-  /* Góc dưới phải có logo "Powered by Netlify" (host miễn phí): không đặt nút / thông tin ở đó */
-  --badge-w: 200px;
+  /* Góc dưới phải: chừa chỗ cho cột nút tròn (Netlify không chèn logo vào trang nên không cần chừa 200px như trước) */
+  --badge-w: calc(var(--pad-r) + 48px);
   --badge-h: 56px;
 }
 
@@ -3926,5 +3926,48 @@ button.quest-claim {
   }
   .hud-right {
     gap: 6px;
+  }
+}
+
+/* Thanh dưới (nút chuyển khu + các bảng) luôn nằm một hàng trên màn thấp (điện thoại ngang): chữ, icon, đệm nhỏ lại */
+@media (max-height: 540px) {
+  #tools {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  #tools button {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 8px;
+  }
+  #tools button.navbtn {
+    gap: 3px;
+  }
+  #tools button.navbtn .big {
+    font-size: 13px;
+  }
+  #tools button.navbtn i {
+    font-size: 15px;
+  }
+  #tools .badge {
+    top: -6px;
+    right: -5px;
+    min-width: 15px;
+    padding: 0 4px;
+    font-size: 10px;
+    line-height: 15px;
+  }
+}
+/* Điện thoại ngang nhỏ (iPhone SE…): gọn thêm nữa để vẫn một hàng */
+@media (max-height: 540px) and (max-width: 720px) {
+  #tools {
+    gap: 3px;
+  }
+  #tools button {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+  #tools button.navbtn .big {
+    font-size: 12px;
   }
 }

@@ -1189,7 +1189,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     const gap = 6;
     const need = col.children.length * (first.offsetHeight + gap);
     const tools = $('tools').getBoundingClientRect();
-    const colLeft = window.innerWidth - first.offsetWidth * 2 - 40;
+    const colLeft = first.getBoundingClientRect().left;
     const floor = tools.height && tools.right > colLeft ? tools.top : window.innerHeight;
     col.classList.toggle('two-col', need > floor - clock.getBoundingClientRect().bottom - 16);
   }
