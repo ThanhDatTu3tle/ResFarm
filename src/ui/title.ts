@@ -5,6 +5,7 @@ import { esc } from './dom';
 import { animatePerson, makeBush, makeTree } from './three/models';
 import { makeShopfront, shopkeeper } from './three/cuisine';
 import { G, group, mesh, seeded } from './three/toon';
+import { CrayonPass } from './three/crayon';
 import { makeOwner } from './three/people';
 import { cleanOwner, DEFAULT_OWNER, DEFAULT_SHOP_NAME, OWNER_AGE, OWNER_HAIRS, OWNER_NAME_MAX, OWNER_OUTFITS, type OwnerProfile } from '../sim/state';
 
@@ -46,6 +47,7 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
 
   // ---------- Cảnh 3D ----------
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  const pass = new CrayonPass(renderer);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -336,7 +338,7 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
       ownerHolder.rotation.y = -0.25 + Math.sin(t * 0.6) * 0.08;
       animatePerson(ownerModel, t, { wave: Math.max(0, Math.sin(t * 0.8)) * 0.8 });
     }
-    renderer.render(scene, camera);
+    pass.render(scene, camera);
     raf = requestAnimationFrame(frame);
   };
   render();
@@ -345,6 +347,7 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
   function finish(cuisine: CuisineId | null): void {
     cancelAnimationFrame(raf);
     window.removeEventListener('resize', resize);
+    pass.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
     opts.onStart(cuisine, cuisine ? cleanOwner(owner) : undefined, cuisine ? shopName.replace(/s+/g, ' ').trim() || undefined : undefined);

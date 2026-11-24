@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { crayonize } from './crayon';
 import { G, group, mesh, toon, type V3 } from './toon';
 import { plasticStool } from './streetcarts';
 
@@ -119,7 +120,7 @@ export function makeTeaKiosk(W = 4.6): TeaKiosk {
   }
   const bulbs: THREE.MeshToonMaterial[] = [];
   for (let i = 0; i < 9; i++) {
-    const m = new THREE.MeshToonMaterial({ color: 0xfff1c2, emissive: 0xffc861, emissiveIntensity: 0 });
+    const m = crayonize(new THREE.MeshToonMaterial({ color: 0xfff1c2, emissive: 0xffc861, emissiveIntensity: 0 }));
     bulbs.push(m);
     const x = -W / 2 + 0.3 + (i * (W - 0.6)) / 8;
     mesh(g, G.sphere(0.045, 6, 5), m, { p: [x, 2.5 - Math.sin((i / 8) * Math.PI) * 0.1, zF + 0.78], cast: false });

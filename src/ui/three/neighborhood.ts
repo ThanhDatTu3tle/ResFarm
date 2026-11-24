@@ -119,8 +119,7 @@ export function buildNeighborhood(r: THREE.Object3D, d: NeighborDims): (night: n
       h.position.set(x + w / 2, 0, alleyZ - 1.1);
       x += w + 0.1;
     }
-    // Cây cao điểm giữa hẻm và sau quán
-    for (const tx of [-halfW * 0.4, halfW * 0.45]) makeTree(r, { p: [tx, 0, backZ - 0.9], s: 1.1 + rnd() * 0.3 });
+    // (Đã bỏ 2 cây sát sau quán: đứng sau tường không thấy, tán lá lại lòi xuyên qua tường vào trong quán)
   }
 
   // Hai bên, sát mép ngoài hai bãi xe (bãi rộng ~5.6 m): nhà mặt tiền quay ra đường, nhà đầu dãy ngay cạnh bãi

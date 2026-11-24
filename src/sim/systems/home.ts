@@ -1,5 +1,5 @@
 import { spend } from '../helpers';
-import { activeTables, canPlaceProp, canPlaceTable, findFreeSpot, footprint, LAYOUT_GRID, occupiedSeats, propRect, tableById, withRotation } from '../layout';
+import { activeTables, canPlaceProp, canPlaceTable, findFreeSpot, footprint, freeArtSlot, LAYOUT_GRID, occupiedSeats, propRect, roomOf, tableById, withRotation } from '../layout';
 import { OWNER_NAME_MAX, type PropState } from '../state';
 import { fail, ok, type SimContext, type System } from '../types';
 
@@ -57,6 +57,13 @@ export const homeSystem: System = {
       if (def.giftOnly) return fail('Món này chỉ có khi khách quen tặng.');
       if (def.cuisine && def.cuisine !== state.cuisine) return fail('Món này không hợp phong cách quán.');
       if (state.level < def.level) return fail(`Cần cấp ${def.level}.`);
+      if (def.wall) {
+        const slot = freeArtSlot(ctx);
+        if (slot == null) return fail('Tường hết chỗ treo tranh — cất bớt tranh vào kho.');
+        if (!spend(ctx, def.cost)) return fail('Không đủ tiền.');
+        state.restaurant.props.push({ uid: `p${state.nextId++}`, def: def.id, x: slot, y: 0, rot: 0, stored: false });
+        return ok();
+      }
       const spot = findFreeSpot(ctx, (x, y) => propRect(def, x, y, 0));
       if (!spot) return fail('Khu ăn uống hết chỗ trống — dời bớt bàn hoặc cất bớt đồ.');
       if (!spend(ctx, def.cost)) return fail('Không đủ tiền.');
@@ -66,6 +73,7 @@ export const homeSystem: System = {
     'prop/move'(ctx, cmd) {
       const prop = findProp(ctx, cmd.uid);
       if (!prop || prop.stored) return fail('Món này đang cất trong kho.');
+      if (ctx.content.props.get(prop.def).wall) return fail('Tranh treo trên tường — bấm "Đổi chỗ" để chuyển sang khung khác.');
       const x = snap(cmd.x);
       const y = snap(cmd.y);
       const problem = canPlaceProp(ctx, prop.uid, x, y, prop.rot);
@@ -76,6 +84,13 @@ export const homeSystem: System = {
     'prop/rotate'(ctx, cmd) {
       const prop = findProp(ctx, cmd.uid);
       if (!prop || prop.stored) return fail('Món này đang cất trong kho.');
+      // Tranh treo tường: "xoay" = chuyển sang khung trống kế tiếp
+      if (ctx.content.props.get(prop.def).wall) {
+        const slot = freeArtSlot(ctx, prop.uid, prop.x + 1);
+        if (slot == null || slot === prop.x) return fail('Không còn khung trống nào khác trên tường.');
+        prop.x = slot;
+        return ok();
+      }
       const rot = (prop.rot + 1) % 2;
       const problem = canPlaceProp(ctx, prop.uid, prop.x, prop.y, rot);
       if (problem) return fail(`Không xoay được: ${problem.toLowerCase()}`);
@@ -93,6 +108,12 @@ export const homeSystem: System = {
       if (!prop) return fail('Không có món này.');
       if (!prop.stored) return ok();
       const def = ctx.content.props.get(prop.def);
+      if (def.wall) {
+        const slot = freeArtSlot(ctx, prop.uid);
+        if (slot == null) return fail('Tường hết chỗ treo tranh — cất bớt tranh vào kho.');
+        Object.assign(prop, { x: slot, y: 0, stored: false });
+        return ok();
+      }
       const spot = findFreeSpot(ctx, (x, y) => propRect(def, x, y, prop.rot), prop.uid);
       if (!spot) return fail('Khu ăn uống hết chỗ trống.');
       Object.assign(prop, spot, { stored: false });
@@ -195,8 +216,17 @@ export function resolveOverlaps(ctx: SimContext): void {
     if (spot) r.layout[e.id] = { x: spot.x, y: spot.y };
   }
   for (const p of r.props) {
-    if (p.stored || !canPlaceProp(ctx, p.uid, p.x, p.y, p.rot)) continue;
     const def = ctx.content.props.get(p.def);
+    if (def.wall) {
+      // Tranh: khung không còn (đổi mặt bằng) thì treo sang khung trống, hết khung thì cất kho
+      if (!p.stored && p.x >= (roomOf(ctx).art?.length ?? 0)) {
+        const slot = freeArtSlot(ctx, p.uid);
+        if (slot == null) p.stored = true;
+        else p.x = slot;
+      }
+      continue;
+    }
+    if (p.stored || !canPlaceProp(ctx, p.uid, p.x, p.y, p.rot)) continue;
     const spot = findFreeSpot(ctx, (x, y) => propRect(def, x, y, p.rot), p.uid);
     if (spot) Object.assign(p, spot);
     else p.stored = true;

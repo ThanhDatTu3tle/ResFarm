@@ -2,7 +2,7 @@ import { achievements } from '../data/achievements';
 import { farmTools } from '../data/farmhands';
 import type * as THREE from 'three';
 import { bribeOf, defOf, policePending, seizableTable } from '../sim/systems/events';
-import { canAfford } from '../sim/helpers';
+import { addItem, canAfford } from '../sim/helpers';
 import { clockText } from './format';
 import { guideHtml } from './tutorial';
 import { coachHtml } from './coach';
@@ -13,7 +13,7 @@ import { cleanOwner, ownerName, type GameState, type OwnerProfile, type Tutorial
 import { inShift } from '../sim/systems/customers';
 import { festivals, seasons } from '../data/calendar';
 import { calendarOf } from '../sim/calendar';
-import { createContent, type Content, type CuisineId, type MillType } from '../data';
+import { createContent, decorFor, recipesFor, type Content, type CuisineId, type MillType } from '../data';
 import { Game } from '../sim/game';
 import { deserialize, readSnapshot, serialize } from '../sim/save';
 import { addFriend, deleteMe, friendSnapshot, inviteLink, listFriends, onlineEnabled, pushSnapshot, qrSvg, removeFriend, setSharing, signIn, takeInvite, usedBefore } from './online';
@@ -41,6 +41,7 @@ import { StallArea } from './three/areas/stall';
 import { Stage, type Area, type Pick } from './three/stage';
 import { portraitHtml } from './three/portraits';
 import { tableById } from '../sim/layout';
+import { crayonEnabled, setCrayon } from './three/crayon';
 
 /** Số lần vẽ lại DOM mỗi giây (cảnh 3D vẫn vẽ mỗi khung hình). */
 const DOM_FPS = 8;
@@ -82,6 +83,10 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     // Chỉ ở bản dev: ?rich (nhiều tiền + cấp 9) · ?do=[{"type":"farm/plant",...}] chạy sẵn một chuỗi lệnh
     // · ?weather=rain ép thời tiết · ?edit mở sẵn chế độ sắp xếp bàn
     if (params.has('rich')) Object.assign(game.state, { money: 99999, level: 9 });
+    // ?max: quán "tối thượng" — mua / nâng / thuê hết mọi thứ (xem maxOut)
+    if (params.has('max')) maxOut(game);
+    // ?tier=3: quán vừa lên hạng đó (đủ cấp, bếp nâng theo cấp, thuê đủ người) — xem tierUp
+    if (Number(params.get('tier')) > 0) tierUp(game, Number(params.get('tier')));
     // ?day=85 nhảy tới ngày đó trong lịch (xem mùa: 1 Xuân, 29 Hạ, 57 Thu, 85 Đông)
     if (Number(params.get('day')) > 0) game.state.clock.day = Math.floor(Number(params.get('day')));
     // ?event=critic ép sự kiện xảy ra ngay khi quán mở (critic / inspector / tour_bus / outage / big_tippers)
@@ -270,7 +275,12 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   const run = (command: Command) => {
     if (visit) return false; // đang thăm quán người khác: chỉ xem, không làm gì được
     const result = game.dispatch(command);
-    if (result.ok && (command.type === 'decor/buy' || command.type === 'decor/equip')) ui.decorPreview = null; // mua / đổi rồi thì thôi xem trước
+    // Mua / đổi một món thì thôi xem trước loại đó (các loại khác vẫn xem tiếp để phối màu)
+    if (result.ok && (command.type === 'decor/buy' || command.type === 'decor/equip') && ui.decorPreview) {
+      const slot = content.decor.get(command.decorId).slot;
+      const { [slot]: _drop, ...rest } = ui.decorPreview;
+      ui.decorPreview = Object.keys(rest).length ? rest : null;
+    }
     if (!result.ok) {
       toast(result.reason, 'bad');
       sound.play('error');
@@ -678,6 +688,10 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     if (prop) {
       const def = content.props.get(prop.def);
       const sell = def.giftOnly ? '' : `<button class="mini"${cmd({ type: 'prop/sell', uid: prop.uid })}>💰 Bán ${coins(resale(ctx, def.cost))}</button>`;
+      // Tranh treo tường: không kéo, "Đổi chỗ" = sang khung trống kế tiếp
+      if (def.wall)
+        return `<b data-key="edit">${def.icon} ${esc(def.name)}</b><span>Tranh treo trên tường — đổi sang khung khác hoặc cất kho.</span>
+        <div class="btns"><button class="mini"${cmd({ type: 'prop/rotate', uid: prop.uid })}>⇄ Đổi chỗ</button><button class="mini"${cmd({ type: 'prop/store', uid: prop.uid })}>📦 Cất kho</button>${sell}<button class="mini"${uiAttr('editSel:')}>Bỏ chọn</button>${done}</div>`;
       return `<b data-key="edit">${def.icon} ${esc(def.name)}</b><span>Kéo để dời chỗ.</span>
         <div class="btns"><button class="mini"${cmd({ type: 'prop/rotate', uid: prop.uid })}>⟳ Xoay</button><button class="mini"${cmd({ type: 'prop/store', uid: prop.uid })}>📦 Cất kho</button>${sell}<button class="mini"${uiAttr('editSel:')}>Bỏ chọn</button>${done}</div>`;
     }
@@ -889,7 +903,15 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     } else if (action === 'farmFocus') ui.farmFocus = arg || null;
     else if (action === 'decorPreview') {
       // Xem trước nội thất ở Siêu thị: tô quán bằng màu món đó (bấm lần nữa / "Thôi" thì về như cũ), đang ở khu khác thì về quán
-      ui.decorPreview = !arg || ui.decorPreview === arg ? null : arg;
+      // Mỗi loại (sàn / tường / bàn ghế) xem một món, xem cùng lúc nhiều loại được; bấm lại món đang xem thì thôi loại đó
+      if (!arg || !content.decor.has(arg)) ui.decorPreview = null;
+      else {
+        const slot = content.decor.get(arg).slot;
+        const next = { ...(ui.decorPreview ?? {}) };
+        if (next[slot] === arg) delete next[slot];
+        else next[slot] = arg;
+        ui.decorPreview = Object.keys(next).length ? next : null;
+      }
       if (ui.decorPreview && ui.area !== 'restaurant') setArea('restaurant');
     }
     else if (action === 'itemTip') ui.itemTip = ui.itemTip === arg ? null : arg;
@@ -968,6 +990,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     else if (action === 'noop') return;
     else if (action === 'music') sound.setMusic(!sound.prefs.music);
     else if (action === 'sfx') sound.setSfx(!sound.prefs.sfx);
+    else if (action === 'crayon') setCrayon(!crayonEnabled());
     else if (action === 'slot') ui.selectedSlot = ui.selectedSlot === arg ? null : arg;
     else if (action === 'stall') ui.selectedStall = arg || null;
     else if (action === 'edit') {
@@ -1347,6 +1370,65 @@ function readVisit(content: Content): GameState | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Chỉ bản dev: ?max — dựng ván "tối thượng" để xem quán khi đã mua hết: cấp cao, hạng quán + hạng bếp cao nhất, đủ đầu bếp /
+ * nhân viên / shipper, mọi trang thiết bị, mọi món, nội thất đắt nhất mỗi loại, thú cưng, đồ trang trí, thêm bàn tới khi hết chỗ,
+ * nông trại mua đủ ô / nới hết bậc / đủ cối, người làm vườn, dụng cụ. Đi qua lệnh thật nên luật đặt chỗ vẫn giữ.
+ */
+function maxOut(game: Game): void {
+  const { content, state } = game;
+  const run = (c: Command) => game.dispatch(c).ok;
+  const repeat = (c: () => Command, max = 40) => {
+    for (let i = 0; i < max && run(c()); i++);
+  };
+  Object.assign(state, { money: 9_999_999, level: 50, reputation: 5 });
+  repeat(() => ({ type: 'restaurant/upgrade' }));
+  repeat(() => ({ type: 'kitchen/upgrade' }));
+  repeat(() => ({ type: 'chef/hire' }));
+  repeat(() => ({ type: 'helper/hire' }));
+  repeat(() => ({ type: 'courier/hire' }));
+  for (const u of content.upgrades.all()) run({ type: 'upgrade/buy', upgradeId: u.id });
+  for (const r of recipesFor(content, state.cuisine)) run({ type: 'menu/unlock', recipeId: r.id });
+  // Nội thất: mỗi loại chọn món đắt nhất của phong cách quán này
+  const best = new Map<string, { id: string; cost: number }>();
+  for (const d of decorFor(content, state.cuisine)) if (d.cost > (best.get(d.slot)?.cost ?? -1)) best.set(d.slot, { id: d.id, cost: d.cost });
+  for (const { id } of best.values()) {
+    run({ type: 'decor/buy', decorId: id });
+    run({ type: 'decor/equip', decorId: id });
+  }
+  for (const p of content.pets.all()) {
+    run({ type: 'pet/adopt', petId: p.id });
+    run({ type: 'pet/set', petId: p.id, out: true });
+  }
+  for (const p of content.props.all()) if (!p.giftOnly && (!p.cuisine || p.cuisine === state.cuisine)) run({ type: 'prop/buy', propId: p.id });
+  // Thêm bàn: lần lượt từng loại, tới khi không còn chỗ
+  const kinds = content.tableKinds.all();
+  for (let i = 0, fails = 0; i < 60 && fails < kinds.length; i++) fails = run({ type: 'table/buy', kind: kinds[i % kinds.length].id }) ? 0 : fails + 1;
+  // Nông trại
+  for (const t of content.slotTypes.all()) repeat(() => ({ type: 'farm/buySlot', slotType: t.id }), 30);
+  for (const s of state.farm.slots) repeat(() => ({ type: 'farm/upgradeSlot', slotId: s.id }), 10);
+  for (const m of content.mills.all()) repeat(() => ({ type: 'mill/buy', millType: m.id as MillType }), 10);
+  repeat(() => ({ type: 'gardener/hire' }));
+  for (const t of farmTools) run({ type: 'tool/buy', toolId: t.id });
+  // Kho đầy nguyên liệu (khỏi hiện cảnh báo hết hàng)
+  for (const it of content.items.all()) if (!it.infinite) addItem(game.ctx, it.id, 200);
+}
+
+/**
+ * Chỉ bản dev: ?tier=N — quán vừa lên hạng N: cấp người chơi = cấp mở hạng đó, nâng bếp tới hạng cao nhất cấp đó cho phép,
+ * thuê đủ đầu bếp / nhân viên phục vụ. Bàn ghế, nội thất giữ như ván mới để thấy đúng phòng của hạng.
+ */
+function tierUp(game: Game, n: number): void {
+  const { content, state } = game;
+  const tier = content.room.tiers[Math.min(n, content.room.tiers.length) - 1];
+  Object.assign(state, { money: 9_999_999, level: Math.max(state.level, tier.level) });
+  while (state.restaurant.tier < tier.id && game.dispatch({ type: 'restaurant/upgrade' }).ok);
+  while (game.dispatch({ type: 'kitchen/upgrade' }).ok);
+  while (game.dispatch({ type: 'chef/hire' }).ok);
+  while (game.dispatch({ type: 'helper/hire' }).ok);
+  state.money = 500;
 }
 
 /**

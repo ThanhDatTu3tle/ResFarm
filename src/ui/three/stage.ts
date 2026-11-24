@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CrayonPass } from './crayon';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { Game } from '../../sim/game';
 import { G, mesh, seeded, toon, type V3 } from './toon';
@@ -102,6 +103,8 @@ const RAIN_DROPS = 1100;
 const FLAKES = 700;
 /** Tâm nhìn được trôi xa nhất bao nhiêu mét khỏi tâm mặc định của khu khi zoom sát vào (zoom theo con trỏ). */
 const TARGET_ROAM = 24;
+/** Khu không nhớ góc nhìn: bên trong quầy chợ (mỗi lần vào một quầy khác nhau). */
+const FRESH_VIEW = new Set(['stall']);
 /** Tông trời / ánh nắng theo mùa [màu, mức pha] — Xuân giữ nguyên. */
 const SEASON_SKY: [THREE.Color, number][] = [
   [new THREE.Color(0x9fd8f5), 0],
@@ -134,6 +137,8 @@ export class Stage {
   readonly env: Env = { t: 0, day: 1, night: 0, rain: 0, clouds: 0, wind: 0, dim: 0, noon: 0, season: 0, snow: 0, selectedSlot: null, editLayout: false, serving: null, editSelected: null };
 
   private renderer: THREE.WebGLRenderer;
+  /** Vẽ cảnh qua lượt viền lem kiểu bút sáp (crayon.ts; tắt trong Cài đặt thì vẽ thẳng). */
+  private pass: CrayonPass;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(40, BASE_ASPECT, 0.5, 120);
   private hemi = new THREE.HemisphereLight(0xffffff, 0xd9c9a0, 1.9);
@@ -151,6 +156,8 @@ export class Stage {
   /** Vệt gió (sợi trắng mảnh bay ngang) ở khu ngoài trời; life < 0 = đang nghỉ. */
   private streaks: { m: THREE.Line; life: number; max: number; speed: number; phase: number }[] = [];
   /** Camera đang lướt tới một chỗ (bấm ô nông trại) hoặc lướt về góc mặc định. */
+  /** Góc nhìn đã nhớ của từng khu (setArea): rời khu thì lưu, quay lại thì trả. */
+  private views = new Map<string, { target: THREE.Vector3; position: THREE.Vector3 }>();
   private camTween: { fromT: THREE.Vector3; toT: THREE.Vector3; fromP: THREE.Vector3; toP: THREE.Vector3; k: number } | null = null;
   private raycaster = new THREE.Raycaster();
   private firstFrame = true;
@@ -167,6 +174,8 @@ export class Stage {
   ) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.pass = new CrayonPass(this.renderer);
+    this.raycaster.layers.enableAll(); // bấm trúng cả đồ ở lớp phủ (crayon.ts tách bong bóng sang lớp riêng)
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.scene.background = this.sky;
@@ -310,11 +319,22 @@ export class Stage {
   setArea(id: string): void {
     const next = this.areas.find((a) => a.id === id);
     if (!next) return;
+    // Nhớ góc nhìn (xoay / zoom) của khu đang rời — quay lại thì y như lúc đi. Đang lướt camera thì nhớ điểm cuối.
+    if (next !== this.current && !FRESH_VIEW.has(this.current.id)) {
+      const tw = this.camTween;
+      this.views.set(this.current.id, { target: (tw?.toT ?? this.controls.target).clone(), position: (tw?.toP ?? this.camera.position).clone() });
+    }
     this.current.root.visible = false;
     this.current = next;
     next.root.visible = true;
     this.camTween = null;
     this.resetView();
+    const saved = this.views.get(next.id);
+    if (saved) {
+      this.controls.target.copy(saved.target);
+      this.camera.position.copy(saved.position);
+      this.controls.update();
+    }
   }
 
   /** Đưa camera về góc mặc định của khu hiện tại và đặt lại giới hạn xoay/zoom. */
@@ -411,7 +431,7 @@ export class Stage {
     this.updateFlakes(dt);
     this.updateTween(dt);
     if (!this.camTween) this.clampTarget();
-    this.renderer.render(this.scene, this.camera);
+    this.pass.render(this.scene, this.camera);
     this.firstFrame = false;
   }
 
@@ -425,6 +445,7 @@ export class Stage {
     this.camera.updateProjectionMatrix();
     if (Math.abs(this.camera.aspect - this.lastAspect) > 0.02) {
       this.lastAspect = this.camera.aspect;
+      this.views.clear(); // xoay máy / đổi cỡ cửa sổ: góc nhìn đã nhớ không còn hợp
       this.resetView();
     }
     this.controls.update();

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { crayonize } from './crayon';
 import { G, group, mesh, seeded, toon, type V3 } from './toon';
 
 /**
@@ -364,8 +365,8 @@ export function makeGreenhouse(length: number, width: number, rib: number, insid
 // ---------- Xe cộ (khu chợ) ----------
 
 /** Đèn pha / đèn hậu dùng chung: sáng lên khi trời tối (khu gọi setVehicleLights). */
-const headMat = new THREE.MeshToonMaterial({ color: 0xfff6d0, emissive: 0xffe8a0, emissiveIntensity: 0 });
-const tailMat = new THREE.MeshToonMaterial({ color: 0xd9433a, emissive: 0xff3020, emissiveIntensity: 0 });
+const headMat = crayonize(new THREE.MeshToonMaterial({ color: 0xfff6d0, emissive: 0xffe8a0, emissiveIntensity: 0 }));
+const tailMat = crayonize(new THREE.MeshToonMaterial({ color: 0xd9433a, emissive: 0xff3020, emissiveIntensity: 0 }));
 export function setVehicleLights(night: number): void {
   headMat.emissiveIntensity = night * 1.8;
   tailMat.emissiveIntensity = night * 1.2;

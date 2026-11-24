@@ -37,7 +37,7 @@ function decorCard(game: Game, d: DecorDef, uiState: UiState): string {
       ? `<button${cmd({ type: 'decor/equip', decorId: d.id })}>Dùng</button>`
       : `<button${cmd({ type: 'decor/buy', decorId: d.id })}${levelOk && state.money >= d.cost ? '' : ' disabled'}>${levelOk ? coins(d.cost) : `🔒 Cấp ${d.level}`}</button>`;
   // Xem trước: tô lại quán bằng màu món này (chưa mua), bấm lần nữa thì thôi
-  const previewing = uiState.decorPreview === d.id;
+  const previewing = uiState.decorPreview?.[d.slot] === d.id;
   const preview = using ? '' : `<button class="${previewing ? 'on' : 'ghost'}"${ui(`decorPreview:${d.id}`)}>${previewing ? '✖ Thôi xem' : '👀 Xem trước'}</button>`;
   return `<div class="card ${using ? 'owned' : ''}${previewing ? ' previewing' : ''}" data-key="${d.id}"><div class="row">
     <span class="big">${d.icon}</span>
@@ -129,9 +129,9 @@ export const shopPanel: Panel = {
       })
       .join('');
 
-    const pv = uiState.decorPreview && content.decor.has(uiState.decorPreview) ? content.decor.get(uiState.decorPreview) : null;
-    const previewBar = pv
-      ? `<div class="card previewing" data-key="decor-preview"><div class="row"><span class="big">👀</span><div class="grow"><b>Đang xem trước: ${esc(pv.name)}</b><div class="muted">Quán đang tô màu thử — mua thì giữ luôn, thôi thì về như cũ.</div></div><div class="btns"><button class="ghost"${ui('decorPreview:')}>Thôi</button></div></div></div>`
+    const pv = Object.values(uiState.decorPreview ?? {}).filter((id): id is string => !!id && content.decor.has(id)).map((id) => content.decor.get(id));
+    const previewBar = pv.length
+      ? `<div class="card previewing" data-key="decor-preview"><div class="row"><span class="big">👀</span><div class="grow"><b>Đang xem trước: ${pv.map((d) => `${d.icon} ${esc(d.name)}`).join(' + ')}</b><div class="muted">Quán đang tô màu thử — xem cùng lúc sàn, tường, bàn ghế để phối màu; mua thì giữ luôn, thôi thì về như cũ.</div></div><div class="btns"><button class="ghost"${ui('decorPreview:')}>Thôi</button></div></div></div>`
       : '';
     return `${previewBar}<div class="row"><p class="muted grow">Mua nội thất là dùng ngay; món đã mua đổi qua lại miễn phí. Bấm 👀 Xem trước để thử màu sàn, tường, bàn ghế trong quán trước khi mua.</p>
       <button class="mini"${ui('edit')}>🪑 Sắp xếp quán</button></div>

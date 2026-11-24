@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { signText } from './cuisine';
+import { buildPainting } from './paintings';
 import { emojiSprite, G, group, mesh, seeded, toon, type V3 } from './toon';
 
 /**
@@ -533,6 +534,7 @@ const MAKERS: Record<string, Maker> = {
 export function makeProp(model: string, icon: string): THREE.Group {
   const g = group(null);
   const make = MAKERS[model];
+  if (buildPainting(g, model)) return g; // tranh treo tường (paintings.ts)
   if (make) make(g);
   else {
     const s = emojiSprite(icon, 0.6);

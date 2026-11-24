@@ -334,17 +334,17 @@ describe('siêu thị nội thất', () => {
     const game = newGame();
     game.state.money = 5000;
     game.state.level = 5;
-    expect(game.dispatch({ type: 'decor/equip', decorId: 'furn_oak' }).ok).toBe(false);
-    expect(game.dispatch({ type: 'decor/buy', decorId: 'furn_oak' }).ok).toBe(true);
-    expect(game.state.money).toBe(5000 - content.decor.get('furn_oak').cost);
-    expect(game.state.decor.equipped.furniture).toBe('furn_oak');
-    expect(game.dispatch({ type: 'decor/buy', decorId: 'furn_oak' }).ok).toBe(false);
+    expect(game.dispatch({ type: 'decor/equip', decorId: 'furn_oak_vn' }).ok).toBe(false);
+    expect(game.dispatch({ type: 'decor/buy', decorId: 'furn_oak_vn' }).ok).toBe(true);
+    expect(game.state.money).toBe(5000 - content.decor.get('furn_oak_vn').cost);
+    expect(game.state.decor.equipped.furniture).toBe('furn_oak_vn');
+    expect(game.dispatch({ type: 'decor/buy', decorId: 'furn_oak_vn' }).ok).toBe(false);
 
     game.state.weather = { id: 'cloudy', minutesLeft: 9999 };
     expect(modifier(game.ctx, 'patience')).toBeCloseTo(1.1);
     expect(game.dispatch({ type: 'decor/equip', decorId: 'furn_basic' }).ok).toBe(true);
     expect(modifier(game.ctx, 'patience')).toBe(1);
-    expect(game.state.money).toBe(5000 - content.decor.get('furn_oak').cost);
+    expect(game.state.money).toBe(5000 - content.decor.get('furn_oak_vn').cost);
   });
 });
 
@@ -722,6 +722,27 @@ describe('phong cách quán (Nhật / Hàn / Việt / Ốc)', () => {
     expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_encaustic' }).ok).toBe(false);
     expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_hinoki' }).ok).toBe(true);
     expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_marble' }).ok).toBe(true); // đồ dùng chung
+    expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_ngocdo' }).ok).toBe(false); // chỉ quán Việt + quán ốc
+  });
+
+  it('sàn riêng quán Việt / quán ốc (giai đoạn 20): bỏ gỗ óc chó, cẩm thạch; save cũ có món đó được trả tiền', () => {
+    for (const cuisine of ['vn', 'oc'] as const) {
+      const game = new Game(content, { seed: 3, cuisine });
+      Object.assign(game.state, { money: 99999, level: 9 });
+      for (const id of ['floor_walnut', 'floor_marble', 'floor_tile']) expect(game.dispatch({ type: 'decor/buy', decorId: id }).ok).toBe(false);
+      for (const id of ['floor_ngocdo', 'floor_gachxua']) expect(game.dispatch({ type: 'decor/buy', decorId: id }).ok).toBe(true);
+      // Bàn ghế model riêng chỉ quán Việt; quán ốc vẫn mua bộ gỗ sồi chung
+      expect(game.dispatch({ type: 'decor/buy', decorId: 'furn_oak_vn' }).ok).toBe(cuisine === 'vn');
+      expect(game.dispatch({ type: 'decor/buy', decorId: 'furn_oak' }).ok).toBe(cuisine === 'oc');
+    }
+    const game = new Game(content, { seed: 3, cuisine: 'vn' });
+    const raw = JSON.parse(serialize(game.state));
+    raw.decor.owned.push('floor_walnut');
+    raw.decor.equipped.floor = 'floor_walnut';
+    const loaded = deserialize(JSON.stringify(raw), content)!;
+    expect(loaded.decor.owned).not.toContain('floor_walnut');
+    expect(loaded.decor.equipped.floor).toBe('floor_wood');
+    expect(loaded.money).toBe(game.state.money + content.decor.get('floor_walnut').cost);
   });
 
   it('lưu / tải giữ phong cách quán; món lạ trong save bị dọn', () => {

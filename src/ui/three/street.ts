@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { terrazzoSidewalk } from './floortex';
 import { signText } from './cuisine';
 import type { Env, RainShelter } from './stage';
 import { makeCharcoalGrill, makeSnailTable } from './snailstall';
@@ -66,6 +67,7 @@ export function buildStreetGround(r: THREE.Object3D, d: StreetDims, mats: Street
   mesh(r, G.box(halfW * 2 + 3, 0.2, depth + 2.4), 0xcfcbc2, { p: [0, -0.1, cz - 0.6], cast: false });
   // Giai đoạn 15: vỉa hè trước quán rộng ra (SIDEWALK m) cho xe shipper đậu, người đi bộ; đường lùi ra xa
   mesh(r, G.box(70, 0.2, SIDEWALK), 0xcfcbc2, { p: [0, -0.1, frontZ + SIDEWALK / 2], cast: false });
+  terrazzoSidewalk(r, 70, SIDEWALK - 0.12, frontZ + SIDEWALK / 2 - 0.06); // vỉa hè gạch terrazzo rãnh cong
   mesh(r, G.box(70, 0.22, 0.25), 0xe6e2da, { p: [0, -0.05, frontZ + SIDEWALK], cast: false }); // bó vỉa
   mesh(r, G.box(70, 0.18, 7), 0x5c5f66, { p: [0, -0.14, frontZ + ROAD_MID], cast: false }); // lòng đường
   for (let x = -30; x <= 30; x += 3) mesh(r, G.box(1.4, 0.02, 0.15), 0xf3efe6, { p: [x, -0.04, frontZ + ROAD_MID], cast: false });

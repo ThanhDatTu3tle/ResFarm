@@ -1,3 +1,4 @@
+import { decorAllowed } from '../../data';
 import { spend } from '../helpers';
 import { canPlaceTable, LAYOUT_GRID } from '../layout';
 import { resolveOverlaps } from './home';
@@ -13,8 +14,7 @@ export const decorSystem: System = {
     'decor/buy'(ctx, cmd) {
       const { state, content } = ctx;
       if (!content.decor.has(cmd.decorId)) return fail('Không có món nội thất này.');
-      const only = content.decor.get(cmd.decorId).cuisine;
-      if (only && only !== state.cuisine) return fail('Món này không hợp phong cách quán.');
+      if (!decorAllowed(content.decor.get(cmd.decorId), state.cuisine)) return fail('Món này không hợp phong cách quán.');
       if (state.decor.owned.includes(cmd.decorId)) return fail('Đã mua rồi.');
       const def = content.decor.get(cmd.decorId);
       if (state.level < def.level) return fail(`Cần cấp ${def.level}.`);

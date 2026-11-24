@@ -8,6 +8,7 @@ import type { HairStyle, PersonBuild } from '../data';
 import { cleanOwner, OWNER_OUTFITS, type OwnerProfile } from '../sim/state';
 import { adultShape, animateCreature, animatePerson, FARMER_SHAPE, LOOKS, makeAnimals, makeBush, makeCrate, makeCrop, makeDish, hasCropModel, makeLampPost, makePerson, makeTree, type Pose } from '../ui/three/models';
 import { makeCashierStaff, makeHelperPerson, makeOwner, makePet, makePolice, makeRegular, makeShipper, makeShipperBike, makeWaiter } from '../ui/three/people';
+import { CrayonPass } from '../ui/three/crayon';
 import { buildSeat, counterExtras, makeShopfront, seatStyle, shopkeeper, tableExtras } from '../ui/three/cuisine';
 import { makeProp } from '../ui/three/props';
 import { grainField, hayBale, CAR_COLORS, CAR_KINDS, makeCar, makeFruitTree, makeGreenhouse, makeRiceMill, makeScooter, makeTractor, makeWindmill } from '../ui/three/farmkit';
@@ -465,6 +466,7 @@ q.addEventListener('input', () => {
 const viewer = document.getElementById('viewer')!;
 const vc = document.getElementById('vc') as HTMLCanvasElement;
 const vRenderer = new THREE.WebGLRenderer({ canvas: vc, antialias: true });
+const vPass = new CrayonPass(vRenderer);
 vRenderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
 vRenderer.shadowMap.enabled = true;
 const vScene = new THREE.Scene();
@@ -504,7 +506,9 @@ function open(e: Entry): void {
   const r = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) * 0.75 + 0.3;
   floor.scale.set(r, 1, r);
   floor.position.y = box.min.y - 0.02;
-  const center = frame(vCam, current, 1.35);
+  // ?gan=2: kéo camera lại gần gấp đôi (xem kỹ vân / nét viền qua link)
+  const gan = Number(new URLSearchParams(location.search).get('gan')) || 1;
+  const center = frame(vCam, current, 1.35 / gan);
   controls.target.copy(center);
   controls.update();
   document.getElementById('vname')!.textContent = e.name;
@@ -555,5 +559,5 @@ vRenderer.setAnimationLoop(() => {
     current.traverse((o) => o.userData.eyes && animateCreature(o, t, 0));
     animateRiders(current, t);
   }
-  vRenderer.render(vScene, vCam);
+  vPass.render(vScene, vCam);
 });

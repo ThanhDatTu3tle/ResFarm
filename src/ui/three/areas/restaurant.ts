@@ -4,7 +4,7 @@ import { makeCashierCounter, type CashierView } from '../cashier';
 import { passSlots } from '../../../sim/systems/kitchen';
 import type { RoomDef, StaffDef, TableDef } from '../../../data';
 import type { Game } from '../../../sim/game';
-import { blockerOf, canPlaceProp, canPlaceTable, LAYOUT_GRID, nearestPlaceable, placedProps, roomOf, seatSpots, tableById, tablePos, withRotation } from '../../../sim/layout';
+import { blockerOf, canPlaceProp, canPlaceTable, LAYOUT_GRID, nearestPlaceable, placedProps, roomOf, seatSpots, tableById, tablePos, wallProps, withRotation } from '../../../sim/layout';
 import { heartsOf } from '../../../sim/systems/regulars';
 import { makeCashierStaff, makeHelperPerson, makePet, makePolice, makeRegular, makeShipper, makeShipperBike, makeWaiter } from '../people';
 import { isManager } from '../../../sim/systems/helpers';
@@ -16,9 +16,11 @@ import { adultShape, animateCreature, animatePerson, LOOKS, makeBush, makeDish, 
 import { buildSeat, counterExtras, decorateInterior, seatStyle, signText, tableExtras, type InteriorAnimator } from '../cuisine';
 import { buildStreetGround, buildStreetKitchen, standingSign, streetSpots } from '../street';
 import { buildNeighborhood } from '../neighborhood';
+import { buildRattanArmchair, buildSpindleChair, buildTurnedTable } from '../furniturevn';
+import { FLOOR_TILE, floorTexture } from '../floortex';
 import { mergeAdded, mergeStatic } from '../merge';
 import { HOLD_MS, type Area, type Env, type Pick } from '../stage';
-import { Bar3D, blinkLeds, bubbleSprite, emojiSprite, G, group, ledFrame, mesh, speechSprite, textSprite, toon, paintSeason } from '../toon';
+import { Bar3D, blinkLeds, bubbleSprite, emojiSprite, G, group, ledFrame, mesh, seeded, speechSprite, textSprite, toon, paintSeason } from '../toon';
 import { easeOutBack, wobble } from '../../ease';
 import { Particles } from '../fx';
 import { FestiveSet } from '../festive';
@@ -148,7 +150,7 @@ export class RestaurantArea implements Area {
   id = 'restaurant';
   label: string;
   /** Nội thất đang xem trước ở bảng Siêu thị (app.ts đặt mỗi khung hình); null = màu theo đồ đang dùng. */
-  previewDecor: string | null = null;
+  previewDecor: Partial<Record<string, string>> | null = null;
   icon = '🏠';
   root = new THREE.Group();
   view: Area['view'];
@@ -190,6 +192,8 @@ export class RestaurantArea implements Area {
   private padMat = new THREE.MeshBasicMaterial({ color: 0x5fd068, transparent: true, opacity: 0.55 });
   private bulbMat = toon(0xfff1c2, { emissive: 0xffc861, emissiveIntensity: 0.3 });
   private windowMat = toon(0xbfe6ff, { transparent: true, opacity: 0.3 });
+  /** Lớp gạch bông trên sàn phòng ăn (null ở quán ốc ngoài trời). */
+  private tileFloor: THREE.Mesh | null = null;
 
   private actors = new Map<string, Actor>();
   /** servedAt: mốc env.t lúc món vừa ra bàn (để đĩa nảy lên), -1 = chưa ra. */
@@ -285,6 +289,20 @@ export class RestaurantArea implements Area {
         this.root.add(lamp);
       }
     } else this.mergeBuilt(() => this.buildRoom()); // tường, sàn, cửa sổ, hành lang: cảnh tĩnh → gộp mesh
+    {
+      // Lớp gạch hoa văn phủ sàn (quán trong nhà: phòng ăn, bếp lát gạch trắng đè lên; quán ốc: cả nền lát ô) —
+      // hiện khi sàn đang dùng có hoa văn (DecorDef.pattern), texture đổi theo món
+      const z1 = this.street ? this.backZ - 0.3 : this.plan === 'back' ? this.kitchenZ : this.backZ;
+      const z2 = this.street ? this.frontZ + 0.3 : this.frontZ;
+      const w = this.halfW * 2;
+      const dz = z2 - z1;
+      const geo = new THREE.PlaneGeometry(w, dz);
+      const uv = geo.attributes.uv as THREE.BufferAttribute;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * w) / FLOOR_TILE, (uv.getY(i) * dz) / FLOOR_TILE);
+      this.tileFloor = mesh(this.root, geo, toon(0xffffff, { map: floorTexture('encaustic', 0xd9a23b, 0x8e2f25) }), { p: [0, this.street ? 0.045 : 0.012, (z1 + z2) / 2], r: [-Math.PI / 2, 0, 0], cast: false });
+      this.tileFloor.userData.keep = true;
+      this.tileFloor.visible = false;
+    }
     // Trang trí lễ hội: dây treo dọc hai tường bên, đồ đứng hai bên cửa (chỉ hiện vào ngày lễ)
     {
       const { halfW, backZ, frontZ } = this;
@@ -300,7 +318,7 @@ export class RestaurantArea implements Area {
     }
     this.buildKitchen();
     this.buildCashier();
-    this.curb = new Curbside(this.root, { halfW: this.halfW, frontZ: this.frontZ, backZ: this.backZ, door: this.door, hasRoad: this.street });
+    this.curb = new Curbside(this.root, { halfW: this.halfW, frontZ: this.frontZ, backZ: this.backZ, door: this.door, hasRoad: this.street, terrazzo: game.state.cuisine === 'vn' });
     // Xóm quanh quán: dãy nhà sau hẻm, nhà mặt tiền + cây xanh hai bên ngoài bãi xe (neighborhood.ts)
     const hood = group(this.root);
     this.neighborhood = buildNeighborhood(hood, { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, street: this.street });
@@ -413,7 +431,9 @@ export class RestaurantArea implements Area {
   /** Một ghế ăn đơn theo phong cách quán (ghế bàn khách / ghế chờ). Gốc ở tâm đất, khách nhìn về +z. */
   private diningChair(chair: THREE.Object3D, seed: number): void {
     const { mats } = this;
-    if (this.woodTables) buildWoodStool(chair, this.wood, seed);
+    if (this.woodTables && this.furnStyle === 'oak_vn') buildSpindleChair(chair, this.wood, seed);
+    else if (this.woodTables && this.furnStyle === 'luxury_vn') buildRattanArmchair(chair, this.wood, seed);
+    else if (this.woodTables) buildWoodStool(chair, this.wood, seed);
     else if (this.street) buildPlasticChair(chair, mats.seat, seed);
     else if (this.oakTables) buildOakChair(chair, this.wood, mats.seat, seed);
     else if (this.grillTables) buildLeatherChair(chair, mats.seat, seed);
@@ -583,7 +603,8 @@ export class RestaurantArea implements Area {
       seg(z0, wins[0] - 1.2, 1.3, 3.3);
       seg(wins[0] + 1.2, wins[1] - 1.2, 1.3, 3.3);
       seg(wins[1] + 1.2, z0 + sideLen, 1.3, 3.3);
-      for (const wz of wins) this.buildWindow(x, 2.3, wz, Math.PI / 2);
+      // Mặt "trong" của cửa sổ (rèm) là +z cục bộ: tường tây xoay +90°, tường đông xoay -90° để rèm luôn treo phía trong quán
+      for (const wz of wins) this.buildWindow(x, 2.3, wz, side < 0 ? Math.PI / 2 : -Math.PI / 2);
     }
     // Mép trước: chân tường thấp hai bên cửa (không che phòng)
     for (const side of [-1, 1]) mesh(r, G.box(halfW - 1.3, 0.5, 0.3), mats.trim, { p: [side * (halfW + 1.3) / 2, 0.25, frontZ + 0.15] });
@@ -605,7 +626,13 @@ export class RestaurantArea implements Area {
       mesh(r, G.cyl(0.35, 0.28, 0.5), 0xc8623e, { p: [x, 0.25, z] });
       makeBush(r, { p: [x, 0.45, z], s: 1.1 }, 0x4f9e4a);
     }
-    mesh(r, G.box(2.2, 0.04, 0.8), 0xb5553c, { p: [0, 0.02, frontZ - 0.2], cast: false });
+    // Thảm chùi chân trước cửa: viền sẫm + chữ Welcome nằm phẳng (đầu chữ quay vào trong quán, đọc xuôi từ phía camera)
+    mesh(r, G.box(2.3, 0.035, 0.9), 0x8f3f2b, { p: [0, 0.018, frontZ - 0.2], cast: false });
+    mesh(r, G.box(2.1, 0.04, 0.72), 0xb5553c, { p: [0, 0.022, frontZ - 0.2], cast: false });
+    const welcome = signText('Welcome', '#fff1d6', 1.8, 0.55);
+    welcome.position.set(0, 0.045, frontZ - 0.2);
+    welcome.rotation.x = -Math.PI / 2;
+    r.add(welcome);
 
     // Đèn treo trần: kiểu đèn theo quán (cuisine.ts); ở đây chỉ có nguồn sáng — sáng dần khi trời tối
     for (const x of [-halfW * 0.5, halfW * 0.5]) {
@@ -632,13 +659,17 @@ export class RestaurantArea implements Area {
       [doorX[0], 'WC', 0x6fa8c9, '🚻'],
       [doorX[1], 'KHO', 0xb9733f, '📦'],
     ];
+    const vn = this.game.state.cuisine === 'vn';
     for (const [x, text, color, icon] of doors) {
       const d = group(r, { p: [x, 0, backZ + 0.03] });
       mesh(d, G.box(1.15, 2.35, 0.08), mats.trim, { p: [0, 1.17, 0] });
-      mesh(d, G.box(0.95, 2.2, 0.1), color, { p: [0, 1.1, 0.02] });
-      const panel = new THREE.Color(color).multiplyScalar(0.82).getHex();
-      for (const y of [0.6, 1.6]) mesh(d, G.box(0.75, 0.6, 0.02), panel, { p: [0, y, 0.08], cast: false });
-      mesh(d, G.sphere(0.05, 8, 6), 0xd4a537, { p: [0.35, 1.05, 0.1] });
+      if (vn) beadCurtain(d, text === 'WC' ? [0x2a6cc8, 0x4f95e6] : [0x9a6a3a, 0xc08a4e]);
+      else {
+        mesh(d, G.box(0.95, 2.2, 0.1), color, { p: [0, 1.1, 0.02] });
+        const panel = new THREE.Color(color).multiplyScalar(0.82).getHex();
+        for (const y of [0.6, 1.6]) mesh(d, G.box(0.75, 0.6, 0.02), panel, { p: [0, y, 0.08], cast: false });
+        mesh(d, G.sphere(0.05, 8, 6), 0xd4a537, { p: [0.35, 1.05, 0.1] });
+      }
       const plate = group(d, { p: [0, 2.6, 0.04] });
       mesh(plate, G.box(0.8, 0.32, 0.04), 0xfffaf1);
       const sign = signText(text, '#3b2a1e', 0.75, 0.3);
@@ -651,12 +682,20 @@ export class RestaurantArea implements Area {
     mesh(r, G.box(2.6, 0.03, 0.9), 0x6f8f6a, { p: [this.corridorX, 0.02, backZ + 0.8], cast: false }); // thảm lối đi
   }
 
+/** Ô cửa sổ trên tường: +z cục bộ = phía trong quán (rèm), -z = phía ngoài (mái ngói của quán Việt). */
   private buildWindow(x: number, y: number, z: number, rotY: number): void {
     const g = group(this.root, { p: [x, y, z], r: [0, rotY, 0] });
     mesh(g, G.box(2.4, 2, 0.06), this.windowMat, { cast: false, receive: false });
-    for (const fy of [-1, 1]) mesh(g, G.box(2.6, 0.12, 0.36), this.mats.trim, { p: [0, fy, 0] });
-    for (const fx of [-1.2, 0, 1.2]) mesh(g, G.box(0.1, 2, 0.34), this.mats.trim, { p: [fx, 0, 0] });
-    for (const fx of [-1, 1]) mesh(g, G.box(0.5, 1.9, 0.1), 0xe9806a, { p: [fx * 0.95, 0, 0.2] });
+    // Khung cửa: quán Việt sơn xanh lá như cánh chớp, quán khác theo màu viền tường
+    const frame = this.game.state.cuisine === 'vn' ? toon(0x4f8a4c) : this.mats.trim;
+    for (const fy of [-1, 1]) mesh(g, G.box(2.6, 0.12, 0.36), frame, { p: [0, fy, 0] });
+    for (const fx of [-1.2, 0, 1.2]) mesh(g, G.box(0.1, 2, 0.34), frame, { p: [fx, 0, 0] });
+    if (this.game.state.cuisine === 'vn') {
+      // Quán Việt: song sắt + cánh gỗ chớp lật xanh lá mở sang hai bên (không rèm), mái ngói phía ngoài
+      buildWindowBars(g);
+      buildShutters(g);
+      buildTileAwning(g);
+    } else buildCurtains(g);
   }
 
   /** Tâm dãy bếp (mét): giữa tủ lạnh và quầy ra món. */
@@ -994,6 +1033,9 @@ export class RestaurantArea implements Area {
     }
   }
 
+  /** Kiểu bàn ghế riêng của quán Việt theo nội thất đang dùng / đang xem trước (DecorDef.style); '' = bàn gỗ mộc. */
+  private furnStyle: '' | 'oak_vn' | 'luxury_vn' = '';
+
   private get woodTables(): boolean {
     return this.game.state.cuisine === 'vn';
   }
@@ -1036,6 +1078,7 @@ export class RestaurantArea implements Area {
       if (this.street) buildPlasticTable(g, w, d, TABLE_TOP, mats, seedOf(t.id));
       else if (this.oakTables) buildOakTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       else if (this.grillTables) buildGrillTable(g, w, d, TABLE_TOP, this.wood, mats.base, seedOf(t.id));
+      else if (this.furnStyle) buildTurnedTable(g, w, d, TABLE_TOP, this.wood, this.furnStyle, seedOf(t.id));
       else buildWoodTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       tableExtras(this.game.state.cuisine, g, TABLE_TOP, w, d, seedOf(t.id), seatSpots(t, { x: 0, y: 0 }).map((s) => ({ x: s.x / UNIT, z: s.y / UNIT })));
     } else {
@@ -1356,6 +1399,11 @@ export class RestaurantArea implements Area {
     const room = this.room;
     const { ctx, state } = this.game;
     const snap = (v: number) => Math.round(v / LAYOUT_GRID) * LAYOUT_GRID;
+    // Tranh treo tường không kéo được (đổi khung bằng nút "Đổi chỗ")
+    if (kind === 'prop') {
+      const p = state.restaurant.props.find((q) => q.uid === id);
+      if (p && this.game.content.props.get(p.def).wall) return;
+    }
     const px = x * UNIT + room.width / 2;
     const py = z * UNIT + room.height / 2;
     // Lần đầu: nhớ chỗ nắm so với tâm vật (bấm lên mặt bàn cao hơn sàn nên tia chạm sàn lệch ra sau)
@@ -1531,7 +1579,8 @@ export class RestaurantArea implements Area {
   private updateProps(env: Env): void {
     const { ctx, content } = this.game;
     const placed = placedProps(ctx);
-    const keep = new Set(placed.map((p) => p.uid));
+    const hung = wallProps(ctx);
+    const keep = new Set([...placed, ...hung].map((p) => p.uid));
     for (const [uid, view] of this.props) {
       if (keep.has(uid)) continue;
       this.root.remove(view.g);
@@ -1565,6 +1614,38 @@ export class RestaurantArea implements Area {
       view.hand.visible = env.editLayout && !dragging;
       view.hand.position.y = 1.9 + Math.sin(env.t * 3 + view.g.position.x) * 0.08;
       animateProp(view.g, env.t);
+    }
+    // Tranh treo tường: đặt vào khung thứ p.x của roomOf(ctx).art
+    const art = this.room.art ?? [];
+    for (const p of hung) {
+      const spot = art[p.x];
+      const def = content.props.get(p.def);
+      let view = this.props.get(p.uid);
+      if (!view) {
+        const g = group(this.root);
+        g.userData.pick = { type: 'prop', id: p.uid } satisfies Pick;
+        const pic = makeProp(def.model, def.icon);
+        g.add(pic);
+        const [sw, sh] = (pic.userData.size as [number, number] | undefined) ?? [1, 1];
+        const pad = mesh(g, G.box(sw + 0.24, sh + 0.24, 0.02), this.selMat, { p: [0, 0, 0.005], cast: false, receive: false });
+        const hand = emojiSprite('✋', 0.45);
+        hand.position.set(0, sh / 2 + 0.45, 0.3);
+        g.add(hand);
+        g.userData.born = env.t;
+        this.props.set(p.uid, (view = { g, pad, hand, def: p.def }));
+      }
+      view.g.visible = !!spot;
+      if (spot) {
+        const sideLen = this.frontZ - this.backZ + 0.3;
+        const z0 = this.backZ - 0.3;
+        if (spot.wall === 'back') view.g.position.set(this.wx(spot.at), ART_Y, this.backZ + 0.02);
+        else view.g.position.set((spot.wall === 'left' ? -1 : 1) * (this.halfW - 0.02), ART_Y, z0 + spot.at * sideLen);
+        view.g.rotation.y = spot.wall === 'back' ? 0 : spot.wall === 'left' ? Math.PI / 2 : -Math.PI / 2;
+      }
+      const pop = easeOutBack(Math.min(1, (env.t - view.g.userData.born) / 0.45), 3);
+      view.g.scale.setScalar(Math.max(0.001, pop));
+      view.pad.visible = env.editLayout && env.editSelected === p.uid;
+      view.hand.visible = env.editLayout;
     }
   }
 
@@ -1769,14 +1850,26 @@ export class RestaurantArea implements Area {
 
     // Màu theo nội thất đang dùng
     // Đang xem trước một món ở Siêu thị (previewDecor) thì tô bằng màu món đó thay cho món đang dùng cùng loại
-    const pv = this.previewDecor && content.decor.has(this.previewDecor) ? content.decor.get(this.previewDecor) : null;
-    const colors = (slot: 'floor' | 'wall' | 'furniture') => (pv?.slot === slot ? pv : content.decor.get(state.decor.equipped[slot])).colors;
+    // Mỗi loại một món xem trước (sàn / tường / bàn ghế cùng lúc để phối màu)
+    const pick = (slot: 'floor' | 'wall' | 'furniture') => {
+      const id = this.previewDecor?.[slot];
+      return content.decor.get(id && content.decor.has(id) ? id : state.decor.equipped[slot]);
+    };
+    const colors = (slot: 'floor' | 'wall' | 'furniture') => pick(slot).colors;
     const floor = colors('floor');
     const wall = colors('wall');
     const furn = colors('furniture');
     const { mats } = this;
     mats.floorA.color.setHex(floor.a);
     mats.floorB.color.setHex(floor.b);
+    // Sàn hoa văn (gạch bông): hiện lớp gạch, ẩn sọc ván
+    const floorDef = pick('floor');
+    if (this.tileFloor) {
+      const pattern = floorDef.pattern;
+      this.tileFloor.visible = !!pattern;
+      mats.floorB.visible = !pattern;
+      if (pattern) (this.tileFloor.material as THREE.MeshToonMaterial).map = floorTexture(pattern, floor.a, floor.b);
+    }
     mats.wall.color.setHex(wall.wall);
     mats.trim.color.setHex(wall.trim);
     mats.top.color.setHex(furn.top);
@@ -1784,6 +1877,13 @@ export class RestaurantArea implements Area {
     mats.seat.color.setHex(furn.seat);
     mats.back.color.setHex(furn.back);
     tintWood(this.wood, furn as { top: number; base: number; seat: number });
+    // Đổi kiểu bàn ghế (quán Việt: gỗ mộc / gỗ chân tiện / ghế bành mây): bỏ hết bàn đang dựng, dựng lại theo kiểu mới
+    const style = this.woodTables ? (pick('furniture').style ?? '') : '';
+    if (style !== this.furnStyle) {
+      this.furnStyle = style;
+      for (const view of this.tables.values()) this.root.remove(view.g);
+      this.tables.clear();
+    }
 
     // Bàn: dựng bàn mới có, đặt đúng vị trí hiện tại (hoặc vị trí đang kéo)
     const tablesNow = activeTables(ctx);
@@ -2113,3 +2213,121 @@ const COMPLAIN = {
   order: ['Chời, chọn xong nãy giờ mà chưa ai ghi món!', 'Bàn tui gọi trước mà, ghi giùm cái!', 'Sao ghi món bàn kia trước vậy ta?'],
   food: ['Chời ơi người ta vô trước mà sao giờ chưa có đồ ăn nữa!', 'Ủa, bàn sau có món trước luôn hả?', 'Tui gọi trước mà, đói quá trời!'],
 } as const;
+
+/**
+ * Rèm cửa sổ (phía trong, +z cục bộ): thanh treo đồng có núm hai đầu, diềm rèm viền lượn sóng, mỗi bên một tấm rèm
+ * xếp nếp (các dải đậm nhạt so le) buộc dây vàng ngang lưng, gấu rèm sẫm màu.
+ */
+function buildCurtains(g: THREE.Object3D): void {
+  const cloth = [0xe9806a, 0xd8705b];
+  const brass = 0xd4a537;
+  mesh(g, G.cyl(0.025, 0.025, 2.95, 8), brass, { p: [0, 1.13, 0.27], r: [0, 0, Math.PI / 2], cast: false });
+  for (const sx of [-1, 1]) mesh(g, G.sphere(0.055, 10, 8), brass, { p: [sx * 1.5, 1.13, 0.27], cast: false });
+  // Diềm rèm: dải vải ngang + mép dưới lượn sóng
+  mesh(g, G.box(2.8, 0.24, 0.05), cloth[0], { p: [0, 1.0, 0.3], cast: false });
+  for (let i = 0; i < 14; i++) mesh(g, G.sphere(0.1, 10, 6), cloth[i % 2], { p: [-1.3 + i * 0.2, 0.88, 0.3], s: [1, 0.55, 0.3], cast: false });
+  for (const side of [-1, 1]) {
+    // 4 nếp rèm, so le trước sau, mép ngoài sát khung cửa
+    for (let k = 0; k < 4; k++) {
+      const px = side * (1.25 - k * 0.12);
+      mesh(g, G.box(0.13, 1.85, 0.04), cloth[k % 2], { p: [px, -0.02, 0.24 + (k % 2) * 0.04], cast: false });
+      mesh(g, G.box(0.13, 0.12, 0.05), 0xb9563f, { p: [px, -0.9, 0.24 + (k % 2) * 0.04], cast: false }); // gấu rèm
+    }
+    // Dây buộc rèm
+    mesh(g, G.box(0.56, 0.07, 0.1), 0xf2c94c, { p: [side * 1.07, -0.25, 0.27], cast: false });
+    mesh(g, G.sphere(0.05, 8, 6), 0xf2c94c, { p: [side * 0.8, -0.3, 0.3], cast: false });
+  }
+}
+
+/** Song sắt cửa sổ quán Việt (phía trong kính): thanh dọc + 2 thanh ngang, giữa các thanh là ô quả trám. */
+function buildWindowBars(g: THREE.Object3D): void {
+  const iron = 0x3b4a3a;
+  const z = 0.09;
+  for (let i = 0; i < 9; i++) mesh(g, G.box(0.03, 1.9, 0.03), iron, { p: [-1.0 + i * 0.25, 0, z], cast: false });
+  for (const y of [-0.62, 0.62]) mesh(g, G.box(2.2, 0.03, 0.03), iron, { p: [0, y, z], cast: false });
+  // Ô quả trám giữa hai thanh dọc (4 thanh mảnh xoay 45°), xen kẽ trên / dưới cho giống hoa sắt
+  for (let i = 0; i < 8; i++) {
+    const cx = -0.875 + i * 0.25;
+    const cy = i % 2 ? 0.25 : -0.25;
+    for (const [dx, dy, r] of [[-0.06, 0.06, Math.PI / 4], [0.06, 0.06, -Math.PI / 4], [-0.06, -0.06, -Math.PI / 4], [0.06, -0.06, Math.PI / 4]] as const)
+      mesh(g, G.box(0.17, 0.022, 0.022), iron, { p: [cx + dx, cy + dy, z], r: [0, 0, r], cast: false });
+  }
+}
+
+/**
+ * Cánh cửa gỗ chớp lật xanh lá (phía trong, +z cục bộ) đang mở: mỗi bên 2 cánh hẹp gấp kiểu xếp, cánh trong mở chếch vào
+ * phòng, cánh ngoài gập ngược về sát tường — gọn để hai cửa sổ cạnh nhau trên cùng một tường không đụng cánh nhau.
+ */
+function buildShutters(g: THREE.Object3D): void {
+  const W = 0.5;
+  const H = 1.9;
+  for (const sx of [-1, 1]) {
+    const open = 1.05;
+    // Cánh trong: bản lề ở mép khung; cánh ngoài: bản lề ở mép xa của cánh trong, gập ngược lại
+    const p1 = group(g, { p: [sx * 1.27, 0, 0.2], r: [0, sx > 0 ? -open : Math.PI + open, 0] });
+    shutterLeaf(p1, W, H);
+    const p2 = group(p1, { p: [W, 0, 0], r: [0, sx > 0 ? 2 * open : -2 * open, 0] });
+    shutterLeaf(p2, W, H);
+  }
+}
+
+/** Một cánh chớp: khung (2 trụ + 3 thanh ngang) và các nan lật nghiêng; trải theo +x từ 0 tới w, giữa theo y. */
+function shutterLeaf(p: THREE.Object3D, w: number, h: number): void {
+  const green = 0x5f9a5a;
+  const frame = 0x4a7f48;
+  for (const x of [0.03, w - 0.03]) mesh(p, G.box(0.06, h, 0.05), frame, { p: [x, 0, 0] });
+  for (const y of [-h / 2 + 0.04, 0, h / 2 - 0.04]) mesh(p, G.box(w, 0.08, 0.05), frame, { p: [w / 2, y, 0] });
+  for (const [y0, y1] of [[-h / 2 + 0.1, -0.06], [0.06, h / 2 - 0.1]]) {
+    for (let y = y0; y <= y1; y += 0.075) mesh(p, G.box(w - 0.1, 0.014, 0.065), green, { p: [w / 2, y, 0], r: [-0.55, 0, 0] });
+  }
+}
+
+/**
+ * Mái ngói kiểu Việt che trên cửa sổ (phía ngoài, -z cục bộ): ván gỗ đỡ, hàng ngói ống đỏ gạch chạy xuôi mái
+ * (đậm nhạt xen kẽ như ngói âm dương), đầu ngói tròn ở mép, bờ nóc áp tường, hai con sơn gỗ đỡ bên dưới.
+ */
+function buildTileAwning(g: THREE.Object3D): void {
+  const L = 0.95; // chiều dài mái (từ tường ra)
+  const W = 3.1;
+  const slope = group(g, { p: [0, 1.42, -0.2], r: [-0.5, 0, 0] });
+  mesh(slope, G.box(W, 0.04, L), 0x7a4a2a, { p: [0, -0.02, -L / 2] }); // ván đỡ
+  const n = 17;
+  for (let i = 0; i < n; i++) {
+    const x = -W / 2 + 0.09 + (i * (W - 0.18)) / (n - 1);
+    const up = i % 2 === 0; // ngói ngửa / ngói úp xen kẽ
+    mesh(slope, G.cyl(0.085, 0.085, L, 8), up ? 0xc4623f : 0xb35436, { p: [x, up ? 0.04 : 0.07, -L / 2], r: [Math.PI / 2, 0, 0], s: [1, 1, up ? 0.55 : 0.75] });
+    mesh(slope, G.cyl(0.095, 0.095, 0.05, 8), 0xd9825a, { p: [x, up ? 0.04 : 0.07, -L - 0.01], r: [Math.PI / 2, 0, 0], s: [1, 1, up ? 0.55 : 0.75] }); // đầu ngói
+  }
+  // Bờ nóc áp tường + diềm gỗ ở mép mái
+  mesh(slope, G.box(W + 0.1, 0.14, 0.16), 0x9e4a30, { p: [0, 0.08, -0.04] });
+  mesh(slope, G.box(W, 0.06, 0.05), 0x6b3f22, { p: [0, -0.05, -L + 0.02] });
+  // Hai con sơn gỗ đỡ mái
+  for (const sx of [-1, 1]) mesh(g, G.box(0.08, 0.08, 0.78), 0x6b3f22, { p: [sx * (W / 2 - 0.25), 1.05, -0.5], r: [0.45, 0, 0] });
+}
+
+
+/**
+ * Mành tre / mành hạt treo ở ô cửa (quán Việt, thay cánh cửa WC / kho): lòng cửa tối phía sau, thanh gỗ ngang trên,
+ * các dây dọc sát nhau ghép từ đốt tre ngắn hai tông xen kẽ (đậm / nhạt), đầu dưới so le chút cho tự nhiên.
+ * `tones` = [màu đậm, màu nhạt]. Gốc ở chân cửa, mặt nhìn về +z.
+ */
+function beadCurtain(d: THREE.Object3D, tones: [number, number]): void {
+  const rnd = seeded(tones[0] % 9973);
+  mesh(d, G.box(0.95, 2.2, 0.04), 0x2a211a, { p: [0, 1.1, 0.01], cast: false }); // lòng cửa tối
+  mesh(d, G.box(1.0, 0.07, 0.07), 0x6b4a2f, { p: [0, 2.17, 0.08] }); // thanh treo
+  const strands = 26;
+  for (let i = 0; i < strands; i++) {
+    const x = -0.45 + (i * 0.9) / (strands - 1);
+    const bottom = 0.06 + rnd() * 0.05;
+    let y = 2.13;
+    let k = i % 2;
+    while (y > bottom) {
+      const len = Math.min(y - bottom, 0.16 + rnd() * 0.12);
+      mesh(d, G.cyl(0.013, 0.013, len - 0.012, 5), tones[k++ % 2], { p: [x, y - len / 2, 0.08], cast: false });
+      y -= len;
+    }
+  }
+}
+
+/** Độ cao tâm tranh treo tường (m). */
+const ART_Y = 2.2;

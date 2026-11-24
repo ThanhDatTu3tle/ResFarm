@@ -186,7 +186,14 @@ export function roomFor(c: Content, cuisine: CuisineId): RoomDef {
 
 /** Nội thất bán cho quán phong cách này (món riêng của quán + món dùng chung). */
 export function decorFor(c: Content, cuisine: CuisineId): DecorDef[] {
-  return c.decor.all().filter((d) => !d.cuisine || d.cuisine === cuisine);
+  return c.decor.all().filter((d) => decorAllowed(d, cuisine));
+}
+
+/** Món nội thất này có bán cho quán phong cách `cuisine` không (cuisine / cuisines / exclude). */
+export function decorAllowed(d: DecorDef, cuisine: CuisineId): boolean {
+  if (d.cuisine && d.cuisine !== cuisine) return false;
+  if (d.cuisines && !d.cuisines.includes(cuisine)) return false;
+  return !d.exclude?.includes(cuisine);
 }
 
 /** Nội thất có sẵn từ đầu của quán phong cách này (mỗi slot một món). */
