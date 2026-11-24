@@ -13,8 +13,9 @@
  *   recipes    số món đã mở khoá
  *   gardener   số người làm vườn đang thuê
  *   tool       số dụng cụ nông trại đã sắm
+ *   friends    số bạn bè online nhiều nhất từng có (UI báo vào sim bằng lệnh `achievement/friends` mỗi lần tải danh sách bạn)
  */
-export type AchievementStat = 'serve' | 'happy' | 'harvest' | 'produce' | 'contract' | 'revenue' | 'day' | 'level' | 'reputation' | 'recipes' | 'gardener' | 'tool';
+export type AchievementStat = 'serve' | 'happy' | 'harvest' | 'produce' | 'contract' | 'revenue' | 'day' | 'level' | 'reputation' | 'recipes' | 'gardener' | 'tool' | 'friends';
 
 export interface AchievementDef {
   id: string;
@@ -49,5 +50,7 @@ export const achievements: AchievementDef[] = [
   { id: 'rep_45', icon: '🌟', name: 'Năm sao lấp lánh', desc: 'Uy tín quán đạt 4.5 sao', stat: 'reputation', target: 4.5, reward: { money: 600, xp: 120 } },
   { id: 'recipes_8', icon: '📖', name: 'Thực đơn dày cộp', desc: 'Mở khoá 8 món', stat: 'recipes', target: 8, reward: { money: 300, xp: 60 } },
   { id: 'gardener_3', icon: '👩‍🌾', name: 'Đội làm vườn', desc: 'Thuê đủ 3 người làm vườn', stat: 'gardener', target: 3, reward: { money: 400, xp: 80 } },
+  // Giai đoạn 20: bạn bè online (bản không nối máy chủ thì bảng Thành tựu ẩn mục này)
+  { id: 'friends_3', icon: '🤝', name: 'Hội bạn thân', desc: 'Kết bạn với 3 người chơi khác (🤝 Bạn bè)', stat: 'friends', target: 3, reward: { money: 300, xp: 60 } },
   { id: 'tool_all', icon: '🧰', name: 'Đủ đồ nghề', desc: 'Sắm đủ 4 dụng cụ nông trại', stat: 'tool', target: 4, reward: { money: 400, xp: 80 } },
 ];

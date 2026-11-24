@@ -207,23 +207,22 @@ export class StallArea implements Area {
       tray.userData.pick = { type: 'goods', id } satisfies Pick;
       mesh(tray, G.box(w, 0.1, d), 0x6b4a2f);
       mesh(tray, G.box(w - 0.12, 0.06, d - 0.12), 0xf3e6c8, { p: [0, 0.04, 0] });
-      // Đống hàng: vài biểu tượng chồng lên nhau
+      // Đống hàng: vài món chồng lên nhau, to gần kín khay để nhìn từ xa vẫn nhận ra
       for (let k = 0; k < 5; k++) {
-        const { obj: sp, y } = goodsPiece(id, item.icon, 0.42 * s, k, (0.28 + (k > 2 ? 0.18 : 0)) * s, 0.07, k > 2, 1.15);
-        sp.position.set(((k % 3) - 1) * 0.34 * (w / tw), y, (k > 2 ? -0.05 : 0.12 - (k % 2) * 0.12) * (d / td));
+        const { obj: sp, y } = goodsPiece(id, item.icon, 0.5 * s, k, (0.32 + (k > 2 ? 0.2 : 0)) * s, 0.07, k > 2, 1.15);
+        sp.position.set(((k % 3) - 1) * 0.37 * (w / tw), y, (k > 2 ? -0.12 : 0.14 - (k % 2) * 0.14) * (d / td));
         tray.add(sp);
         if (k === 4) this.bobbers.push({ obj: sp, y, phase: i * 1.3 });
       }
-      // Biển giá cắm trước khay
+      // Biển giá nằm nghiêng ngay mép trước khay (thấp, không che hàng), có biểu tượng giống trong bảng / thực đơn để dễ tìm
       const price = priceOf(game.ctx, def.id, id);
       const factor = game.state.market.priceFactor[id] ?? 1;
       const tagColor = factor > 1.08 ? '#c0392b' : factor < 0.92 ? '#2f8f3a' : '#3b2a1e';
-      const tag = group(tray, { p: [0, 0.32 * s, d / 2 + 0.02], r: [-0.35, 0, 0] });
-      mesh(tag, G.box(1.18 * s, 0.4 * s, 0.03), 0xffffff);
-      const label = signText(`${item.name} · ${price} xu`, tagColor, 1.1 * s, 0.34 * s);
+      const tag = group(tray, { p: [0, 0.1 * s, d / 2 + 0.1], r: [-1.0, 0, 0] });
+      mesh(tag, G.box(1.24 * s, 0.36 * s, 0.03), 0xffffff);
+      const label = signText(`${item.icon} ${item.name} · ${price} xu`, tagColor, 1.18 * s, 0.32 * s);
       label.position.z = 0.02;
       tag.add(label);
-      mesh(tray, G.cyl(0.015, 0.015, 0.3 * s, 4), 0x6b4a2f, { p: [0, 0.15 * s, d / 2 + 0.02], cast: false });
     };
     items.forEach((id, i) => {
       const c = i % cols;
@@ -383,7 +382,7 @@ export class StallArea implements Area {
     const color = factor > 1.08 ? '#c0392b' : factor < 0.92 ? '#2f8f3a' : '#3b2a1e';
     const tag = group(parent, { p, r: [tilt, 0, 0] });
     mesh(tag, G.box(w + 0.08, 0.3, 0.03), 0xffffff);
-    const label = signText(`${item.name} · ${price} xu`, color, w, 0.26);
+    const label = signText(`${item.icon} ${item.name} · ${price} xu`, color, w, 0.26);
     label.position.z = 0.02;
     tag.add(label);
   }

@@ -127,37 +127,25 @@ export function serialize(state: GameState): string {
   return JSON.stringify(state);
 }
 
-/** Đánh dấu file save xuất ra (E2) để nhận ra đúng file của game khi mở lại. */
-export const SAVE_FILE_KIND = 'quan-nha-vuon/save';
+export type SnapshotResult = { ok: true; state: GameState; raw: string } | { ok: false; reason: string };
 
 /**
- * Nội dung file save để tải về máy (E2 — chuyển máy, giữ phòng mất dữ liệu, gửi bạn bè thăm quán).
- * Bọc state trong { kind, version, save } để lúc mở lại phân biệt được file của game với JSON bất kỳ.
+ * Đọc bản chụp quán của bạn bè (F3, tải từ máy chủ): kiểm tra đúng là save của game, nâng cấp lên phiên bản hiện tại.
+ * Trả state + chuỗi save thô (để cất cho chế độ thăm quán), hoặc lý do hiện cho người chơi.
  */
-export function exportSave(state: GameState): string {
-  return JSON.stringify({ kind: SAVE_FILE_KIND, version: state.version, save: state });
-}
-
-export type SaveFileResult = { ok: true; state: GameState; raw: string } | { ok: false; reason: string };
-
-/**
- * Đọc một file save người chơi chọn: nhận file bọc của exportSave lẫn chuỗi save thô (localStorage).
- * Trả state đã nâng cấp lên phiên bản hiện tại + chuỗi save thô (để ghi vào bộ nhớ), hoặc lý do hiện cho người chơi.
- */
-export function readSaveFile(text: string, content: Content): SaveFileResult {
+export function readSnapshot(text: string, content: Content): SnapshotResult {
   let data: any;
   try {
     data = JSON.parse(text);
   } catch {
-    return { ok: false, reason: 'File này không phải file save của Quán Nhà Vườn.' };
+    return { ok: false, reason: 'Quán này bị hỏng dữ liệu, không mở được.' };
   }
-  if (data && typeof data === 'object' && data.kind === SAVE_FILE_KIND) data = data.save;
   const looksLikeSave = !!data && typeof data === 'object' && typeof data.version === 'number' && !!data.clock && !!data.profile && typeof data.cuisine === 'string';
-  if (!looksLikeSave) return { ok: false, reason: 'File này không phải file save của Quán Nhà Vườn.' };
-  if (data.version > SAVE_VERSION) return { ok: false, reason: 'File save từ bản game mới hơn — tải lại trang để cập nhật game rồi mở lại.' };
+  if (!looksLikeSave) return { ok: false, reason: 'Quán này bị hỏng dữ liệu, không mở được.' };
+  if (data.version > SAVE_VERSION) return { ok: false, reason: 'Quán của bạn ở bản game mới hơn — tải lại trang để cập nhật game rồi thăm lại.' };
   const raw = JSON.stringify(data);
   const state = deserialize(raw, content);
-  if (!state) return { ok: false, reason: 'File save quá cũ hoặc bị hỏng, không mở được.' };
+  if (!state) return { ok: false, reason: 'Quán này quá cũ hoặc bị hỏng dữ liệu, không mở được.' };
   return { ok: true, state, raw };
 }
 

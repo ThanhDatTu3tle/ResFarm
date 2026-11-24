@@ -224,7 +224,7 @@ export class MarketArea implements Area {
     }
 
     // Biển LED quảng cáo lớn bên trái cây trước sạp thịt (quảng cáo ở src/data/ads.ts)
-    this.billboard = makeBillboard(undefined, 3.8);
+    this.billboard = makeBillboard(undefined, 5);
     this.billboard.g.position.set(BILLBOARD.x, 0, BILLBOARD.z);
     this.billboard.g.rotation.y = 0.35; // xoay vào giữa chợ cho camera nhìn rõ mặt màn
     r.add(this.billboard.g);

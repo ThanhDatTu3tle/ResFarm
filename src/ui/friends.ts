@@ -32,7 +32,7 @@ export function friendsHtml(v: FriendsView, content: Content, enabled = onlineEn
   const head = `<div class="dialog-head"><h2>🤝 Bạn bè</h2><button class="x-close"${uiAttr('friends:close')} aria-label="Đóng">✕</button></div>`;
   const wrap = (body: string) => `<div class="backdrop" data-key="friends"${uiAttr('friends:close')}>
     <div class="dialog friends" role="dialog" aria-label="Bạn bè"${uiAttr('noop')}>${head}${body}</div></div>`;
-  if (!enabled) return wrap(`<p>Bản game này chưa nối máy chủ bạn bè.</p><p class="muted">Trong lúc chờ, vẫn thăm quán nhau được bằng file: Cài đặt → 💾 Lưu game → "Tải ván này về", gửi file cho bạn; bạn mở bằng "🏡 Thăm quán từ file save".</p>`);
+  if (!enabled) return wrap(`<p>Bản game này chưa nối máy chủ bạn bè.</p>`);
   if (v.status === 'loading' || (v.status === 'idle' && !v.me)) return wrap(`<p class="muted friends-wait">⏳ Đang kết nối…</p>`);
   if (v.status === 'error' && !v.me) return wrap(`<p class="friends-err">${esc(v.error)}</p><div class="dialog-foot"><button class="primary"${uiAttr('friends:retry')}>Thử lại</button></div>`);
   const me = v.me!;

@@ -1,4 +1,13 @@
 import type { Content } from '../data';
+import type { Game } from '../sim/game';
+import { esc } from './dom';
+
+/** Khung tooltip "kiếm ở đâu" dưới hàng tag nguyên liệu (bảng Đơn hàng, Thực đơn). */
+export function itemTipHtml(game: Game, itemId: string): string {
+  const item = game.content.items.get(itemId);
+  const { lines, summary } = itemSources(game.content, itemId);
+  return `<div class="item-tip"><b>${item.icon} ${esc(item.name)}</b> — ${esc(summary)}${lines.length ? `<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}</div>`;
+}
 
 /**
  * Nguyên liệu kiếm ở đâu (tooltip khi bấm tag nguyên liệu): mua ở sạp nào ngoài chợ, trồng / nuôi ở ô nào,

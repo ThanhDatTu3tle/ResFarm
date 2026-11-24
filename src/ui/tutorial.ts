@@ -86,7 +86,7 @@ export const GUIDE: GuidePage[] = [
     title: 'Điều khiển',
     points: [
       '**Kéo** để xoay camera, **lăn chuột / chụm hai ngón** để zoom vào chỗ bất kỳ, **bấm đúp** để về góc cũ.',
-      'Nút tròn bên phải: Nông trại, Quán, Chợ, Nhân viên, Siêu thị. Nút xanh dưới cùng: **chuyển khu**.',
+      'Nút tròn bên phải (dưới đồng hồ): Nông trại, Người làm vườn, Quán, Nhân viên. 🏆 Thành tựu cạnh tiền. Siêu thị ở thanh dưới; bảng Chợ mở khi bấm sạp ngoài chợ. Nút xanh dưới cùng: **chuyển khu**.',
       '**Space** tạm dừng / chạy tiếp; ⚙️ Cài đặt chỉnh tốc độ, âm thanh và mở lại hướng dẫn này.',
     ],
   },

@@ -5,7 +5,7 @@ import { callingTakeouts, takeoutItems, takeoutOpen } from '../../sim/systems/ta
 import { hasAll } from '../../sim/helpers';
 import type { TakeoutOrder } from '../../sim/state';
 import { cmd, esc, ui as uiAttr } from '../dom';
-import { itemSources } from '../sources';
+import { itemTipHtml } from '../sources';
 import { clockText, coins } from '../format';
 import type { Panel } from './types';
 
@@ -13,12 +13,6 @@ import type { Panel } from './types';
  * Bảng Đơn hàng: các đơn đặt hàng hôm nay từ khách ngoài. Đủ hàng trong kho thì bấm "Giao hàng" nhận thưởng;
  * hạn giao là `balance.contracts.due`. Sáng mai có đơn mới.
  */
-function itemTipHtml(game: Game, itemId: string): string {
-  const item = game.content.items.get(itemId);
-  const { lines, summary } = itemSources(game.content, itemId);
-  return `<div class="item-tip"><b>${item.icon} ${esc(item.name)}</b> — ${esc(summary)}${lines.length ? `<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}</div>`;
-}
-
 /** Một dòng trạng thái của đơn giao tận nơi đang làm. */
 function takeoutStatus(game: Game, t: TakeoutOrder): string {
   const { state } = game;
