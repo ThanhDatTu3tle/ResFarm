@@ -62,7 +62,9 @@ export const shopPanel: Panel = {
           .filter((d) => d.slot === slot)
           .map((d) => decorCard(game, d, uiState))
           .join('');
-        return `<h3>${decorSlotNames[slot]}</h3>${cards}`;
+        // Quán Ốc ngoài trời: không có tường, mục này là màu dù che bếp (chỉ 2 màu dù riêng)
+        const title = slot === 'wall' && state.cuisine === 'oc' ? 'Màu dù' : decorSlotNames[slot];
+        return `<h3>${title}</h3>${cards}`;
       })
       .join('');
 

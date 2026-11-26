@@ -733,9 +733,10 @@ describe('phong cách quán (Nhật / Hàn / Việt / Ốc)', () => {
       Object.assign(game.state, { money: 99999, level: 9 });
       for (const id of ['floor_walnut', 'floor_marble', 'floor_tile']) expect(game.dispatch({ type: 'decor/buy', decorId: id }).ok).toBe(false);
       for (const id of ['floor_ngocdo', 'floor_gachxua']) expect(game.dispatch({ type: 'decor/buy', decorId: id }).ok).toBe(true);
-      // Bàn ghế model riêng chỉ quán Việt; quán ốc vẫn mua bộ gỗ sồi chung
+      // Bàn ghế model riêng theo quán: quán Việt gỗ sồi xịn; quán ốc bàn inox / bàn tre / bộ gỗ (không còn bộ gỗ sồi chung)
       expect(game.dispatch({ type: 'decor/buy', decorId: 'furn_oak_vn' }).ok).toBe(cuisine === 'vn');
-      expect(game.dispatch({ type: 'decor/buy', decorId: 'furn_oak' }).ok).toBe(cuisine === 'oc');
+      expect(game.dispatch({ type: 'decor/buy', decorId: 'furn_oak' }).ok).toBe(false);
+      for (const id of ['furn_inox_oc', 'furn_bamboo_oc', 'furn_wood_oc']) expect(game.dispatch({ type: 'decor/buy', decorId: id }).ok).toBe(cuisine === 'oc');
     }
     const game = new Game(content, { seed: 3, cuisine: 'vn' });
     const raw = JSON.parse(serialize(game.state));

@@ -371,8 +371,8 @@ export interface DecorDef {
   colors: Record<string, number>;
   /** Sàn có hoa văn (tầng hiển thị vẽ texture thay cho sọc hai màu): 'encaustic' = gạch bông — `a` nền, `b` hoa văn · 'ngocdo' = gạch men ngọc đỏ · 'terracotta' = gạch xưa. */
   pattern?: 'encaustic' | 'ngocdo' | 'terracotta';
-  /** Bàn ghế có model riêng (tầng hiển thị dựng lại bàn ghế khi đổi): 'oak_vn' = gỗ chân tiện, ghế con tiện · 'luxury_vn' = ghế bành mây. */
-  style?: 'oak_vn' | 'luxury_vn';
+  /** Bàn ghế có model riêng (tầng hiển thị dựng lại bàn ghế khi đổi): 'oak_vn' = gỗ chân tiện, ghế con tiện · 'luxury_vn' = ghế bành mây · quán Ốc: 'inox_oc' bàn inox gấp + ghế nhựa lưng nan, 'bamboo_oc' bàn tre + ghế đẩu tre, 'wood_oc' bàn gỗ + ghế lưng con tiện. */
+  style?: FurnitureStyle;
   /** Hệ số gameplay khi đang dùng món này. */
   modifiers?: Partial<Record<ModifierKey, number>>;
 }
@@ -700,3 +700,6 @@ export interface TableKindDef {
   cost: number;
   level: number;
 }
+
+/** Kiểu bàn ghế có model riêng (DecorDef.style). */
+export type FurnitureStyle = 'oak_vn' | 'luxury_vn' | 'inox_oc' | 'bamboo_oc' | 'wood_oc';

@@ -1,4 +1,6 @@
 import '@fontsource/mali/500.css';
+import { joinedTables, buildBambooStool, buildBambooTable, buildInoxTable, buildSlatChair, SLAT_CHAIR_COLOR } from '../ui/three/furnitureoc';
+import { buildRattanArmchair, buildSpindleChair, buildTurnedTable } from '../ui/three/furniturevn';
 import '@fontsource/mali/700.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -109,7 +111,8 @@ function furnitureMats(c: CuisineId) {
 }
 
 /** Bộ bàn + ghế như trong quán (bàn 2 / 4 người hoặc quầy ghế đơn), theo nội thất mặc định của quán. */
-function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'counter'): THREE.Group {
+/** `style`: bộ bàn ghế cao cấp riêng quán Việt (DecorDef.style) — dùng màu của đúng món nội thất đó. */
+function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'counter', style?: 'oak_vn' | 'luxury_vn'): THREE.Group {
   const g = group(null);
   const mats = furnitureMats(c);
   if (kind === 'counter') {
@@ -134,11 +137,13 @@ function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'counter'): THREE.Group 
   }
   const [w, d] = kind === 'pair' ? [1.27, 1.27] : [2.18, 1.38];
   const top = 0.8;
-  const wood = c === 'vn' || c === 'jp' || c === 'kr' ? woodMats(defaultDecor(content, c).find((x) => x.slot === 'furniture')!.colors as { top: number; base: number; seat: number }) : null;
+  const furn = style ? content.decor.all().find((x) => x.style === style)! : defaultDecor(content, c).find((x) => x.slot === 'furniture')!;
+  const wood = c === 'vn' || c === 'jp' || c === 'kr' ? woodMats(furn.colors as { top: number; base: number; seat: number }) : null;
   if (wood && c === 'kr') buildGrillTable(g, w, d, top, wood, mats.base, kind === 'pair' ? 3 : 5);
   else if (wood && c === 'jp') buildOakTable(g, w, d, top, wood, kind === 'pair' ? 3 : 5);
+  else if (wood && style) buildTurnedTable(g, w, d, top, wood, style, kind === 'pair' ? 3 : 5);
   else if (wood) buildWoodTable(g, w, d, top, wood, kind === 'pair' ? 3 : 5);
-  else if (c === 'oc') buildPlasticTable(g, w, d, top, mats, kind === 'pair' ? 3 : 5);
+  else if (c === 'oc') joinedTables(g, w, d, kind === 'pair' ? 2 : 4, 3, (sub, sw, sd, s) => buildPlasticTable(sub, sw, sd, top, mats, s));
   else {
     mesh(g, G.box(w, 0.1, d), mats.top, { p: [0, top - 0.05, 0] });
     mesh(g, G.box(w - 0.15, 0.06, d - 0.15), mats.base, { p: [0, top - 0.13, 0] });
@@ -150,6 +155,8 @@ function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'counter'): THREE.Group 
     const chair = group(g, { p: [x, 0, z], r: [0, r, 0] });
     if (c === 'kr') buildLeatherChair(chair, mats.seat, i + 1);
     else if (wood && c === 'jp') buildOakChair(chair, wood, mats.seat, i + 1);
+    else if (wood && style === 'oak_vn') buildSpindleChair(chair, wood, i + 1);
+    else if (wood && style === 'luxury_vn') buildRattanArmchair(chair, wood, i + 1);
     else if (wood) buildWoodStool(chair, wood, i + 1);
     else if (c === 'oc') buildPlasticChair(chair, mats.seat, i + 1);
     else buildSeat(seatStyle(c), chair, mats);
@@ -171,9 +178,20 @@ function thingSections(): Section[] {
     tables.push({ name: `${cuName(c)} · bàn đôi`, make: () => tableSet(c, 'pair') });
     tables.push({ name: `${cuName(c)} · bàn bốn`, make: () => tableSet(c, 'four') });
     if (c === 'jp' || c === 'kr') tables.push({ name: `${cuName(c)} · quầy ghế đơn`, make: () => tableSet(c, 'counter') });
+    if (c === 'oc') for (const [k, label] of [['single', 'bàn đơn'], ['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
+      tables.push({ name: `${cuName(c)} · bàn inox, ghế nhựa lưng nan · ${label}`, note: 'Nâng cấp bậc 2 (mẫu thử)', make: () => ocSet(k, 'inox') });
+    if (c === 'oc') for (const [k, label] of [['single', 'bàn đơn'], ['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
+      tables.push({ name: `${cuName(c)} · bàn tre, ghế đẩu tre · ${label}`, note: 'Ngang bậc bàn inox (mẫu thử)', make: () => ocSet(k, 'bamboo') });
+    if (c === 'oc') for (const [k, label] of [['single', 'bàn đơn'], ['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
+      tables.push({ name: `${cuName(c)} · bàn gỗ, ghế con tiện · ${label}`, note: 'Bộ sang trọng (mẫu thử)', make: () => ocSet(k, 'wood') });
     if (c === 'oc') tables.push({ name: `${cuName(c)} · ống đũa, chai lọ`, note: 'Đặt trên mỗi bàn', make: () => { const g = group(null); buildChopstickSet(g, 0); return g; } });
     if (c === 'kr') tables.push({ name: `${cuName(c)} · kệ menu, đũa muỗng, soju`, note: 'Đặt sát mép mỗi bàn nướng', make: () => { const g = group(null); buildKrSet(g, 0); return g; } });
     if (c === 'jp') tables.push({ name: `${cuName(c)} · hộp giấy, lọ nước tương`, note: 'Đặt trên mỗi bàn', make: () => { const g = group(null); buildJpSet(g, 0); return g; } });
+    if (c === 'vn') for (const st of ['oak_vn', 'luxury_vn'] as const) {
+      const name = content.decor.all().find((x) => x.style === st)!.name;
+      tables.push({ name: `${cuName(c)} · ${name} · bàn đôi`, note: 'Nội thất mua ở Siêu thị', make: () => tableSet(c, 'pair', st) });
+      tables.push({ name: `${cuName(c)} · ${name} · bàn bốn`, note: 'Nội thất mua ở Siêu thị', make: () => tableSet(c, 'four', st) });
+    }
     if (c === 'vn') tables.push({ name: `${cuName(c)} · khay đa năng`, note: 'Đặt giữa mỗi bàn', make: () => { const g = group(null); buildCaddy(g, 0); return g; } });
   }
   const CAR_NAMES = { sedan: 'sedan', suv: 'SUV', pickup: 'bán tải', mini: 'tải mini' } as const;
@@ -247,6 +265,37 @@ function thingSections(): Section[] {
     { title: 'Nông trại & cảnh vật', entries: farm },
     { title: 'Trang trí ngày lễ', entries: festive },
   ];
+}
+
+/** Gỗ nâu sẫm ánh ô liu của bộ sang trọng Quán Ốc. */
+const OC_WOOD = { top: 0x7d6743, base: 0x634f30, seat: 0x7d6743 };
+
+/** Quán Ốc bậc 2 (inox: bàn inox gấp + ghế nhựa lưng nan) và bộ sang trọng (wood: bàn gỗ + ghế lưng con tiện), đủ 4 cỡ bàn. */
+function ocSet(kind: 'single' | 'pair' | 'four' | 'six', style: 'inox' | 'wood' | 'bamboo'): THREE.Group {
+  const g = group(null);
+  const [w, d] = { single: [0.8, 0.8], pair: [1.27, 1.27], four: [2.18, 1.38], six: [3.4, 1.4] }[kind];
+  const top = 0.75;
+  const wood = style === 'wood' ? woodMats(OC_WOOD) : null;
+  const seatsN = { single: 1, pair: 2, four: 4, six: 6 }[kind];
+  if (wood) joinedTables(g, w, d, seatsN, 3, (sub, sw, sd, s) => buildWoodTable(sub, sw, sd, top, wood, s));
+  else if (style === 'bamboo') joinedTables(g, w, d, seatsN, 3, (sub, sw, sd, s) => buildBambooTable(sub, sw, sd, top - 0.05, s));
+  else joinedTables(g, w, d, seatsN, 3, (sub, sw, sd, s) => buildInoxTable(sub, sw, sd, top, s));
+  buildChopstickSet(g, style === 'bamboo' ? top - 0.05 : top, 2, { scale: 0.8 });
+  const chairMat = toon(SLAT_CHAIR_COLOR);
+  const ex = w / 2 + 0.42;
+  const ez = d / 2 + 0.42;
+  const seats: [number, number, number][] =
+    kind === 'single' ? [[0, ez, Math.PI]]
+    : kind === 'pair' ? [[-ex, 0, Math.PI / 2], [ex, 0, -Math.PI / 2]]
+    : kind === 'four' ? [[-w / 4, -ez, 0], [w / 4, -ez, 0], [-w / 4, ez, Math.PI], [w / 4, ez, Math.PI]]
+    : [-w / 3, 0, w / 3].flatMap((x): [number, number, number][] => [[x, -ez, 0], [x, ez, Math.PI]]);
+  seats.forEach(([x, z, r], i) => {
+    const chair = group(g, { p: [x, 0, z], r: [0, r, 0] });
+    if (wood) buildSpindleChair(chair, wood, i + 1);
+    else if (style === 'bamboo') buildBambooStool(chair, i + 1);
+    else buildSlatChair(chair, chairMat, i + 1);
+  });
+  return g;
 }
 
 /** Món trên đĩa trắng như lúc bày ra bàn. */

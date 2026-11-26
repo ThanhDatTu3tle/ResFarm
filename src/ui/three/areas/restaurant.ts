@@ -30,6 +30,8 @@ import { Curbside } from '../curbside';
 import { Chatter, HUNGRY_UNTIL, updateHunger } from '../chatter';
 import { buildEquipment, type EquipDims, type EquipView } from '../equipment';
 import { buildBarCounter, buildBarStool, buildGrillTable, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, tintWood, woodMats } from '../furniture';
+import { buildBambooStool, buildBambooTable, buildInoxTable, buildSlatChair, joinedTables } from '../furnitureoc';
+import type { FurnitureStyle } from '../../../data/types';
 
 /**
  * KHU QUÁN — nội thất quán ăn tông ấm, nhìn kiểu "cắt mái".
@@ -434,6 +436,9 @@ export class RestaurantArea implements Area {
     if (this.woodTables && this.furnStyle === 'oak_vn') buildSpindleChair(chair, this.wood, seed);
     else if (this.woodTables && this.furnStyle === 'luxury_vn') buildRattanArmchair(chair, this.wood, seed);
     else if (this.woodTables) buildWoodStool(chair, this.wood, seed);
+    else if (this.street && this.furnStyle === 'inox_oc') buildSlatChair(chair, mats.seat, seed);
+    else if (this.street && this.furnStyle === 'bamboo_oc') buildBambooStool(chair, seed);
+    else if (this.street && this.furnStyle === 'wood_oc') buildSpindleChair(chair, this.wood, seed);
     else if (this.street) buildPlasticChair(chair, mats.seat, seed);
     else if (this.oakTables) buildOakChair(chair, this.wood, mats.seat, seed);
     else if (this.grillTables) buildLeatherChair(chair, mats.seat, seed);
@@ -1034,7 +1039,7 @@ export class RestaurantArea implements Area {
   }
 
   /** Kiểu bàn ghế riêng của quán Việt theo nội thất đang dùng / đang xem trước (DecorDef.style); '' = bàn gỗ mộc. */
-  private furnStyle: '' | 'oak_vn' | 'luxury_vn' = '';
+  private furnStyle: '' | FurnitureStyle = '';
 
   private get woodTables(): boolean {
     return this.game.state.cuisine === 'vn';
@@ -1075,10 +1080,16 @@ export class RestaurantArea implements Area {
       }
       counterExtras(this.game.state.cuisine, body, COUNTER_TOP, bw, bd);
     } else if (this.woodTables || this.street || this.oakTables || this.grillTables) {
-      if (this.street) buildPlasticTable(g, w, d, TABLE_TOP, mats, seedOf(t.id));
+      // Quán Ốc: bàn 4 / bàn 6 là 2 / 3 bàn đôi kéo sát nhau (joinedTables)
+      if (this.street) joinedTables(g, w, d, t.seats, seedOf(t.id), (sub, sw, sd, sd2) => {
+        if (this.furnStyle === 'inox_oc') buildInoxTable(sub, sw, sd, TABLE_TOP, sd2);
+        else if (this.furnStyle === 'bamboo_oc') buildBambooTable(sub, sw, sd, TABLE_TOP, sd2);
+        else if (this.furnStyle === 'wood_oc') buildWoodTable(sub, sw, sd, TABLE_TOP, this.wood, sd2);
+        else buildPlasticTable(sub, sw, sd, TABLE_TOP, mats, sd2);
+      });
       else if (this.oakTables) buildOakTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       else if (this.grillTables) buildGrillTable(g, w, d, TABLE_TOP, this.wood, mats.base, seedOf(t.id));
-      else if (this.furnStyle) buildTurnedTable(g, w, d, TABLE_TOP, this.wood, this.furnStyle, seedOf(t.id));
+      else if (this.furnStyle === 'oak_vn' || this.furnStyle === 'luxury_vn') buildTurnedTable(g, w, d, TABLE_TOP, this.wood, this.furnStyle, seedOf(t.id));
       else buildWoodTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       tableExtras(this.game.state.cuisine, g, TABLE_TOP, w, d, seedOf(t.id), seatSpots(t, { x: 0, y: 0 }).map((s) => ({ x: s.x / UNIT, z: s.y / UNIT })));
     } else {
@@ -1887,7 +1898,7 @@ export class RestaurantArea implements Area {
     mats.back.color.setHex(furn.back);
     tintWood(this.wood, furn as { top: number; base: number; seat: number });
     // Đổi kiểu bàn ghế (quán Việt: gỗ mộc / gỗ chân tiện / ghế bành mây): bỏ hết bàn đang dựng, dựng lại theo kiểu mới
-    const style = this.woodTables ? (pick('furniture').style ?? '') : '';
+    const style = this.woodTables || this.street ? (pick('furniture').style ?? '') : '';
     if (style !== this.furnStyle) {
       this.furnStyle = style;
       for (const view of this.tables.values()) this.root.remove(view.g);
