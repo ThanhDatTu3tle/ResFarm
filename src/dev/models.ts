@@ -1,6 +1,6 @@
 import '@fontsource/mali/500.css';
 import { buildBoxStool, buildFloorSeat, buildStoneTable, buildZataku, ZATAKU_TOP } from '../ui/three/furniturejp';
-import { buildDrumStool, buildDrumTable, buildWalnutGrill } from '../ui/three/furniturekr';
+import { buildCrateSeat, buildDrumStool, buildDrumTable, buildWalnutGrill } from '../ui/three/furniturekr';
 import { joinedTables, buildBambooStool, buildBambooTable, buildInoxTable, buildSlatChair, SLAT_CHAIR_COLOR } from '../ui/three/furnitureoc';
 import { buildRattanArmchair, buildSpindleChair, buildTurnedTable } from '../ui/three/furniturevn';
 import '@fontsource/mali/700.css';
@@ -114,7 +114,7 @@ function furnitureMats(c: CuisineId) {
 
 /** Bộ bàn + ghế như trong quán (bàn 2 / 4 người hoặc quầy ghế đơn), theo nội thất mặc định của quán. */
 /** `style`: bộ bàn ghế cao cấp riêng quán Việt (DecorDef.style) — dùng màu của đúng món nội thất đó. */
-function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'six' | 'counter', style?: 'oak_vn' | 'luxury_vn' | 'zataku_jp' | 'stone_jp' | 'drum_kr' | 'walnut_kr'): THREE.Group {
+function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'six' | 'counter', style?: 'oak_vn' | 'luxury_vn' | 'zataku_jp' | 'stone_jp' | 'drum_kr' | 'crate_kr' | 'walnut_kr'): THREE.Group {
   const g = group(null);
   const mats = furnitureMats(c);
   if (kind === 'counter') {
@@ -142,7 +142,7 @@ function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'six' | 'counter', style
   const nSeed = kind === 'pair' ? 3 : 5;
   const furn = style ? content.decor.all().find((x) => x.style === style)! : defaultDecor(content, c).find((x) => x.slot === 'furniture')!;
   const wood = c === 'vn' || c === 'jp' || c === 'kr' ? woodMats(furn.colors as { top: number; base: number; seat: number }) : null;
-  if (wood && c === 'kr' && !style) buildGrillTable(g, w, d, top, wood, mats.base, kind === 'pair' ? 3 : 5);
+  if (wood && c === 'kr' && (!style || style === 'crate_kr')) buildGrillTable(g, w, d, top, wood, style ? toon((furn.colors as { base: number }).base) : mats.base, kind === 'pair' ? 3 : 5);
   else if (wood && style === 'zataku_jp') buildZataku(g, w, d, top, wood, nSeed);
   else if (wood && style === 'stone_jp') buildStoneTable(g, w, d, top, wood, nSeed);
   else if (style === 'drum_kr') joinedTables(g, w, d, kind === 'six' ? 6 : kind === 'four' ? 4 : 2, nSeed, (sub, sw, sd, s2) => buildDrumTable(sub, sw, sd, top, s2));
@@ -162,7 +162,9 @@ function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'six' | 'counter', style
   tableExtras(c, g, top, w, d, kind === 'pair' ? 3 : 5, seats.map(([x, z]) => ({ x, z })));
   seats.forEach(([x, z, r], i) => {
     const chair = group(g, { p: [x, 0, z], r: [0, r, 0] });
-    if (c === 'kr' && style !== 'drum_kr') buildLeatherChair(chair, style ? toon((furn.colors as { seat: number }).seat) : mats.seat, i + 1);
+    if (c === 'kr' && style === 'crate_kr') buildCrateSeat(chair, i + 1);
+    else if (c === 'kr' && style === 'stone_jp') buildBoxStool(chair, wood!, i + 1);
+    else if (c === 'kr' && style !== 'drum_kr') buildLeatherChair(chair, style ? toon((furn.colors as { seat: number }).seat) : mats.seat, i + 1);
     else if (wood && style === 'zataku_jp') buildFloorSeat(chair, wood, i + 1);
     else if (wood && style === 'stone_jp') buildBoxStool(chair, wood, i + 1);
     else if (style === 'drum_kr') buildDrumStool(chair, i + 1);
@@ -194,7 +196,7 @@ function thingSections(): Section[] {
       tables.push({ name: `${cuName(c)} · bàn bệt · ${label}`, note: 'Nội thất bậc 2 · ngồi bệt', make: () => tableSet(c, k, 'zataku_jp') });
     if (c === 'jp') for (const [k, label] of [['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
       tables.push({ name: `${cuName(c)} · bàn đá sang trọng · ${label}`, note: 'Bộ sang trọng', make: () => tableSet(c, k, 'stone_jp') });
-    if (c === 'kr') for (const [st, nm, note] of [['drum_kr', 'bàn thùng phuy', 'Nội thất bậc 2'], ['walnut_kr', 'bàn nướng gỗ óc chó', 'Bộ sang trọng']] as const)
+    if (c === 'kr') for (const [st, nm, note] of [['drum_kr', 'bàn thùng phuy', 'Nội thất bậc 2'], ['crate_kr', 'bàn gỗ sáng, ghế két bia', 'Nội thất bậc 2'], ['stone_jp', 'bàn đá sang trọng', 'Bộ sang trọng (chung với quán Nhật)']] as const)
       for (const [k, label] of [['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
         tables.push({ name: `${cuName(c)} · ${nm} · ${label}`, note, make: () => tableSet(c, k, st) });
     if (c === 'jp' || c === 'kr') tables.push({ name: `${cuName(c)} · quầy ghế đơn`, make: () => tableSet(c, 'counter') });

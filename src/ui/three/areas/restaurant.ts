@@ -31,7 +31,7 @@ import { Chatter, HUNGRY_UNTIL, updateHunger } from '../chatter';
 import { buildEquipment, type EquipDims, type EquipView } from '../equipment';
 import { buildBarCounter, buildBarStool, buildGrillTable, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, tintWood, woodMats } from '../furniture';
 import { buildBoxStool, buildFloorSeat, buildStoneTable, buildZataku, ZATAKU_TOP } from '../furniturejp';
-import { buildDrumStool, buildDrumTable, buildWalnutGrill } from '../furniturekr';
+import { buildCrateSeat, buildDrumStool, buildDrumTable, buildWalnutGrill } from '../furniturekr';
 import { buildBambooStool, buildBambooTable, buildInoxTable, buildSlatChair, joinedTables } from '../furnitureoc';
 import type { FurnitureStyle } from '../../../data/types';
 
@@ -443,8 +443,9 @@ export class RestaurantArea implements Area {
     else if (this.street && this.furnStyle === 'wood_oc') buildSpindleChair(chair, this.wood, seed);
     else if (this.street) buildPlasticChair(chair, mats.seat, seed);
     else if (this.oakTables && this.furnStyle === 'zataku_jp') buildFloorSeat(chair, this.wood, seed);
-    else if (this.oakTables && this.furnStyle === 'stone_jp') buildBoxStool(chair, this.wood, seed);
+    else if ((this.oakTables || this.grillTables) && this.furnStyle === 'stone_jp') buildBoxStool(chair, this.wood, seed);
     else if (this.grillTables && this.furnStyle === 'drum_kr') buildDrumStool(chair, seed);
+    else if (this.grillTables && this.furnStyle === 'crate_kr') buildCrateSeat(chair, seed);
     else if (this.oakTables) buildOakChair(chair, this.wood, mats.seat, seed);
     else if (this.grillTables) buildLeatherChair(chair, mats.seat, seed);
     else buildSeat(seatStyle(this.game.state.cuisine), chair, mats);
@@ -1101,6 +1102,7 @@ export class RestaurantArea implements Area {
       else if (this.oakTables && this.furnStyle === 'stone_jp') buildStoneTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       else if (this.oakTables) buildOakTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       else if (this.grillTables && this.furnStyle === 'drum_kr') joinedTables(g, w, d, t.seats, seedOf(t.id), (sub, sw, sd, s2) => buildDrumTable(sub, sw, sd, TABLE_TOP, s2));
+      else if (this.grillTables && this.furnStyle === 'stone_jp') buildStoneTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       else if (this.grillTables && this.furnStyle === 'walnut_kr') buildWalnutGrill(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       else if (this.grillTables) buildGrillTable(g, w, d, TABLE_TOP, this.wood, mats.base, seedOf(t.id));
       else if (this.furnStyle === 'oak_vn' || this.furnStyle === 'luxury_vn') buildTurnedTable(g, w, d, TABLE_TOP, this.wood, this.furnStyle, seedOf(t.id));

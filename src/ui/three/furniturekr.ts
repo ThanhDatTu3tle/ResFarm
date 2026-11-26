@@ -66,3 +66,39 @@ export function buildWalnutGrill(g: THREE.Object3D, w: number, d: number, top: n
 export function buildWalnutChair(chair: THREE.Object3D, leather: THREE.Material, seed = 1): void {
   buildLeatherChair(chair, leather, seed);
 }
+
+const CRATE_COLORS = [0xc8322c, 0xeee3c8];
+const CUSHION_COLORS = [0xb02a26, 0x24262b];
+
+/**
+ * Ghế két bia (bậc 2 'crate_kr', kiểu quán nướng nhậu): két nhựa đựng chai (khung + vách có ô thoáng, lỗ quai,
+ * thấy cổ chai bên trong), trên đặt nệm vuông bọc da. Màu két / nệm xen kẽ theo seed (đỏ / kem, đỏ / đen).
+ * Không in nhãn hãng bia nào.
+ */
+export function buildCrateSeat(chair: THREE.Object3D, seed = 1): void {
+  const rnd = seeded(seed * 977 + 13);
+  const c = group(chair, { p: [(rnd() - 0.5) * 0.04, 0, (rnd() - 0.5) * 0.04], r: [0, (rnd() - 0.5) * 0.12, 0] });
+  const crate = toon(CRATE_COLORS[seed % 2]);
+  const dark = toon(0x2b2b2e);
+  const W = 0.44;
+  const D = 0.36;
+  const H = 0.3;
+  // Đáy + 4 trụ góc + viền trên + đai giữa
+  mesh(c, G.box(W, 0.03, D), crate, { p: [0, 0.015, 0] });
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) mesh(c, G.box(0.04, H, 0.04), crate, { p: [sx * (W / 2 - 0.02), H / 2, sz * (D / 2 - 0.02)] });
+  for (const y of [H - 0.02, H * 0.45]) {
+    for (const sz of [-1, 1]) mesh(c, G.box(W, 0.04, 0.025), crate, { p: [0, y, sz * (D / 2 - 0.012)] });
+    for (const sx of [-1, 1]) mesh(c, G.box(0.025, 0.04, D), crate, { p: [sx * (W / 2 - 0.012), y, 0] });
+  }
+  // Vách dưới kín (có lỗ quai sẫm ở hai đầu) + cổ chai thò lên giữa các ô
+  for (const sz of [-1, 1]) mesh(c, G.box(W - 0.04, H * 0.38, 0.015), crate, { p: [0, H * 0.22, sz * (D / 2 - 0.01)] });
+  for (const sx of [-1, 1]) {
+    mesh(c, G.box(0.015, H * 0.38, D - 0.04), crate, { p: [sx * (W / 2 - 0.01), H * 0.22, 0] });
+    mesh(c, G.box(0.02, 0.035, 0.12), dark, { p: [sx * (W / 2 - 0.004), H - 0.06, 0], cast: false });
+  }
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) mesh(c, G.cyl(0.025, 0.03, 0.12, 8), 0x6b4a2a, { p: [-0.12 + i * 0.12, H * 0.62, -0.07 + j * 0.14], cast: false });
+  // Nệm vuông bọc da
+  const cushion = toon(CUSHION_COLORS[(seed >> 1) % 2]);
+  mesh(c, G.box(W + 0.02, 0.12, D + 0.04), cushion, { p: [0, H + 0.06, 0] });
+  mesh(c, G.box(W + 0.03, 0.02, D + 0.05), dark, { p: [0, H + 0.005, 0], cast: false });
+}
