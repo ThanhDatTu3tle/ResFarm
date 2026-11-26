@@ -95,6 +95,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       for (let i = 0, fails = 0; i < 60 && fails < kinds.length; i++) fails = game.dispatch({ type: 'table/buy', kind: kinds[i % kinds.length].id }).ok ? 0 : fails + 1;
       game.state.money = money;
     }
+    // ?rich kèm ?tier / ?fill: nạp lại tiền sau khi nâng hạng, để ?do còn mua sắm được
+    if (params.has('rich')) game.state.money = Math.max(game.state.money, 99999);
     // ?day=85 nhảy tới ngày đó trong lịch (xem mùa: 1 Xuân, 29 Hạ, 57 Thu, 85 Đông)
     if (Number(params.get('day')) > 0) game.state.clock.day = Math.floor(Number(params.get('day')));
     // ?event=critic ép sự kiện xảy ra ngay khi quán mở (critic / inspector / tour_bus / outage / big_tippers)

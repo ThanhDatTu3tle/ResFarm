@@ -1,4 +1,6 @@
 import '@fontsource/mali/500.css';
+import { buildBoxStool, buildFloorSeat, buildStoneTable, buildZataku, ZATAKU_TOP } from '../ui/three/furniturejp';
+import { buildDrumStool, buildDrumTable, buildWalnutGrill } from '../ui/three/furniturekr';
 import { joinedTables, buildBambooStool, buildBambooTable, buildInoxTable, buildSlatChair, SLAT_CHAIR_COLOR } from '../ui/three/furnitureoc';
 import { buildRattanArmchair, buildSpindleChair, buildTurnedTable } from '../ui/three/furniturevn';
 import '@fontsource/mali/700.css';
@@ -112,7 +114,7 @@ function furnitureMats(c: CuisineId) {
 
 /** Bộ bàn + ghế như trong quán (bàn 2 / 4 người hoặc quầy ghế đơn), theo nội thất mặc định của quán. */
 /** `style`: bộ bàn ghế cao cấp riêng quán Việt (DecorDef.style) — dùng màu của đúng món nội thất đó. */
-function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'counter', style?: 'oak_vn' | 'luxury_vn'): THREE.Group {
+function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'six' | 'counter', style?: 'oak_vn' | 'luxury_vn' | 'zataku_jp' | 'stone_jp' | 'drum_kr' | 'walnut_kr'): THREE.Group {
   const g = group(null);
   const mats = furnitureMats(c);
   if (kind === 'counter') {
@@ -135,13 +137,18 @@ function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'counter', style?: 'oak_
     });
     return g;
   }
-  const [w, d] = kind === 'pair' ? [1.27, 1.27] : [2.18, 1.38];
-  const top = 0.8;
+  const [w, d] = kind === 'pair' ? [1.27, 1.27] : kind === 'six' ? [3.4, 1.5] : [2.18, 1.38];
+  const top = style === 'zataku_jp' ? ZATAKU_TOP : 0.8;
+  const nSeed = kind === 'pair' ? 3 : 5;
   const furn = style ? content.decor.all().find((x) => x.style === style)! : defaultDecor(content, c).find((x) => x.slot === 'furniture')!;
   const wood = c === 'vn' || c === 'jp' || c === 'kr' ? woodMats(furn.colors as { top: number; base: number; seat: number }) : null;
-  if (wood && c === 'kr') buildGrillTable(g, w, d, top, wood, mats.base, kind === 'pair' ? 3 : 5);
+  if (wood && c === 'kr' && !style) buildGrillTable(g, w, d, top, wood, mats.base, kind === 'pair' ? 3 : 5);
+  else if (wood && style === 'zataku_jp') buildZataku(g, w, d, top, wood, nSeed);
+  else if (wood && style === 'stone_jp') buildStoneTable(g, w, d, top, wood, nSeed);
+  else if (style === 'drum_kr') joinedTables(g, w, d, kind === 'six' ? 6 : kind === 'four' ? 4 : 2, nSeed, (sub, sw, sd, s2) => buildDrumTable(sub, sw, sd, top, s2));
+  else if (wood && style === 'walnut_kr') buildWalnutGrill(g, w, d, top, wood, nSeed);
   else if (wood && c === 'jp') buildOakTable(g, w, d, top, wood, kind === 'pair' ? 3 : 5);
-  else if (wood && style) buildTurnedTable(g, w, d, top, wood, style, kind === 'pair' ? 3 : 5);
+  else if (wood && (style === 'oak_vn' || style === 'luxury_vn')) buildTurnedTable(g, w, d, top, wood, style, kind === 'pair' ? 3 : 5);
   else if (wood) buildWoodTable(g, w, d, top, wood, kind === 'pair' ? 3 : 5);
   else if (c === 'oc') joinedTables(g, w, d, kind === 'pair' ? 2 : 4, 3, (sub, sw, sd, s) => buildPlasticTable(sub, sw, sd, top, mats, s));
   else {
@@ -149,11 +156,16 @@ function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'counter', style?: 'oak_
     mesh(g, G.box(w - 0.15, 0.06, d - 0.15), mats.base, { p: [0, top - 0.13, 0] });
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) mesh(g, G.cyl(0.06, 0.06, top - 0.1, 8), mats.base, { p: [sx * (w / 2 - 0.15), (top - 0.1) / 2, sz * (d / 2 - 0.15)] });
   }
-  const seats: [number, number, number][] = kind === 'pair' ? [[-(w / 2 + 0.47), 0, Math.PI / 2], [w / 2 + 0.47, 0, -Math.PI / 2]] : [[-w / 4, -(d / 2 + 0.44), 0], [w / 4, -(d / 2 + 0.44), 0], [-w / 4, d / 2 + 0.44, Math.PI], [w / 4, d / 2 + 0.44, Math.PI]];
+  const seats: [number, number, number][] = kind === 'pair' ? [[-(w / 2 + 0.47), 0, Math.PI / 2], [w / 2 + 0.47, 0, -Math.PI / 2]]
+    : kind === 'six' ? [-w / 3, 0, w / 3].flatMap((x): [number, number, number][] => [[x, -(d / 2 + 0.44), 0], [x, d / 2 + 0.44, Math.PI]])
+    : [[-w / 4, -(d / 2 + 0.44), 0], [w / 4, -(d / 2 + 0.44), 0], [-w / 4, d / 2 + 0.44, Math.PI], [w / 4, d / 2 + 0.44, Math.PI]];
   tableExtras(c, g, top, w, d, kind === 'pair' ? 3 : 5, seats.map(([x, z]) => ({ x, z })));
   seats.forEach(([x, z, r], i) => {
     const chair = group(g, { p: [x, 0, z], r: [0, r, 0] });
-    if (c === 'kr') buildLeatherChair(chair, mats.seat, i + 1);
+    if (c === 'kr' && style !== 'drum_kr') buildLeatherChair(chair, style ? toon((furn.colors as { seat: number }).seat) : mats.seat, i + 1);
+    else if (wood && style === 'zataku_jp') buildFloorSeat(chair, wood, i + 1);
+    else if (wood && style === 'stone_jp') buildBoxStool(chair, wood, i + 1);
+    else if (style === 'drum_kr') buildDrumStool(chair, i + 1);
     else if (wood && c === 'jp') buildOakChair(chair, wood, mats.seat, i + 1);
     else if (wood && style === 'oak_vn') buildSpindleChair(chair, wood, i + 1);
     else if (wood && style === 'luxury_vn') buildRattanArmchair(chair, wood, i + 1);
@@ -177,13 +189,21 @@ function thingSections(): Section[] {
   for (const c of CUISINES) {
     tables.push({ name: `${cuName(c)} · bàn đôi`, make: () => tableSet(c, 'pair') });
     tables.push({ name: `${cuName(c)} · bàn bốn`, make: () => tableSet(c, 'four') });
+    if (c !== 'oc') tables.push({ name: `${cuName(c)} · bàn 6`, make: () => tableSet(c, 'six') });
+    if (c === 'jp') for (const [k, label] of [['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
+      tables.push({ name: `${cuName(c)} · bàn bệt · ${label}`, note: 'Nội thất bậc 2 · ngồi bệt', make: () => tableSet(c, k, 'zataku_jp') });
+    if (c === 'jp') for (const [k, label] of [['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
+      tables.push({ name: `${cuName(c)} · bàn đá sang trọng · ${label}`, note: 'Bộ sang trọng', make: () => tableSet(c, k, 'stone_jp') });
+    if (c === 'kr') for (const [st, nm, note] of [['drum_kr', 'bàn thùng phuy', 'Nội thất bậc 2'], ['walnut_kr', 'bàn nướng gỗ óc chó', 'Bộ sang trọng']] as const)
+      for (const [k, label] of [['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
+        tables.push({ name: `${cuName(c)} · ${nm} · ${label}`, note, make: () => tableSet(c, k, st) });
     if (c === 'jp' || c === 'kr') tables.push({ name: `${cuName(c)} · quầy ghế đơn`, make: () => tableSet(c, 'counter') });
     if (c === 'oc') for (const [k, label] of [['single', 'bàn đơn'], ['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
-      tables.push({ name: `${cuName(c)} · bàn inox, ghế nhựa lưng nan · ${label}`, note: 'Nâng cấp bậc 2 (mẫu thử)', make: () => ocSet(k, 'inox') });
+      tables.push({ name: `${cuName(c)} · bàn inox, ghế nhựa lưng nan · ${label}`, note: 'Nội thất bậc 2', make: () => ocSet(k, 'inox') });
     if (c === 'oc') for (const [k, label] of [['single', 'bàn đơn'], ['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
-      tables.push({ name: `${cuName(c)} · bàn tre, ghế đẩu tre · ${label}`, note: 'Ngang bậc bàn inox (mẫu thử)', make: () => ocSet(k, 'bamboo') });
+      tables.push({ name: `${cuName(c)} · bàn tre, ghế đẩu tre · ${label}`, note: 'Nội thất bậc 2 (ngang bàn inox)', make: () => ocSet(k, 'bamboo') });
     if (c === 'oc') for (const [k, label] of [['single', 'bàn đơn'], ['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
-      tables.push({ name: `${cuName(c)} · bàn gỗ, ghế con tiện · ${label}`, note: 'Bộ sang trọng (mẫu thử)', make: () => ocSet(k, 'wood') });
+      tables.push({ name: `${cuName(c)} · bàn gỗ, ghế con tiện · ${label}`, note: 'Bộ sang trọng', make: () => ocSet(k, 'wood') });
     if (c === 'oc') tables.push({ name: `${cuName(c)} · ống đũa, chai lọ`, note: 'Đặt trên mỗi bàn', make: () => { const g = group(null); buildChopstickSet(g, 0); return g; } });
     if (c === 'kr') tables.push({ name: `${cuName(c)} · kệ menu, đũa muỗng, soju`, note: 'Đặt sát mép mỗi bàn nướng', make: () => { const g = group(null); buildKrSet(g, 0); return g; } });
     if (c === 'jp') tables.push({ name: `${cuName(c)} · hộp giấy, lọ nước tương`, note: 'Đặt trên mỗi bàn', make: () => { const g = group(null); buildJpSet(g, 0); return g; } });
