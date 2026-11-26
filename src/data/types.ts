@@ -702,4 +702,4 @@ export interface TableKindDef {
 }
 
 /** Kiểu bàn ghế có model riêng (DecorDef.style). */
-export type FurnitureStyle = 'oak_vn' | 'luxury_vn' | 'inox_oc' | 'bamboo_oc' | 'wood_oc';
+export type FurnitureStyle = 'oak_vn' | 'luxury_vn' | 'inox_oc' | 'bamboo_oc' | 'wood_oc' | 'zataku_jp' | 'stone_jp' | 'drum_kr' | 'crate_kr' | 'walnut_kr';

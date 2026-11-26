@@ -30,6 +30,8 @@ import { Curbside } from '../curbside';
 import { Chatter, HUNGRY_UNTIL, updateHunger } from '../chatter';
 import { buildEquipment, type EquipDims, type EquipView } from '../equipment';
 import { buildBarCounter, buildBarStool, buildGrillTable, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, tintWood, woodMats } from '../furniture';
+import { buildBoxStool, buildFloorSeat, buildStoneTable, buildZataku, ZATAKU_TOP } from '../furniturejp';
+import { buildCrateSeat, buildDrumStool, buildDrumTable, buildWalnutGrill } from '../furniturekr';
 import { buildBambooStool, buildBambooTable, buildInoxTable, buildSlatChair, joinedTables } from '../furnitureoc';
 import type { FurnitureStyle } from '../../../data/types';
 
@@ -440,6 +442,10 @@ export class RestaurantArea implements Area {
     else if (this.street && this.furnStyle === 'bamboo_oc') buildBambooStool(chair, seed);
     else if (this.street && this.furnStyle === 'wood_oc') buildSpindleChair(chair, this.wood, seed);
     else if (this.street) buildPlasticChair(chair, mats.seat, seed);
+    else if (this.oakTables && this.furnStyle === 'zataku_jp') buildFloorSeat(chair, this.wood, seed);
+    else if ((this.oakTables || this.grillTables) && this.furnStyle === 'stone_jp') buildBoxStool(chair, this.wood, seed);
+    else if (this.grillTables && this.furnStyle === 'drum_kr') buildDrumStool(chair, seed);
+    else if (this.grillTables && this.furnStyle === 'crate_kr') buildCrateSeat(chair, seed);
     else if (this.oakTables) buildOakChair(chair, this.wood, mats.seat, seed);
     else if (this.grillTables) buildLeatherChair(chair, mats.seat, seed);
     else buildSeat(seatStyle(this.game.state.cuisine), chair, mats);
@@ -1057,6 +1063,11 @@ export class RestaurantArea implements Area {
   }
 
   /** Quán Nhật: bàn gỗ sồi sáng + ghế tựa cong đệm vải (dùng chung bộ vật liệu vân gỗ `wood`). */
+  /** Độ cao mặt bàn ăn (bàn bệt quán Nhật thấp hơn). */
+  private get tableTop(): number {
+    return this.furnStyle === 'zataku_jp' ? ZATAKU_TOP : TABLE_TOP;
+  }
+
   private get oakTables(): boolean {
     return this.game.state.cuisine === 'jp';
   }
@@ -1087,11 +1098,16 @@ export class RestaurantArea implements Area {
         else if (this.furnStyle === 'wood_oc') buildWoodTable(sub, sw, sd, TABLE_TOP, this.wood, sd2);
         else buildPlasticTable(sub, sw, sd, TABLE_TOP, mats, sd2);
       });
+      else if (this.oakTables && this.furnStyle === 'zataku_jp') buildZataku(g, w, d, ZATAKU_TOP, this.wood, seedOf(t.id));
+      else if (this.oakTables && this.furnStyle === 'stone_jp') buildStoneTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       else if (this.oakTables) buildOakTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
+      else if (this.grillTables && this.furnStyle === 'drum_kr') joinedTables(g, w, d, t.seats, seedOf(t.id), (sub, sw, sd, s2) => buildDrumTable(sub, sw, sd, TABLE_TOP, s2));
+      else if (this.grillTables && this.furnStyle === 'stone_jp') buildStoneTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
+      else if (this.grillTables && this.furnStyle === 'walnut_kr') buildWalnutGrill(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       else if (this.grillTables) buildGrillTable(g, w, d, TABLE_TOP, this.wood, mats.base, seedOf(t.id));
       else if (this.furnStyle === 'oak_vn' || this.furnStyle === 'luxury_vn') buildTurnedTable(g, w, d, TABLE_TOP, this.wood, this.furnStyle, seedOf(t.id));
       else buildWoodTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
-      tableExtras(this.game.state.cuisine, g, TABLE_TOP, w, d, seedOf(t.id), seatSpots(t, { x: 0, y: 0 }).map((s) => ({ x: s.x / UNIT, z: s.y / UNIT })));
+      tableExtras(this.game.state.cuisine, g, this.tableTop, w, d, seedOf(t.id), seatSpots(t, { x: 0, y: 0 }).map((s) => ({ x: s.x / UNIT, z: s.y / UNIT })));
     } else {
       mesh(g, G.box(w, 0.1, d), mats.top, { p: [0, TABLE_TOP - 0.05, 0] });
       mesh(g, G.box(w - 0.15, 0.06, d - 0.15), mats.base, { p: [0, TABLE_TOP - 0.13, 0] });
@@ -1465,7 +1481,7 @@ export class RestaurantArea implements Area {
       if (!g) {
         g = group(this.root);
         g.userData.pick = { type: 'table', id: tableId } satisfies Pick;
-        const top = (table.shared || table.bar ? COUNTER_TOP : TABLE_TOP) + 0.02;
+        const top = (table.shared || table.bar ? COUNTER_TOP : this.tableTop) + 0.02;
         for (const i of seats) {
           const s = spots[i];
           if (!s) continue;
@@ -1898,7 +1914,7 @@ export class RestaurantArea implements Area {
     mats.back.color.setHex(furn.back);
     tintWood(this.wood, furn as { top: number; base: number; seat: number });
     // Đổi kiểu bàn ghế (quán Việt: gỗ mộc / gỗ chân tiện / ghế bành mây): bỏ hết bàn đang dựng, dựng lại theo kiểu mới
-    const style = this.woodTables || this.street ? (pick('furniture').style ?? '') : '';
+    const style = this.woodTables || this.street || this.oakTables || this.grillTables ? (pick('furniture').style ?? '') : '';
     if (style !== this.furnStyle) {
       this.furnStyle = style;
       for (const view of this.tables.values()) this.root.remove(view.g);
@@ -2031,7 +2047,9 @@ export class RestaurantArea implements Area {
           actor.out = [this.wx(spot.x + (ox / n) * 34), this.wz(spot.y + (oy / n) * 34)];
         } else actor.out = null;
         actor.face = spot ? Math.atan2(this.wx(spot.dishX) - tx, this.wz(spot.dishY) - tz) : Math.PI;
-        actor.restY = spot ? (table!.shared || table!.bar ? 0.4 : 0.14) : wait ? 0.14 : 0;
+        // Bàn bệt quán Nhật: khách ngồi đôn sát đất (hạ người xuống, chân khuất dưới sàn / gầm bàn)
+      const low = this.furnStyle === 'zataku_jp' ? -0.21 : 0.14;
+      actor.restY = spot ? (table!.shared || table!.bar ? 0.4 : low) : wait ? low : 0;
         cx += tx / party.size;
         cz += tz / party.size;
       }
@@ -2068,7 +2086,7 @@ export class RestaurantArea implements Area {
           if (!order || !spot) return;
           let dish = this.dishes.get(id);
           if (!dish) {
-            const g = group(this.root, { p: [this.wx(spot.dishX), (table.shared || table.bar ? COUNTER_TOP : TABLE_TOP) + 0.02, this.wz(spot.dishY)] });
+            const g = group(this.root, { p: [this.wx(spot.dishX), (table.shared || table.bar ? COUNTER_TOP : this.tableTop) + 0.02, this.wz(spot.dishY)] });
             mesh(g, G.cyl(0.2, 0.14, 0.04, 14), 0xffffff);
             const sprite = emojiSprite(content.recipes.get(order.recipeId).icon, 0.42);
             sprite.position.y = 0.26;
@@ -2085,7 +2103,7 @@ export class RestaurantArea implements Area {
           const served = order.status === 'served';
           if (served && dish.servedAt < 0) dish.servedAt = env.t;
           dish.g.visible = served;
-          dish.g.position.set(this.wx(spot.dishX), (table.shared || table.bar ? COUNTER_TOP : TABLE_TOP) + 0.02, this.wz(spot.dishY));
+          dish.g.position.set(this.wx(spot.dishX), (table.shared || table.bar ? COUNTER_TOP : this.tableTop) + 0.02, this.wz(spot.dishY));
           dish.sprite.position.y = 0.24;
           // Món vừa ra: đĩa nảy lên rồi đáp xuống, đĩa dẹt-giãn một nhịp
           const since = served ? env.t - dish.servedAt : 99;
