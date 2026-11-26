@@ -24,7 +24,7 @@ export const decor: DecorDef[] = [
   { id: 'floor_checker', name: 'Gạch caro đen trắng', icon: '🏁', slot: 'floor', cost: 450, level: 3, cuisine: 'kr', colors: { a: 0xf4f4f4, b: 0x3a3a40 }, modifiers: { patience: 1.05 } },
   // Quán Ốc ngoài trời: nền bê tông, nâng cấp là gạch hoa lề đường (ô vuông xen hai màu)
   { id: 'floor_street', name: 'Nền bê tông vỉa hè', icon: '⬛', slot: 'floor', cost: 0, level: 1, isDefault: true, cuisine: 'oc', colors: { a: 0xaeaca6, b: 0xa29f99 } },
-  // Quán Ốc dùng chung nền gạch với quán Việt (giai đoạn 20): 2 nền lề đường riêng + dù xanh ngừng bán (save cũ được trả tiền)
+  // Quán Ốc dùng chung nền gạch với quán Việt (giai đoạn 20): 2 nền lề đường riêng ngừng bán (save cũ được trả tiền)
   { id: 'floor_gach_do', name: 'Gạch lề đường đỏ', icon: '🟥', slot: 'floor', cost: 300, level: 2, cuisine: 'oc', exclude: ['oc'], colors: { a: 0xc95f4c, b: 0xe2b8a0 }, modifiers: { patience: 1.03 } },
   { id: 'floor_gach_hoa', name: 'Gạch hoa lề đường', icon: '🌼', slot: 'floor', cost: 500, level: 3, cuisine: 'oc', exclude: ['oc'], colors: { a: 0xe9e1cf, b: 0x5f9a8f }, modifiers: { patience: 1.05 } },
   { id: 'floor_tile', name: 'Gạch men sọc đỏ', icon: '🟥', slot: 'floor', cost: 300, level: 2, exclude: ['vn', 'oc'], colors: { a: 0xf3ead8, b: 0xd96f4a } },
@@ -41,7 +41,7 @@ export const decor: DecorDef[] = [
   { id: 'wall_kr_orange', name: 'Sơn cam gạch', icon: '🎨', slot: 'wall', cost: 0, level: 1, isDefault: true, cuisine: 'kr', colors: { wall: 0xf3c9a4, trim: 0x4a4f5a } },
   // Quán Ốc không có tường: "sơn tường" = màu sạp dù che bếp (wall = sọc chính, trim = sọc phụ)
   { id: 'wall_oc_tent', name: 'Dù sọc đỏ trắng', icon: '⛱️', slot: 'wall', cost: 0, level: 1, isDefault: true, cuisine: 'oc', colors: { wall: 0xe2473c, trim: 0xfaf3e6 } },
-  { id: 'wall_oc_blue', name: 'Dù sọc xanh trắng', icon: '⛱️', slot: 'wall', cost: 200, level: 2, cuisine: 'oc', exclude: ['oc'], colors: { wall: 0x3f7fd2, trim: 0xfaf3e6 } },
+  { id: 'wall_oc_blue', name: 'Dù sọc xanh trắng', icon: '⛱️', slot: 'wall', cost: 200, level: 2, cuisine: 'oc', colors: { wall: 0x3f7fd2, trim: 0xfaf3e6 } },
   { id: 'wall_hoian', name: 'Vàng Hội An', icon: '🏮', slot: 'wall', cost: 300, level: 2, cuisine: 'vn', colors: { wall: 0xf5cf5b, trim: 0x2f6f5a } },
   { id: 'wall_mint', name: 'Sơn xanh bạc hà', icon: '🎨', slot: 'wall', cost: 200, level: 2, exclude: ['oc'], colors: { wall: 0xcfead6, trim: 0x5f9e7a } },
   { id: 'wall_sky', name: 'Sơn xanh da trời', icon: '🎨', slot: 'wall', cost: 200, level: 2, exclude: ['oc'], colors: { wall: 0xcfe3f5, trim: 0x4f7fb0 } },

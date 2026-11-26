@@ -56,15 +56,15 @@ export const shopPanel: Panel = {
   render(game, uiState) {
     const { state, content } = game;
 
-    // Quán Ốc ngoài trời: không có tường nên không bán sơn tường
     const decor = (Object.keys(decorSlotNames) as DecorSlot[])
-      .filter((slot) => !(slot === 'wall' && state.cuisine === 'oc'))
       .map((slot) => {
         const cards = decorFor(content, state.cuisine)
           .filter((d) => d.slot === slot)
           .map((d) => decorCard(game, d, uiState))
           .join('');
-        return `<h3>${decorSlotNames[slot]}</h3>${cards}`;
+        // Quán Ốc ngoài trời: không có tường, mục này là màu dù che bếp (chỉ 2 màu dù riêng)
+        const title = slot === 'wall' && state.cuisine === 'oc' ? 'Màu dù' : decorSlotNames[slot];
+        return `<h3>${title}</h3>${cards}`;
       })
       .join('');
 
