@@ -1,3 +1,4 @@
+import { upgradeCards } from './restaurant';
 import { decorFor, type DecorDef, type DecorSlot, type ModifierKey } from '../../data';
 import { decorSlotNames } from '../../data/decor';
 import type { Game } from '../../sim/game';
@@ -137,6 +138,7 @@ export const shopPanel: Panel = {
       <button class="mini"${ui('edit')}>🪑 Sắp xếp quán</button></div>
       <h3>Đồ trang trí</h3><p class="muted">Mua là tự bày vào chỗ trống; vào 🪑 Sắp xếp quán để kéo đi chỗ khác, xoay, cất kho. Mỗi loại tính hiệu ứng một lần.</p>${props}
       <h3>Thú cưng</h3>${pets}
+      <h3>Nâng hạng quán</h3>${upgradeCards(game)}
       <h3>Bàn thêm</h3>${tables}
       ${decor}<h3>Trang thiết bị</h3>${equipment}`;
   },

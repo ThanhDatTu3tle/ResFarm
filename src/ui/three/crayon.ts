@@ -12,7 +12,7 @@ import * as THREE from 'three';
 
 const PREF_KEY = 'quan-nha-vuon/crayon';
 /** Độ đậm vân sáp khi bật; cỡ ô vân (m trên mỗi ô lặp). */
-const GRAIN = { strength: 0.6, tile: 0.7 };
+const GRAIN = { strength: 0.42, tile: 0.7 };
 
 let enabled = true;
 try {
@@ -153,7 +153,7 @@ function markOverlays(scene: THREE.Scene): void {
 }
 
 /** Độ dày nét viền trung bình (điểm ảnh CSS). */
-const LINE_PX = 0.95;
+const LINE_PX = 0.72;
 
 /**
  * Lượt hậu kỳ vẽ viền lem: vẽ cảnh vào khung tạm (kèm độ sâu), rồi vẽ ra màn hình với nét viền ở chỗ độ sâu gãy.
@@ -213,7 +213,7 @@ export class CrayonPass {
           float e = smoothstep(0.006, 0.02, lap);
           // Mực nâu sẫm pha chút màu của chính vật (giống bút sáp màu đậm hơn tô viền)
           vec3 ink = mix(vec3(0.035, 0.018, 0.009), col.rgb * 0.22, 0.3);
-          col.rgb = mix(col.rgb, ink, e * 0.82);
+          col.rgb = mix(col.rgb, ink, e * 0.66);
           gl_FragColor = vec4(col.rgb, 1.0);
           #include <colorspace_fragment>
         }`,

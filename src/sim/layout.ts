@@ -70,6 +70,9 @@ export function roomOf(ctx: SimContext): RoomDef {
  * Quầy + chỗ nhân viên + dãy ghế là khối cố định (walls): không đặt bàn đè lên, người đi vòng qua.
  */
 function withCashier(ctx: SimContext, room: RoomDef): RoomDef {
+  const tier = ctx.state.restaurant.tier;
+  const from = Object.entries(room.buySpotsFrom ?? {}).filter(([k]) => tier >= +k).pop();
+  if (from) room = { ...room, buySpots: { ...room.buySpots, ...from[1] } };
   if (ctx.state.restaurant.tier < ctx.content.balance.takeout.tier) return room;
   if (ctx.state.cuisine === 'oc') {
     const x = Math.min(room.width - 45, room.pass.x + 78);
@@ -92,7 +95,9 @@ function withCashier(ctx: SimContext, room: RoomDef): RoomDef {
 export function widthExtra(ctx: SimContext): number {
   const base = ctx.content.room;
   const tier = base.tiers[ctx.state.restaurant.tier - 1] ?? base.tiers[0];
-  return Math.max(0, (tier.width ?? base.width) - base.width);
+  const t = ctx.state.restaurant.tier;
+  const more = Object.entries(roomFor(ctx.content, ctx.state.cuisine).wider ?? {}).reduce((m, [k, v]) => (t >= +k ? v : m), 0);
+  return Math.max(0, (tier.width ?? base.width) - base.width) + more;
 }
 
 /** Quầy ghế đơn trước bếp dài theo bếp: mỗi 60 đơn vị rộng thêm có thêm 1 ghế (mép trái giữ nguyên). */
@@ -113,10 +118,15 @@ export function activeTables(ctx: SimContext): TableDef[] {
   const r = state.restaurant;
   const base = content.tables
     .all()
-    .filter((t) => (!t.requiresUpgrade || state.upgrades.includes(t.requiresUpgrade)) && (!t.cuisines || t.cuisines.includes(state.cuisine)) && !r.confiscated?.includes(t.id))
+    .filter((t) => (!t.requiresUpgrade || state.upgrades.includes(t.requiresUpgrade)) && (!t.cuisines || t.cuisines.includes(state.cuisine)) && !r.confiscated?.includes(t.id) && !r.storedTables?.includes(t.id))
     .map((t) => (t.byCuisine?.[state.cuisine] ? { ...t, ...t.byCuisine[state.cuisine] } : t))
+    .map((t) => {
+      // Vị trí mặc định theo hạng: lấy mốc cao nhất đã tới
+      const at = (Array.isArray(t.fromTier) ? t.fromTier : t.fromTier ? [t.fromTier] : []).filter((f) => r.tier >= f.tier).pop();
+      return at ? { ...t, x: at.x, y: at.y } : t;
+    })
     .map((t) => (t.wall === 'east' ? alongEastWall(ctx, t) : t));
-  const extra = r.extraTables.map((e) => extraTableDef(ctx, e.id, e.kind));
+  const extra = r.extraTables.filter((e) => !r.storedTables?.includes(e.id)).map((e) => extraTableDef(ctx, e.id, e.kind));
   return [...base.map((t) => withCounterSeats(ctx, t)), ...extra].map((t) => withRotation(t, r.layout[t.id]?.rot ?? !!t.rot));
 }
 
@@ -312,7 +322,8 @@ export function canPlaceProp(ctx: SimContext, uid: string, x: number, y: number,
  * (xa bàn / đồ trang trí khác nhất, tính tối đa 80 đơn vị); bằng nhau thì lấy chỗ dò thấy trước (từ trong ra cửa).
  * Trả null nếu khu ăn uống đã kín.
  */
-export function findFreeSpot(ctx: SimContext, rectAt: (x: number, y: number) => Rect, skip = ''): Point | null {
+export function findFreeSpot(ctx: SimContext, rectAt: (x: number, y: number) => Rect, skip = '', prefer: Point[] = []): Point | null {
+  for (const p of prefer) if (!blockerOf(ctx, rectAt(p.x, p.y), skip)) return p;
   const area = roomOf(ctx).dining;
   const others = [
     ...activeTables(ctx).filter((t) => t.id !== skip).map((t) => footprint(t, tablePos(ctx, t))),

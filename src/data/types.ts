@@ -261,6 +261,8 @@ export interface TableDef {
   bar?: 'east';
   /** Ghi đè theo phong cách quán (vị trí, số ghế, kiểu quầy...) — id giữ nguyên để save cũ không vỡ. */
   byCuisine?: Partial<Record<CuisineId, Partial<Omit<TableDef, 'byCuisine' | 'id'>>>>;
+  /** Vị trí mặc định khác từ hạng quán `tier` trở lên (phòng sâu hơn nên có chỗ xếp lại). */
+  fromTier?: { tier: number; x: number; y: number } | { tier: number; x: number; y: number }[];
   x: number;
   y: number;
   w: number;
@@ -339,6 +341,12 @@ export interface RoomDef {
   };
   /** Mặt bằng riêng theo phong cách quán (ghi đè các trường trên; hạng quán vẫn dùng chung `tiers`, cộng thêm phần chênh so với hạng 1). */
   variants?: Partial<Record<CuisineId, Partial<Omit<RoomDef, 'tiers' | 'variants'>>>>;
+  /** Chỗ ưu tiên đặt bàn mua thêm theo số ghế (còn trống thì đặt đúng chỗ đó, không thì tìm chỗ thoáng nhất). */
+  buySpots?: Record<number, { x: number; y: number; rot?: boolean }[]>;
+  /** Rộng thêm về phía Đông (ngoài phần chung của hạng) kể từ hạng đó: { hạng: đơn vị }. */
+  wider?: Record<number, number>;
+  /** Chỗ ưu tiên đặt bàn mua thêm thay cho buySpots kể từ hạng đó: { hạng: { số ghế: chỗ } }. */
+  buySpotsFrom?: Record<number, Record<number, { x: number; y: number; rot?: boolean }[]>>;
 }
 
 export type DecorSlot = 'floor' | 'wall' | 'furniture';

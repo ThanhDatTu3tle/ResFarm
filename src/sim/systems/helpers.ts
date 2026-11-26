@@ -157,9 +157,25 @@ function takeHandoff(ctx: SimContext, h: HelperState): boolean {
   return true;
 }
 
+/** Số nhân viên phục vụ tối đa (quán hạng cao nhất). */
+export const MAX_HELPERS = 4;
+/** Số bàn tối đa theo số ghế (kể cả bàn có sẵn và bàn đang cất): bàn 6, bàn 4, bàn đôi, bàn đơn. */
+export const TABLE_CAPS: Record<number, number> = { 6: 2, 4: 3, 2: 5, 1: 4 };
+/**
+ * Số bàn MUA THÊM được (ngoài bàn có sẵn) theo hạng quán, theo số ghế — cộng dồn. Hạng chưa ghi ở đây:
+ * mỗi bậc +1 mỗi loại (bàn 6 từ hạng 3), vẫn không quá TABLE_CAPS.
+ */
+export const TABLE_EXTRA_BY_TIER: Record<number, Record<number, number>> = {
+  1: {},
+  2: { 4: 1, 2: 1, 1: 1 },
+  3: { 4: 1, 2: 2, 1: 1, 6: 1 },
+  4: { 4: 2, 2: 3, 1: 1, 6: 1 },
+  5: { 4: 2, 2: 3, 1: 1, 6: 2 },
+};
+
 /** Số nhân viên thuê được ở hạng quán hiện tại (hạng 1: 0, mỗi bậc +1). */
 export function maxHelpers(ctx: SimContext): number {
-  return Math.min(4, Math.max(0, ctx.state.restaurant.tier - 1) + kitchenTierOf(ctx).helpers);
+  return Math.min(MAX_HELPERS, Math.max(0, ctx.state.restaurant.tier - 1) + kitchenTierOf(ctx).helpers);
 }
 
 function find(ctx: SimContext, id: string): HelperState | undefined {

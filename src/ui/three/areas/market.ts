@@ -34,6 +34,12 @@ const BRAKE = 4;
 const ACCEL = 2.2;
 /** Hai cột đèn lớn treo dây cờ: ngoài rìa dãy sạp (sạp ngoài cùng tâm ±11.8, rộng 5 m). */
 const LAMP_X = 15;
+/** Đầu trái dây cờ (góc mái sạp ngoài cùng bên trái — cột đèn trái đã bỏ). */
+const FLAG_LEFT = -12.6;
+/** Xe buýt chạy chậm cho người chơi kịp xem quảng cáo dán hông xe. */
+const BUS_SPEED = 1.6;
+/** Cứ bấy nhiêu phút game một chuyến xe buýt. */
+const BUS_EVERY = 30;
 /** Trạm xe buýt (phải cây trước Tiệm 25caaaaa) và biển LED (trái cây trước sạp thịt), mét. */
 const BUS_STOP = { x: 15.0, z: 7.6 };
 /** Cửa giữa xe buýt dừng lệch bấy nhiêu so với tâm trạm (ngay trước băng ghế). */
@@ -81,6 +87,9 @@ export class MarketArea implements Area {
   private bus: CityBus | null = null;
   private busStop: BusStopScene | null = null;
   private billboard: Billboard | null = null;
+  private busTrip = 0;
+  /** Phút game của lịch xe buýt (không dừng khi tạm dừng game). */
+  private busClock = 0;
   /** Bóng các cột đèn ngoài vỉa hè (hai cột treo dây cờ + đèn đường sát mặt đường) + đèn hắt + quầng sáng. */
   private brightBulbs: THREE.MeshToonMaterial[] = [];
   private nearLights: THREE.PointLight[] = [];
@@ -194,7 +203,8 @@ export class MarketArea implements Area {
     for (const lx of [-20, -6, 6, 19.3]) brightLamp(lx, SIDEWALK.z2 - 0.4, 1.3, Math.abs(lx) < 10 ? SIDEWALK.z2 - 1.6 : null);
     // Hai cột đèn lớn treo dây cờ: đứng ngoài rìa dãy sạp (không che sạp thịt / Tiệm 25caaaaa, không cản bấm sạp)
     for (const lx of [-LAMP_X, LAMP_X]) {
-      brightLamp(lx, 1.4, 1.25, 2.2);
+      // Cột bên trái bỏ (nhường chỗ biển LED to); dây cờ bên trái buộc vào góc mái sạp thịt
+      if (lx > 0) brightLamp(lx, 1.4, 1.25, 2.2);
       const light = new THREE.PointLight(0xffc27a, 0, 0, 0);
       light.position.set(lx * 0.6, 3.6, 5);
       this.lights.push(light);
@@ -203,7 +213,7 @@ export class MarketArea implements Area {
     const flagColors = [0xe2574c, 0xf2b23e, 0x5fae57, 0x4a9bd8, 0x9a6bd1];
     for (let i = 0; i <= 36; i++) {
       const t = i / 36;
-      const flag = mesh(top, G.cone(0.2, 0.42, 3), flagColors[i % flagColors.length], { p: [-LAMP_X + t * LAMP_X * 2, 4.35 - Math.sin(t * Math.PI) * 0.9, 1.4], r: [Math.PI, 0, 0], cast: false });
+      const flag = mesh(top, G.cone(0.2, 0.42, 3), flagColors[i % flagColors.length], { p: [FLAG_LEFT + t * (LAMP_X - FLAG_LEFT), 4.35 - Math.sin(t * Math.PI) * 0.9, 1.4], r: [Math.PI, 0, 0], cast: false });
       flag.userData.phase = i * 0.7;
       this.flags.push(flag);
     }
@@ -224,7 +234,7 @@ export class MarketArea implements Area {
     }
 
     // Biển LED quảng cáo lớn bên trái cây trước sạp thịt (quảng cáo ở src/data/ads.ts)
-    this.billboard = makeBillboard(undefined, 5);
+    this.billboard = makeBillboard(undefined, 6.4);
     this.billboard.g.position.set(BILLBOARD.x, 0, BILLBOARD.z);
     this.billboard.g.rotation.y = 0.35; // xoay vào giữa chợ cho camera nhìn rõ mặt màn
     r.add(this.billboard.g);
@@ -504,7 +514,9 @@ export class MarketArea implements Area {
   private paintedSeason = -1;
   private festive: FestiveSet | null = null;
 
-  update(env: Env, dt: number): void {
+  update(env: Env, dt: number, speed = 1): void {
+    // Đồng hồ riêng của xe buýt: chạy theo tốc độ game, tạm dừng thì vẫn chạy như x1 (xe buýt không bao giờ đứng)
+    this.busClock += dt * Math.max(1, speed) * this.game.content.balance.minutesPerSecond;
     this.festive?.update(this.game, env.t, env.wind);
     if (this.paintedSeason !== env.season) {
       this.paintedSeason = env.season;
@@ -566,14 +578,16 @@ export class MarketArea implements Area {
         if (b.phase === 'away') {
           // Về bến: hết giờ chờ và đầu đường trống thì xuất bến
           // Mỗi giờ trong game một chuyến: xuất bến lúc HH:45 để tới trạm khoảng đúng giờ (đi ~15 phút game)
-          const minute = this.game.state.clock.minute;
-          if (b.depart < 0 || b.depart - minute > 60) b.depart = nextDeparture(minute);
+          // Mỗi BUS_EVERY phút game một chuyến (đồng hồ riêng busClock, tạm dừng game xe vẫn chạy)
+          const minute = this.busClock;
+          if (b.depart < 0) b.depart = minute + 2;
           const clear = !live.some((o) => o !== v && o.dir === 1 && (o.g.position.x < -ROAD_HALF + v.len + 1.5 || o.g.position.x > ROAD_HALF - 3));
           if (minute < b.depart || !clear) continue;
-          b.depart = nextDeparture(minute + 1);
+          b.depart = minute + BUS_EVERY;
           b.phase = 'drive';
+          this.bus.setAd(++this.busTrip); // mỗi chuyến một poster
           v.g.position.x = -ROAD_HALF + v.len / 2;
-          v.speed = VEHICLE_SPEED;
+          v.speed = BUS_SPEED;
           v.g.visible = true;
         }
         if (b.phase === 'dwell') {
@@ -585,7 +599,7 @@ export class MarketArea implements Area {
         }
         if (b.doors > 0) this.bus.setDoors((b.doors = Math.max(0, b.doors - dt * 5)));
       }
-      let target = VEHICLE_SPEED;
+      let target = b ? BUS_SPEED : VEHICLE_SPEED;
       // Xe phía trước cùng chiều gần nhất
       let gap = Infinity;
       for (const o of live) {
@@ -625,10 +639,6 @@ export class MarketArea implements Area {
 }
 
 /** Phút game của chuyến xe buýt kế tiếp (xuất bến lúc HH:45, tới trạm ~ đúng giờ), tính từ phút `m` trở đi. */
-function nextDeparture(m: number): number {
-  const lead = 15;
-  return Math.ceil((m + lead) / 60) * 60 - lead;
-}
 
 /** Quầng sáng tròn mờ quanh bóng đèn (dùng chung). */
 let halo: THREE.Texture | null = null;

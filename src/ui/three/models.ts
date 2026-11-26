@@ -263,7 +263,7 @@ const YOLK = 0xffc93c;
 
 function bowl(g: THREE.Group, soup: number, rim = 0xf3e9d2, r = 0.15): void {
   mesh(g, G.cyl(r, r * 0.65, 0.1, 16), rim, { p: [0, 0.05, 0] });
-  mesh(g, G.cyl(r * 0.88, r * 0.88, 0.01, 16), soup, { p: [0, 0.095, 0], cast: false });
+  mesh(g, G.cyl(r * 0.88, r * 0.88, 0.01, 16), soup, { p: [0, 0.1, 0], cast: false }); // mặt nước nhô hơn miệng tô 5mm (trùng mặt thì nhấp nháy xoáy)
 }
 
 function friedEgg(g: THREE.Group, x: number, y: number, z: number, s = 1): void {

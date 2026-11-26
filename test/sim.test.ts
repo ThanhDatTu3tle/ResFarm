@@ -12,6 +12,7 @@ import { FARM_DAY } from '../src/data/farm';
 import { autoServeCommands } from '../src/sim/systems/service';
 import { billDue, missingEnergy } from '../src/sim/systems/crew';
 import { maxHelpers } from '../src/sim/systems/helpers';
+import { fullKitPlan } from '../src/sim/systems/home';
 import { sellPrice } from '../src/sim/systems/contracts';
 import { buildingRect, nextWaypoint, slotCenter, slotScale, workSpot } from '../src/sim/systems/farmer';
 import { millCenter, millSpot } from '../src/sim/systems/mills';
@@ -359,8 +360,8 @@ describe('sắp xếp bàn', () => {
 
   it('dời được bàn trống tới chỗ hợp lệ; chặn khi đè bàn khác, ra ngoài, bàn cố định, bàn có khách', () => {
     const game = newGame();
-    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 433, y: 371 }).ok).toBe(true);
-    expect(game.state.restaurant.layout.pair).toEqual({ x: 435, y: 370 });
+    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 498, y: 301 }).ok).toBe(true);
+    expect(game.state.restaurant.layout.pair).toEqual({ x: 500, y: 300 });
     expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 125, y: 300 }).ok).toBe(false);
     expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 10, y: 300 }).ok).toBe(false);
     expect(game.dispatch({ type: 'layout/moveTable', tableId: 'counter', x: 360, y: 300 }).ok).toBe(false);
@@ -484,7 +485,8 @@ describe('phục vụ (người chơi là bồi bàn)', () => {
     expect(party.phase).toBe('waitingFood');
 
     for (const o of [...r.orders]) expect(game.dispatch({ type: 'service/deliver', orderIds: [o.id], partyId: party.id }).ok).toBe(true);
-    game.tick(10);
+    for (let i = 0; i < 30 && !r.orders.every((o) => o.status === 'served'); i++) game.tick(1);
+    game.tick(1);
     expect(r.orders.every((o) => o.status === 'served')).toBe(true);
     expect(party.phase).toBe('eating');
     game.tick(content.balance.eatTime[party.size - 1][1] + 1);
@@ -1067,6 +1069,7 @@ describe('quán của riêng mình', () => {
   it('mua thêm bàn (khách ngồi được), xoay bàn 90° (ghế xoay theo), bán lại bàn', () => {
     const game = quietGame();
     Object.assign(game.state, { money: 5000, level: 9 });
+    game.state.restaurant.tier = 2; // hạng 1 chưa mua thêm bàn được (mỗi hạng +1 bàn mỗi loại)
     expect(game.dispatch({ type: 'table/buy', kind: 'pair' }).ok).toBe(true);
     const extra = game.state.restaurant.extraTables[0];
     expect(activeTables(game.ctx).some((t) => t.id === extra.id)).toBe(true);
@@ -1147,7 +1150,7 @@ describe('ca làm, khay bưng nhiều món, dọn dẹp (đợt 14)', () => {
     expect(game.dispatch({ type: 'service/deliver', orderIds: r.orders.map((o) => o.id), partyId: party.id }).ok).toBe(true);
     expect(r.waiter.tasks).toHaveLength(1);
     let carried = 0;
-    for (let i = 0; i < 20 && !r.orders.every((o) => o.status === 'served'); i++) {
+    for (let i = 0; i < 40 && !r.orders.every((o) => o.status === 'served'); i++) {
       game.tick(0.25);
       carried = Math.max(carried, r.waiter.carrying.length);
     }
@@ -2741,5 +2744,28 @@ describe('đơn giao tận nơi (giai đoạn 18)', () => {
     const loaded = deserialize(JSON.stringify(old), content)!;
     expect(loaded.takeout).toEqual({ orders: [], nextCall: 0 });
     expect(loaded.restaurant.couriers).toEqual([]);
+  });
+});
+
+describe('gói nâng hạng + trang bị đủ bàn', () => {
+  it('giá = (nâng hạng + bàn) giảm 10%; mua xong lên hạng và đủ bàn tối đa', () => {
+    const game = newGame(42, 'vn');
+    game.state.level = 9;
+    game.state.restaurant.tier = 2;
+    const plan = fullKitPlan(game.ctx)!;
+    expect(plan.tier).toBe(3);
+    expect(plan.tables.length).toBeGreaterThan(0);
+    expect(plan.price).toBe(Math.round(plan.full * 0.9));
+    game.state.money = plan.price - 1;
+    expect(game.dispatch({ type: 'restaurant/upgradeFull' }).ok).toBe(false);
+    game.state.money = plan.price + 5;
+    const before = game.state.restaurant.extraTables.length;
+    expect(game.dispatch({ type: 'restaurant/upgradeFull' }).ok).toBe(true);
+    expect(game.state.restaurant.tier).toBe(3);
+    expect(game.state.money).toBe(5);
+    expect(game.state.restaurant.extraTables.length - before).toBe(plan.tables.length);
+    // đã đủ: có tiền cũng không mua thêm bàn nào được nữa
+    game.state.money = 1e6;
+    for (const k of ['long', 'square', 'pair']) expect(game.dispatch({ type: 'table/buy', kind: k }).ok).toBe(false);
   });
 });

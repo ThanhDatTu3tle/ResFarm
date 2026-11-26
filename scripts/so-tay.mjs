@@ -31,9 +31,14 @@ try {
     load('/src/data/quests.ts'),
     load('/src/data/farm.ts'),
   ]);
+  // Gói nâng hạng + đủ bàn: chạy thử lõi mô phỏng (Game) cho từng quán
+  const [simGame, simHome, simLayout] = await Promise.all([load('/src/sim/game.ts'), load('/src/sim/systems/home.ts'), load('/src/sim/layout.ts')]);
   const raw = data.defaultRawContent;
   data.createContent(raw); // ném lỗi nếu data sai → không sinh Sổ tay từ data hỏng
+  const kits = tierKits(data, raw, simGame, simHome, simLayout);
   db = build(raw, { items, decor, farmhands, achievements, calendar, events, quests, farm });
+  db.tierKits = kits;
+  db.fullKitDiscount = simHome.FULL_KIT_DISCOUNT;
 } finally {
   await vite.close();
 }
@@ -175,4 +180,31 @@ function build(raw, m) {
     'thành tựu': db.achievements.length,
   };
   return db;
+}
+
+/**
+ * Mỗi quán, mỗi hạng: số bàn tối đa theo số ghế (đã trang bị đủ) và giá gói "nâng hạng + đủ bàn"
+ * tính từ hạng trước đã trang bị đủ (đúng luật trong game — fullKitPlan).
+ */
+function tierKits(data, raw, simGame, simHome, simLayout) {
+  const rows = [];
+  for (const cu of raw.cuisines.map((c) => c.id)) {
+    const game = new simGame.Game(data.createContent(raw), { seed: 1, cuisine: cu });
+    game.state.level = 99;
+    const count = () => {
+      const by = {};
+      for (const t of simLayout.activeTables(game.ctx)) if (!t.shared) by[t.seats] = (by[t.seats] ?? 0) + 1;
+      return by;
+    };
+    rows.push({ cuisine: cu, tier: 1, tables: count(), plan: null });
+    for (;;) {
+      const plan = simHome.fullKitPlan(game.ctx);
+      if (!plan) break;
+      game.state.money = 1e9;
+      const ok = plan.tables.length ? game.dispatch({ type: 'restaurant/upgradeFull' }).ok : game.dispatch({ type: 'restaurant/upgrade' }).ok;
+      if (!ok) break;
+      rows.push({ cuisine: cu, tier: game.state.restaurant.tier, tables: count(), plan: { upgradeCost: plan.upgradeCost, tablesCost: plan.full - plan.upgradeCost, full: plan.full, price: plan.tables.length ? plan.price : plan.full } });
+    }
+  }
+  return rows;
 }

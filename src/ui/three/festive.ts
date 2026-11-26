@@ -79,13 +79,13 @@ export function makeMai(parent: THREE.Object3D, p: V3, s = 1): THREE.Group {
   const bark = 0x5a3b2a;
   // Chậu men: thân lam, 2 dải trắng có chấm lam, miệng loe, đất
   mesh(g, G.cyl(0.33, 0.24, 0.46, 14), 0x2f5fa8, { p: [0, 0.23, 0] });
-  for (const y of [0.1, 0.36]) mesh(g, G.cyl(0.33 - y * 0.18 + 0.006, 0.33 - y * 0.18 + 0.006, 0.05, 14), 0xf3f0e8, { p: [0, y, 0], cast: false });
+  for (const y of [0.1, 0.36]) mesh(g, G.cyl(0.33 - y * 0.18 + 0.012, 0.33 - y * 0.18 + 0.012, 0.05, 14), 0xf3f0e8, { p: [0, y, 0], cast: false });
   for (let k = 0; k < 10; k++) {
     const a = (k / 10) * Math.PI * 2;
     mesh(g, G.sphere(0.018, 5, 4), 0x2f5fa8, { p: [Math.cos(a) * 0.272, 0.36, Math.sin(a) * 0.272], cast: false });
   }
   mesh(g, G.cyl(0.36, 0.33, 0.05, 14), 0x2a4f8a, { p: [0, 0.47, 0] });
-  mesh(g, G.cyl(0.31, 0.31, 0.02, 14), 0x5a3b2a, { p: [0, 0.48, 0], cast: false });
+  mesh(g, G.cyl(0.31, 0.31, 0.02, 14), 0x5a3b2a, { p: [0, 0.5, 0], cast: false }); // nhô hơn vành chậu (tránh trùng mặt)
   // Gốc uốn khúc: 3 đoạn nghiêng ngược nhau
   const segs: [V3, V3][] = [[[0, 0.48, 0], [0.08, 0.78, 0.02]], [[0.08, 0.78, 0.02], [-0.06, 1.02, -0.02]], [[-0.06, 1.02, -0.02], [0.02, 1.22, 0]]];
   segs.forEach(([a, b], i) => {

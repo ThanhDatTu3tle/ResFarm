@@ -49,7 +49,8 @@ export function streetSpots(d: StreetDims) {
       { x: -2.2 - 1.2 - tableExt(d) / 2, z: z - 1.0 },
       { x: 2.35, z: z - 1.0 },
     ],
-    sign: { x: -2.2 - 1.2 - tableExt(d) - 0.75, z: d.kitchenZ - 0.15 },
+    /** Bảng tên đứng sát đầu trái bàn ốc (bàn dài ra khi bếp lên hạng thì bảng lùi theo). */
+    sign: (tier: number) => ({ x: -2.2 - 1.2 - (tier >= 2 ? tableExt(d) : 0) - 1.35, z: d.kitchenZ - 0.35 }),
   };
 }
 
@@ -112,7 +113,7 @@ export function buildStreetKitchen(r: THREE.Object3D, d: StreetDims, mats: Stree
   const x2 = d.halfW - 0.3;
   const z1 = d.backZ - 0.2;
   const z2 = d.kitchenZ + 0.55;
-  const top = 4.0;
+  const top = 4.8;
   for (const x of [x1, x2]) for (const z of [z1, z2]) mesh(r, G.cyl(0.06, 0.06, top, 8), 0x8a8f99, { p: [x, top / 2, z] });
   const stripes = 12;
   const sw = (x2 - x1 + 0.6) / stripes;
@@ -194,9 +195,9 @@ export function buildStreetKitchen(r: THREE.Object3D, d: StreetDims, mats: Stree
 export function standingSign(name: string, trim: THREE.Material): THREE.Group {
   const g = group(null);
   const w = Math.min(2.2, 0.9 + name.length * 0.09);
-  for (const sx of [-1, 1]) mesh(g, G.box(0.06, 1.6, 0.06), 0x6b4a2f, { p: [sx * (w / 2 - 0.05), 0.8, 0.12], r: [-0.12, 0, 0] });
-  for (const sx of [-1, 1]) mesh(g, G.box(0.06, 1.6, 0.06), 0x6b4a2f, { p: [sx * (w / 2 - 0.05), 0.8, -0.12], r: [0.12, 0, 0] });
-  const board = group(g, { p: [0, 1.15, 0.15], r: [-0.12, 0, 0] });
+  for (const sx of [-1, 1]) mesh(g, G.box(0.06, 2.0, 0.06), 0x6b4a2f, { p: [sx * (w / 2 - 0.05), 1.0, 0.14], r: [-0.12, 0, 0] });
+  for (const sx of [-1, 1]) mesh(g, G.box(0.06, 2.0, 0.06), 0x6b4a2f, { p: [sx * (w / 2 - 0.05), 1.0, -0.14], r: [0.12, 0, 0] });
+  const board = group(g, { p: [0, 1.5, 0.15], r: [-0.12, 0, 0] });
   mesh(board, G.box(w, 0.9, 0.05), trim);
   mesh(board, G.box(w - 0.12, 0.78, 0.06), 0x2f3a33, { p: [0, 0, 0.01] }); // bảng đen
   const text = signText(name, '#ffe7a3', w - 0.2, 0.42);

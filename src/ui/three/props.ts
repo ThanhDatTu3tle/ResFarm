@@ -19,10 +19,10 @@ const BARK = 0x6b4a2f;
 function pot(g: THREE.Object3D, r: number, h: number, color = 0xc8623e, band = 0xf3efe6): void {
   mesh(g, G.cyl(r * 0.8, r * 0.8, 0.04, 14), new THREE.Color(color).multiplyScalar(0.75).getHex(), { p: [0, 0.02, 0] });
   mesh(g, G.cyl(r, r * 0.78, h, 14), color, { p: [0, h / 2, 0] });
-  mesh(g, G.cyl(r * 0.96 + 0.004, r * 0.9 + 0.004, h * 0.16, 14), band, { p: [0, h * 0.62, 0], cast: false });
+  mesh(g, G.cyl(r * 0.96 + 0.012, r * 0.9 + 0.012, h * 0.16, 14), band, { p: [0, h * 0.62, 0], cast: false });
   mesh(g, G.cyl(r * 1.08, r * 1.02, 0.05, 14), color, { p: [0, h, 0] });
-  mesh(g, G.cyl(r * 0.94, r * 0.94, 0.02, 14), SOIL, { p: [0, h + 0.015, 0], cast: false });
-  for (let i = 0; i < 4; i++) mesh(g, G.sphere(0.022, 5, 4), 0xcfc8bb, { p: [Math.cos(i * 1.7) * r * 0.6, h + 0.03, Math.sin(i * 1.7) * r * 0.6], s: [1, 0.6, 1], cast: false });
+  mesh(g, G.cyl(r * 0.94, r * 0.94, 0.02, 14), SOIL, { p: [0, h + 0.025, 0], cast: false }); // mặt đất nhô hơn mặt vành 1cm (trùng mặt thì nhấp nháy xoáy)
+  for (let i = 0; i < 4; i++) mesh(g, G.sphere(0.022, 5, 4), 0xcfc8bb, { p: [Math.cos(i * 1.7) * r * 0.6, h + 0.04, Math.sin(i * 1.7) * r * 0.6], s: [1, 0.6, 1], cast: false });
 }
 
 /** Lá phẳng có gân giữa, gốc ở `p`, chĩa theo góc a (quanh trục đứng) và nghiêng `tilt` lên/xuống. */

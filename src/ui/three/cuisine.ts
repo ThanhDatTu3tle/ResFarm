@@ -160,7 +160,9 @@ function stringLights(r: THREE.Object3D, a: [number, number, number], b: [number
     const t = i / n;
     pts.push(new THREE.Vector3(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t - Math.sin(t * Math.PI) * sag, a[2] + (b[2] - a[2]) * t));
   }
-  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x6b6f78, transparent: true, opacity: 0.6 }));
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x6b6f78, transparent: true, opacity: 0.6, depthWrite: false }));
+  // Không ghi độ sâu: lượt nét vẽ tay (CrayonPass) dò mép theo độ sâu, dây mảnh sẽ bị tô thành vệt mực dày
+  line.userData.noMerge = true;
   r.add(line);
   for (let i = 1; i < n; i++) mesh(r, G.sphere(0.075, 8, 6), bulbMat, { p: [pts[i].x, pts[i].y - 0.08, pts[i].z], cast: false });
 }
@@ -207,8 +209,8 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
     const x = d.halfW + 0.15;
     const zb = d.kitchenZ + 0.6;
     const zf = d.frontZ + 0.2;
-    for (const px of [-x, x]) for (const pz of [zb, zf]) mesh(r, G.cyl(0.05, 0.06, 3.7, 8), 0x5a5f66, { p: [px, 1.85, pz] });
-    const h = 3.6;
+    for (const px of [-x, x]) for (const pz of [zb, zf]) mesh(r, G.cyl(0.05, 0.06, 4.5, 8), 0x5a5f66, { p: [px, 2.25, pz] });
+    const h = 4.4;
     stringLights(r, [-x, h, zb], [-x, h, zf], bulb);
     stringLights(r, [x, h, zb], [x, h, zf], bulb);
     stringLights(r, [-x, h, zf], [x, h, zf], bulb, 0.45);
@@ -217,7 +219,7 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
     for (const px of [-d.halfW * 0.6, 0, d.halfW * 0.6]) {
       for (const pz of [zb + (zf - zb) * 0.3, zb + (zf - zb) * 0.8]) {
         const l = new THREE.PointLight(0xffb85a, 0, 9, 1.6);
-        l.position.set(px, 3.0, pz);
+        l.position.set(px, 3.6, pz);
         r.add(l);
         nightLights.push(l);
       }

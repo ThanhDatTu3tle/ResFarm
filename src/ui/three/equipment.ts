@@ -34,6 +34,8 @@ export interface EquipDims {
   knife?: [number, number, number];
   cabinet?: [number, number, number];
   freezer?: [number, number, number];
+  /** Quán trong nhà: tâm z hai ô cửa sổ tường bên và khoảng tường giữa chúng (treo tranh, loa, kê tủ kem cho khỏi bị cửa sổ che). */
+  sideWins?: [number, number];
   /** Quán ốc: chỗ xe đẩy, bếp nướng. */
   cart?: { x: number; z: number };
   grill?: { x: number; z: number };
@@ -55,7 +57,7 @@ function bigPlant(parent: THREE.Object3D, x: number, z: number, seed: number): v
   mesh(p, G.cyl(0.3, 0.22, 0.55, 14), 0xe9e2d4, { p: [0, 0.28, 0] });
   mesh(p, G.cyl(0.305, 0.3, 0.08, 14), 0x3f6f5a, { p: [0, 0.4, 0], cast: false }); // dải men xanh
   mesh(p, G.cyl(0.33, 0.31, 0.06, 14), 0xd9d0bf, { p: [0, 0.57, 0] });
-  mesh(p, G.cyl(0.28, 0.28, 0.02, 14), 0x5a3b2a, { p: [0, 0.59, 0], cast: false });
+  mesh(p, G.cyl(0.28, 0.28, 0.02, 14), 0x5a3b2a, { p: [0, 0.61, 0], cast: false }); // mặt đất nhô hơn vành 1cm (trùng mặt thì nhấp nháy xoáy)
   for (let i = 0; i < 9; i++) {
     const a = (i / 9) * Math.PI * 2 + rnd() * 0.4;
     const len = 0.55 + rnd() * 0.6;
@@ -110,7 +112,8 @@ function knife(parent: THREE.Object3D, x: number, kind: number): void {
 
 /** Loa treo tường: thùng gỗ óc chó, lưới vải sẫm, loa bass + loa treble có viền, đèn báo, giá treo chữ L. */
 function speaker(parent: THREE.Object3D, p: V3, r: V3): void {
-  const s = group(parent, { p, r });
+  const s = group(parent, { p });
+  s.rotation.set(r[0], r[1], r[2], 'YXZ'); // quay trước, chúc xuống sau
   mesh(s, G.box(0.42, 0.62, 0.34), 0x5a3b2a);
   mesh(s, G.box(0.36, 0.56, 0.02), 0x2a2d35, { p: [0, 0, 0.17] });
   for (const [y, rr] of [[-0.1, 0.13], [0.16, 0.06]] as const) {
@@ -148,7 +151,7 @@ export function buildEquipment(parent: THREE.Object3D, d: EquipDims, owned: Set<
     }
     // Tranh phong cảnh treo hai tường bên (quán trong nhà)
     if (!d.street) {
-      [-1, 1].forEach((side, k) => painting(g, [side * (d.halfW - 0.02), 2.2, (d.kitchenZ + d.frontZ) / 2], -side * Math.PI / 2, k as 0 | 1));
+      [-1, 1].forEach((side, k) => painting(g, [side * (d.halfW - 0.02), 2.2, d.sideWins ? (d.sideWins[0] + d.sideWins[1]) / 2 : (d.kitchenZ + d.frontZ) / 2], -side * Math.PI / 2, k as 0 | 1));
     }
   }
 
@@ -178,10 +181,12 @@ export function buildEquipment(parent: THREE.Object3D, d: EquipDims, owned: Set<
   if (has('music')) {
     const spots: [number, number, number][] = d.street
       ? [[-d.halfW - 0.15, 3.0, d.frontZ + 0.2], [d.halfW + 0.15, 3.0, d.frontZ + 0.2]]
-      : [[-d.halfW + 0.35, wallH - 0.4, d.kitchenZ + 0.4], [d.halfW - 0.35, wallH - 0.4, d.kitchenZ + 0.4]];
+      : [-1, 1].map((s) => [s * (d.halfW - 0.35), wallH + 0.15, d.sideWins ? (d.sideWins[0] + d.sideWins[1]) / 2 : d.kitchenZ + 0.4] as [number, number, number]);
     const notes: THREE.Sprite[] = [];
     spots.forEach(([x, y, z], i) => {
-      speaker(g, [x, y, z], [0.2, x < 0 ? 0.6 : -0.6, 0]);
+      // Trong nhà: quay mặt loa về tâm quán, chúc nhẹ xuống (quán ốc giữ góc cũ)
+      const yaw = d.street ? (x < 0 ? 0.6 : -0.6) : Math.atan2(-x, (d.backZ + d.frontZ) / 2 - z);
+      speaker(g, [x, y, z], [0.2, yaw, 0]);
       for (let k = 0; k < 2; k++) {
         const n = emojiSprite(k ? '🎵' : '🎶', 0.3);
         n.userData = { x, y: y + 0.3, z, phase: i * 1.3 + k * 2.1 };
