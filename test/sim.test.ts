@@ -12,6 +12,7 @@ import { FARM_DAY } from '../src/data/farm';
 import { autoServeCommands } from '../src/sim/systems/service';
 import { billDue, missingEnergy } from '../src/sim/systems/crew';
 import { maxHelpers } from '../src/sim/systems/helpers';
+import { fullKitPlan } from '../src/sim/systems/home';
 import { sellPrice } from '../src/sim/systems/contracts';
 import { buildingRect, nextWaypoint, slotCenter, slotScale, workSpot } from '../src/sim/systems/farmer';
 import { millCenter, millSpot } from '../src/sim/systems/mills';
@@ -2743,5 +2744,28 @@ describe('đơn giao tận nơi (giai đoạn 18)', () => {
     const loaded = deserialize(JSON.stringify(old), content)!;
     expect(loaded.takeout).toEqual({ orders: [], nextCall: 0 });
     expect(loaded.restaurant.couriers).toEqual([]);
+  });
+});
+
+describe('gói nâng hạng + trang bị đủ bàn', () => {
+  it('giá = (nâng hạng + bàn) giảm 10%; mua xong lên hạng và đủ bàn tối đa', () => {
+    const game = newGame(42, 'vn');
+    game.state.level = 9;
+    game.state.restaurant.tier = 2;
+    const plan = fullKitPlan(game.ctx)!;
+    expect(plan.tier).toBe(3);
+    expect(plan.tables.length).toBeGreaterThan(0);
+    expect(plan.price).toBe(Math.round(plan.full * 0.9));
+    game.state.money = plan.price - 1;
+    expect(game.dispatch({ type: 'restaurant/upgradeFull' }).ok).toBe(false);
+    game.state.money = plan.price + 5;
+    const before = game.state.restaurant.extraTables.length;
+    expect(game.dispatch({ type: 'restaurant/upgradeFull' }).ok).toBe(true);
+    expect(game.state.restaurant.tier).toBe(3);
+    expect(game.state.money).toBe(5);
+    expect(game.state.restaurant.extraTables.length - before).toBe(plan.tables.length);
+    // đã đủ: có tiền cũng không mua thêm bàn nào được nữa
+    game.state.money = 1e6;
+    for (const k of ['long', 'square', 'pair']) expect(game.dispatch({ type: 'table/buy', kind: k }).ok).toBe(false);
   });
 });

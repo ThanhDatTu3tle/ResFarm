@@ -226,8 +226,62 @@ export const homeSystem: System = {
       ctx.bus.emit('restaurant/upgraded', { tier: next.id });
       return ok();
     },
+    'restaurant/upgradeFull'(ctx) {
+      const { state, content } = ctx;
+      const next = content.room.tiers[state.restaurant.tier];
+      if (!next) return fail('Quán đã ở hạng cao nhất.');
+      if (state.level < next.level) return fail(`Cần cấp ${next.level}.`);
+      const plan = fullKitPlan(ctx);
+      if (!plan || !plan.tables.length) return fail('Hạng mới không có thêm bàn nào để trang bị — nâng hạng thường là đủ.');
+      if (state.money < plan.price) return fail('Không đủ tiền.');
+      // Trừ giá trọn gói, rồi nạp lại đúng giá lẻ để các lệnh thật tự trừ (giữ luật đặt bàn như mua lẻ)
+      state.money -= plan.price;
+      state.money += plan.full;
+      const cmds = homeSystem.commands!;
+      cmds['restaurant/upgrade']!(ctx, { type: 'restaurant/upgrade' });
+      for (const t of plan.tables) cmds['table/buy']!(ctx, { type: 'table/buy', kind: t.kind });
+      return ok();
+    },
   },
 };
+
+/** Giảm giá khi nâng hạng + mua đủ bàn trong một lần. */
+export const FULL_KIT_DISCOUNT = 0.1;
+
+export interface FullKitPlan {
+  /** Hạng sắp lên. */
+  tier: number;
+  upgradeCost: number;
+  /** Các bàn sẽ mua thêm (theo thứ tự mua). */
+  tables: { kind: string; cost: number }[];
+  /** Tổng giá lẻ (nâng hạng + bàn). */
+  full: number;
+  /** Giá trọn gói sau giảm. */
+  price: number;
+}
+
+/**
+ * Gói nâng hạng + trang bị đủ bàn tối đa của hạng kế tiếp: chạy thử trên bản sao state
+ * (lên hạng rồi mua bàn to trước tới khi hết lượt / hết chỗ) nên đúng y luật mua lẻ. null nếu đã hạng cao nhất.
+ */
+export function fullKitPlan(ctx: SimContext): FullKitPlan | null {
+  const next = ctx.content.room.tiers[ctx.state.restaurant.tier];
+  if (!next) return null;
+  const state = JSON.parse(JSON.stringify(ctx.state)) as typeof ctx.state;
+  state.restaurant.tier = next.id;
+  state.money = Number.MAX_SAFE_INTEGER / 2;
+  state.level = Math.max(state.level, next.level);
+  const probe = { ...ctx, state, bus: { emit() {}, on() { return () => {}; } } } as unknown as SimContext;
+  const buy = homeSystem.commands!['table/buy']!;
+  const kinds = ctx.content.tableKinds.all().slice().sort((a, b) => b.seats - a.seats);
+  const tables: FullKitPlan['tables'] = [];
+  for (const k of kinds) {
+    if (state.level < k.level) continue;
+    for (let i = 0; i < 20 && buy(probe, { type: 'table/buy', kind: k.id }).ok; i++) tables.push({ kind: k.id, cost: k.cost });
+  }
+  const full = next.cost + tables.reduce((s, t) => s + t.cost, 0);
+  return { tier: next.id, upgradeCost: next.cost, tables, full, price: Math.round(full * (1 - FULL_KIT_DISCOUNT)) };
+}
 
 const snap = (v: number) => Math.round(v / LAYOUT_GRID) * LAYOUT_GRID;
 

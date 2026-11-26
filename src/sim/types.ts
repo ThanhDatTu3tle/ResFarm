@@ -42,6 +42,8 @@ export type Command =
   | { type: 'table/unstore'; tableId: string }
   | { type: 'layout/rotateTable'; tableId: string }
   | { type: 'restaurant/upgrade' }
+  /** Nâng hạng quán + mua đủ số bàn tối đa của hạng mới trong một lần, giảm FULL_KIT_DISCOUNT. */
+  | { type: 'restaurant/upgradeFull' }
   | { type: 'farm/plant'; slotId: string; producerId: string }
   | { type: 'farm/harvest'; slotId: string }
   | { type: 'farm/harvestAll' }
