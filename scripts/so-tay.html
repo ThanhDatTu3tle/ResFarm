@@ -291,6 +291,20 @@ sec('quan', '🏠 Quán', () => `
     { h: 'Giá', num: true, v: (t) => xu(t.cost), sort: (t) => t.cost },
     { h: 'Cấp', num: true, v: (t) => t.level, sort: (t) => t.level },
   ])}
+  <h3>Bàn tối đa theo hạng & gói nâng hạng + đủ bàn</h3>
+  <p class="note">Số bàn khi đã mua đủ ở mỗi hạng (không tính quầy ghế dùng chung). Gói trọn = nâng hạng + mua đủ bàn còn thiếu trong một lần, giảm ${Math.round((DB.fullKitDiscount ?? 0) * 100)}% (tính từ hạng trước đã đủ bàn; trong game giá tự tính theo bàn người chơi đang có).</p>
+  ${table(DB.tierKits ?? [], [
+    { h: 'Quán', v: (r) => cuisineTag(r.cuisine), sort: (r) => r.cuisine },
+    { h: 'Hạng', num: true, v: (r) => r.tier, sort: (r) => r.tier },
+    { h: 'Bàn 6', num: true, v: (r) => r.tables[6] ?? 0 },
+    { h: 'Bàn 4', num: true, v: (r) => r.tables[4] ?? 0 },
+    { h: 'Bàn đôi', num: true, v: (r) => r.tables[2] ?? 0 },
+    { h: 'Bàn đơn', num: true, v: (r) => r.tables[1] ?? 0 },
+    { h: 'Nâng hạng', num: true, v: (r) => (r.plan ? xu(r.plan.upgradeCost) : '—'), sort: (r) => r.plan?.upgradeCost ?? 0 },
+    { h: 'Tiền bàn', num: true, v: (r) => (r.plan ? xu(r.plan.tablesCost) : '—'), sort: (r) => r.plan?.tablesCost ?? 0 },
+    { h: 'Mua lẻ', num: true, v: (r) => (r.plan ? xu(r.plan.full) : '—'), sort: (r) => r.plan?.full ?? 0 },
+    { h: 'Gói trọn', num: true, v: (r) => (r.plan ? '<b>' + xu(r.plan.price) + '</b>' : '—'), sort: (r) => r.plan?.price ?? 0 },
+  ])}
   <h3>Nội thất (sàn, tường, bàn ghế)</h3>
   ${table(DB.decor, [
     { h: 'Nội thất', v: (d) => `<span class="ic">${d.icon}</span>${esc(d.name)}`, sort: (d) => d.name },
