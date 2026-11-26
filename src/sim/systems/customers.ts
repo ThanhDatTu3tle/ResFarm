@@ -240,8 +240,8 @@ function walkToSeat(ctx: SimContext, tableId: string): number {
   const t = tableById(ctx, tableId);
   if (!t) return 0;
   const at = tablePos(ctx, t);
-  // Nhân 1.3: đường đi thật vòng qua bàn ghế, không thẳng tắp
-  return (Math.hypot(at.x - room.width / 2, at.y - room.height) * 1.3) / ctx.content.balance.arrival.seatUnitsPerMinute + 0.8;
+  // Nhân 1.8 + 1.5 phút: đường đi thật vòng qua bàn ghế, có khi chờ người đi trước — ước dư để nhân viên không tới bàn trước khách
+  return (Math.hypot(at.x - room.width / 2, at.y - room.height) * 1.8) / ctx.content.balance.arrival.seatUnitsPerMinute + 1.5;
 }
 
 /** Thêm một nhóm khách vào hàng chờ. `opts`: nhóm đặc biệt của sự kiện (vd nhà phê bình đi một mình). */

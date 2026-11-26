@@ -597,7 +597,7 @@ export class RestaurantArea implements Area {
       const z0 = backZ - 0.3;
       const seg = (za: number, zb: number, y1: number, y2: number, mat = mats.wall) =>
         mesh(r, G.box(0.3, 1, 1), mat, { p: [x, (y1 + y2) / 2, (za + zb) / 2], s: [1, y2 - y1, zb - za] });
-      const wins = [z0 + sideLen * 0.3, z0 + sideLen * 0.7];
+      const wins = this.sideWins();
       seg(z0, z0 + sideLen, 0, 1.3, mats.trim);
       seg(z0, z0 + sideLen, 3.3, WALL_H);
       seg(z0, wins[0] - 1.2, 1.3, 3.3);
@@ -1739,13 +1739,13 @@ export class RestaurantArea implements Area {
     this.signLeds = [];
     if (this.street) {
       // Quán ốc: bảng tên chân đứng bên trái bàn ốc
-      const at = streetSpots(this.dims()).sign;
+      const at = streetSpots(this.dims()).sign(this.game.state.restaurant.kitchenTier);
       const sign = standingSign(name, this.mats.trim);
       sign.position.set(at.x, 0, at.z);
       sign.rotation.y = 0.2;
       if (led) {
         const w = Math.min(2.2, 0.9 + name.length * 0.09);
-        const board = group(sign, { p: [0, 1.15, 0.15], r: [-0.12, 0, 0] });
+        const board = group(sign, { p: [0, 1.5, 0.15], r: [-0.12, 0, 0] });
         this.signLeds = ledFrame(board, w + 0.1, 1.0, 0.06, 0.14);
       }
       this.root.add(sign);
@@ -1764,6 +1764,13 @@ export class RestaurantArea implements Area {
     this.nameSign = { text: key, g };
   }
 
+  /** Tâm z hai ô cửa sổ trên mỗi tường bên (quán trong nhà). */
+  private sideWins(): [number, number] {
+    const z0 = this.backZ - 0.3;
+    const len = this.frontZ - this.backZ + 0.3;
+    return [z0 + len * 0.3, z0 + len * 0.7];
+  }
+
   /** Chỗ đặt trang thiết bị theo mặt bằng riêng (quầy chữ L / bếp sát cửa); bếp tường sau dùng mặc định trong equipment.ts. */
   private equipSpots(): { line?: EquipDims['line']; knife?: EquipDims['knife']; cabinet?: EquipDims['cabinet']; freezer?: EquipDims['freezer'] } {
     const { halfW, backZ, frontZ } = this;
@@ -1780,9 +1787,10 @@ export class RestaurantArea implements Area {
       const k1 = this.wz(this.room.height - 240);
       return {
         line: { x: this.wx(140), z: (k1 + frontZ) / 2 - 0.2, len: frontZ - k1 - 1.6, rot: Math.PI / 2 },
-        knife: [-halfW + 0.04, k1 + 1.2, Math.PI / 2],
+        // Dao treo ngay sau mép cửa sổ tây phía trước, tủ kem kê giữa hai cửa sổ tây (không bị cửa sổ che)
+        knife: [-halfW + 0.04, Math.min(this.sideWins()[1] + 1.85, frontZ - 0.8), Math.PI / 2],
         cabinet: [-halfW + 0.25, this.wz(70), Math.PI / 2],
-        freezer: [-halfW + 0.4, k1 - 1.6, Math.PI / 2],
+        freezer: [-halfW + 0.4, (this.sideWins()[0] + this.sideWins()[1]) / 2, Math.PI / 2],
       };
     }
     return {};
@@ -1807,6 +1815,7 @@ export class RestaurantArea implements Area {
           kitchenCenter: this.kitchenCenter(),
           kitchenHalf: 1.7 + this.kitchenExtra / 2,
           door: this.door,
+          sideWins: this.street ? undefined : this.sideWins(),
           ...this.equipSpots(),
           cart: spots?.cart,
           grill: spots?.grill,

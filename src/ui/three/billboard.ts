@@ -13,8 +13,8 @@ export interface Billboard {
   update(t: number, night: number): void;
 }
 
-const CW = 640;
-const CH = 360;
+export const CW = 640;
+export const CH = 360;
 
 const images = new Map<string, HTMLImageElement>();
 function imageOf(src: string): HTMLImageElement | null {
@@ -28,7 +28,7 @@ function imageOf(src: string): HTMLImageElement | null {
 }
 
 /** Vẽ một mẫu quảng cáo vào khung (x lệch để lướt ngang). */
-function drawSlide(c: CanvasRenderingContext2D, s: AdSlide, x: number): void {
+export function drawSlide(c: CanvasRenderingContext2D, s: AdSlide, x: number): void {
   c.save();
   c.translate(x, 0);
   const img = s.image ? imageOf(s.image) : null;

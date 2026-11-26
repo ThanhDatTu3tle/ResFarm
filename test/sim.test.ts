@@ -359,8 +359,8 @@ describe('sắp xếp bàn', () => {
 
   it('dời được bàn trống tới chỗ hợp lệ; chặn khi đè bàn khác, ra ngoài, bàn cố định, bàn có khách', () => {
     const game = newGame();
-    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 433, y: 371 }).ok).toBe(true);
-    expect(game.state.restaurant.layout.pair).toEqual({ x: 435, y: 370 });
+    expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 498, y: 301 }).ok).toBe(true);
+    expect(game.state.restaurant.layout.pair).toEqual({ x: 500, y: 300 });
     expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 125, y: 300 }).ok).toBe(false);
     expect(game.dispatch({ type: 'layout/moveTable', tableId: 'pair', x: 10, y: 300 }).ok).toBe(false);
     expect(game.dispatch({ type: 'layout/moveTable', tableId: 'counter', x: 360, y: 300 }).ok).toBe(false);
@@ -484,7 +484,8 @@ describe('phục vụ (người chơi là bồi bàn)', () => {
     expect(party.phase).toBe('waitingFood');
 
     for (const o of [...r.orders]) expect(game.dispatch({ type: 'service/deliver', orderIds: [o.id], partyId: party.id }).ok).toBe(true);
-    game.tick(10);
+    for (let i = 0; i < 30 && !r.orders.every((o) => o.status === 'served'); i++) game.tick(1);
+    game.tick(1);
     expect(r.orders.every((o) => o.status === 'served')).toBe(true);
     expect(party.phase).toBe('eating');
     game.tick(content.balance.eatTime[party.size - 1][1] + 1);
@@ -1067,6 +1068,7 @@ describe('quán của riêng mình', () => {
   it('mua thêm bàn (khách ngồi được), xoay bàn 90° (ghế xoay theo), bán lại bàn', () => {
     const game = quietGame();
     Object.assign(game.state, { money: 5000, level: 9 });
+    game.state.restaurant.tier = 2; // hạng 1 chưa mua thêm bàn được (mỗi hạng +1 bàn mỗi loại)
     expect(game.dispatch({ type: 'table/buy', kind: 'pair' }).ok).toBe(true);
     const extra = game.state.restaurant.extraTables[0];
     expect(activeTables(game.ctx).some((t) => t.id === extra.id)).toBe(true);
@@ -1147,7 +1149,7 @@ describe('ca làm, khay bưng nhiều món, dọn dẹp (đợt 14)', () => {
     expect(game.dispatch({ type: 'service/deliver', orderIds: r.orders.map((o) => o.id), partyId: party.id }).ok).toBe(true);
     expect(r.waiter.tasks).toHaveLength(1);
     let carried = 0;
-    for (let i = 0; i < 20 && !r.orders.every((o) => o.status === 'served'); i++) {
+    for (let i = 0; i < 40 && !r.orders.every((o) => o.status === 'served'); i++) {
       game.tick(0.25);
       carried = Math.max(carried, r.waiter.carrying.length);
     }

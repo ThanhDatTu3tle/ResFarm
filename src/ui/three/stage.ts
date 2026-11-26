@@ -104,7 +104,7 @@ const FLAKES = 700;
 /** Tâm nhìn được trôi xa nhất bao nhiêu mét khỏi tâm mặc định của khu khi zoom sát vào (zoom theo con trỏ). */
 const TARGET_ROAM = 24;
 /** Khu không nhớ góc nhìn: bên trong quầy chợ (mỗi lần vào một quầy khác nhau). */
-const FRESH_VIEW = new Set(['stall']);
+const FRESH_VIEW = new Set(['stall', 'market']);
 /** Tông trời / ánh nắng theo mùa [màu, mức pha] — Xuân giữ nguyên. */
 const SEASON_SKY: [THREE.Color, number][] = [
   [new THREE.Color(0x9fd8f5), 0],
@@ -267,11 +267,15 @@ export class Stage {
       }
     });
     const release = (e: PointerEvent) => {
+      const tap = !!down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 8;
       if (this.dragging) {
         const g = this.groundAt(e.clientX, e.clientY);
-        this.onDrag(this.dragging, g?.x ?? 0, g?.z ?? 0, true);
+        const picked = this.dragging;
+        this.onDrag(picked, g?.x ?? 0, g?.z ?? 0, true);
         this.dragging = null;
         this.controls.enabled = true;
+        // Chỉ bấm (không kéo) vật kéo được: coi như bấm chọn (hiện nút xoay / cất / bán)
+        if (tap) this.onPick(picked, performance.now() - down!.at);
       } else if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 8) {
         const pick = this.pickAt(e.clientX, e.clientY);
         if (pick) this.onPick(pick, performance.now() - down.at);
@@ -329,7 +333,7 @@ export class Stage {
     next.root.visible = true;
     this.camTween = null;
     this.resetView();
-    const saved = this.views.get(next.id);
+    const saved = FRESH_VIEW.has(next.id) ? undefined : this.views.get(next.id);
     if (saved) {
       this.controls.target.copy(saved.target);
       this.camera.position.copy(saved.position);
@@ -353,6 +357,8 @@ export class Stage {
     const azimuth = Math.atan2(offset.x, offset.z);
     c.minAzimuthAngle = azimuth - orbit;
     c.maxAzimuthAngle = azimuth + orbit;
+    // Chợ: mở ra là lùi hết cỡ để thấy trọn biển LED quảng cáo
+    if (this.current.id === 'market') this.camera.position.copy(c.target).add(offset.setLength(c.maxDistance));
     c.update();
   }
 

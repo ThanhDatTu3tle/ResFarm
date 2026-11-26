@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { AD_SLIDES } from '../../data/ads';
+import { CH, CW, drawSlide } from './billboard';
 import { signText } from './cuisine';
 import { carTrim, CHROME, GLASS, side, sideGlass, TRIM, wheel } from './farmkit';
 import { G, group, mesh, toon } from './toon';
@@ -80,7 +82,11 @@ export interface CityBus {
   /** Cửa giữa (toạ độ trong g): chỗ khách lên / xuống. */
   door: { x: number; z: number };
   length: number;
+  /** Dán poster quảng cáo thứ i (theo src/data/ads.ts, cùng mẫu với biển LED) lên hai hông xe. */
+  setAd(i: number): void;
 }
+
+
 
 export function makeCityBus(): CityBus {
   const g = group(null);
@@ -125,9 +131,33 @@ export function makeCityBus(): CityBus {
     mesh(g, G.box(1.1, 0.06, 0.25), CHROME, { p: [cx, 0.4, dz - 0.1], cast: false }); // bậc lên xuống
   }
   carTrim(g, { front: L / 2 + 0.04, back: -L / 2, w, lightY: 0.8, bumperY: 0.5, mirror: [L / 2 - 0.1, 2.3, w / 2 + 0.12] });
-  // Chữ hông phía đường + số xe
-  const tag = signText('XE BUÝT 25', '#ffffff', 2.4, 0.34);
-  tag.position.set(-0.6, 0.78, w / 2 + 0.02);
+  // Quảng cáo dán kín hông xe (che luôn 2 ô cửa sổ giữa): hông phía đường nước chanh bạc hà, hông vỉa hè (giữa hai cửa thì hẹp) quảng cáo quán
+  // Cao hết thân xe (từ ốp gầm tới mép nóc). Mỗi chuyến xe một poster khác (setAd)
+  const canvas = document.createElement('canvas');
+  canvas.width = CW;
+  canvas.height = CH;
+  const adTex = new THREE.CanvasTexture(canvas);
+  adTex.colorSpace = THREE.SRGBColorSpace;
+  adTex.anisotropy = 4;
+  const adMat = toon(0xffffff, { map: adTex });
+  const adH = H - 0.62;
+  const adY = 0.6 + adH / 2;
+  mesh(g, new THREE.PlaneGeometry(4.1, adH), adMat, { p: [-0.55, adY, w / 2 + 0.025], cast: false, receive: false });
+  mesh(g, new THREE.PlaneGeometry(2.5, adH), adMat, { p: [-2.25, adY, -(w / 2 + 0.025)], r: [0, Math.PI, 0], cast: false, receive: false });
+  let adShown = -1;
+  const setAd = (i: number) => {
+    const n = ((i % AD_SLIDES.length) + AD_SLIDES.length) % AD_SLIDES.length;
+    if (n === adShown) return;
+    adShown = n;
+    const c = canvas.getContext('2d')!;
+    c.clearRect(0, 0, CW, CH);
+    drawSlide(c, AD_SLIDES[n], 0);
+    adTex.needsUpdate = true;
+  };
+  setAd(0);
+  // Số xe phía đầu xe
+  const tag = signText('25', '#ffffff', 0.5, 0.34);
+  tag.position.set(2.75, 0.78, w / 2 + 0.02);
   g.add(tag);
   const wheels: THREE.Object3D[] = [];
   for (const x of [-L / 2 + 1.3, L / 2 - 1.4]) for (const z of [-(w / 2 - 0.12), w / 2 - 0.12]) wheels.push(wheel(g, x, z, 0.48, 0.3));
@@ -136,6 +166,7 @@ export function makeCityBus(): CityBus {
     wheels,
     door,
     length: L,
+    setAd,
     setDoors(k) {
       for (const d of doors) d.m.rotation.y = d.dir * k * 1.35;
     },

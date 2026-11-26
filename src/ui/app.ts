@@ -87,6 +87,14 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     if (params.has('max')) maxOut(game);
     // ?tier=3: quán vừa lên hạng đó (đủ cấp, bếp nâng theo cấp, thuê đủ người) — xem tierUp
     if (Number(params.get('tier')) > 0) tierUp(game, Number(params.get('tier')));
+    // ?fill: mua thêm bàn mọi loại (theo cấp đang có) tới khi hết chỗ / chạm giới hạn — kèm ?tier=2 để xem quán hạng đó đầy bàn
+    if (params.has('fill')) {
+      const money = game.state.money;
+      game.state.money = 9_999_999;
+      const kinds = content.tableKinds.all();
+      for (let i = 0, fails = 0; i < 60 && fails < kinds.length; i++) fails = game.dispatch({ type: 'table/buy', kind: kinds[i % kinds.length].id }).ok ? 0 : fails + 1;
+      game.state.money = money;
+    }
     // ?day=85 nhảy tới ngày đó trong lịch (xem mùa: 1 Xuân, 29 Hạ, 57 Thu, 85 Đông)
     if (Number(params.get('day')) > 0) game.state.clock.day = Math.floor(Number(params.get('day')));
     // ?event=critic ép sự kiện xảy ra ngay khi quán mở (critic / inspector / tour_bus / outage / big_tippers)
@@ -683,7 +691,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     if (table && !table.fixed) {
       const sell = table.kind ? `<button class="mini"${cmd({ type: 'table/sell', tableId: table.id })}>💰 Bán lại ${coins(resale(ctx, content.tableKinds.get(table.kind).cost))}</button>` : '';
       return `<b data-key="edit">🪑 ${esc(table.name)}</b><span>Kéo để dời, hoặc xoay 90°.</span>
-        <div class="btns"><button class="mini"${cmd({ type: 'layout/rotateTable', tableId: table.id })}>⟳ Xoay</button>${sell}<button class="mini"${uiAttr('editSel:')}>Bỏ chọn</button>${done}</div>`;
+        <div class="btns"><button class="mini"${cmd({ type: 'layout/rotateTable', tableId: table.id })}>⟳ Xoay</button><button class="mini"${cmd({ type: 'table/store', tableId: table.id })}>📦 Cất</button>${sell}<button class="mini"${uiAttr('editSel:')}>Bỏ chọn</button>${done}</div>`;
     }
     if (prop) {
       const def = content.props.get(prop.def);
@@ -695,8 +703,14 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       return `<b data-key="edit">${def.icon} ${esc(def.name)}</b><span>Kéo để dời chỗ.</span>
         <div class="btns"><button class="mini"${cmd({ type: 'prop/rotate', uid: prop.uid })}>⟳ Xoay</button><button class="mini"${cmd({ type: 'prop/store', uid: prop.uid })}>📦 Cất kho</button>${sell}<button class="mini"${uiAttr('editSel:')}>Bỏ chọn</button>${done}</div>`;
     }
+    // Bàn đã cất: nút bày lại từng bàn
+    const stored = (state.restaurant.storedTables ?? []).map((id) => {
+      const extra = state.restaurant.extraTables.find((e) => e.id === id);
+      const name = extra ? content.tableKinds.get(extra.kind).name : content.tables.has(id) ? content.tables.get(id).name : id;
+      return `<button class="mini"${cmd({ type: 'table/unstore', tableId: id })}>↩ Bày ${esc(name)}</button>`;
+    }).join('');
     return `<b data-key="edit">🪑 Đang sắp xếp quán</b><span>Kéo bàn ghế, đồ trang trí tới chỗ mới; bấm một món để xoay / cất. Bàn có khách và quầy trước bếp không dời được.</span>
-      <div class="btns"><button class="mini"${cmd({ type: 'layout/reset' })}>↺ Bàn về mặc định</button>${done}</div>`;
+      <div class="btns">${stored}<button class="mini"${cmd({ type: 'layout/reset' })}>↺ Bàn về mặc định</button>${done}</div>`;
   };
 
 

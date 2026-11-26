@@ -374,6 +374,8 @@ export interface RestaurantState {
   extraTables: { id: string; kind: string }[];
   /** Bàn gốc bị công an khu vực thu (quán ốc lấn chiếm lề đường) — không còn trong quán. */
   confiscated: string[];
+  /** Bàn người chơi cất bớt (chế độ sắp xếp) — không bày trong quán, bày lại được bất cứ lúc nào. */
+  storedTables?: string[];
   /** Đồ trang trí đã mua (đang bày hoặc cất kho). */
   props: PropState[];
   /** Hạng quán (1 = Quán nhỏ), chỉ số trong content.room.tiers + 1. */

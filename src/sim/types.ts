@@ -38,6 +38,8 @@ export type Command =
   | { type: 'prop/sell'; uid: string }
   | { type: 'table/buy'; kind: string }
   | { type: 'table/sell'; tableId: string }
+  | { type: 'table/store'; tableId: string }
+  | { type: 'table/unstore'; tableId: string }
   | { type: 'layout/rotateTable'; tableId: string }
   | { type: 'restaurant/upgrade' }
   | { type: 'farm/plant'; slotId: string; producerId: string }

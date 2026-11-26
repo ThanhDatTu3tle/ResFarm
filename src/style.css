@@ -2206,7 +2206,7 @@ button.quest-claim {
   /* Khoảng chừa mỗi cạnh: vùng an toàn của máy + thêm một chút cho dễ bấm */
   --pad-t: calc(env(safe-area-inset-top, 0px) + 10px);
   --pad-r: calc(env(safe-area-inset-right, 0px) + 16px);
-  --pad-b: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  --pad-b: calc(env(safe-area-inset-bottom, 0px) + 6px);
   --pad-l: calc(env(safe-area-inset-left, 0px) + 16px);
   /* Góc dưới phải: chừa chỗ cho cột nút tròn (Netlify không chèn logo vào trang nên không cần chừa 200px như trước) */
   --badge-w: calc(var(--pad-r) + 48px);
@@ -2261,7 +2261,7 @@ button.side.right {
 @media (max-height: 540px) {
   :root {
     --pad-t: calc(env(safe-area-inset-top, 0px) + 8px);
-    --pad-b: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    --pad-b: calc(env(safe-area-inset-bottom, 0px) + 3px);
   }
   #hud {
     padding: var(--pad-t) var(--pad-r) 6px var(--pad-l);

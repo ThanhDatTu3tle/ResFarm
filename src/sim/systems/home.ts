@@ -1,5 +1,6 @@
 import { spend } from '../helpers';
 import { activeTables, canPlaceProp, canPlaceTable, findFreeSpot, footprint, freeArtSlot, LAYOUT_GRID, occupiedSeats, propRect, roomOf, tableById, withRotation } from '../layout';
+import { TABLE_CAPS, TABLE_EXTRA_BY_TIER } from './helpers';
 import { OWNER_NAME_MAX, type PropState } from '../state';
 import { fail, ok, type SimContext, type System } from '../types';
 
@@ -137,13 +138,31 @@ export const homeSystem: System = {
       if (!content.tableKinds.has(cmd.kind)) return fail('Không có loại bàn này.');
       const kind = content.tableKinds.get(cmd.kind);
       if (state.level < kind.level) return fail(`Cần cấp ${kind.level}.`);
-      const probe = { id: '', name: kind.name, seats: kind.seats, w: kind.w, h: kind.h, x: 0, y: 0 };
-      const spot = findFreeSpot(ctx, (x, y) => footprint(probe, { x, y }));
+      // Giới hạn theo loại bàn (đếm cả bàn có sẵn, bàn mua thêm và bàn đang cất): mỗi bậc hạng quán thêm 1 bàn mỗi loại
+      // (bàn 6 từ hạng 3), không quá TABLE_CAPS
+      const maxCap = TABLE_CAPS[kind.seats];
+      if (maxCap != null) {
+        const r = state.restaurant;
+        const all = [...activeTables(ctx).filter((t) => !t.fixed).map((t) => ({ id: t.id, seats: t.seats })), ...(r.storedTables ?? []).map((id) => {
+          const e = r.extraTables.find((t) => t.id === id);
+          return { id, seats: e ? content.tableKinds.get(e.kind).seats : content.tables.has(id) ? content.tables.get(id).seats : 0 };
+        })].filter((t) => t.seats === kind.seats);
+        const base = all.filter((t) => !r.extraTables.some((e) => e.id === t.id)).length;
+        const plan = TABLE_EXTRA_BY_TIER[r.tier];
+        const extra = plan ? plan[kind.seats] ?? 0 : Math.max(0, r.tier - (kind.seats >= 6 ? 2 : 1));
+        const cap = Math.min(maxCap, base + extra);
+        if (all.length >= cap) return fail(cap <= base ? 'Nâng hạng quán để mua thêm loại bàn này.' : `Hạng quán này tối đa ${cap} ${kind.name.toLowerCase()} (kể cả bàn đang cất).`);
+      }
+      // Chỗ ưu tiên có rot: đặt bàn xoay dọc
+      const prefer = roomOf(ctx).buySpots?.[kind.seats] ?? [];
+      const rot = !!prefer[0]?.rot;
+      const probe = withRotation({ id: '', name: kind.name, seats: kind.seats, w: kind.w, h: kind.h, x: 0, y: 0 }, rot);
+      const spot = findFreeSpot(ctx, (x, y) => footprint(probe, { x, y }), '', prefer);
       if (!spot) return fail('Khu ăn uống hết chỗ đặt bàn — nâng hạng quán hoặc dời bớt đồ.');
       if (!spend(ctx, kind.cost)) return fail('Không đủ tiền.');
       const id = `t${state.nextId++}`;
       state.restaurant.extraTables.push({ id, kind: kind.id });
-      state.restaurant.layout[id] = { x: spot.x, y: spot.y };
+      state.restaurant.layout[id] = rot ? { x: spot.x, y: spot.y, rot } : { x: spot.x, y: spot.y };
       return ok();
     },
     'table/sell'(ctx, cmd) {
@@ -155,6 +174,34 @@ export const homeSystem: System = {
       r.extraTables = r.extraTables.filter((t) => t !== extra);
       delete r.layout[extra.id];
       state.money += resale(ctx, content.tableKinds.get(extra.kind).cost);
+      return ok();
+    },
+    'table/store'(ctx, cmd) {
+      const r = ctx.state.restaurant;
+      const table = tableById(ctx, cmd.tableId);
+      if (!table) return fail('Không có bàn này.');
+      if (table.fixed) return fail(`${table.name} gắn cố định, không cất được.`);
+      if (occupiedSeats(ctx, table.id).length) return fail('Bàn đang có khách, chờ khách về rồi cất nhé.');
+      if (activeTables(ctx).filter((t) => !t.fixed).length <= 1) return fail('Quán phải còn ít nhất một bàn.');
+      r.storedTables = [...(r.storedTables ?? []), table.id];
+      delete r.dirty[table.id];
+      return ok();
+    },
+    'table/unstore'(ctx, cmd) {
+      const r = ctx.state.restaurant;
+      if (!r.storedTables?.includes(cmd.tableId)) return fail('Bàn này không có trong kho.');
+      r.storedTables = r.storedTables.filter((id) => id !== cmd.tableId);
+      const table = tableById(ctx, cmd.tableId)!;
+      const at = r.layout[table.id] ?? { x: table.x, y: table.y };
+      // Chỗ cũ còn trống thì bày lại đúng chỗ đó, không thì tìm chỗ trống khác
+      if (canPlaceTable(ctx, table.id, at.x, at.y, table.rotated)) {
+        const spot = findFreeSpot(ctx, (x, y) => footprint(table, { x, y }), table.id);
+        if (!spot) {
+          r.storedTables.push(cmd.tableId);
+          return fail('Khu ăn uống hết chỗ — dời hoặc cất bớt đồ rồi bày lại nhé.');
+        }
+        r.layout[table.id] = { x: spot.x, y: spot.y, rot: table.rotated };
+      }
       return ok();
     },
     'layout/rotateTable'(ctx, cmd) {

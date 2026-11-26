@@ -36,6 +36,12 @@ export const room: RoomDef = {
         { x1: 330, y1: 0, x2: 460, y2: 80 },
       ],
     },
+    oc: {
+      // Quán ốc vỉa hè: quầy line lùi vào ngang hàng bàn ốc / bếp nướng
+      pass: { x: 510, y: 80 },
+      passStand: { x: 510, y: 128 },
+      waiterHome: { x: 510, y: 180 },
+    },
     vn: {
       // Bếp nấu ngay cửa bên trái (kiểu quán phở: nồi nước dùng, tủ kính bánh phở nhìn ra đường), dài nửa quán.
       // Quầy ra món ở đầu trong của bếp; phía sau là lối đi vào WC + kho. Không có quầy ghế đơn.
@@ -47,6 +53,13 @@ export const room: RoomDef = {
       passStand: { x: 80, y: 188 },
       waiterHome: { x: 115, y: 150 },
       walls: [{ x1: 0, y1: 240, x2: 168, y2: 480 }],
+      // Bàn bốn mua thêm: giữa quán, thẳng hàng bàn bốn cuối quán
+      buySpots: { 4: [{ x: 300, y: 275 }, { x: 490, y: 110 }], 6: [{ x: 490, y: 330, rot: true }], 2: [{ x: 680, y: 300 }, { x: 680, y: 420 }, { x: 680, y: 540 }, { x: 520, y: 260 }, { x: 520, y: 355 }] },
+      // Hạng 3+: rộng thêm 60 về phía Đông, dãy 4 bàn đôi dọc tường đông
+      // hạng 4 không rộng thêm (giữ tường đông ngay dãy bàn đôi), chỉ sâu thêm
+      wider: { 3: 60, 4: 0, 5: 0 },
+      // Hạng 5: bàn 4 về dãy bên trái, 2 bàn 6 dọc sát tường bắc, bàn đôi sát tường đông mới
+      buySpotsFrom: { 5: { 4: [{ x: 300, y: 275 }, { x: 300, y: 440 }], 6: [{ x: 515, y: 160, rot: true }, { x: 515, y: 420, rot: true }], 2: [{ x: 750, y: 300 }, { x: 750, y: 420 }, { x: 750, y: 540 }] } },
     },
   },
   // Hạng quán (C3): phòng ăn sâu thêm về phía cửa; bếp, quầy ra món giữ nguyên chỗ
@@ -67,14 +80,14 @@ export const tables: TableDef[] = [
   // Quán Nhật: cạnh ngắn của quầy chữ L (2 ghế đơn quay vào bếp); quán Việt không có quầy ghế đơn
   { id: 'counter', name: 'Quầy trước bếp', seats: 3, shared: true, fixed: true, x: 325, y: 140, w: 210, h: 34, cuisines: ['jp', 'kr'], byCuisine: { jp: { name: 'Quầy ghế đơn', seats: 2, x: 99, y: 340, w: 178, h: 36 } } },
   // Quán ốc vỉa hè: không có quầy ghế đơn, thay bằng một bộ bàn đôi nhựa nữa
-  { id: 'pair_oc', name: 'Bàn đôi vỉa hè', seats: 2, x: 470, y: 378, w: 70, h: 70, cuisines: ['oc'] },
-  { id: 'medium', name: 'Bàn bốn', seats: 4, x: 165, y: 300, w: 120, h: 76, byCuisine: { jp: { name: 'Bàn bốn sát tường', fixed: true, wall: 'east', x: 442, y: 263, w: 76, h: 120 }, vn: { x: 300, y: 110 } } },
+  { id: 'pair_oc', name: 'Bàn đôi vỉa hè', seats: 2, x: 480, y: 380, w: 70, h: 70, cuisines: ['oc'] },
+  { id: 'medium', name: 'Bàn bốn', seats: 4, x: 165, y: 300, w: 120, h: 76, byCuisine: { jp: { name: 'Bàn bốn sát tường', fixed: true, wall: 'east', x: 442, y: 263, w: 76, h: 120 }, vn: { x: 300, y: 110 }, oc: { x: 150, y: 285 } } },
   // Quán Nhật: 2 bàn đôi là 2 khúc quầy đôi trên cạnh dài của quầy chữ L (gắn cố định, ghế quay vào bếp)
-  { id: 'pair', name: 'Bàn đôi', seats: 2, x: 470, y: 290, w: 70, h: 70, byCuisine: { jp: { name: 'Quầy đôi', fixed: true, bar: 'east', x: 170, y: 115, w: 36, h: 90 }, vn: { x: 480, y: 110 }, oc: { x: 470, y: 265 } } },
-  { id: 'pair2', name: 'Bàn đôi góc', seats: 2, x: 160, y: 420, w: 70, h: 70, byCuisine: { jp: { name: 'Quầy đôi trong', fixed: true, bar: 'east', x: 170, y: 245, w: 36, h: 90 }, vn: { x: 300, y: 300 } } },
-  // Quán Việt: 2 bàn đơn cho khách đi một mình (thay quầy ghế đơn)
-  { id: 'single', name: 'Bàn đơn', seats: 1, x: 470, y: 262, w: 52, h: 52, cuisines: ['vn'] },
-  { id: 'single2', name: 'Bàn đơn cạnh cửa sổ', seats: 1, x: 556, y: 262, w: 52, h: 52, cuisines: ['vn'] },
+  { id: 'pair', name: 'Bàn đôi', seats: 2, x: 470, y: 290, w: 70, h: 70, byCuisine: { jp: { name: 'Quầy đôi', fixed: true, bar: 'east', x: 170, y: 115, w: 36, h: 90 }, vn: { x: 520, y: 70, fromTier: [{ tier: 3, x: 680, y: 60 }, { tier: 5, x: 750, y: 60 }] }, oc: { x: 480, y: 255 } } },
+  { id: 'pair2', name: 'Bàn đôi góc', seats: 2, x: 160, y: 420, w: 70, h: 70, byCuisine: { jp: { name: 'Quầy đôi trong', fixed: true, bar: 'east', x: 170, y: 245, w: 36, h: 90 }, vn: { x: 520, y: 165, fromTier: [{ tier: 3, x: 680, y: 180 }, { tier: 5, x: 750, y: 180 }] }, oc: { x: 140, y: 425 } } },
+  // Quán Việt: 2 bàn đơn cho khách đi một mình (thay quầy ghế đơn), đặt phía trước bàn bốn (2 bàn đôi dọc tường đông); từ hạng 2 dời ra trước quầy bếp, nhường giữa quán cho bàn bốn mua thêm
+  { id: 'single', name: 'Bàn đơn', seats: 1, x: 260, y: 320, w: 52, h: 52, cuisines: ['vn'], fromTier: [{ tier: 2, x: 260, y: 425 }, { tier: 5, x: 260, y: 640 }] },
+  { id: 'single2', name: 'Bàn đơn cạnh cửa sổ', seats: 1, x: 360, y: 320, w: 52, h: 52, cuisines: ['vn'], fromTier: [{ tier: 2, x: 340, y: 425 }, { tier: 5, x: 340, y: 640 }] },
 ];
 
 export const staff: StaffDef[] = [
