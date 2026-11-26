@@ -48,34 +48,54 @@ export function buildFloorSeat(chair: THREE.Object3D, m: WoodMats, seed = 1): vo
 
 let stoneMat: THREE.MeshToonMaterial | null = null;
 
+let slabMats: { top: THREE.MeshToonMaterial; edge: THREE.MeshToonMaterial; fleck: THREE.MeshToonMaterial } | null = null;
+
 /**
- * Bàn đá quán Nhật (bộ sang trọng — 'stone_jp'): mặt là tấm gỗ cũ nguyên khối rất dày, mép gồ ghề (2 tấm ghép lệch),
- * một đầu kê trên khối đá cuội tròn, đầu kia kê trên khối gỗ vuông; ghế là đôn gỗ hộp vuông.
+ * Bàn đá quán Nhật (bộ sang trọng — 'stone_jp'): mặt là phiến đá granite nguyên khối dày, mặt trên mài nhẵn có đốm,
+ * mép đẽo thô (các mảng đá lồi lõm sẫm hơn chạy quanh); một đầu kê trên khối đá cuội tròn, đầu kia kê khối đá
+ * chẻ xếp chồng. Ghế là đôn gỗ hộp vuông (gỗ ấm tương phản với đá).
  */
-export function buildStoneTable(g: THREE.Object3D, w: number, d: number, top: number, m: WoodMats, seed = 1): void {
+export function buildStoneTable(g: THREE.Object3D, w: number, d: number, top: number, _m: WoodMats, seed = 1): void {
   stoneMat ??= toon(0x9a958b);
+  slabMats ??= { top: toon(0xc9c3b6), edge: toon(0x8f897e), fleck: toon(0xa29c90) };
+  const S = slabMats;
   const rnd = seeded(seed * 3923 + 11);
   const t = group(g, { r: [0, (rnd() - 0.5) * 0.02, 0] });
-  const T = 0.12;
-  // Hai tấm gỗ dày ghép dọc, bề rộng lệch nhau, mép trước gồ ghề (các khúc nhỏ thò ra thụt vào)
-  const split = 0.45 + (rnd() - 0.5) * 0.1;
-  const d1 = d * split;
-  const d2 = d - d1 - 0.01;
-  mesh(t, G.box(w, T, d1), m.planks[0], { p: [0, top - T / 2, -d / 2 + d1 / 2] });
-  mesh(t, G.box(w - 0.04, T * 0.92, d2), m.planks[1], { p: [0.02, top - T * 0.46, d / 2 - d2 / 2] });
-  for (let i = 0; i < 5; i++) {
-    const x = -w / 2 + (w / 5) * (i + 0.5);
-    mesh(t, G.box(w / 5 - 0.02, T * 0.7, 0.03), m.frame, { p: [x, top - T * 0.45, d / 2 + (rnd() - 0.5) * 0.03], cast: false });
+  const T = 0.13;
+  // Phiến đá: lõi + mặt mài nhẵn hơi nhỏ hơn mép
+  mesh(t, G.box(w - 0.06, T - 0.02, d - 0.06), S.edge, { p: [0, top - T / 2 - 0.01, 0] });
+  mesh(t, G.box(w - 0.1, 0.02, d - 0.1), S.top, { p: [0, top - 0.01, 0] });
+  // Mép đẽo thô: các mảng đá dày mỏng, lồi lõm khác nhau quanh 4 cạnh
+  const chunk = (x: number, z: number, lx: number, lz: number) => {
+    const h = T * (0.75 + rnd() * 0.25);
+    mesh(t, G.box(lx, h, lz), rnd() < 0.5 ? S.edge : stoneMat!, { p: [x, top - h / 2 - rnd() * 0.012, z], r: [0, (rnd() - 0.5) * 0.08, 0] });
+  };
+  const nx = Math.max(4, Math.round(w / 0.32));
+  for (let i = 0; i < nx; i++) {
+    const x = -w / 2 + (w / nx) * (i + 0.5);
+    for (const sz of [-1, 1]) chunk(x, sz * (d / 2 - 0.035 + (rnd() - 0.5) * 0.025), w / nx + 0.01, 0.08);
+  }
+  const nz = Math.max(2, Math.round(d / 0.32));
+  for (let i = 0; i < nz; i++) {
+    const z = -d / 2 + (d / nz) * (i + 0.5);
+    for (const sx of [-1, 1]) chunk(sx * (w / 2 - 0.035 + (rnd() - 0.5) * 0.025), z, 0.08, d / nz + 0.01);
+  }
+  // Đốm hạt đá trên mặt
+  for (let i = 0; i < Math.round(w * d * 8); i++) {
+    mesh(t, G.cyl(0.012 + rnd() * 0.02, 0.012, 0.004, 6), S.fleck, { p: [(rnd() - 0.5) * (w - 0.2), top + 0.001, (rnd() - 0.5) * (d - 0.2)], cast: false, receive: false });
   }
   const legH = top - T;
   // Đầu trái: đá cuội tròn (cầu dẹt) đỡ thẳng mặt bàn
   const sx = -w / 2 + 0.38;
   const r = Math.min(0.32, d * 0.4);
   mesh(t, G.sphere(1, 14, 10), stoneMat, { p: [sx, legH * 0.5, 0], s: [r, legH * 0.52, r * 0.95] });
-  // Đầu phải: khối gỗ vuông kê
-  const bx = w / 2 - 0.35;
-  mesh(t, G.box(0.42, legH, Math.min(0.5, d * 0.7)), m.frameUp, { p: [bx, legH / 2, 0] });
-  for (let i = 1; i < 3; i++) mesh(t, G.box(0.43, 0.012, Math.min(0.5, d * 0.7) + 0.01), m.frame, { p: [bx, (legH / 3) * i, 0], cast: false });
+  // Đầu phải: khối đá chẻ xếp chồng 3 lớp, lệch nhau
+  const bx = w / 2 - 0.36;
+  const bd = Math.min(0.5, d * 0.7);
+  for (let i = 0; i < 3; i++) {
+    const h = legH / 3;
+    mesh(t, G.box(0.44 - i * 0.03 + (rnd() - 0.5) * 0.04, h - 0.006, bd - i * 0.03), i % 2 ? S.edge : stoneMat, { p: [bx + (rnd() - 0.5) * 0.03, h * i + h / 2, (rnd() - 0.5) * 0.03], r: [0, (rnd() - 0.5) * 0.12, 0] });
+  }
 }
 
 /** Đôn gỗ hộp vuông (cao ~0.45 m): mặt gỗ dày, 4 vách ván ghép, viền ván sẫm. */
