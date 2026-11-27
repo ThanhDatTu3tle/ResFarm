@@ -39,13 +39,14 @@ function decorCard(game: Game, d: DecorDef, uiState: UiState): string {
       : `<button${cmd({ type: 'decor/buy', decorId: d.id })}${levelOk && state.money >= d.cost ? '' : ' disabled'}>${levelOk ? coins(d.cost) : `🔒 Cấp ${d.level}`}</button>`;
   // Xem trước: tô lại quán bằng màu món này (chưa mua), bấm lần nữa thì thôi
   const previewing = uiState.decorPreview?.[d.slot] === d.id;
+  const detail = `<button class="ghost"${ui(`view3d:decor:${d.id}`)}>🔍 Xem chi tiết</button>`;
   const preview = using ? '' : `<button class="${previewing ? 'on' : 'ghost'}"${ui(`decorPreview:${d.id}`)}>${previewing ? '✖ Thôi xem' : '👀 Xem trước'}</button>`;
   return `<div class="card ${using ? 'owned' : ''}${previewing ? ' previewing' : ''}" data-key="${d.id}"><div class="row">
     <span class="big">${d.icon}</span>
     <div class="grow"><b>${esc(d.name)}</b>
       <div class="swatches">${swatches}</div>
       <div class="muted">${bonusText(d.modifiers) || 'Chỉ để đẹp'}</div></div>
-    <div class="btns">${preview}${button}</div></div></div>`;
+    <div class="btns">${detail}${preview}${button}</div></div></div>`;
 }
 
 /** Siêu thị: nội thất (sàn, sơn tường, bàn ghế) + trang thiết bị nâng cấp quán. */
@@ -95,7 +96,7 @@ export const shopPanel: Panel = {
           <span class="big">${p.icon}</span>
           <div class="grow"><b>${esc(p.name)}</b>${n ? ` <span class="pill">Có ${n}</span>` : ''}
             <div class="muted">${bonusText(p.modifiers) || 'Chỉ để đẹp'}</div></div>
-          <button${cmd({ type: 'prop/buy', propId: p.id })}${levelOk && state.money >= p.cost ? '' : ' disabled'}>${levelOk ? coins(p.cost) : `🔒 Cấp ${p.level}`}</button></div></div>`;
+          <div class="btns"><button class="ghost"${ui(`view3d:prop:${p.id}`)}>🔍 Xem chi tiết</button><button${cmd({ type: 'prop/buy', propId: p.id })}${levelOk && state.money >= p.cost ? '' : ' disabled'}>${levelOk ? coins(p.cost) : `🔒 Cấp ${p.level}`}</button></div></div></div>`;
       })
       .join('');
 
@@ -109,7 +110,7 @@ export const shopPanel: Panel = {
         return `<div class="card" data-key="tk-${k.id}"><div class="row">
           <span class="big">${k.icon}</span>
           <div class="grow"><b>${esc(k.name)}</b>${n ? ` <span class="pill">Đã mua ${n}</span>` : ''}<div class="muted">${k.seats} chỗ ngồi · tự đặt vào chỗ trống</div></div>
-          <button${cmd({ type: 'table/buy', kind: k.id })}${levelOk && state.money >= k.cost ? '' : ' disabled'}>${levelOk ? coins(k.cost) : `🔒 Cấp ${k.level}`}</button></div></div>`;
+          <div class="btns"><button class="ghost"${ui(`view3d:table:${k.id}`)}>🔍 Xem chi tiết</button><button${cmd({ type: 'table/buy', kind: k.id })}${levelOk && state.money >= k.cost ? '' : ' disabled'}>${levelOk ? coins(k.cost) : `🔒 Cấp ${k.level}`}</button></div></div></div>`;
       })
       .join('');
 

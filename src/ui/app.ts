@@ -42,6 +42,10 @@ import { Stage, type Area, type Pick } from './three/stage';
 import { portraitHtml } from './three/portraits';
 import { tableById } from '../sim/layout';
 import { crayonEnabled, setCrayon } from './three/crayon';
+import { hoodsEnabled, setHoods } from './three/hoods';
+import { decorModel } from './three/showcase';
+import { makeProp } from './three/props';
+import { openViewer } from './viewer3d';
 
 /** Số lần vẽ lại DOM mỗi giây (cảnh 3D vẫn vẽ mỗi khung hình). */
 const DOM_FPS = 8;
@@ -598,7 +602,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
 
     morph($('hud'), hudHtml(game, ui, money.value));
     fitSideColumn();
-    morph($('settings'), settingsHtml(ui, sound.prefs));
+    morph($('settings'), settingsHtml(ui, sound.prefs, game.state.cuisine));
     morph($('friends'), friendsHtml(friends, content, onlineEnabled || (import.meta.env.DEV && params.get('friends') === 'demo')));
     morph($('calendar'), calendarHtml(game, ui));
     morph($('bankrupt'), state.bankrupt ? bankruptHtml() : policePending(game.ctx) ? policeHtml() : '');
@@ -1007,6 +1011,23 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     else if (action === 'music') sound.setMusic(!sound.prefs.music);
     else if (action === 'sfx') sound.setSfx(!sound.prefs.sfx);
     else if (action === 'crayon') setCrayon(!crayonEnabled());
+    else if (action === 'hoods') setHoods(!hoodsEnabled());
+    else if (action === 'view3d') {
+      // Siêu thị · "Xem chi tiết": popup xem model 3D của món (nội thất, đồ trang trí, bàn lẻ)
+      const [kind, id] = arg.split(':');
+      const { content: ct, state: st } = game;
+      if (kind === 'decor' && ct.decor.has(id)) {
+        const d = ct.decor.get(id);
+        openViewer(`${d.icon} ${d.name}`, d.slot === 'furniture' ? 'Bộ bàn bốn + ghế' : d.slot === 'floor' ? 'Mẫu sàn' : 'Mẫu góc tường', () => decorModel(d, st.cuisine));
+      } else if (kind === 'prop' && ct.props.has(id)) {
+        const p = ct.props.get(id);
+        openViewer(`${p.icon} ${p.name}`, '', () => makeProp(p.model, p.icon));
+      } else if (kind === 'table' && ct.tableKinds.has(id)) {
+        const k = ct.tableKinds.get(id);
+        openViewer(`${k.icon} ${k.name}`, 'Theo bộ bàn ghế đang dùng', () => decorModel(ct.decor.get(st.decor.equipped.furniture), st.cuisine, k.seats));
+      }
+      return;
+    }
     else if (action === 'slot') ui.selectedSlot = ui.selectedSlot === arg ? null : arg;
     else if (action === 'stall') ui.selectedStall = arg || null;
     else if (action === 'edit') {

@@ -102,3 +102,72 @@ export function buildCrateSeat(chair: THREE.Object3D, seed = 1): void {
   mesh(c, G.box(W + 0.02, 0.12, D + 0.04), cushion, { p: [0, H + 0.06, 0] });
   mesh(c, G.box(W + 0.03, 0.02, D + 0.05), dark, { p: [0, H + 0.005, 0], cast: false });
 }
+
+/** Món ghi trên các bảng đèn LED dọc (đọc từ trên xuống) — chữ Hàn tên món ăn vặt quen thuộc. */
+const POCHA_SIGNS: [string, string, string][] = [
+  ['떡볶이', '#e8f1ff', '#d9322b'],
+  ['비빔밥', '#f2a03a', '#fff6e0'],
+  ['치킨', '#ffffff', '#c8352e'],
+  ['김밥', '#c8352e', '#fff3d6'],
+  ['빙수', '#2f3c8f', '#ffffff'],
+  ['라면', '#ffffff', '#2f3c8f'],
+  ['핫도그', '#f4b23e', '#3a2a20'],
+  ['순대', '#ffffff', '#c8352e'],
+  ['어묵', '#c8352e', '#ffffff'],
+];
+
+function ledPanel(text: string, bg: string, fg: string): THREE.MeshBasicMaterial {
+  const W = 96;
+  const H = 256;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d')!;
+  g.fillStyle = bg;
+  g.fillRect(0, 0, W, H);
+  g.strokeStyle = 'rgba(0,0,0,0.25)';
+  g.lineWidth = 4;
+  g.strokeRect(2, 2, W - 4, H - 4);
+  g.fillStyle = fg;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  const chars = [...text];
+  const step = (H - 40) / chars.length;
+  g.font = `bold ${Math.min(64, step * 0.85)}px "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
+  chars.forEach((ch, i) => g.fillText(ch, W / 2, 20 + step * (i + 0.5)));
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.MeshBasicMaterial({ map: tex });
+}
+
+/**
+ * Quán Hàn — bếp lên hạng 3 (Bếp chuyên nghiệp): mái tôn sóng sẫm màu chìa ra trên quầy bếp (kiểu sạp pocha) + hàng
+ * bảng đèn LED dọc ghi tên món phía trên mái (tự sáng, không đổ bóng). Dải mái chạy từ x1 tới x2, mép trong ở z (sát
+ * phía bếp), chìa ra phía phòng ăn (+z) `depth` m.
+ */
+export function buildPochaAwning(parent: THREE.Object3D, x1: number, x2: number, z: number, depth = 1.1): void {
+  const g = group(parent);
+  const len = x2 - x1;
+  const cx = (x1 + x2) / 2;
+  const yBack = 2.95;
+  const yFront = 2.5;
+  const tilt = Math.atan2(yBack - yFront, depth);
+  const roof = group(g, { p: [cx, (yBack + yFront) / 2, z + depth / 2], r: [tilt, 0, 0] });
+  const slopeLen = Math.hypot(depth, yBack - yFront);
+  // Tôn sóng: các gân tròn chạy dọc dốc mái, xen tấm phẳng
+  mesh(roof, G.box(len, 0.03, slopeLen), 0x3c4046, {});
+  const ribs = Math.round(len / 0.12);
+  for (let i = 0; i < ribs; i++) mesh(roof, G.cyl(0.03, 0.03, slopeLen, 6), i % 2 ? 0x4c5157 : 0x2f3338, { p: [x1 - cx + (i + 0.5) * (len / ribs), 0.025, 0], r: [Math.PI / 2, 0, 0], cast: false });
+  // Diềm mép trước + 2 thanh đỡ
+  mesh(g, G.box(len, 0.08, 0.05), 0x2a2d31, { p: [cx, yFront - 0.03, z + depth] });
+  for (const x of [x1 + 0.15, x2 - 0.15]) mesh(g, G.box(0.06, 0.06, depth), 0x2a2d31, { p: [x, yBack - 0.05, z + depth / 2], r: [tilt, 0, 0] });
+  // Hàng bảng đèn LED dọc trên mép trong của mái
+  const n = Math.max(4, Math.min(POCHA_SIGNS.length, Math.floor(len / 0.55)));
+  const pw = Math.min(0.5, len / n - 0.04);
+  mesh(g, G.box(len, 1.12, 0.08), 0x1c1d21, { p: [cx, yBack + 0.6, z + 0.02] }); // khung hộp đèn
+  for (let i = 0; i < n; i++) {
+    const [txt, bg, fg] = POCHA_SIGNS[i % POCHA_SIGNS.length];
+    const x = x1 + (i + 0.5) * (len / n);
+    mesh(g, new THREE.PlaneGeometry(pw, 1.0), ledPanel(txt, bg, fg), { p: [x, yBack + 0.6, z + 0.065], cast: false, receive: false });
+  }
+}

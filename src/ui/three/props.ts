@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { makeLightboxJp, makeNeonKr } from './lightsigns';
 import { signText } from './cuisine';
 import { buildPainting } from './paintings';
 import { emojiSprite, G, group, mesh, seeded, toon, type V3 } from './toon';
@@ -88,6 +89,8 @@ function lathe(key: string, pts: [number, number][]): THREE.LatheGeometry {
 const glass = (color: number, opacity: number) => new THREE.MeshToonMaterial({ color, transparent: true, opacity });
 
 const MAKERS: Record<string, Maker> = {
+  lightbox_jp: makeLightboxJp,
+  neon_kr: makeNeonKr,
   /** Chậu bàng Singapore: thân thẳng có đốt, lá to hình đàn violin mọc so le, xanh đậm nhạt xen kẽ. */
   fig(g) {
     const rnd = seeded(5);
