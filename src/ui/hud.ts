@@ -21,6 +21,7 @@ import { festivalOf, isSeasonEnd, isYearEnd, nextFestival, seasonPriceFactor } f
 import { OWNER_NAME_MAX, type DayStats } from '../sim/state';
 import { onlineEnabled } from './online';
 import { crayonEnabled } from './three/crayon';
+import { hoodsEnabled } from './three/hoods';
 
 /**
  * HUD trên cảnh 3D: bên trái là tiền + uy tín + huy hiệu cấp, bên phải là "đồng hồ" (vòng ngày đêm, lịch,
@@ -307,7 +308,7 @@ const GUIDE: [string, string][] = [
   ['🌙', 'Ngày chạy 06:00–24:00. Quán mở 2 ca: 07:00–12:00 và 15:00–20:00. Sau 21:00 có nút "Kết thúc ngày" để đi ngủ sớm. Hết ngày xem tổng kết; ban đêm cây vẫn lớn.'],
 ];
 
-export function settingsHtml(ui: UiState, prefs: { music: boolean; sfx: boolean }): string {
+export function settingsHtml(ui: UiState, prefs: { music: boolean; sfx: boolean }, cuisine?: string): string {
   if (!ui.settings) return '';
   const toggle = (action: string, on: boolean, icon: string, label: string) =>
     `<button class="toggle-row${on ? ' is-on' : ''}"${uiAttr(action)} role="switch" aria-checked="${on}">
@@ -337,6 +338,7 @@ export function settingsHtml(ui: UiState, prefs: { music: boolean; sfx: boolean 
       <section>
         <h3>Màn hình</h3>
         ${toggle('crayon', crayonEnabled(), '🖍️', 'Nét vẽ tay (màu sáp)')}
+        ${cuisine === 'kr' ? toggle('hoods', hoodsEnabled(), '🔥', 'Ống hút khói trên bàn nướng') : ''}
         <button class="wide"${uiAttr('fullscreen')}>⛶ Bật/tắt toàn màn hình</button>
       </section>
 

@@ -399,8 +399,31 @@ export function terrazzoTexture(): THREE.Texture {
   return terrazzoTex;
 }
 
-/** Texture sàn theo kiểu hoa văn của món nội thất (`a` / `b` = màu nền / hoa văn cho gạch bông). */
-export function floorTexture(pattern: 'encaustic' | 'ngocdo' | 'terracotta', a: number, b: number): THREE.Texture {
+const checkerCache = new Map<string, THREE.Texture>();
+
+/** Gạch caro bàn cờ: ô vuông 30 cm xen kẽ màu `a` / `b`, ron mảnh, nét sáp nhẹ. */
+function checkerTexture(a: number, b: number): THREE.Texture {
+  const key = `${a}-${b}`;
+  let tex = checkerCache.get(key);
+  if (tex) return tex;
+  const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
+  tex = crayonCanvas(256, 0.6, 77, (c) => {
+    c.fillStyle = '#9a9a96';
+    c.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+      c.fillStyle = hex((i + j) % 2 ? b : a);
+      c.fillRect(i * 128 + 2, j * 128 + 2, 124, 124);
+    }
+  });
+  checkerCache.set(key, tex);
+  return tex;
+}
+
+/** Texture sàn theo kiểu hoa văn của món nội thất (`a` / `b` = màu nền / hoa văn cho gạch bông, màu hai ô caro). */
+export function floorTexture(pattern: 'encaustic' | 'ngocdo' | 'terracotta' | 'checker' | 'concrete' | 'planks', a: number, b: number): THREE.Texture {
+  if (pattern === 'concrete') return concreteTexture();
+  if (pattern === 'planks') return plankTexture(a, b);
+  if (pattern === 'checker') return checkerTexture(a, b);
   if (pattern === 'ngocdo') return ngocdoTexture();
   if (pattern === 'terracotta') return terracottaTexture();
   return encausticTexture(a, b);
@@ -417,4 +440,179 @@ export function terrazzoSidewalk(parent: THREE.Object3D, len: number, width: num
   m.receiveShadow = true;
   parent.add(m);
   return m;
+}
+
+/** Cỡ một viên gạch ốp tường (m) — gạch vuông nhỏ kiểu quán ăn châu Á. */
+export const WALL_TILE = 0.22;
+
+const wallTileCache = new Map<string, THREE.CanvasTexture>();
+
+/** Gạch ốp tường: một viên vuông màu `tile`, ron (đường vữa) màu `grout`, bóng sáng nhẹ ở góc — lặp bằng `repeat`. */
+export function wallTileTexture(tile: number, grout: number): THREE.CanvasTexture {
+  const key = `${tile}-${grout}`;
+  let tex = wallTileCache.get(key);
+  if (tex) return tex;
+  const S = 64;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d')!;
+  const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
+  g.fillStyle = hex(grout);
+  g.fillRect(0, 0, S, S);
+  g.fillStyle = hex(tile);
+  g.fillRect(4, 4, S - 8, S - 8);
+  g.fillStyle = 'rgba(255,255,255,0.35)';
+  g.fillRect(6, 6, S * 0.35, 4);
+  g.fillStyle = 'rgba(0,0,0,0.05)';
+  g.fillRect(3, S - 9, S - 6, 6);
+  tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  wallTileCache.set(key, tex);
+  return tex;
+}
+
+/** Vẽ một nét / mảng lặp liền mép: gọi `draw` ở 9 vị trí dời ±S để texture lặp không lộ đường nối. */
+function wrapDraw(S: number, draw: (ox: number, oy: number) => void): void {
+  for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) draw(ox, oy);
+}
+
+let concreteTex: THREE.Texture | null = null;
+
+/** Sàn xi măng mài: một màu xám, loang lổ đậm nhạt và vết nứt mảnh chạy ngoằn ngoèo (ô lặp 3,9 m). */
+export function concreteTexture(): THREE.Texture {
+  if (concreteTex) return concreteTex;
+  const S = 512;
+  concreteTex = crayonCanvas(S, FLOOR_TILE * 3, 4242, (c, rnd) => {
+    c.fillStyle = '#7e8183';
+    c.fillRect(0, 0, S, S);
+    // Loang lổ: mảng sáng / tối mờ, vài vệt ẩm sẫm hơn
+    for (let i = 0; i < 70; i++) {
+      const x = rnd() * S;
+      const y = rnd() * S;
+      const r = 20 + rnd() * 90;
+      const dark = rnd() < 0.55;
+      const a = dark ? 0.05 + rnd() * 0.09 : 0.05 + rnd() * 0.08;
+      wrapDraw(S, (ox, oy) => {
+        const gr = c.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r);
+        gr.addColorStop(0, dark ? `rgba(50,52,54,${a * 1.6})` : `rgba(215,216,214,${a})`);
+        gr.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = gr;
+        c.fillRect(x + ox - r, y + oy - r, r * 2, r * 2);
+      });
+    }
+    // Đốm nhỏ (vết bẩn, lỗ khí)
+    for (let i = 0; i < 260; i++) {
+      c.fillStyle = `rgba(60,62,64,${0.08 + rnd() * 0.18})`;
+      c.beginPath();
+      c.arc(rnd() * S, rnd() * S, 0.6 + rnd() * 1.8, 0, Math.PI * 2);
+      c.fill();
+    }
+    // Vết nứt: đường gấp khúc ngẫu nhiên, có nhánh rẽ
+    const crack = (x: number, y: number, ang: number, len: number, width: number, depth: number): void => {
+      const pts: [number, number][] = [[x, y]];
+      for (let k = 0; k < len; k++) {
+        ang += (rnd() - 0.5) * 0.9;
+        x += Math.cos(ang) * 9;
+        y += Math.sin(ang) * 9;
+        pts.push([x, y]);
+        if (depth < 2 && rnd() < 0.06) crack(x, y, ang + (rnd() < 0.5 ? 1 : -1) * (0.6 + rnd() * 0.6), Math.floor(len * 0.4), width * 0.6, depth + 1);
+      }
+      wrapDraw(S, (ox, oy) => {
+        c.lineJoin = 'round';
+        c.strokeStyle = 'rgba(205,206,204,0.35)';
+        c.lineWidth = width + 1.4;
+        c.beginPath();
+        pts.forEach(([px, py], i) => (i ? c.lineTo(px + ox + 0.8, py + oy + 0.8) : c.moveTo(px + ox + 0.8, py + oy + 0.8)));
+        c.stroke();
+        c.strokeStyle = 'rgba(36,38,40,0.85)';
+        c.lineWidth = width;
+        c.beginPath();
+        pts.forEach(([px, py], i) => (i ? c.lineTo(px + ox, py + oy) : c.moveTo(px + ox, py + oy)));
+        c.stroke();
+      });
+    };
+    for (let i = 0; i < 5; i++) crack(rnd() * S, rnd() * S, rnd() * Math.PI * 2, 18 + Math.floor(rnd() * 30), 2 + rnd() * 1.2, 0);
+  });
+  return concreteTex;
+}
+
+const plankCache = new Map<string, THREE.Texture>();
+
+/** Sàn gỗ ván cũ: ván dài so le, mỗi tấm một tông (giữa `a` và `b`), vân gỗ lượn, mắt gỗ, khe ván sẫm (ô lặp 2,6 m). */
+export function plankTexture(a: number, b: number): THREE.Texture {
+  const key = `${a}-${b}`;
+  let tex = plankCache.get(key);
+  if (tex) return tex;
+  const S = 520;
+  const rows = 13;
+  const rh = S / rows;
+  const ch = (n: number, s: number) => (n >> s) & 255;
+  const mix = (t: number, k: number) => {
+    const m = (s: number) => Math.round(ch(a, s) + (ch(b, s) - ch(a, s)) * t) * k;
+    return `rgb(${Math.min(255, m(16))},${Math.min(255, m(8))},${Math.min(255, m(0))})`;
+  };
+  tex = crayonCanvas(S, FLOOR_TILE * 2, 909, (c, rnd) => {
+    c.fillStyle = '#2b1a10';
+    c.fillRect(0, 0, S, S);
+    for (let r = 0; r < rows; r++) {
+      const y = r * rh;
+      // Mối nối ván so le, chạy vòng qua mép (lặp liền)
+      const start = rnd() * S;
+      const joints = [start];
+      while (joints.length < 3) joints.push((joints[joints.length - 1] + 140 + rnd() * 160) % S);
+      joints.sort((p, q) => p - q);
+      for (let j = 0; j < joints.length; j++) {
+        const x0 = joints[j];
+        const x1 = j + 1 < joints.length ? joints[j + 1] : joints[0] + S;
+        const t = rnd();
+        const shade = 0.88 + rnd() * 0.22;
+        for (const ox of [0, -S]) {
+          c.save();
+          c.beginPath();
+          c.rect(x0 + ox + 1.5, y + 1.5, x1 - x0 - 3, rh - 3);
+          c.clip();
+          c.fillStyle = mix(t, shade);
+          c.fillRect(x0 + ox, y, x1 - x0, rh);
+          // Vân gỗ: các đường lượn dọc theo tấm
+          for (let g = 0; g < 7; g++) {
+            const gy = y + 3 + rnd() * (rh - 6);
+            const ph = rnd() * 6.28;
+            c.strokeStyle = rnd() < 0.6 ? `rgba(60,32,14,${0.12 + rnd() * 0.18})` : `rgba(255,230,180,${0.08 + rnd() * 0.1})`;
+            c.lineWidth = 0.8 + rnd() * 1.4;
+            c.beginPath();
+            for (let x = x0 + ox; x <= x1 + ox; x += 6) {
+              const yy = gy + Math.sin(x * 0.02 + ph) * 2.2;
+              if (x === x0 + ox) c.moveTo(x, yy);
+              else c.lineTo(x, yy);
+            }
+            c.stroke();
+          }
+          // Mắt gỗ
+          if (rnd() < 0.35) {
+            const kx = x0 + ox + 20 + rnd() * Math.max(10, x1 - x0 - 40);
+            const ky = y + rh * (0.3 + rnd() * 0.4);
+            for (let k = 3; k > 0; k--) {
+              c.strokeStyle = `rgba(55,28,12,${0.25 + 0.15 * (3 - k)})`;
+              c.lineWidth = 1.2;
+              c.beginPath();
+              c.ellipse(kx, ky, 3 + k * 3.5, 1.5 + k * 1.6, 0, 0, Math.PI * 2);
+              c.stroke();
+            }
+          }
+          // Mòn sáng giữa tấm
+          const gr = c.createLinearGradient(0, y, 0, y + rh);
+          gr.addColorStop(0, 'rgba(0,0,0,0.12)');
+          gr.addColorStop(0.5, 'rgba(255,235,200,0.08)');
+          gr.addColorStop(1, 'rgba(0,0,0,0.14)');
+          c.fillStyle = gr;
+          c.fillRect(x0 + ox, y, x1 - x0, rh);
+          c.restore();
+        }
+      }
+    }
+  });
+  plankCache.set(key, tex);
+  return tex;
 }

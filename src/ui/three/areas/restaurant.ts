@@ -17,7 +17,7 @@ import { buildSeat, counterExtras, decorateInterior, seatStyle, signText, tableE
 import { buildStreetGround, buildStreetKitchen, standingSign, streetSpots } from '../street';
 import { buildNeighborhood } from '../neighborhood';
 import { buildRattanArmchair, buildSpindleChair, buildTurnedTable } from '../furniturevn';
-import { FLOOR_TILE, floorTexture } from '../floortex';
+import { FLOOR_TILE, floorTexture, WALL_TILE, wallTileTexture } from '../floortex';
 import { mergeAdded, mergeStatic } from '../merge';
 import { HOLD_MS, type Area, type Env, type Pick } from '../stage';
 import { Bar3D, blinkLeds, bubbleSprite, emojiSprite, G, group, ledFrame, mesh, seeded, speechSprite, textSprite, toon, paintSeason } from '../toon';
@@ -29,9 +29,10 @@ import { OwnerWalker, type Spot } from '../owner';
 import { Curbside } from '../curbside';
 import { Chatter, HUNGRY_UNTIL, updateHunger } from '../chatter';
 import { buildEquipment, type EquipDims, type EquipView } from '../equipment';
-import { buildBarCounter, buildBarStool, buildGrillTable, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, tintWood, woodMats } from '../furniture';
+import { buildBarCounter, buildBarStool, buildGrillInset, buildGrillTable, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, tintWood, woodMats } from '../furniture';
 import { buildBoxStool, buildFloorSeat, buildStoneTable, buildZataku, ZATAKU_TOP } from '../furniturejp';
-import { buildCrateSeat, buildDrumStool, buildDrumTable, buildWalnutGrill } from '../furniturekr';
+import { buildHood } from '../hoods';
+import { buildPochaAwning, buildCrateSeat, buildDrumStool, buildDrumTable, buildWalnutGrill } from '../furniturekr';
 import { buildBambooStool, buildBambooTable, buildInoxTable, buildSlatChair, joinedTables } from '../furnitureoc';
 import type { FurnitureStyle } from '../../../data/types';
 
@@ -198,6 +199,9 @@ export class RestaurantArea implements Area {
   private windowMat = toon(0xbfe6ff, { transparent: true, opacity: 0.3 });
   /** Lớp gạch bông trên sàn phòng ăn (null ở quán ốc ngoài trời). */
   private tileFloor: THREE.Mesh | null = null;
+  /** Lớp gạch ốp tường (mặt trong tường sau + hai tường bên), hiện khi tường đang dùng có pattern 'walltile'. */
+  private wallTiles: THREE.Mesh[] = [];
+  private wallTileKey = '';
 
   private actors = new Map<string, Actor>();
   /** servedAt: mốc env.t lúc món vừa ra bàn (để đĩa nảy lên), -1 = chưa ra. */
@@ -589,8 +593,10 @@ export class RestaurantArea implements Area {
     mesh(r, G.box(1, 0.03, 1), 0xefe6d6, { p: [(kf[0] + kf[1]) / 2, 0.01, (kf[2] + kf[3]) / 2], s: [kf[1] - kf[0], 1, kf[3] - kf[2]], cast: false });
 
     // Tường sau: chân tường + mảng tường chừa 2 ô cửa sổ
-    const backSeg = (x1: number, x2: number, y1: number, y2: number, mat = mats.wall) =>
-      mesh(r, G.box(1, 1, 0.3), mat, { p: [(x1 + x2) / 2, (y1 + y2) / 2, backZ - 0.15], s: [x2 - x1, y2 - y1, 1] });
+    const backSeg = (x1: number, x2: number, y1: number, y2: number, mat = mats.wall) => {
+      this.tileOver((x1 + x2) / 2, (y1 + y2) / 2, backZ + 0.006, x2 - x1, y2 - y1, 0);
+      return mesh(r, G.box(1, 1, 0.3), mat, { p: [(x1 + x2) / 2, (y1 + y2) / 2, backZ - 0.15], s: [x2 - x1, y2 - y1, 1] });
+    };
     backSeg(-halfW, halfW, 0, 1.3, mats.trim);
     backSeg(-halfW, halfW, 3.3, WALL_H);
     // Chỉ còn cửa sổ bên phải (sau bếp); bên trái là lối đi có cửa WC và cửa kho
@@ -606,8 +612,10 @@ export class RestaurantArea implements Area {
     for (const side of [-1, 1]) {
       const x = side * (halfW + 0.15);
       const z0 = backZ - 0.3;
-      const seg = (za: number, zb: number, y1: number, y2: number, mat = mats.wall) =>
-        mesh(r, G.box(0.3, 1, 1), mat, { p: [x, (y1 + y2) / 2, (za + zb) / 2], s: [1, y2 - y1, zb - za] });
+      const seg = (za: number, zb: number, y1: number, y2: number, mat = mats.wall) => {
+        this.tileOver(side * (halfW - 0.006), (y1 + y2) / 2, (za + zb) / 2, zb - za, y2 - y1, side < 0 ? Math.PI / 2 : -Math.PI / 2);
+        return mesh(r, G.box(0.3, 1, 1), mat, { p: [x, (y1 + y2) / 2, (za + zb) / 2], s: [1, y2 - y1, zb - za] });
+      };
       const wins = this.sideWins();
       seg(z0, z0 + sideLen, 0, 1.3, mats.trim);
       seg(z0, z0 + sideLen, 3.3, WALL_H);
@@ -652,6 +660,15 @@ export class RestaurantArea implements Area {
       this.lamps.push(lamp);
       r.add(lamp);
     }
+  }
+
+/** Một tấm gạch ốp phủ mặt trong tường (ẩn tới khi dùng tường ốp gạch). Tấm nằm đứng, `rotY` xoay pháp tuyến vào trong quán. */
+  private tileOver(x: number, y: number, z: number, w: number, h: number, rotY: number): void {
+    if (w <= 0.01 || h <= 0.01) return;
+    const m = mesh(this.root, new THREE.PlaneGeometry(w, h), toon(0xffffff), { p: [x, y, z], r: [0, rotY, 0], cast: false });
+    m.userData = { ...m.userData, keep: true, tileW: w, tileH: h };
+    m.visible = false;
+    this.wallTiles.push(m);
   }
 
 /** Lối đi bên trái gian bếp: vách ngăn thấp, cửa WC và cửa kho hàng trên tường sau, thảm nhỏ. */
@@ -762,6 +779,8 @@ export class RestaurantArea implements Area {
     mesh(r, G.box(1, 2.2, 0.85), 0xe9eef2, { p: [fx, 1.1, z] });
     mesh(r, G.box(0.06, 0.6, 0.06), 0x9aa6b2, { p: [fx + 0.35, 1.5, z + 0.46] });
 
+    // Quán Hàn, Bếp chuyên nghiệp: mái tôn kiểu sạp pocha + hàng bảng đèn LED tên món trên quầy bếp
+    if (this.game.state.cuisine === 'kr' && ktier >= 3) buildPochaAwning(r, this.kitchenX1 + 0.1, this.halfW - 0.1, this.kitchenZ - 0.55);
     this.buildPass();
     this.buildWaiter();
 
@@ -1102,12 +1121,18 @@ export class RestaurantArea implements Area {
       else if (this.oakTables && this.furnStyle === 'stone_jp') buildStoneTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       else if (this.oakTables) buildOakTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       else if (this.grillTables && this.furnStyle === 'drum_kr') joinedTables(g, w, d, t.seats, seedOf(t.id), (sub, sw, sd, s2) => buildDrumTable(sub, sw, sd, TABLE_TOP, s2));
-      else if (this.grillTables && this.furnStyle === 'stone_jp') buildStoneTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
+      else if (this.grillTables && this.furnStyle === 'stone_jp') {
+        // Bộ sang trọng ở quán Hàn: bàn đá + vỉ nướng âm giữa mặt đá
+        buildStoneTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
+        buildGrillInset(g, TABLE_TOP);
+      }
       else if (this.grillTables && this.furnStyle === 'walnut_kr') buildWalnutGrill(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       else if (this.grillTables) buildGrillTable(g, w, d, TABLE_TOP, this.wood, mats.base, seedOf(t.id));
       else if (this.furnStyle === 'oak_vn' || this.furnStyle === 'luxury_vn') buildTurnedTable(g, w, d, TABLE_TOP, this.wood, this.furnStyle, seedOf(t.id));
       else buildWoodTable(g, w, d, TABLE_TOP, this.wood, seedOf(t.id));
       tableExtras(this.game.state.cuisine, g, this.tableTop, w, d, seedOf(t.id), seatSpots(t, { x: 0, y: 0 }).map((s) => ({ x: s.x / UNIT, z: s.y / UNIT })));
+      // Quán Hàn: ống hút khói trên vỉ nướng (bật / tắt trong Cài đặt); bộ óc chó cũ đã có ống đồng riêng
+      if (this.grillTables && this.game.state.cuisine === 'kr' && this.furnStyle !== 'walnut_kr') buildHood(g, this.tableTop, 0, 0, 3.6);
     } else {
       mesh(g, G.box(w, 0.1, d), mats.top, { p: [0, TABLE_TOP - 0.05, 0] });
       mesh(g, G.box(w - 0.15, 0.06, d - 0.15), mats.base, { p: [0, TABLE_TOP - 0.13, 0] });
@@ -1901,13 +1926,30 @@ export class RestaurantArea implements Area {
     // Sàn hoa văn (gạch bông): hiện lớp gạch, ẩn sọc ván
     const floorDef = pick('floor');
     if (this.tileFloor) {
-      const pattern = floorDef.pattern;
+      const pattern = floorDef.pattern === 'walltile' ? undefined : floorDef.pattern;
       this.tileFloor.visible = !!pattern;
       mats.floorB.visible = !pattern;
       if (pattern) (this.tileFloor.material as THREE.MeshToonMaterial).map = floorTexture(pattern, floor.a, floor.b);
     }
     mats.wall.color.setHex(wall.wall);
     mats.trim.color.setHex(wall.trim);
+    // Tường ốp gạch: hiện lớp gạch (texture lặp theo kích thước từng mảng tường)
+    const wallPattern = pick('wall').pattern === 'walltile';
+    const tileKey = wallPattern ? `${wall.wall}-${wall.trim}` : '';
+    if (tileKey !== this.wallTileKey) {
+      this.wallTileKey = tileKey;
+      for (const m of this.wallTiles) {
+        m.visible = wallPattern;
+        if (!wallPattern) continue;
+        const mat = m.material as THREE.MeshToonMaterial;
+        const tex = wallTileTexture(wall.wall, wall.trim).clone();
+        tex.repeat.set(m.userData.tileW / WALL_TILE, m.userData.tileH / WALL_TILE);
+        tex.needsUpdate = true;
+        mat.map?.dispose();
+        mat.map = tex;
+        mat.needsUpdate = true;
+      }
+    }
     mats.top.color.setHex(furn.top);
     mats.base.color.setHex(furn.base);
     mats.seat.color.setHex(furn.seat);

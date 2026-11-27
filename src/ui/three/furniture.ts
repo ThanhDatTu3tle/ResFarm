@@ -502,14 +502,8 @@ const GRATE = 0x9aa0a8;
  * giữa bàn (hút khói dưới bàn nên không có ống treo trần), chân là tủ kim loại đen có khe tản nhiệt + nhãn trắng,
  * đế lùi vào trong. `metal` = vật liệu khung (màu "chân bàn" của bộ nội thất).
  */
-export function buildGrillTable(g: THREE.Object3D, w: number, d: number, top: number, m: WoodMats, metal: THREE.Material, seed = 1): void {
-  const L = Math.max(w, d);
-  const D = Math.min(w, d);
-  const t = group(g, { r: [0, d > w ? Math.PI / 2 : 0, 0] });
-  const th = 0.05;
-  mesh(t, G.box(L, th, D), m.planks[seed % 3], { p: [0, top - th / 2, 0] });
-  mesh(t, G.box(L + 0.01, 0.018, D + 0.01), 0x6b6862, { p: [0, top - th + 0.009, 0], cast: false }); // viền mép dưới
-  // Vỉ nướng âm giữa bàn: vành inox, lòng đen, than hồng, vỉ thanh song song + vòng tròn
+/** Vỉ nướng âm giữa bàn (tâm ở gốc của `t`, mặt bàn cao `top`): vành inox, lòng đen, than hồng, vỉ thanh song song + vòng tròn. */
+export function buildGrillInset(t: THREE.Object3D, top: number): void {
   mesh(t, G.cyl(0.25, 0.25, 0.012, 24), 0x1f2126, { p: [0, top + 0.002, 0] });
   mesh(t, G.torus(0.25, 0.018, 5, 24), 0xc9ced6, { p: [0, top + 0.008, 0], r: [Math.PI / 2, 0, 0] });
   mesh(t, G.cyl(0.07, 0.07, 0.006, 16), 0xe2703a, { p: [0, top + 0.006, 0], cast: false });
@@ -518,6 +512,16 @@ export function buildGrillTable(g: THREE.Object3D, w: number, d: number, top: nu
     const z = i * 0.05;
     mesh(t, G.box(2 * Math.sqrt(Math.max(0, 0.235 ** 2 - z * z)), 0.006, 0.008), GRATE, { p: [0, top + 0.018, z], cast: false });
   }
+}
+
+export function buildGrillTable(g: THREE.Object3D, w: number, d: number, top: number, m: WoodMats, metal: THREE.Material, seed = 1): void {
+  const L = Math.max(w, d);
+  const D = Math.min(w, d);
+  const t = group(g, { r: [0, d > w ? Math.PI / 2 : 0, 0] });
+  const th = 0.05;
+  mesh(t, G.box(L, th, D), m.planks[seed % 3], { p: [0, top - th / 2, 0] });
+  mesh(t, G.box(L + 0.01, 0.018, D + 0.01), 0x6b6862, { p: [0, top - th + 0.009, 0], cast: false }); // viền mép dưới
+  buildGrillInset(t, top);
   // Tủ chân kim loại đen
   const cw = L - 0.5;
   const cd = D - 0.6;
