@@ -44,7 +44,7 @@ export function upcoming(game: Game, within = DAYS_PER_SEASON * 2): Upcoming[] {
     if (f) list.push({ inDays: i, icon: f.icon, text: f.name, note: f.desc });
     if (i > 0 && c.dayOfSeason === 1) {
       const s = seasons[c.season];
-      list.push({ inDays: i, icon: s.icon, text: c.season === 0 ? `Năm ${c.year} — mùa Xuân bắt đầu` : `Mùa ${s.name} bắt đầu`, note: SEASON_NOTE[s.id] });
+      list.push({ inDays: i, icon: s.icon, text: c.season === 0 ? `Năm ${c.year} - mùa Xuân bắt đầu` : `Mùa ${s.name} bắt đầu`, note: SEASON_NOTE[s.id] });
     }
     if (c.dayOfSeason === DAYS_PER_SEASON) list.push({ inDays: i, icon: '📊', text: c.season === seasons.length - 1 ? `Tổng kết năm ${c.year}` : `Tổng kết mùa ${seasons[c.season].name}` });
   }

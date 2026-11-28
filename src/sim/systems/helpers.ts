@@ -8,10 +8,10 @@ import { dropWork } from './crew';
 import { needOf, readyOrders, taskTaken } from './service';
 
 /**
- * NHÂN VIÊN PHỤC VỤ THUÊ THÊM — mỗi bậc hạng quán (từ hạng 2) thêm 1 chỗ, tối đa 4 người.
+ * NHÂN VIÊN PHỤC VỤ THUÊ THÊM - mỗi bậc hạng quán (từ hạng 2) thêm 1 chỗ, tối đa 4 người.
  *  - Người chơi giao việc: bưng món (serve), mang menu + ghi món (menu), dọn bàn (clean), lau sàn (mop).
  *    Nhân viên rảnh thì tự nhận việc đang chờ theo thứ tự đó; đi lại / làm việc dùng chung luật với bồi bàn (service.ts).
- *  - Năng lượng, xỉu, giờ nghỉ ra chợ ăn: chung cho cả đội — xem systems/crew.ts.
+ *  - Năng lượng, xỉu, giờ nghỉ ra chợ ăn: chung cho cả đội - xem systems/crew.ts.
  *  - Từ 2 nhân viên (giai đoạn 15): người thuê đầu tiên là quản lý (mặc vest); mỗi người GIỮ MỘT BÀN (`focus`): mang menu cho bàn
  *    nào thì chỉ ghi món, bưng món cho bàn đó, khách về thì dọn luôn rồi mới nhận bàn mới. Mỗi sáng có thể 1 người bệnh nghỉ (`sick`).
  */
@@ -162,7 +162,7 @@ export const MAX_HELPERS = 4;
 /** Số bàn tối đa theo số ghế (kể cả bàn có sẵn và bàn đang cất): bàn 6, bàn 4, bàn đôi, bàn đơn. */
 export const TABLE_CAPS: Record<number, number> = { 6: 2, 4: 3, 2: 5, 1: 4 };
 /**
- * Số bàn MUA THÊM được (ngoài bàn có sẵn) theo hạng quán, theo số ghế — cộng dồn. Hạng chưa ghi ở đây:
+ * Số bàn MUA THÊM được (ngoài bàn có sẵn) theo hạng quán, theo số ghế - cộng dồn. Hạng chưa ghi ở đây:
  * mỗi bậc +1 mỗi loại (bàn 6 từ hạng 3), vẫn không quá TABLE_CAPS.
  */
 export const TABLE_EXTRA_BY_TIER: Record<number, Record<number, number>> = {

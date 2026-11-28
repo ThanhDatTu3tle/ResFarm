@@ -3,7 +3,7 @@ import type { WoodMats } from './furniture';
 import { G, group, mesh, seeded, toon } from './toon';
 
 /**
- * BÀN BỆT QUÁN NHẬT (bộ sang trọng duy nhất của quán Nhật — DecorDef.style 'zataku_jp'):
+ * BÀN BỆT QUÁN NHẬT (bộ sang trọng duy nhất của quán Nhật - DecorDef.style 'zataku_jp'):
  *  - Bàn bệt (zataku): mặt gỗ nguyên tấm dày, hai đầu là khung chân hình thang (hai trụ choãi + thanh đế), thấp ~0.36 m.
  *  - Đôn ngồi bệt: tấm gỗ dày kê trên hai thanh đế thấp, khách ngồi xếp chân dưới bàn.
  * Dùng bộ vật liệu vân gỗ `WoodMats` của quán (màu theo nội thất). Gốc ở tâm mặt đất; khách nhìn về +z.
@@ -51,7 +51,7 @@ let stoneMat: THREE.MeshToonMaterial | null = null;
 let slabMats: { top: THREE.MeshToonMaterial; edge: THREE.MeshToonMaterial; fleck: THREE.MeshToonMaterial } | null = null;
 
 /**
- * Bàn đá quán Nhật (bộ sang trọng — 'stone_jp'): mặt là phiến đá granite nguyên khối dày, mặt trên mài nhẵn có đốm,
+ * Bàn đá quán Nhật (bộ sang trọng - 'stone_jp'): mặt là phiến đá granite nguyên khối dày, mặt trên mài nhẵn có đốm,
  * mép đẽo thô (các mảng đá lồi lõm sẫm hơn chạy quanh); một đầu kê trên khối đá cuội tròn, đầu kia kê khối đá
  * chẻ xếp chồng. Ghế là đôn gỗ hộp vuông (gỗ ấm tương phản với đá).
  */

@@ -2,7 +2,7 @@ import type { ItemDef } from './types';
 
 /** Thêm nguyên liệu mới: thêm 1 dòng ở đây, rồi cho nó một nguồn (sạp chợ hoặc producer). */
 export const items: ItemDef[] = [
-  // Nguyên liệu mặc định — không bao giờ hết
+  // Nguyên liệu mặc định - không bao giờ hết
   { id: 'rice', name: 'Gạo', icon: '🍚', category: 'staple', infinite: true, basePrice: 0 },
   { id: 'water', name: 'Nước', icon: '💧', category: 'staple', infinite: true, basePrice: 0 },
   { id: 'oil', name: 'Dầu ăn', icon: '🫗', category: 'staple', infinite: true, basePrice: 0 },
@@ -32,7 +32,7 @@ export const items: ItemDef[] = [
   { id: 'shrimp', name: 'Tôm', icon: '🦐', category: 'seafood', basePrice: 9 },
   { id: 'squid', name: 'Mực', icon: '🦑', category: 'seafood', basePrice: 13 },
   { id: 'salmon', name: 'Cá hồi', icon: '🐠', category: 'seafood', basePrice: 18 },
-  // Ốc, sò nuôi ở ao (giai đoạn 12) — chưa có món nào dùng, bán dư hoặc giao đơn hàng
+  // Ốc, sò nuôi ở ao (giai đoạn 12) - chưa có món nào dùng, bán dư hoặc giao đơn hàng
   { id: 'oc_huong', name: 'Ốc hương', icon: '🐚', category: 'seafood', basePrice: 14 },
   { id: 'oc_mong_tay', name: 'Ốc móng tay', icon: '🐚', category: 'seafood', basePrice: 11 },
   { id: 'so_diep', name: 'Sò điệp', icon: '🐚', category: 'seafood', basePrice: 15 },
@@ -46,7 +46,7 @@ export const items: ItemDef[] = [
   { id: 'egg', name: 'Trứng', icon: '🥚', category: 'dairy', basePrice: 4 },
   { id: 'milk', name: 'Sữa', icon: '🥛', category: 'dairy', basePrice: 6 },
 
-  // Đồ khô — chỉ mua được ngoài chợ
+  // Đồ khô - chỉ mua được ngoài chợ
   { id: 'noodle', name: 'Bánh phở', icon: '🍜', category: 'dry', basePrice: 5 },
   { id: 'rice_noodle', name: 'Bún', icon: '🍥', category: 'dry', basePrice: 4 },
   { id: 'wheat_noodle', name: 'Mì sợi', icon: '🍝', category: 'dry', basePrice: 4 },
@@ -57,7 +57,7 @@ export const items: ItemDef[] = [
   { id: 'bread', name: 'Bánh mì', icon: '🥖', category: 'dry', basePrice: 4 },
   { id: 'cheese', name: 'Phô mai', icon: '🧀', category: 'dry', basePrice: 8 }, // chỉ mua ở chợ, không tự làm được
 
-  // Nông sản thô — chỉ để chở tới cối chế biến (không bán ngoài chợ)
+  // Nông sản thô - chỉ để chở tới cối chế biến (không bán ngoài chợ)
   // Trái cây (vườn cây ăn quả)
   { id: 'orange', name: 'Cam', icon: '🍊', category: 'fruit', basePrice: 6 },
   { id: 'apple', name: 'Táo', icon: '🍎', category: 'fruit', basePrice: 6 },

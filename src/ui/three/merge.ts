@@ -3,14 +3,14 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { seasonBaseOf } from './toon';
 
 /**
- * GỘP MESH TĨNH (tối ưu số lần vẽ): các mesh đứng yên trong một nhóm cảnh được gộp thành ít mesh — mỗi vật liệu
+ * GỘP MESH TĨNH (tối ưu số lần vẽ): các mesh đứng yên trong một nhóm cảnh được gộp thành ít mesh - mỗi vật liệu
  * (cùng cờ đổ bóng / nhận bóng / màu gốc theo mùa) một mesh. Hình giữ nguyên, số lần vẽ giảm mạnh.
  *
  * Chỉ gọi trên nhóm CẢNH TĨNH mà không chỗ nào khác giữ tham chiếu tới từng mesh bên trong để cử động / ẩn hiện
  * (giữ tham chiếu tới VẬT LIỆU thì không sao: khối gộp dùng chung vật liệu, đổi màu / phát sáng vẫn ăn).
- * Nút "ranh giới" không gộp ra ngoài: nút có userData.sway (tán cây đung đưa — gộp bên trong tán), userData.pick
- * (vùng bấm — gộp bên trong nhóm đó, mesh tự là vùng bấm thì giữ nguyên), userData.keep (đánh dấu tay), sprite, đèn.
- * Người (nút có userData.rig — tay chân cử động) và nút userData.noMerge thì bỏ qua hẳn, không gộp gì bên trong.
+ * Nút "ranh giới" không gộp ra ngoài: nút có userData.sway (tán cây đung đưa - gộp bên trong tán), userData.pick
+ * (vùng bấm - gộp bên trong nhóm đó, mesh tự là vùng bấm thì giữ nguyên), userData.keep (đánh dấu tay), sprite, đèn.
+ * Người (nút có userData.rig - tay chân cử động) và nút userData.noMerge thì bỏ qua hẳn, không gộp gì bên trong.
  * Mesh đổi màu theo mùa (lá, cỏ) gộp riêng theo màu gốc và ghi userData.seasonBase để paintSeason vẫn tô được.
  * Trả về số mesh đã bỏ đi (để đo).
  */
@@ -23,7 +23,7 @@ function isBoundary(o: THREE.Object3D): boolean {
   return o.userData.sway !== undefined || o.userData.pick !== undefined || o.userData.keep !== undefined;
 }
 
-/** Gộp các mesh tĩnh thuộc về nút `host` (không vượt qua nút ranh giới con — nút đó tự gộp phần của nó). */
+/** Gộp các mesh tĩnh thuộc về nút `host` (không vượt qua nút ranh giới con - nút đó tự gộp phần của nó). */
 function mergeUnder(host: THREE.Object3D, foliage: boolean): number {
   const meshes: THREE.Mesh[] = [];
   let removed = 0;
@@ -100,7 +100,7 @@ function mergeUnder(host: THREE.Object3D, foliage: boolean): number {
 
 /**
  * Gộp các mesh gắn TRỰC TIẾP vào từng bộ phận cử động (thân, đầu, tay, chân của một người): cùng vật liệu thì gộp
- * (tóc nhiều mảnh, má hồng, phụ kiện…). Không đụng nhóm con (mắt chớp, khăn quàng, dù, chảo, đồ trên tay — những thứ
+ * (tóc nhiều mảnh, má hồng, phụ kiện…). Không đụng nhóm con (mắt chớp, khăn quàng, dù, chảo, đồ trên tay - những thứ
  * này được bật / tắt / thay giữa chừng) và không đụng mesh có con. Mesh trực tiếp của bộ phận nằm yên so với bộ phận đó
  * nên gộp vào chính bộ phận là đúng hình. Trả về số mesh đã bỏ đi.
  */
@@ -149,7 +149,7 @@ export function mergeParts(parts: THREE.Object3D[]): number {
 
 /**
  * Chạy hàm dựng `build` rồi gom mọi thứ nó vừa gắn vào `root` vào một nhóm mới (trong root) và gộp mesh nhóm đó.
- * Chỉ dùng cho phần dựng cảnh tĩnh — không chỗ nào giữ tham chiếu tới từng mesh để cử động / ẩn hiện.
+ * Chỉ dùng cho phần dựng cảnh tĩnh - không chỗ nào giữ tham chiếu tới từng mesh để cử động / ẩn hiện.
  */
 export function mergeAdded(root: THREE.Object3D, build: () => void, foliage = true): THREE.Group {
   const before = new Set(root.children);

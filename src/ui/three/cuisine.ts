@@ -256,7 +256,7 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
     // Rèm noren treo ở đầu trong của cạnh ngắn (lối đầu bếp ra vào), mèo thần tài trên góc quầy
     noren(r, L.xStart + 0.75, 2.45, L.zCorner - 0.5, 1.1, 2);
     wavers.push(manekiNeko(r, L.x, 1.18, L.zCorner, 1.3));
-    // (đã bỏ 2 đèn lồng đỏ treo giữa khu bàn — vướng mắt, che bong bóng khách)
+    // (đã bỏ 2 đèn lồng đỏ treo giữa khu bàn - vướng mắt, che bong bóng khách)
     for (const [x, z] of [[-d.halfW + 0.7, d.frontZ - 0.8], [d.halfW - 0.7, d.frontZ - 0.8]]) bonsai(r, x, z);
     for (const side of [-1, 1]) for (let i = 0; i < 9; i++) mesh(r, G.cyl(0.035, 0.035, 2.2, 6), 0x8fb35a, { p: [side * (d.halfW - 0.1), 1.1, d.frontZ - 3.4 + i * 0.09], cast: false });
   } else if (cuisine === 'jp') {
@@ -328,24 +328,24 @@ export function seatStyle(cuisine: CuisineId): SeatStyle {
 }
 
 /**
- * Đồ trên bàn (bàn thường, không phải quầy): Nhật — hộp giấy, khay lọ nước tương, đĩa chấm (buildJpSet); Hàn — kệ menu, hộp giấy, ống đũa muỗng, chai soju sát mép (vỉ nướng nằm trong bàn: buildGrillTable); Ốc — đĩa ống đũa inox + chai lọ (buildChopstickSet); Việt — khay đa năng gỗ (buildCaddy: hộp giấy, ống đũa thìa, hũ sứ, tương ớt, nước tương, tăm). Gốc toạ độ ở tâm bàn, mặt bàn ở `top`.
+ * Đồ trên bàn (bàn thường, không phải quầy): Nhật - hộp giấy, khay lọ nước tương, đĩa chấm (buildJpSet); Hàn - kệ menu, hộp giấy, ống đũa muỗng, chai soju sát mép (vỉ nướng nằm trong bàn: buildGrillTable); Ốc - đĩa ống đũa inox + chai lọ (buildChopstickSet); Việt - khay đa năng gỗ (buildCaddy: hộp giấy, ống đũa thìa, hũ sứ, tương ớt, nước tương, tăm). Gốc toạ độ ở tâm bàn, mặt bàn ở `top`.
  */
 export function tableExtras(cuisine: CuisineId, g: THREE.Object3D, top: number, w: number, d: number, seed = 1, seats: { x: number; z: number }[] = []): void {
   if (cuisine === 'oc') {
-    // Đĩa thiếc: ống inox cắm đũa, chai nước tương, chai nước mắm, cốc tăm — sát mép bàn đôi, giữa bàn bốn
+    // Đĩa thiếc: ống inox cắm đũa, chai nước tương, chai nước mắm, cốc tăm - sát mép bàn đôi, giữa bàn bốn
     placeCaddy(g, top, w, d, seats, seed, buildChopstickSet, 0.15, 1);
   } else if (cuisine === 'kr') {
     // Vỉ nướng nằm trong bàn (buildGrillTable); kệ menu, hộp giấy, ống đũa muỗng, soju luôn sát một mép trống
     placeCaddy(g, top, w, d, seats, seed, buildKrSet, 0.1, 1.2, true);
   } else if (cuisine === 'jp') {
-    // Hộp giấy, khay lọ nước tương + shichimi, chồng đĩa chấm — sát mép bàn đôi, giữa bàn bốn
+    // Hộp giấy, khay lọ nước tương + shichimi, chồng đĩa chấm - sát mép bàn đôi, giữa bàn bốn
     placeCaddy(g, top, w, d, seats, seed, buildJpSet, 0.13, 1.3);
   } else {
     placeCaddy(g, top, w, d, seats, seed);
   }
 }
 
-/** Đồ trên quầy dài: Nhật — tủ kính sushi; Hàn — khay kimchi; Việt — rổ rau thơm. Quầy chạy dọc x, sâu d. */
+/** Đồ trên quầy dài: Nhật - tủ kính sushi; Hàn - khay kimchi; Việt - rổ rau thơm. Quầy chạy dọc x, sâu d. */
 export function counterExtras(cuisine: CuisineId, g: THREE.Object3D, top: number, w: number, d: number): void {
   if (cuisine === 'oc') {
     // Bàn dài nhựa: rổ rau thơm, chai tương ớt, chén muối tiêu chanh

@@ -17,6 +17,8 @@ export type Pick =
   | { type: 'pass'; id: string }
   /** Quầy cashier nhận đơn giao tận nơi (giai đoạn 18). */
   | { type: 'cashier'; id: string }
+  /** Lô đất hoang bên Đông quán (id = số lô): bấm mở bảng Quán tới thẻ dọn lô / nâng hạng. */
+  | { type: 'lot'; id: string }
   /** Cối chế biến ở nông trại (id = MillState.id). */
   | { type: 'mill'; id: string }
   /** Chỗ trống mua thêm được ở nông trại: id = loại ô (SlotType) hoặc loại cối (MillType). */
@@ -59,7 +61,7 @@ export interface Env {
 
 /**
  * Một KHU VỰC = một "màn hình" 3D. Thêm khu mới: viết class implements Area trong ./areas
- * rồi thêm vào mảng areas ở app.ts — nút chuyển khu tự xuất hiện.
+ * rồi thêm vào mảng areas ở app.ts - nút chuyển khu tự xuất hiện.
  */
 export interface Area {
   id: string;
@@ -67,14 +69,14 @@ export interface Area {
   icon: string;
   root: THREE.Group;
   /** Góc nhìn mặc định; `orbit` là góc xoay ngang tối đa sang mỗi bên (radian). */
-  view: { position: V3; target: V3; orbit: number };
+  view: { position: V3; target: V3; orbit: number; zoomOut?: number };
   /** Vùng mưa rơi (trong nhà thì chỉ mưa phía ngoài cửa sổ). */
   rainBox: { min: V3; max: V3 };
   /** Khu ngoài trời: có vệt gió bay ngang khi trời gió. */
   outdoor?: boolean;
-  /** Mái che trong vùng mưa (toạ độ của root, mét): giọt mưa trong khung x/z này không vẽ (`y` = độ cao mái) — quán ốc: sạp dù + mái kéo dài khi mưa. */
+  /** Mái che trong vùng mưa (toạ độ của root, mét): giọt mưa trong khung x/z này không vẽ (`y` = độ cao mái) - quán ốc: sạp dù + mái kéo dài khi mưa. */
   rainShelter?: RainShelter;
-  /** Ban đêm tối thêm bao nhiêu (0..1) khi đang xem khu này — quán vỉa hè về đêm chỉ còn đèn vàng, lửa than. */
+  /** Ban đêm tối thêm bao nhiêu (0..1) khi đang xem khu này - quán vỉa hè về đêm chỉ còn đèn vàng, lửa than. */
   nightDark?: number;
   /** Đồng bộ hình ảnh với game.state. dt: giây thực; speed: tốc độ game. */
   update(env: Env, dt: number, speed: number): void;
@@ -105,7 +107,7 @@ const FLAKES = 700;
 const TARGET_ROAM = 24;
 /** Khu không nhớ góc nhìn: bên trong quầy chợ (mỗi lần vào một quầy khác nhau). */
 const FRESH_VIEW = new Set(['stall', 'market']);
-/** Tông trời / ánh nắng theo mùa [màu, mức pha] — Xuân giữ nguyên. */
+/** Tông trời / ánh nắng theo mùa [màu, mức pha] - Xuân giữ nguyên. */
 const SEASON_SKY: [THREE.Color, number][] = [
   [new THREE.Color(0x9fd8f5), 0],
   [new THREE.Color(0x8fd3f7), 0.25],
@@ -158,10 +160,10 @@ export class Stage {
   /** Camera đang lướt tới một chỗ (bấm ô nông trại) hoặc lướt về góc mặc định. */
   /** Góc nhìn đã nhớ của từng khu (setArea): rời khu thì lưu, quay lại thì trả. */
   private views = new Map<string, { target: THREE.Vector3; position: THREE.Vector3 }>();
-  private camTween: { fromT: THREE.Vector3; toT: THREE.Vector3; fromP: THREE.Vector3; toP: THREE.Vector3; k: number } | null = null;
+  private camTween: { fromT: THREE.Vector3; toT: THREE.Vector3; fromP: THREE.Vector3; toP: THREE.Vector3; k: number; dur?: number } | null = null;
   private raycaster = new THREE.Raycaster();
   private firstFrame = true;
-  /** Giờ trong ngày để vẽ trời / đèn (phút từ 00:00) thay cho giờ của sim — chế độ thăm quán (F2): sim chạy một đoạn ca, trời theo giờ người đi thăm. */
+  /** Giờ trong ngày để vẽ trời / đèn (phút từ 00:00) thay cho giờ của sim - chế độ thăm quán (F2): sim chạy một đoạn ca, trời theo giờ người đi thăm. */
   clockMinute: number | null = null;
   private controls: OrbitControls;
   private dragging: Pick | null = null;
@@ -301,6 +303,31 @@ export class Stage {
     this.setArea(areas[0].id);
   }
 
+  /**
+   * Làm nóng trước các khu đang ẩn (chợ, nông trại, nhà kính, trong quầy chợ): lần đầu một vật liệu hiện ra, card đồ hoạ
+   * mới biên dịch shader + nạp texture nên chuyển khu lần đầu bị khựng. Gọi lúc rảnh sau khi vào game: lần lượt từng khu,
+   * bật hiện tạm thời để biên dịch shader (compileAsync, chạy song song nếu trình duyệt hỗ trợ) và nạp sẵn texture lên card.
+   */
+  async warmUp(): Promise<void> {
+    const r = this.renderer;
+    for (const area of [...this.areas]) {
+      if (area === this.current || !this.areas.includes(area)) continue;
+      const was = area.root.visible;
+      area.root.visible = true;
+      const job = r.compileAsync(area.root, this.camera, this.scene).catch(() => undefined);
+      area.root.visible = was;
+      const textures = new Set<THREE.Texture>();
+      area.root.traverse((o) => {
+        const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+        for (const mat of Array.isArray(m) ? m : m ? [m] : []) for (const v of Object.values(mat)) if (v instanceof THREE.Texture) textures.add(v);
+      });
+      for (const t of textures) r.initTexture(t);
+      await job;
+      // Nhường khung hình cho game giữa các khu
+      await new Promise((ok) => requestAnimationFrame(ok));
+    }
+  }
+
   /** Thay một khu bằng bản dựng mới (vd quán lên hạng, phòng to hơn). Đang xem khu đó thì chuyển sang bản mới luôn. */
   replaceArea(old: Area, next: Area): void {
     const i = this.areas.indexOf(old);
@@ -323,7 +350,7 @@ export class Stage {
   setArea(id: string): void {
     const next = this.areas.find((a) => a.id === id);
     if (!next) return;
-    // Nhớ góc nhìn (xoay / zoom) của khu đang rời — quay lại thì y như lúc đi. Đang lướt camera thì nhớ điểm cuối.
+    // Nhớ góc nhìn (xoay / zoom) của khu đang rời - quay lại thì y như lúc đi. Đang lướt camera thì nhớ điểm cuối.
     if (next !== this.current && !FRESH_VIEW.has(this.current.id)) {
       const tw = this.camTween;
       this.views.set(this.current.id, { target: (tw?.toT ?? this.controls.target).clone(), position: (tw?.toP ?? this.camera.position).clone() });
@@ -353,7 +380,8 @@ export class Stage {
     this.camera.position.copy(c.target).add(offset);
     const distance = offset.length();
     c.minDistance = distance * 0.3;
-    c.maxDistance = distance * 1.25;
+    // `zoomOut`: khu cho lùi xa hơn mặc định (quán: thấy cả bãi đất hoang quanh quán)
+    c.maxDistance = distance * (this.current.view.zoomOut ?? 1.25);
     const azimuth = Math.atan2(offset.x, offset.z);
     c.minAzimuthAngle = azimuth - orbit;
     c.maxAzimuthAngle = azimuth + orbit;
@@ -378,20 +406,50 @@ export class Stage {
     this.camTween = { fromT: c.target.clone(), toT, fromP: this.camera.position.clone(), toP: toT.clone().add(dir.multiplyScalar(base * closer)), k: 0 };
   }
 
-  /** Lướt camera về góc mặc định của khu hiện tại (bỏ zoom của focusOn). */
-  unfocus(): void {
+  /**
+   * Lướt camera nhìn vào (x, z) theo một góc cố định: `offset` = vị trí camera so với điểm nhìn (m).
+   * `snap` = đặt ngay không lướt. Dùng cho bãi đất hoang (góc chéo từ trước bên phải, thấy trọn các lô).
+   */
+  focusAt(x: number, z: number, offset: [number, number, number], snap = false): void {
+    const c = this.controls;
+    const toT = new THREE.Vector3(x, 0, z);
+    const toP = toT.clone().add(new THREE.Vector3(...offset));
+    c.maxDistance = Math.max(c.maxDistance, toP.distanceTo(toT) * 1.05);
+    if (snap) {
+      c.target.copy(toT);
+      this.camera.position.copy(toP);
+      c.update();
+      this.camTween = null;
+      return;
+    }
+    this.camTween = { fromT: c.target.clone(), toT, fromP: this.camera.position.clone(), toP, k: 0, dur: 0.9 };
+  }
+
+  /** Đặt ngay camera nhìn vào (x, z) như focusOn nhưng không lướt (chuyển cảnh: dựng khu mới ở đúng góc cũ). */
+  snapFocus(x: number, z: number, closer = 0.62): void {
+    this.focusOn(x, z, closer);
+    const tw = this.camTween!;
+    this.controls.target.copy(tw.toT);
+    this.camera.position.copy(tw.toP);
+    this.controls.update();
+    this.camTween = null;
+  }
+
+  /** Lướt camera về góc mặc định của khu hiện tại (bỏ zoom của focusOn); `dur` = thời gian lướt (giây). */
+  unfocus(dur = 0.55): void {
     const { position, target } = this.current.view;
     const pull = Math.max(1, BASE_ASPECT / this.camera.aspect);
     const toT = new THREE.Vector3(...target);
     const toP = toT.clone().add(new THREE.Vector3(position[0] - target[0], position[1] - target[1], position[2] - target[2]).multiplyScalar(pull));
-    this.camTween = { fromT: this.controls.target.clone(), toT, fromP: this.camera.position.clone(), toP, k: 0 };
+    this.camTween = { fromT: this.controls.target.clone(), toT, fromP: this.camera.position.clone(), toP, k: 0, dur };
   }
 
   private updateTween(dt: number): void {
     const tw = this.camTween;
     if (!tw) return;
-    tw.k = Math.min(1, tw.k + dt / 0.55);
-    const e = 1 - Math.pow(1 - tw.k, 3); // chậm dần
+    tw.k = Math.min(1, tw.k + dt / (tw.dur ?? 0.55));
+    // Lướt dài (chuyển cảnh): nhanh dần rồi chậm dần; lướt ngắn: chậm dần
+    const e = (tw.dur ?? 0.55) > 1 ? (tw.k < 0.5 ? 4 * tw.k ** 3 : 1 - (-2 * tw.k + 2) ** 3 / 2) : 1 - Math.pow(1 - tw.k, 3);
     this.controls.target.lerpVectors(tw.fromT, tw.toT, e);
     this.camera.position.lerpVectors(tw.fromP, tw.toP, e);
     this.controls.update();
@@ -400,7 +458,7 @@ export class Stage {
 
   /**
    * Zoom theo con trỏ làm tâm nhìn trôi đi: càng lại gần thì được trôi xa khỏi tâm mặc định của khu (tối đa TARGET_ROAM m),
-   * lùi ra hết cỡ thì tâm nhìn tự kéo về giữa khu — không bao giờ lạc ra ngoài bản đồ.
+   * lùi ra hết cỡ thì tâm nhìn tự kéo về giữa khu - không bao giờ lạc ra ngoài bản đồ.
    */
   private clampTarget(): void {
     const c = this.controls;
@@ -420,7 +478,7 @@ export class Stage {
     this.camera.position.add(fix);
   }
 
-  /** Toạ độ màn hình (px, theo viewport) của một điểm trong thế giới 3D — để hiệu ứng DOM bay ra từ vật thể. */
+  /** Toạ độ màn hình (px, theo viewport) của một điểm trong thế giới 3D - để hiệu ứng DOM bay ra từ vật thể. */
   toScreen(world: THREE.Vector3): { x: number; y: number } {
     const ndc = world.clone().project(this.camera);
     const rect = this.renderer.domElement.getBoundingClientRect();
@@ -490,7 +548,7 @@ export class Stage {
   }
 
   /**
-   * Vệt gió: vài sợi chỉ mảnh (nét 1 px), ngắn, uốn lượn, mờ, trôi ngang qua khung nhìn khu ngoài trời — chỉ để "có cảm giác" gió.
+   * Vệt gió: vài sợi chỉ mảnh (nét 1 px), ngắn, uốn lượn, mờ, trôi ngang qua khung nhìn khu ngoài trời - chỉ để "có cảm giác" gió.
    * Gió nhẹ: thỉnh thoảng 1–2 sợi; gió mạnh: tối đa STREAKS sợi, trôi nhanh và lượn nhiều hơn.
    */
   private updateStreaks(dt: number): void {
@@ -594,7 +652,7 @@ export class Stage {
         const px = min[0] + this.rainSeed[i * 3] * (max[0] - min[0]) + (1 - y) * slant * 4;
         const py = min[1] + y * (max[1] - min[1]);
         const pz = min[2] + this.rainSeed[i * 3 + 2] * (max[2] - min[2]);
-        // Trong khung mái che: không vẽ (cả giọt phía trên mái — camera nhìn từ trên xuống sẽ thấy như mưa trong quán)
+        // Trong khung mái che: không vẽ (cả giọt phía trên mái - camera nhìn từ trên xuống sẽ thấy như mưa trong quán)
         if (roof && px > roof.x1 && px < roof.x2 && pz > roof.z1 && pz < roof.z2) {
           pos.setXYZ(i * 2, 0, -100, 0);
           pos.setXYZ(i * 2 + 1, 0, -100, 0);

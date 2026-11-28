@@ -24,7 +24,7 @@ export function moodOf(ctx: SimContext, party: Party): Mood {
 
 /**
  * Vòng đời khách: tới -> xếp hàng -> ngồi bàn (chờ menu) -> xem menu -> chờ ghi món -> chờ món -> ăn -> trả tiền.
- * Mang menu, ghi món, bưng món là việc của bồi bàn (người chơi) — xem systems/service.ts.
+ * Mang menu, ghi món, bưng món là việc của bồi bàn (người chơi) - xem systems/service.ts.
  */
 export const customerSystem: System = {
   id: 'customers',
@@ -35,7 +35,7 @@ export const customerSystem: System = {
     const b = content.balance;
     const r = state.restaurant;
 
-    // Quá giờ khách phải về (12:30 / 21:30): khách đang ăn trả tiền luôn, còn lại mời về (không trừ uy tín)
+    // Quá giờ khách phải về (12:30 / 22:00): khách đang ăn trả tiền luôn, còn lại mời về (không trừ uy tín)
     if (r.parties.length && !inSeating(ctx)) {
       for (const p of [...r.parties]) {
         if (p.phase === 'eating') pay(ctx, p);
@@ -63,6 +63,11 @@ export const customerSystem: System = {
             p.walking = Math.max(0, p.walking! - dt);
             break;
           }
+          // Hết ca (đóng cửa) mà khách vẫn còn chờ ngoài cửa: mời về luôn, không xếp bàn nữa (kẻo vào ngồi rồi bị mời về)
+          if (!inShift(ctx)) {
+            leave(ctx, p, 'closed');
+            break;
+          }
           const spot = findSeats(ctx, p.size);
           if (spot) {
             p.tableId = spot.tableId;
@@ -74,9 +79,6 @@ export const customerSystem: System = {
             p.walking = walkToSeat(ctx, spot.tableId);
             ctx.bus.emit('party/seated', { partyId: p.id, tableId: spot.tableId });
             if (!p.walking) ctx.bus.emit('party/needs', { partyId: p.id, need: 'menu' });
-          } else if (!inShift(ctx)) {
-            // Hết ca mà vẫn chưa có bàn: quán treo biển nghỉ, khách hẹn lần sau (để cả đội còn ra chợ nghỉ trưa)
-            leave(ctx, p, 'closed');
           } else {
             p.patience -= dt;
             if (p.patience <= 0) leave(ctx, p, 'queueTimeout');
@@ -211,7 +213,7 @@ function bigGroupsFull(ctx: SimContext, size: number): boolean {
 }
 
 /**
- * Đoàn khách du lịch: mỗi bàn còn trống (không khách, không chén dĩa dơ) một nhóm đúng cỡ bàn, mỗi ghế quầy trống một khách lẻ —
+ * Đoàn khách du lịch: mỗi bàn còn trống (không khách, không chén dĩa dơ) một nhóm đúng cỡ bàn, mỗi ghế quầy trống một khách lẻ -
  * ngồi kín 100% bàn. Trả số nhóm.
  */
 export function spawnTour(ctx: SimContext): number {
@@ -228,7 +230,7 @@ export function spawnTour(ctx: SimContext): number {
   return n;
 }
 
-/** Cách nhóm khách tới quán (tất định theo id nhóm — cảnh trước cửa vẽ theo đây): ~40% đi bộ, ~40% xe máy, ~20% ô tô. */
+/** Cách nhóm khách tới quán (tất định theo id nhóm - cảnh trước cửa vẽ theo đây): ~40% đi bộ, ~40% xe máy, ~20% ô tô. */
 export function arrivalMode(partyId: number): 'walk' | 'moto' | 'car' {
   const h = (partyId * 7919 + 13) % 20;
   return h < 8 ? 'walk' : h < 16 ? 'moto' : 'car';
@@ -240,7 +242,7 @@ function walkToSeat(ctx: SimContext, tableId: string): number {
   const t = tableById(ctx, tableId);
   if (!t) return 0;
   const at = tablePos(ctx, t);
-  // Nhân 1.8 + 1.5 phút: đường đi thật vòng qua bàn ghế, có khi chờ người đi trước — ước dư để nhân viên không tới bàn trước khách
+  // Nhân 1.8 + 1.5 phút: đường đi thật vòng qua bàn ghế, có khi chờ người đi trước - ước dư để nhân viên không tới bàn trước khách
   return (Math.hypot(at.x - room.width / 2, at.y - room.height) * 1.8) / ctx.content.balance.arrival.seatUnitsPerMinute + 1.5;
 }
 
@@ -252,7 +254,7 @@ export function spawnParty(ctx: SimContext, opts: { size?: number; vip?: string;
   if (regular) size = Math.min(size, content.balance.regulars.maxPartySize);
   // Không có bàn đủ chỗ thì nhóm nhỏ lại cho vừa bàn lớn nhất đang có (quán nhỏ chỉ có bàn bốn)
   size = Math.min(size, Math.max(1, ...activeTables(ctx).map((t) => t.maxParty ?? (t.shared ? 1 : t.seats))));
-  // Nhóm đông (3 người trở lên): cùng lúc tối đa (số bàn vừa nhóm đó + 1) nhóm cần loại bàn đó — đông hơn thì nhóm nhỏ lại
+  // Nhóm đông (3 người trở lên): cùng lúc tối đa (số bàn vừa nhóm đó + 1) nhóm cần loại bàn đó - đông hơn thì nhóm nhỏ lại
   if (!opts.size) while (size > 2 && bigGroupsFull(ctx, size)) size--;
   const patience = content.balance.queuePatience * modifier(ctx, 'patience');
   const party: Party = {

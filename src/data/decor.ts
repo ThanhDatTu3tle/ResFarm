@@ -8,7 +8,7 @@ export const decorSlotNames: Record<DecorSlot, string> = {
 
 /**
  * Nội thất bán ở Siêu thị. Mỗi vị trí (slot) dùng 1 món tại một thời điểm; mua rồi thì đổi qua lại miễn phí.
- * Thêm món mới: thêm 1 mục ở đây — cảnh quán tự đổi màu theo `colors`:
+ * Thêm món mới: thêm 1 mục ở đây - cảnh quán tự đổi màu theo `colors`:
  *   floor:     a, b              (hai tông ván sàn xen kẽ)
  *   wall:      wall, trim        (mảng tường, chân tường/khung)
  *   furniture: top, base, seat, back
@@ -35,7 +35,7 @@ export const decor: DecorDef[] = [
   { id: 'floor_marble', name: 'Đá cẩm thạch', icon: '⬜', slot: 'floor', cost: 900, level: 4, exclude: ['vn', 'oc'], colors: { a: 0xe9eef2, b: 0xcfd8dc }, modifiers: { dishPrice: 1.05 } },
 
   // Sơn tường
-  // Quán Việt: tường vàng cam, chân tường gỗ (khung cửa sổ xanh lá vẽ riêng — id giữ 'wall_cream' cho save cũ)
+  // Quán Việt: tường vàng cam, chân tường gỗ (khung cửa sổ xanh lá vẽ riêng - id giữ 'wall_cream' cho save cũ)
   { id: 'wall_cream', name: 'Sơn vàng cam', icon: '🎨', slot: 'wall', cost: 0, level: 1, isDefault: true, cuisine: 'vn', colors: { wall: 0xe8ad45, trim: 0xb9733f } },
   { id: 'wall_shoji', name: 'Vách giấy shoji', icon: '🎨', slot: 'wall', cost: 0, level: 1, isDefault: true, cuisine: 'jp', colors: { wall: 0xf6f1e4, trim: 0x5a3a26 } },
   // Ngừng bán (quán Hàn đổi mặc định sang giấy hanji; save cũ được trả tiền)
@@ -67,7 +67,7 @@ export const decor: DecorDef[] = [
   { id: 'furn_white', name: 'Bàn ghế sơn trắng', icon: '🪑', slot: 'furniture', cost: 450, level: 2, exclude: ['jp', 'kr'], colors: { top: 0xe8dcc2, base: 0xcbbfa6, seat: 0x6fb7c9, back: 0xe8dcc2 }, modifiers: { patience: 1.05 } },
   { id: 'furn_oak', name: 'Gỗ sồi đệm xanh', icon: '🪑', slot: 'furniture', cost: 800, level: 3, exclude: ['vn', 'oc', 'jp', 'kr'], colors: { top: 0xc98b4f, base: 0x5a3a22, seat: 0x3f8f6a, back: 0x5a3a22 }, modifiers: { patience: 1.1 } },
   { id: 'furn_luxury', name: 'Bộ sang trọng', icon: '👑', slot: 'furniture', cost: 1500, level: 5, exclude: ['vn', 'oc', 'jp', 'kr'], colors: { top: 0x3b2a2a, base: 0x1f1a17, seat: 0xc8483a, back: 0xd4af37 }, modifiers: { patience: 1.15, tip: 1.15 } },
-  // Quán Việt: bàn ghế có model riêng (furniturevn.ts) — gỗ chân tiện vàng cam, bộ gỗ sẫm ghế bành mây
+  // Quán Việt: bàn ghế có model riêng (furniturevn.ts) - gỗ chân tiện vàng cam, bộ gỗ sẫm ghế bành mây
   { id: 'furn_oak_vn', name: 'Bàn ghế gỗ sồi xịn', icon: '🪑', slot: 'furniture', cost: 800, level: 3, cuisine: 'vn', style: 'oak_vn', colors: { top: 0xd08a42, base: 0xb8742f, seat: 0xd08a42, back: 0xb8742f }, modifiers: { patience: 1.1 } },
   // Quán Ốc (quán nhậu lề đường): bàn 4 / bàn 6 ghép từ bàn đôi. Bàn inox và bàn tre cùng bậc, cùng giá, cùng chỉ số
   // Quán Nhật: bàn bệt (zataku) ngồi đôn gỗ → bộ sang trọng bàn đá (quán Hàn dùng chung) (tấm gỗ cũ kê đá cuội + khối gỗ, đôn gỗ hộp)

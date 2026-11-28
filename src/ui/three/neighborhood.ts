@@ -1,11 +1,12 @@
 import * as THREE from 'three';
+import { MOTO_W } from './curbside';
 import { signText } from './cuisine';
 import { makeBush, makeTree } from './models';
 import { G, group, mesh, seeded, toon } from './toon';
 
 /**
  * XÓM QUANH QUÁN (khu quán, mọi phong cách): nhà phố ống kiểu Việt Nam + cây xanh cho bớt trống trải.
- *  - Dãy nhà phía sau quán (bên kia hẻm sau) — quán ốc đã có dãy nhà phố riêng ở street.ts nên bỏ dãy này.
+ *  - Dãy nhà phía sau quán (bên kia hẻm sau) - quán ốc đã có dãy nhà phố riêng ở street.ts nên bỏ dãy này.
  *  - Hai bên, ngoài bãi xe máy / bãi ô tô: nhà mặt tiền quay ra đường, cây bóng mát trên vỉa hè.
  *  - Bụi cây, cây cao điểm xuyết giữa các nhà; cửa sổ sáng đèn vàng khi trời tối.
  * Mặt bằng tính theo cỡ quán (halfW / backZ / frontZ) nên quán nâng hạng rộng ra thì xóm tự giãn theo.
@@ -16,6 +17,8 @@ export interface NeighborDims {
   frontZ: number;
   /** Quán ốc vỉa hè: đã có dãy nhà phía sau. */
   street: boolean;
+  /** Phần quán còn nới thêm về phía Đông tới hạng cao nhất (m): xóm chừa chỗ cho bãi đất hoang. */
+  eastExtra?: number;
 }
 
 const FRONTS = [0xf7c6a3, 0xbfe0c8, 0xf6e2a0, 0xc9d8f0, 0xf4b7b7, 0xd9c7ee, 0xf2d6b3, 0xb9dbe0];
@@ -106,14 +109,17 @@ export function buildNeighborhood(r: THREE.Object3D, d: NeighborDims): (night: n
   const win = toon(0xbfe6ff, { emissive: 0xffc861, emissiveIntensity: 0 });
   let seed = 3;
   let sign = 0;
-  const { halfW, backZ, frontZ } = d;
+  const { halfW, frontZ } = d;
+  const east = d.eastExtra ?? 0;
+  // Hẻm sau + dãy nhà sau tính theo mép sau của quán ở hạng cao nhất
+  const backZ = d.backZ;
 
   // Phía sau quán: hẻm sau lát xi măng + dãy nhà (mặt quay vào hẻm, tức quay về phía quán)
   if (!d.street) {
     const alleyZ = backZ - 1.6;
-    mesh(r, G.box(halfW * 2 + 26, 0.04, 2.0), 0xcfcbc2, { p: [0, -0.13, alleyZ], cast: false });
+    mesh(r, G.box(halfW * 2 + east + 26, 0.04, 2.0), 0xcfcbc2, { p: [east / 2, -0.13, alleyZ], cast: false });
     let x = -halfW - 12;
-    while (x < halfW + 12) {
+    while (x < halfW + east + 12) {
       const w = 3.6 + rnd() * 1.4;
       const h = townhouse(r, w, 2 + Math.floor(rnd() * 2), seed++, win);
       h.position.set(x + w / 2, 0, alleyZ - 1.1);
@@ -124,7 +130,10 @@ export function buildNeighborhood(r: THREE.Object3D, d: NeighborDims): (night: n
 
   // Hai bên, sát mép ngoài hai bãi xe (bãi rộng ~5.6 m): nhà mặt tiền quay ra đường, nhà đầu dãy ngay cạnh bãi
   for (const side of [-1, 1]) {
-    let x = halfW + 6.4;
+    // Bên trái có thêm bãi xe máy ngoài bãi ô tô → dãy nhà bên trái lùi ra thêm
+    // Bên phải: chừa bãi đất hoang (quán còn nới về phía Đông)
+    const off = side < 0 ? MOTO_W + 0.2 : east - 5.2;
+    let x = halfW + 6.4 + off;
     for (let i = 0; i < 4; i++) {
       const w = 3.8 + rnd() * 1.2;
       const h = townhouse(r, w, 2 + Math.floor(rnd() * 2), seed++, win, SIGNS[sign++ % SIGNS.length]);
@@ -132,17 +141,17 @@ export function buildNeighborhood(r: THREE.Object3D, d: NeighborDims): (night: n
       x += w + 0.1;
     }
     // Sau dãy nhà, dọc mép bãi xe: hàng bụi cây + cây cao (che khoảng cỏ trống tới sau quán)
-    const fx = side * (halfW + 6.3);
+    const fx = side * (halfW + 6.3 + off);
     for (let z = backZ - 0.5; z < frontZ - 5.6; z += 0.9) makeBush(r, { p: [fx, 0, z], s: 1.1 + rnd() * 0.3 });
-    for (let z = backZ + 0.4; z < frontZ - 6; z += 3.2) makeTree(r, { p: [side * (halfW + 7.6), 0, z], s: 1.3 + rnd() * 0.3 }, 0x4f9e4a);
+    for (let z = backZ + 0.4; z < frontZ - 6; z += 3.2) makeTree(r, { p: [side * (halfW + 7.6 + off), 0, z], s: 1.3 + rnd() * 0.3 }, 0x4f9e4a);
     // Cây bóng mát trên vỉa hè trước dãy nhà (bồn gốc cây)
-    for (const tx of [halfW + 9.5, halfW + 15]) {
+    for (const tx of [halfW + 9.5 + off, halfW + 15 + off]) {
       const px = side * tx;
       mesh(r, G.box(1.1, 0.12, 1.1), 0x8a6a45, { p: [px, -0.02, frontZ + 2.3], cast: false });
       makeTree(r, { p: [px, 0, frontZ + 2.3], s: 1.2 + rnd() * 0.25 }, 0x4f9e4a);
     }
     // Góc sau bãi xe: cây to
-    makeTree(r, { p: [side * (halfW + 4.6), 0, backZ - 0.6], s: 1.5 });
+    if (side < 0) makeTree(r, { p: [side * (halfW + 4.6), 0, backZ - 0.6], s: 1.5 }); // bên phải là bãi đất hoang
   }
 
   return (night) => {

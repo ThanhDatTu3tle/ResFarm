@@ -6,7 +6,7 @@ import { emojiSprite, G, group, mesh, toon } from './toon';
 import { addHelmet, makeScooter } from './farmkit';
 
 /**
- * KHÁCH QUEN — dựng từ makePerson rồi đổi dáng, tóc, quần/váy và gắn phụ kiện.
+ * KHÁCH QUEN - dựng từ makePerson rồi đổi dáng, tóc, quần/váy và gắn phụ kiện.
  * Khách vãng lai chỉ dùng makePerson cơ bản (không phụ kiện), nên phụ kiện là dấu hiệu nhận ra khách quen.
  */
 
@@ -151,7 +151,7 @@ const HELPER_HAIRS = [0x3a2a1e, 0x1f1a17, 0x6b3f22, 0x2a1f1a];
 
 /**
  * Nhân viên phục vụ: áo theo người + tạp dề trắng + mũ lưỡi trai vàng. `manager` (từ 2 nhân viên, người thuê đầu tiên):
- * bộ vest xanh than, sơ mi trắng, cà vạt đỏ, bảng tên vàng — không tạp dề, không mũ.
+ * bộ vest xanh than, sơ mi trắng, cà vạt đỏ, bảng tên vàng - không tạp dề, không mũ.
  */
 export function makeHelperPerson(look: number, manager: boolean, adultShape: (seed: number, hairs: HairStyle[]) => object): THREE.Group {
   const hairs: HairStyle[] = ['short', 'side', 'pony', 'bob'];
@@ -255,7 +255,7 @@ export function makeShipperBike(): THREE.Group {
 }
 
 /**
- * Nhân viên trực quầy cashier (giai đoạn 18) — trang phục theo văn hoá quán:
+ * Nhân viên trực quầy cashier (giai đoạn 18) - trang phục theo văn hoá quán:
  * quán Việt áo dài (tà trước / tà sau dài, cổ đứng, quần trắng), quán Hàn hanbok (áo jeogori ngắn + nơ goreum đỏ,
  * váy chima phồng từ ngực chấm đất), quán Nhật kimono (áo dài tới mắt cá, đai obi + nơ sau lưng, cổ chéo trắng,
  * tay áo rộng), quán ốc vỉa hè: áo thun quần jean, đeo túi bao tử đựng tiền.
@@ -318,7 +318,7 @@ export function makeCashierStaff(cuisine: string): THREE.Group {
     rimify(g);
     return g;
   }
-  // Quán ốc vỉa hè: giản dị — áo thun, quần jean, túi bao tử đựng tiền thối
+  // Quán ốc vỉa hè: giản dị - áo thun, quần jean, túi bao tử đựng tiền thối
   const g = makePerson({ shirt: 0x4a9bd8, hair: 0x3a2a1e, skin: 0xf2c49b }, 'none', { hair: 'pony' });
   const rig = g.userData.rig as Rig;
   whiteLegs(rig, 0x3a4a6a);

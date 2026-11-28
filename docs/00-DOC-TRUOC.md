@@ -1,4 +1,4 @@
-# Quán Nhà Vườn — tài liệu nội bộ (đọc file này trước)
+# Quán Nhà Vườn - tài liệu nội bộ (đọc file này trước)
 
 Bộ ghi chú này dành cho người hoặc AI (Opus, Sonnet) tiếp tục phát triển game. Nằm trong repo ở thư mục `docs/` để làm việc được trên nhiều máy (chỉ cần `git pull`).
 
@@ -25,19 +25,19 @@ Viết 17/11/2026, cập nhật 18/11/2026 sau phiên làm Giai đoạn 1 (xem `
 
 - **Repo:** https://github.com/ThanhDatTu3tle/ResFarm (công khai). Nhánh `main` = bản đang chạy online (Netlify tự deploy khi `main` đổi). Giai đoạn 1 nằm ở nhánh `giai-doan-1`, gộp vào `main` qua Pull Request.
 - **Kiểm tra tự động:** `npm run typecheck` sạch, `npm test` 25 test qua, `npm run build` qua.
-- **Phiên bản save:** `SAVE_VERSION = 13` (v7 phong cách quán — chơi lại từ đầu, save v1–v6 bị bỏ qua; v8 thêm cối chế biến, v9 thêm nhiệm vụ hệ thống, v10 thêm khách quen + quán của riêng mình, v11 thêm khay bưng nhiều món + chén dĩa dơ + vết bẩn, v12 thêm nhân viên thuê, v13 thêm năng lượng cả đội + giờ nghỉ ra chợ + hoá đơn, có migration v7→…→v13). Xem `src/sim/save.ts`.
+- **Phiên bản save:** `SAVE_VERSION = 13` (v7 phong cách quán - chơi lại từ đầu, save v1–v6 bị bỏ qua; v8 thêm cối chế biến, v9 thêm nhiệm vụ hệ thống, v10 thêm khách quen + quán của riêng mình, v11 thêm khay bưng nhiều món + chén dĩa dơ + vết bẩn, v12 thêm nhân viên thuê, v13 thêm năng lượng cả đội + giờ nghỉ ra chợ + hoá đơn, có migration v7→…→v13). Xem `src/sim/save.ts`.
 - **Chưa kiểm chứng trên thiết bị thật:** âm thanh (chỉ kiểm được code chạy không lỗi), thao tác chạm trên điện thoại, tốc độ khung hình trên máy yếu.
 
 ## Game hiện có gì
 
 1. Ba khu 3D: **Nông trại ‹ Quán ăn › Chợ**, chuyển bằng nút hai bên mép (nút sang Quán hiện số việc đang chờ).
-2. **Quán — người chơi là bồi bàn:** khách ngồi thì hiện bong bóng 📖 → bấm để mang menu → khách xem 3–7 giây → hiện 😊 → bấm để ghi món → bếp nấu xong đặt ở **quầy ra món** → bấm quầy, chọn món, bấm bàn đã gọi → bồi bàn bưng tới. Khách có 4 bậc tâm trạng 😄 🙂 😒 😠 (tụt mỗi 10 giây khi món nằm ở quầy chưa bưng), quyết định tip.
+2. **Quán - người chơi là bồi bàn:** khách ngồi thì hiện bong bóng 📖 → bấm để mang menu → khách xem 3–7 giây → hiện 😊 → bấm để ghi món → bếp nấu xong đặt ở **quầy ra món** → bấm quầy, chọn món, bấm bàn đã gọi → bồi bàn bưng tới. Khách có 4 bậc tâm trạng 😄 🙂 😒 😠 (tụt mỗi 10 giây khi món nằm ở quầy chưa bưng), quyết định tip.
 3. **Thực đơn:** 12 món (có model 3D), 3 món có sẵn, còn lại mở theo cấp + tiền.
 4. **Nguyên liệu:** 5 loại vô hạn + 15 loại phải mua hoặc tự làm ra.
 5. **Chợ:** 3 sạp, giá đổi mỗi ngày.
 6. **Nông trại:** 9 ô ruộng (cuốc → gieo → tưới → thu; cây lớn 3 giai đoạn), 2 chuồng, 1 ao cá nới rộng 3 bậc.
 7. **Siêu thị:** đổi sàn, tường, bàn ghế; mua trang thiết bị; sắp xếp bàn.
-8. **Thời gian:** một ngày mở cửa = 20 phút thực; ngày/đêm; thời tiết; **lịch** (thứ, ngày, mùa, năm — mỗi mùa 28 ngày).
+8. **Thời gian:** một ngày mở cửa = 20 phút thực; ngày/đêm; thời tiết; **lịch** (thứ, ngày, mùa, năm - mỗi mùa 28 ngày).
 9. **Cảm giác:** hiệu ứng nảy, hạt, xu/nông sản bay về HUD, nhân vật chibi cử động (đi, ngồi, ăn, nấu, vẫy), âm thanh + nhạc nền tổng hợp bằng code.
 10. **HUD:** huy hiệu cấp, tiền, uy tín, đồng hồ ngày đêm + lịch + thời tiết; nút ⚙️ mở Cài đặt (tốc độ, âm thanh, toàn màn hình, hướng dẫn nhanh). Font Mali.
 11. **Lưu:** tự lưu vào `localStorage` (mỗi máy một bản lưu riêng).
@@ -81,7 +81,7 @@ Lệnh thứ ba cài skill `impeccable` cho mọi dự án và **thêm hook vào
 Những luật này giữ cho nền tảng không bị vỡ. Vi phạm một trong số chúng thường không gây lỗi ngay nhưng làm dự án khó sửa dần.
 
 1. **Phụ thuộc một chiều `ui → sim → data → core`.** Không bao giờ import ngược. `src/sim` không được dùng `document`, `window`, `three`, `Math.random()`, `Date.now()`.
-2. **Nội dung là dữ liệu.** Thêm món, nguyên liệu, cây, con, sạp, bàn, nội thất, thời tiết = thêm một mục trong `src/data/`. Nếu thấy mình viết `if (id === 'tomato')` trong `sim` hay `ui` thì đang sai hướng — thêm một trường vào định nghĩa (Def) rồi đọc trường đó.
+2. **Nội dung là dữ liệu.** Thêm món, nguyên liệu, cây, con, sạp, bàn, nội thất, thời tiết = thêm một mục trong `src/data/`. Nếu thấy mình viết `if (id === 'tomato')` trong `sim` hay `ui` thì đang sai hướng - thêm một trường vào định nghĩa (Def) rồi đọc trường đó.
 3. **State là JSON thuần và chỉ đổi qua Command hoặc system.** UI không sửa `game.state` trực tiếp (ngoại lệ duy nhất: các tham số debug trong `app.ts`, chỉ chạy ở bản dev).
 4. **Đổi cấu trúc `GameState` thì phải:** tăng `SAVE_VERSION`, viết migration, cập nhật `reconcile()` nếu cần, thêm test tải save cũ. Người chơi đang có save thật.
 5. **Không đổi `id` đã phát hành** (id món, nguyên liệu, ô, bàn...). Save cũ tham chiếu bằng id.

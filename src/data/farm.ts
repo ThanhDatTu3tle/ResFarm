@@ -16,7 +16,7 @@ export const slotTypes: SlotTypeDef[] = [
     name: 'Ao cá',
     icon: '🌊',
     // Một mặt ao chung, chia nhiều "ô nuôi" (mỗi ô một loại hải sản): bậc 1 nuôi 3 loại, mỗi lần nới rộng thêm 2 loại
-    // (3 → 5 → 7 → 9, đủ 9 loại giống ở ao). Không mua ô lẻ — ô nuôi chỉ thêm khi nới rộng ao (perTier).
+    // (3 → 5 → 7 → 9, đủ 9 loại giống ở ao). Không mua ô lẻ - ô nuôi chỉ thêm khi nới rộng ao (perTier).
     initial: 3,
     max: 9,
     perTier: 2,
@@ -39,7 +39,7 @@ export const slotTypes: SlotTypeDef[] = [
   // Nhà lồng / nhà màng phía nam ao: luống bên trong (2 dãy, lối đi ở giữa). Nới rộng = nhà dài thêm về phía đông, +4 luống mỗi lần.
   // Cây trong nhà kính không cần cuốc / tưới (có tưới nhỏ giọt) và lớn nhanh hơn 30%.
   { id: 'gplot', name: 'Luống nhà kính', icon: '🏡', initial: 6, max: 20, batch: 4, basePrice: 700, priceGrowth: 1.6, level: 3, growMul: 1.3, layout: { x: 0, z: 0, cols: 2, dx: 1.9, dz: 2.8, size: 1.5, tierGrowth: 0 }, building: { x: 4, z: 23.8, width: 5.2, colLength: 1.9, endLength: 0.8, door: { x: 3.3, z: 23.8 } } },
-  // Vườn cây ăn quả: 4 gốc cạnh chuồng (phía đông), 6 gốc cạnh ao (phía đông, 3 hàng × 2 cột — hàng giữa z = 14.65
+  // Vườn cây ăn quả: 4 gốc cạnh chuồng (phía đông), 6 gốc cạnh ao (phía đông, 3 hàng × 2 cột - hàng giữa z = 14.65
   // là 2 chỗ thêm, để ở cuối danh sách cho save cũ giữ nguyên vị trí cây); có sẵn 1 cam + 1 táo. Cây lâu năm, không cần cuốc / tưới.
   // Mỗi gốc có lối riêng: hàng trên đứng ở khe giữa 2 dãy chuồng / trước dãy chuồng, cụm cạnh ao đứng phía bắc hoặc phía nam; tới cụm này bác đi lối phụ
   // phía đông ao (balance.farmer.side) nên không chạy ngang xuyên ao.
@@ -58,7 +58,7 @@ export const mills: MillTypeDef[] = [
 
 /** Thêm cây/con mới: thêm 1 mục ở đây (xem ProducerDef trong types.ts). */
 export const producers: ProducerDef[] = [
-  // Cây trồng — thu 1 lần. Thời gian lớn theo tỉ lệ ngoài đời (rau cải ~35 ngày … hành tây ~110 ngày) thu về 1 → 5 ngày.
+  // Cây trồng - thu 1 lần. Thời gian lớn theo tỉ lệ ngoài đời (rau cải ~35 ngày … hành tây ~110 ngày) thu về 1 → 5 ngày.
   { id: 'cabbage', name: 'Rau cải', icon: '🥬', slot: 'field', seasons: [0, 2], alsoIn: ['gplot'], cost: 2, growTime: days(1), yields: [{ item: 'cabbage', qty: 6 }], cycles: 1, level: 1 },
   { id: 'cucumber', name: 'Dưa leo', icon: '🥒', slot: 'field', seasons: [0, 1], alsoIn: ['gplot'], cost: 2, growTime: days(2), yields: [{ item: 'cucumber', qty: 12 }], cycles: 1, level: 1 },
   { id: 'tomato', name: 'Cà chua', icon: '🍅', slot: 'field', seasons: [0, 1], alsoIn: ['gplot'], cost: 3, growTime: days(3), yields: [{ item: 'tomato', qty: 14 }], cycles: 1, level: 1 },
@@ -71,7 +71,7 @@ export const producers: ProducerDef[] = [
   { id: 'hen', name: 'Gà mái đẻ', icon: '🐔', slot: 'pen', cost: 60, growTime: days(2), yields: [{ item: 'egg', qty: 6 }], cycles: 'infinite', regrowTime: days(1), level: 1, diesInWinter: true },
   { id: 'dairy_cow', name: 'Bò sữa', icon: '🐄', slot: 'pen', cost: 250, growTime: days(7), yields: [{ item: 'milk', qty: 6 }], cycles: 'infinite', regrowTime: days(1), level: 3, diesInWinter: true },
 
-  // Vật nuôi lấy thịt — thu 1 lần, muốn nữa thì nuôi lại
+  // Vật nuôi lấy thịt - thu 1 lần, muốn nữa thì nuôi lại
   { id: 'broiler', name: 'Gà thịt', icon: '🐥', slot: 'pen', cost: 15, growTime: days(2), yields: [{ item: 'chicken', qty: 8 }], cycles: 1, level: 2 },
   { id: 'pig', name: 'Heo', icon: '🐖', slot: 'pen', cost: 30, growTime: days(5), yields: [{ item: 'pork', qty: 16 }], cycles: 1, level: 2 },
   { id: 'cattle', name: 'Bò thịt', icon: '🐂', slot: 'pen', cost: 60, growTime: days(7), yields: [{ item: 'beef', qty: 20 }], cycles: 1, level: 3 },
@@ -86,7 +86,7 @@ export const producers: ProducerDef[] = [
   { id: 'wheat', name: 'Lúa mì', icon: '🌾', slot: 'wheat', seasons: [0, 2], cost: 6, growTime: days(3), yields: [{ item: 'wheat', qty: 28 }], cycles: 1, level: 1 },
   { id: 'rice_crop', name: 'Lúa nước', icon: '🌾', slot: 'paddy', seasons: [1, 2], cost: 6, growTime: days(3), yields: [{ item: 'paddy_rice', qty: 30 }], cycles: 1, level: 2 },
 
-  // Ao: thả giống một lần, lớn xong thu được nhiều lứa — thu xong 3 ngày sau lứa mới lớn để thu tiếp (giai đoạn 13: nhanh hơn ~40%, 15 con một lứa)
+  // Ao: thả giống một lần, lớn xong thu được nhiều lứa - thu xong 3 ngày sau lứa mới lớn để thu tiếp (giai đoạn 13: nhanh hơn ~40%, 15 con một lứa)
   { id: 'fish_fry', name: 'Cá giống', icon: '🐟', slot: 'pond', cost: 20, growTime: days(3), yields: [{ item: 'fish', qty: 30 }], cycles: 'infinite', regrowTime: days(3), level: 1 },
   { id: 'salmon_fry', name: 'Cá hồi giống', icon: '🐠', slot: 'pond', cost: 40, growTime: days(4), yields: [{ item: 'salmon', qty: 30 }], cycles: 'infinite', regrowTime: days(3), level: 3 },
   { id: 'shrimp_fry', name: 'Tôm giống', icon: '🦐', slot: 'pond', cost: 25, growTime: days(3.5), yields: [{ item: 'shrimp', qty: 30 }], cycles: 'infinite', regrowTime: days(3), level: 4 },

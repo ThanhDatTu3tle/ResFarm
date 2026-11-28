@@ -71,7 +71,7 @@ export const balance: Balance = {
   lowStockPortions: 3,
   events: { chance: 0.55, fromDay: 2 },
   contracts: { perDay: 2, extraAtLevel: 4, due: 21 * 60, rewardMul: [1.6, 2.2], xpRatio: 0.3, rep: 0.02, sellRatio: 0.5 },
-  // Giai đoạn 18: đơn giao tận nơi từ hạng "Quán đông khách" (hạng 3) — quầy cashier ở cửa nhận điện thoại
+  // Giai đoạn 18: đơn giao tận nơi từ hạng "Quán đông khách" (hạng 3) - quầy cashier ở cửa nhận điện thoại
   takeout: {
     tier: 3,
     every: [45, 90],
@@ -94,7 +94,7 @@ export const balance: Balance = {
   seasons: { inSeasonPrice: 0.85, offSeasonPrice: 1.3, dishBonus: 1.2 },
   regulars: { chance: 0.22, heartVisits: [1, 3, 6, 10, 15], tipPerHeart: 0.12, favoriteTip: 0.5, favoriteRep: 0.04, giftHearts: 3, maxPartySize: 2 },
   resellRate: 0.5,
-  // Nhân viên thuê đi chậm hơn bồi bàn (người chơi) — speedMul; từ 2 người: mỗi sáng sickChance có 1 người bệnh nghỉ
+  // Nhân viên thuê đi chậm hơn bồi bàn (người chơi) - speedMul; từ 2 người: mỗi sáng sickChance có 1 người bệnh nghỉ
   // Khách tới: đi bộ / gửi xe máy / đậu ô tô mất bấy nhiêu phút trước khi vào hàng chờ; đi từ cửa vào ghế theo quãng đường
   arrival: { walk: 2, moto: 4, car: 4.5, bus: 4, seatUnitsPerMinute: 150 },
   helpers: { hireCost: 300, names: ['Bé Mận', 'Anh Bin', 'Chị Hoa', 'Cu Tèo'], speedMul: 0.6, sickChance: 0.2 },
@@ -123,14 +123,16 @@ export const balance: Balance = {
     farmerLunch: { from: 12 * 60, to: 13 * 60 },
     // Bác còn trên 75% năng lượng lúc trưa thì ở lại làm, không đi ăn
     farmerSkipLunchAbove: 0.75,
+    // Đội quán (đầu bếp, bồi bàn, nhân viên, shipper) còn trên 80% năng lượng lúc trưa thì không gọi món (vẫn nghỉ cùng đội)
+    crewSkipLunchAbove: 0.8,
     dinnerMinutes: 60,
     eatMinutes: 30,
     endDayAfter: 21 * 60, // quán đóng cửa tối là kết thúc ngày được
   },
-  // Ca sáng 07:00–12:00 (11:00 ngưng nhận khách, 12:30 khách về hết), ca chiều tối 15:00–21:00 (20:30 ngưng nhận khách, 21:30 khách về hết)
+  // Ca sáng 07:00–12:00 (11:00 ngưng nhận khách, 12:30 khách về hết), ca chiều tối 15:00–21:00 (20:30 ngưng nhận khách, 22:00 khách về hết - đủ giờ cho khách gọi món sát giờ đóng cửa kịp ăn)
   shifts: [
     { from: 7 * 60, lastCall: 11 * 60, to: 12 * 60, kickOut: 12 * 60 + 30 },
-    { from: 15 * 60, lastCall: 20 * 60 + 30, to: 21 * 60, kickOut: 21 * 60 + 30 },
+    { from: 15 * 60, lastCall: 20 * 60 + 30, to: 21 * 60, kickOut: 22 * 60 },
   ],
   stains: { perShift: 3, max: 10, maxLevel: 3, patiencePerLevel: 0.015, minPatience: 0.8 },
 };

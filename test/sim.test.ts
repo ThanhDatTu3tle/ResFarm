@@ -38,7 +38,7 @@ function runDay(game: Game, waiter = true): void {
 }
 
 /**
- * Cho thời gian trôi `minutes` phút nông trại, qua nhiều ngày nếu cần (hết ngày thì sang ngày mới — qua đêm nông trại
+ * Cho thời gian trôi `minutes` phút nông trại, qua nhiều ngày nếu cần (hết ngày thì sang ngày mới - qua đêm nông trại
  * được cộng `nightMinutes`). Cây / con lớn tính bằng ngày nên test nông trại dùng hàm này thay cho tick.
  */
 function advance(game: Game, minutes: number): void {
@@ -67,7 +67,7 @@ function occupiedSeatsOf(game: Game, tableId: string): number {
   return game.state.restaurant.parties.filter((p) => p.tableId === tableId).reduce((s, p) => s + p.seats.length, 0);
 }
 
-/** Game không có khách tự tới và thời tiết cố định — để dựng tình huống phục vụ bằng tay. */
+/** Game không có khách tự tới và thời tiết cố định - để dựng tình huống phục vụ bằng tay. */
 /** Một nhóm khách mới tới (cỡ nhóm ngẫu nhiên theo luật), giữ nguyên trong hàng chờ. */
 function spawnPartyFor(game: Game): Party {
   return spawnParty(game.ctx);
@@ -559,7 +559,7 @@ describe('phục vụ (người chơi là bồi bàn)', () => {
 
 });
 
-describe('bồi bàn — lỗi đã sửa', () => {
+describe('bồi bàn - lỗi đã sửa', () => {
   it('ghi món cho bàn hết nguyên liệu (khách bỏ về) không làm mất việc kế tiếp của bàn khác', () => {
     const game = quietGame();
     const hungry = seatParty(game, 'pair', 2);
@@ -1098,10 +1098,12 @@ describe('quán của riêng mình', () => {
     expect(game.dispatch({ type: 'restaurant/upgrade' }).ok).toBe(false); // cấp 1
     game.state.level = 9;
     const spawn = modifier(game.ctx, 'spawnRate');
+    game.state.restaurant.lots = { cleared: 4 };
     expect(game.dispatch({ type: 'restaurant/upgrade' }).ok).toBe(true);
     expect(game.state.restaurant.tier).toBe(2);
     expect(modifier(game.ctx, 'spawnRate')).toBeCloseTo(spawn * 1.1);
     expect(canPlaceTable(game.ctx, 'pair', 120, 520)).toBeNull(); // vùng mới mở
+    game.state.restaurant.lots = { cleared: 4 };
     while (game.dispatch({ type: 'restaurant/upgrade' }).ok);
     expect(game.state.restaurant.tier).toBe(content.room.tiers.length);
   });
@@ -1224,18 +1226,21 @@ describe('nhân viên phục vụ thuê thêm', () => {
     const game = quietGame();
     Object.assign(game.state, { money: 1e6, level: 20 });
     expect(game.dispatch({ type: 'helper/hire' }).ok).toBe(false);
+    game.state.restaurant.lots = { cleared: 4 };
     game.dispatch({ type: 'restaurant/upgrade' });
     expect(game.dispatch({ type: 'helper/hire' }).ok).toBe(true);
     expect(game.dispatch({ type: 'helper/hire' }).ok).toBe(false);
+    game.state.restaurant.lots = { cleared: 4 };
     while (game.dispatch({ type: 'restaurant/upgrade' }).ok);
     while (game.dispatch({ type: 'helper/hire' }).ok);
     expect(game.state.restaurant.helpers).toHaveLength(4);
     expect(new Set(game.state.restaurant.helpers.map((h) => h.name)).size).toBe(4);
   });
 
-  it('tự nhận việc được giao (mang menu — không tốn sức); tắt việc thì không nhận', () => {
+  it('tự nhận việc được giao (mang menu - không tốn sức); tắt việc thì không nhận', () => {
     const game = quietGame();
     Object.assign(game.state, { money: 1e6, level: 20 });
+    game.state.restaurant.lots = { cleared: 4 };
     game.dispatch({ type: 'restaurant/upgrade' });
     game.dispatch({ type: 'helper/hire' });
     const h = game.state.restaurant.helpers[0];
@@ -1252,6 +1257,7 @@ describe('nhân viên phục vụ thuê thêm', () => {
   it('cạn năng lượng thì xỉu (bỏ việc), bồi dưỡng 100 xu thì tỉnh lại', () => {
     const game = quietGame();
     Object.assign(game.state, { money: 1e6, level: 20 });
+    game.state.restaurant.lots = { cleared: 4 };
     game.dispatch({ type: 'restaurant/upgrade' });
     game.dispatch({ type: 'helper/hire' });
     const h = game.state.restaurant.helpers[0];
@@ -1271,10 +1277,11 @@ describe('nhân viên phục vụ thuê thêm', () => {
     expect(h.energy).toBe(content.balance.crew.maxEnergy / 2);
   });
 
-  it('giai đoạn 15: từ 2 nhân viên — người đầu làm quản lý, mỗi người giữ một bàn; có ngày 1 người bệnh nghỉ; đi chậm hơn bồi bàn', async () => {
+  it('giai đoạn 15: từ 2 nhân viên - người đầu làm quản lý, mỗi người giữ một bàn; có ngày 1 người bệnh nghỉ; đi chậm hơn bồi bàn', async () => {
     const { isManager, teamMode } = await import('../src/sim/systems/helpers');
     const game = quietGame();
     Object.assign(game.state, { money: 1e6, level: 20 });
+    game.state.restaurant.lots = { cleared: 4 };
     while (game.dispatch({ type: 'restaurant/upgrade' }).ok);
     game.dispatch({ type: 'helper/hire' });
     expect(teamMode(game.ctx)).toBe(false);
@@ -1304,6 +1311,7 @@ describe('nhân viên phục vụ thuê thêm', () => {
     const sickDays = Array.from({ length: 30 }, (_, i) => {
       const g = new Game(content, { seed: 100 + i });
       Object.assign(g.state, { money: 1e6, level: 20 });
+      g.state.restaurant.lots = { cleared: 4 };
       while (g.dispatch({ type: 'restaurant/upgrade' }).ok);
       g.dispatch({ type: 'helper/hire' });
       g.dispatch({ type: 'helper/hire' });
@@ -1316,7 +1324,7 @@ describe('nhân viên phục vụ thuê thêm', () => {
     expect(sickDays.some((n) => n === 0)).toBe(true);
   });
 
-  it('giai đoạn 15: công an khu vực (chỉ quán ốc) — bồi dưỡng theo hạng quán hoặc mất một bàn đôi; save v22 lên v23', async () => {
+  it('giai đoạn 15: công an khu vực (chỉ quán ốc) - bồi dưỡng theo hạng quán hoặc mất một bàn đôi; save v22 lên v23', async () => {
     const { bribeOf, policePending, seizableTable } = await import('../src/sim/systems/events');
     const { events } = await import('../src/data/events');
     expect(events.find((e) => e.id === 'police')?.cuisines).toEqual(['oc']);
@@ -1457,6 +1465,7 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
 
   it('nghỉ trưa: người chơi gọi món cho từng người, quá hạn thì tự chọn; tiền ăn của bác gộp chung một hoá đơn', () => {
     const game = quietGame();
+    tireCrew(game); // đội quán mệt (dưới 80%) mới gọi món trưa
     game.state.money = 1000;
     const b = content.balance.crew;
     game.state.clock.minute = 11 * 60 + 50;
@@ -1507,6 +1516,7 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
     const b = content.balance.crew;
     // Quán còn khách sau 12:00: bác ra chợ dạo trước, chưa gọi món
     const game = quietGame();
+    tireCrew(game); // đội quán mệt (dưới 80%) mới gọi món trưa
     game.state.money = 1000;
     game.state.farm.farmer.energy = 10;
     const guests = seatParty(game, 'pair', 2);
@@ -1633,6 +1643,7 @@ describe('cả đội: năng lượng, giờ nghỉ ra chợ, hoá đơn', () =>
 
   it('ít tiền thì món rẻ hoặc nhịn: tổng không vượt số tiền đang có; gọi món quá túi thì báo lỗi', () => {
     const game = quietGame();
+    tireCrew(game); // đội quán mệt (dưới 80%) mới gọi món trưa
     game.state.money = 20;
     game.state.clock.minute = 12 * 60 + 1;
     game.tick(1);
@@ -1868,7 +1879,7 @@ describe('mùa vụ và lễ hội', () => {
     game.state.clock.day = 4 * DAYS_PER_SEASON; // ngày cuối năm 1 (Tất niên)
     expect(modifier(game.ctx, 'tip')).toBeGreaterThan(1);
     runDay(game, false);
-    game.state.crew.bill = []; // tiền ăn của đội tự trừ sáng hôm sau — bỏ ra để chỉ đo tiền mừng
+    game.state.crew.bill = []; // tiền ăn của đội tự trừ sáng hôm sau - bỏ ra để chỉ đo tiền mừng
     const before = game.state.money;
     game.dispatch({ type: 'day/next' }); // mùng 1 Tết năm 2
     expect(festivalOf(game.state.clock.day)?.id).toBe('tet');
@@ -1885,6 +1896,7 @@ describe('bếp và quầy line', () => {
     expect(game.dispatch({ type: 'chef/hire' }).ok).toBe(false); // bếp nhỏ: 2 đầu bếp
     // Nâng bếp cần quán đã lên hạng Tiệm ăn
     expect(game.dispatch({ type: 'kitchen/upgrade' }).ok).toBe(false);
+    game.state.restaurant.lots = { cleared: 4 };
     expect(game.dispatch({ type: 'restaurant/upgrade' }).ok).toBe(true);
     const helpersBefore = maxHelpers(game.ctx);
     expect(game.dispatch({ type: 'kitchen/upgrade' }).ok).toBe(true);
@@ -2024,9 +2036,10 @@ describe('đơn đặt hàng, bán hàng dư, sự kiện', () => {
     expect(game.state.restaurant.parties.some((p) => p.tour)).toBe(false);
   });
 
-  it('giai đoạn 15: khách tới / ngồi xuống rồi mới cần menu — nhân viên không chạy tới trước khách', () => {
+  it('giai đoạn 15: khách tới / ngồi xuống rồi mới cần menu - nhân viên không chạy tới trước khách', () => {
     const game = quietGame();
     Object.assign(game.state, { money: 1e6, level: 20 });
+    game.state.restaurant.lots = { cleared: 4 };
     game.dispatch({ type: 'restaurant/upgrade' });
     game.dispatch({ type: 'helper/hire' });
     const p = spawnPartyFor(game);
@@ -2047,17 +2060,19 @@ describe('đơn đặt hàng, bán hàng dư, sự kiện', () => {
     expect(p.phase).toBe('browsing');
   });
 
-  it('giai đoạn 15: nâng hạng quán còn nới về phía Đông — quầy ra món dời theo, quầy trước bếp thêm ghế đơn', async () => {
+  it('giai đoạn 15: nâng hạng quán còn nới về phía Đông - quầy ra món dời theo, quầy trước bếp thêm ghế đơn', async () => {
     const { roomOf } = await import('../src/sim/layout');
     const game = quietGame('kr');
     Object.assign(game.state, { money: 1e6, level: 20 });
     const w1 = roomOf(game.ctx).width;
     const counter = () => activeTables(game.ctx).find((t) => t.id === 'counter')!;
     expect(counter().seats).toBe(3);
+    game.state.restaurant.lots = { cleared: 4 };
     while (game.dispatch({ type: 'restaurant/upgrade' }).ok);
     const room = roomOf(game.ctx);
     expect(room.width).toBeGreaterThan(w1);
-    expect(room.pass.x - content.room.pass.x).toBe(room.width - w1);
+    // Quầy ra món dời theo phần bếp dài thêm (TierDef.kitchenWidth), không theo cả phần quán nới ra bãi đất
+    expect(room.pass.x - content.room.pass.x).toBe(content.room.tiers[content.room.tiers.length - 1].kitchenWidth! - w1);
     expect(counter().seats).toBe(6);
     // Mép trái quầy giữ nguyên, bố cục mặc định vẫn không chồng nhau
     expect(counter().x - counter().w / 2).toBe(content.tables.get('counter').x - content.tables.get('counter').w / 2);
@@ -2121,7 +2136,7 @@ describe('bưng món theo màu bàn', () => {
     const { game, a, b, oB, oA1 } = setup();
     game.dispatch({ type: 'service/pickup' });
     walk(game);
-    // Bàn b chỉ gọi món r2; bàn a cũng gọi r2 nhưng món r2 đang cầm là của b — bấm a chỉ giao món của a
+    // Bàn b chỉ gọi món r2; bàn a cũng gọi r2 nhưng món r2 đang cầm là của b - bấm a chỉ giao món của a
     expect(game.dispatch({ type: 'service/serve', partyId: a.id }).ok).toBe(true);
     walk(game);
     expect(game.state.restaurant.orders.find((o) => o.id === oA1.id)!.status).toBe('served');
@@ -2152,7 +2167,7 @@ describe('bưng món theo màu bàn', () => {
     const { game, b, oB, oA1 } = setup();
     game.dispatch({ type: 'service/pickup' });
     walk(game);
-    // Nhóm b biến mất mà đơn vẫn còn (vd save cũ, đổi chủ món) — trước đây bồi bàn cầm mãi không giao được
+    // Nhóm b biến mất mà đơn vẫn còn (vd save cũ, đổi chủ món) - trước đây bồi bàn cầm mãi không giao được
     const r = game.state.restaurant;
     r.parties = r.parties.filter((p) => p.id !== b.id);
     game.tick(1);
@@ -2758,9 +2773,11 @@ describe('gói nâng hạng + trang bị đủ bàn', () => {
     expect(plan.tables.length).toBeGreaterThan(0);
     expect(plan.price).toBe(Math.round(plan.full * 0.9));
     game.state.money = plan.price - 1;
+    game.state.restaurant.lots = { cleared: 4 };
     expect(game.dispatch({ type: 'restaurant/upgradeFull' }).ok).toBe(false);
     game.state.money = plan.price + 5;
     const before = game.state.restaurant.extraTables.length;
+    game.state.restaurant.lots = { cleared: 4 };
     expect(game.dispatch({ type: 'restaurant/upgradeFull' }).ok).toBe(true);
     expect(game.state.restaurant.tier).toBe(3);
     expect(game.state.money).toBe(5);
@@ -2768,5 +2785,61 @@ describe('gói nâng hạng + trang bị đủ bàn', () => {
     // đã đủ: có tiền cũng không mua thêm bàn nào được nữa
     game.state.money = 1e6;
     for (const k of ['long', 'square', 'pair']) expect(game.dispatch({ type: 'table/buy', kind: k }).ok).toBe(false);
+  });
+});
+
+describe('bãi đất hoang bên Đông quán', () => {
+  it('phải thuê dọn lô (tốn xu + chờ) rồi mới nâng hạng được; dọn từng lô một', () => {
+    const game = quietGame('vn');
+    Object.assign(game.state, { money: 99999, level: 9 });
+    expect(game.dispatch({ type: 'restaurant/upgrade' }).ok).toBe(false); // chưa dọn lô 1
+    const before = game.state.money;
+    expect(game.dispatch({ type: 'lot/clear' }).ok).toBe(true);
+    expect(game.state.money).toBe(before - game.content.room.tiers[1].clear!.cost);
+    expect(game.dispatch({ type: 'lot/clear' }).ok).toBe(false); // đang dọn
+    expect(game.dispatch({ type: 'restaurant/upgrade' }).ok).toBe(false); // chưa dọn xong
+    game.tick(game.content.room.tiers[1].clear!.minutes + 1);
+    expect(game.state.restaurant.lots).toEqual({ cleared: 1 });
+    expect(game.dispatch({ type: 'restaurant/upgrade' }).ok).toBe(true);
+    expect(game.dispatch({ type: 'restaurant/upgrade' }).ok).toBe(false); // lô 2 chưa dọn
+  });
+
+  it('save cũ đã lên hạng (chưa có lots) vẫn được coi là đã dọn đủ lô', () => {
+    const game = quietGame('vn');
+    Object.assign(game.state, { money: 99999, level: 9 });
+    game.state.restaurant.tier = 3;
+    expect(game.dispatch({ type: 'lot/clear' }).ok).toBe(true);
+    expect(game.state.restaurant.lots?.clearing?.lot).toBe(3);
+  });
+});
+
+
+/** Cả đội quán mệt (năng lượng thấp) - trưa mới gọi món (balance.crew.crewSkipLunchAbove). */
+function tireCrew(game: Game): void {
+  const r = game.state.restaurant;
+  for (const v of [...r.staff, r.waiter, ...r.helpers, r.shipper, ...r.couriers]) v.energy = 10;
+}
+
+describe('giờ nghỉ và đóng cửa', () => {
+  it('trưa: ai còn trên 80% năng lượng thì không đòi ăn; cả đội khoẻ thì không có bảng gọi món', () => {
+    const game = quietGame();
+    game.state.clock.minute = 12 * 60 + 1;
+    game.tick(1);
+    expect(game.state.crew.restaurantAway).toBe('lunch');
+    expect(game.state.crew.pending.filter((p) => p.who !== 'farmer')).toEqual([]);
+    const g2 = quietGame();
+    g2.state.restaurant.waiter.energy = 10;
+    g2.state.clock.minute = 12 * 60 + 1;
+    g2.tick(1);
+    expect(g2.state.crew.pending.map((p) => p.who)).toEqual(['waiter']);
+  });
+
+  it('tối: sau giờ đóng cửa khách đang chờ ngoài cửa về luôn, không vào ngồi rồi bị mời về', () => {
+    const game = quietGame();
+    game.state.clock.minute = 21 * 60 + 5;
+    const p = spawnParty(game.ctx)!;
+    p.walking = 0;
+    game.tick(1);
+    expect(game.state.restaurant.parties.find((x) => x.id === p.id)).toBeUndefined();
   });
 });

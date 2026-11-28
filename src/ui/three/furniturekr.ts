@@ -103,7 +103,7 @@ export function buildCrateSeat(chair: THREE.Object3D, seed = 1): void {
   mesh(c, G.box(W + 0.03, 0.02, D + 0.05), dark, { p: [0, H + 0.005, 0], cast: false });
 }
 
-/** Món ghi trên các bảng đèn LED dọc (đọc từ trên xuống) — chữ Hàn tên món ăn vặt quen thuộc. */
+/** Món ghi trên các bảng đèn LED dọc (đọc từ trên xuống) - chữ Hàn tên món ăn vặt quen thuộc. */
 const POCHA_SIGNS: [string, string, string][] = [
   ['떡볶이', '#e8f1ff', '#d9322b'],
   ['비빔밥', '#f2a03a', '#fff6e0'],
@@ -141,7 +141,7 @@ function ledPanel(text: string, bg: string, fg: string): THREE.MeshBasicMaterial
 }
 
 /**
- * Quán Hàn — bếp lên hạng 3 (Bếp chuyên nghiệp): mái tôn sóng sẫm màu chìa ra trên quầy bếp (kiểu sạp pocha) + hàng
+ * Quán Hàn - bếp lên hạng 3 (Bếp chuyên nghiệp): mái tôn sóng sẫm màu chìa ra trên quầy bếp (kiểu sạp pocha) + hàng
  * bảng đèn LED dọc ghi tên món phía trên mái (tự sáng, không đổ bóng). Dải mái chạy từ x1 tới x2, mép trong ở z (sát
  * phía bếp), chìa ra phía phòng ăn (+z) `depth` m.
  */

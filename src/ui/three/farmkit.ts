@@ -231,7 +231,7 @@ export function dashedRect(parent: THREE.Object3D, size: number, dash = 0.45, de
 
 /**
  * Đường viền ao méo tự nhiên (khép kín, mặt phẳng xz): bề ngang tối đa = 2·rx, bề dọc ≈ 2·rz.
- * Cùng seed thì cùng hình — dùng chung cho mặt ao, bờ ao và viền đứt khúc "nới rộng ao".
+ * Cùng seed thì cùng hình - dùng chung cho mặt ao, bờ ao và viền đứt khúc "nới rộng ao".
  */
 export function pondOutline(rx: number, rz: number, seed = 1, n = 48): THREE.Vector2[] {
   const wobble = (a: number) => 1 + 0.1 * Math.sin(2 * a + 0.7 + seed) + 0.07 * Math.sin(3 * a + 2.1 + seed * 1.3) + 0.04 * Math.sin(5 * a + 1 + seed * 0.7);
@@ -419,7 +419,7 @@ export function sideGlass(g: THREE.Object3D, pts: Pt[], w: number): void {
   mesh(g, side(pts, w), GLASS, { cast: false });
 }
 
-/** Đèn pha, đèn hậu, cản trước / sau, lưới tản nhiệt, biển số, gương — phần chung của mọi loại xe. */
+/** Đèn pha, đèn hậu, cản trước / sau, lưới tản nhiệt, biển số, gương - phần chung của mọi loại xe. */
 export function carTrim(g: THREE.Object3D, o: { front: number; back: number; w: number; lightY: number; bumperY: number; mirror: V3; grille?: number }): void {
   const { front, back, w, lightY, bumperY } = o;
   for (const s of [-1, 1]) {
@@ -633,7 +633,7 @@ function fruitOn(g: THREE.Group, producerId: string, p: V3, ripe: boolean): void
 }
 
 /**
- * Cây chuối — KHÔNG phải thân gỗ: thân giả là các bẹ lá xanh cuộn chồng lên nhau (có sọc nâu), tàu lá to dài
+ * Cây chuối - KHÔNG phải thân gỗ: thân giả là các bẹ lá xanh cuộn chồng lên nhau (có sọc nâu), tàu lá to dài
  * vươn lên rồi rủ xuống, gân giữa sáng màu, mép lá rách; cây lớn có buồng chuối treo trên cuống cong
  * (các nải quả hướng lên) và bắp chuối tím ở đầu cuống; gốc có cây con mọc bên cạnh.
  */

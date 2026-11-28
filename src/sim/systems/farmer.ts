@@ -7,13 +7,13 @@ import { farmSystem, needsWatering, slotsOfType, yieldsOf } from './farm';
 import { millSpot, pickMill } from './mills';
 
 /**
- * BÁC NÔNG DÂN — người chơi giao việc bằng cách bấm ô ruộng / chuồng / ao (hoặc nút trong bảng Nông trại).
+ * BÁC NÔNG DÂN - người chơi giao việc bằng cách bấm ô ruộng / chuồng / ao (hoặc nút trong bảng Nông trại).
  * Bác làm lần lượt theo hàng việc: chạy tới chỗ đứng trước ô (toạ độ mét, theo SlotTypeDef.layout),
  * làm việc trong balance.farmer.workTime phút rồi mới áp dụng lệnh farm/* tương ứng.
  * Vị trí nằm trong state nên cảnh 3D chỉ việc vẽ theo, và mọi thứ vẫn tất định (giống bồi bàn ở service.ts).
  */
 
-/** Hàng việc dài tối đa — tránh người chơi bấm loạn xạ làm bác chạy cả ngày. */
+/** Hàng việc dài tối đa - tránh người chơi bấm loạn xạ làm bác chạy cả ngày. */
 export const MAX_FARMER_TASKS = 24;
 
 /** Tâm ô trên bản đồ nông trại (mét). Ô thứ i trong loại xếp theo lưới `cols` cột. */
@@ -21,7 +21,7 @@ export function slotCenter(ctx: SimContext, slot: FarmSlot): { x: number; z: num
   return slotCenterAt(ctx, slot.type, Math.max(0, slotsOfType(ctx, slot.type).indexOf(slot)));
 }
 
-/** Tâm ô thứ `i` của loại (dùng cả cho chỗ trống chưa mua — viền đứt khúc). */
+/** Tâm ô thứ `i` của loại (dùng cả cho chỗ trống chưa mua - viền đứt khúc). */
 export function slotCenterAt(ctx: SimContext, type: FarmSlot['type'], i: number): { x: number; z: number } {
   const { layout } = ctx.content.slotTypes.get(type);
   const spot = layout.spots?.[i];
@@ -76,7 +76,7 @@ const EPS = 1e-6;
 
 /**
  * Đi theo lối thay vì đường chim bay (để không giẫm qua ruộng / chuồng khác):
- * chạy NGANG theo khe giữa các hàng ô, chỉ chạy DỌC trên các "lối dọc" (balance.farmer.lanes — con đường đất,
+ * chạy NGANG theo khe giữa các hàng ô, chỉ chạy DỌC trên các "lối dọc" (balance.farmer.lanes - con đường đất,
  * mép trái ruộng). Trả về điểm kế tiếp phải tới; trả đúng `spot` khi đã có thể đi thẳng tới nơi.
  * Không lưu đường đi: tính lại từ vị trí hiện tại mỗi bước nên đổi việc giữa chừng vẫn đúng.
  */
@@ -208,7 +208,7 @@ function preview(ctx: SimContext, task: FarmerTask): CommandResult {
 export function farmerBlocked(ctx: SimContext): string | null {
   const away = awayReason(ctx, 'farm');
   if (away) return away;
-  if (ctx.state.farm.farmer.fainted) return '😵 Bác nông dân kiệt sức rồi — bồi dưỡng ở bảng Nhân viên.';
+  if (ctx.state.farm.farmer.fainted) return '😵 Bác nông dân kiệt sức rồi - bồi dưỡng ở bảng Nhân viên.';
   return null;
 }
 

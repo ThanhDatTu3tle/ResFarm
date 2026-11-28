@@ -193,7 +193,7 @@ function sideButtons(game: Game, ui: UiState): string {
     .join('') + (onlineEnabled ? `<button class="round" data-key="side-friends"${uiAttr('friends:open')} title="Bạn bè" aria-label="Bạn bè">🤝</button>` : '');
 }
 
-/** Tổng kết mùa / năm ở màn hết ngày cuối mùa (ngày 14) — doanh thu, chi, lãi, khách. */
+/** Tổng kết mùa / năm ở màn hết ngày cuối mùa (ngày 14) - doanh thu, chi, lãi, khách. */
 export function periodSummaryHtml(game: Game): string {
   const { state } = game;
   const day = state.clock.day;
@@ -213,7 +213,7 @@ export function periodSummaryHtml(game: Game): string {
   const next = seasons[(cal.season + 1) % seasons.length];
   return `${card(`${seasons[cal.season].icon} Tổng kết mùa ${seasons[cal.season].name} năm ${cal.year}`, state.stats.season)}
     ${isYearEnd(day) ? card(`🎆 Tổng kết năm ${cal.year}`, state.stats.year) : ''}
-    <p class="muted">Ngày mai sang mùa ${next.name}${next.frozen ? ' — đất ngoài trời đóng băng, chỉ trồng được trong nhà kính; chuồng và ao nghỉ tới mùa Xuân' : ''}${seasons[cal.season].frozen ? ' — băng tan, nông trại ngoài trời làm lại được' : ''}.</p>`;
+    <p class="muted">Ngày mai sang mùa ${next.name}${next.frozen ? ' - đất ngoài trời đóng băng, chỉ trồng được trong nhà kính; chuồng và ao nghỉ tới mùa Xuân' : ''}${seasons[cal.season].frozen ? ' - băng tan, nông trại ngoài trời làm lại được' : ''}.</p>`;
 }
 
 /** Số việc phục vụ đang chờ người chơi (khách cần menu / chờ ghi món + món nằm ở quầy chưa ai bưng). */
@@ -228,7 +228,7 @@ export function serviceAlerts(game: Game): number {
  * hoặc nhắc "quầy line có món" (bấm để đi lấy).
  */
 /**
- * Gợi ý phục vụ (giai đoạn 16): "Quầy line có món — bấm quầy để bưng" và "Bấm bàn cùng màu để giao" chỉ hiện những lần đầu —
+ * Gợi ý phục vụ (giai đoạn 16): "Quầy line có món - bấm quầy để bưng" và "Bấm bàn cùng màu để giao" chỉ hiện những lần đầu -
  * bưng món lần đầu thì thôi nhắc quầy line, giao xong lượt đầu thì thôi nhắc giao. Lưu theo máy (localStorage), không nằm trong save.
  */
 const HINTS_KEY = 'quan-nha-vuon:hints';
@@ -265,14 +265,14 @@ export function serviceHtml(game: Game): string {
     carryHintShown = false;
     markHint('carry');
   }
-  // Đơn giao tận nơi (giai đoạn 18): luôn nhắc — việc mới, khác giao món cho bàn
+  // Đơn giao tận nơi (giai đoạn 18): luôn nhắc - việc mới, khác giao món cho bàn
   const takeoutCarried = carried.filter((o) => o.takeoutId != null);
   if (takeoutCarried.length) {
     const chips = takeoutCarried.map((o) => `<span class="carry-dish" style="--c:${TAKEOUT_COLOR}" title="${esc(content.recipes.get(o.recipeId).name)}">${content.recipes.get(o.recipeId).icon}</span>`).join('');
-    return `<div class="service-card carrying" data-key="carry-takeout"><div class="carry-dishes">${chips}</div><span>Món <b>giao tận nơi</b> 🛍️ — bấm quầy cashier ở cửa để đóng gói</span><button class="mini"${uiAttr('handoff')}>🛍️ Mang ra quầy</button></div>`;
+    return `<div class="service-card carrying" data-key="carry-takeout"><div class="carry-dishes">${chips}</div><span>Món <b>giao tận nơi</b> 🛍️ - bấm quầy cashier ở cửa để đóng gói</span><button class="mini"${uiAttr('handoff')}>🛍️ Mang ra quầy</button></div>`;
   }
   const calling = state.takeout.orders.filter((t) => t.status === 'calling').length;
-  if (calling && !carried.length) return `<button class="service-card pass-hint" data-key="takeout-call"${uiAttr('drawer:contracts')}>☎️ Có ${calling} khách gọi đặt món giao tận nơi — bấm quầy cashier (hoặc ở đây) để nhận đơn</button>`;
+  if (calling && !carried.length) return `<button class="service-card pass-hint" data-key="takeout-call"${uiAttr('drawer:contracts')}>☎️ Có ${calling} khách gọi đặt món giao tận nơi - bấm quầy cashier (hoặc ở đây) để nhận đơn</button>`;
   if (carried.length && hintSeen('carry')) return '';
   if (!carried.length && hintSeen('pass')) return '';
   if (carried.length) {
@@ -290,7 +290,7 @@ export function serviceHtml(game: Game): string {
   if (w.tasks.some((t) => t.kind === 'pickup')) return `<div class="service-card carrying" data-key="carry"><span>🏃 Đang ra quầy line lấy món…</span></div>`;
   const n = readyOrders(ctx).length;
   return n
-    ? `<button class="service-card pass-hint" data-key="pass-hint"${uiAttr('pickup')}>🔔 Quầy line có ${n} món — bấm quầy (hoặc ở đây) để bưng, tối đa ${max} món một lượt</button>`
+    ? `<button class="service-card pass-hint" data-key="pass-hint"${uiAttr('pickup')}>🔔 Quầy line có ${n} món - bấm quầy (hoặc ở đây) để bưng, tối đa ${max} món một lượt</button>`
     : '';
 }
 
@@ -390,7 +390,7 @@ export function questHtml(game: Game, ui: UiState): string {
 }
 
 /**
- * Hoá đơn ăn uống của cả đội ở chợ: hiện khi mọi người đã ăn xong (crew.meals rỗng) — ai ăn gì, ở hàng nào, bao nhiêu tiền;
+ * Hoá đơn ăn uống của cả đội ở chợ: hiện khi mọi người đã ăn xong (crew.meals rỗng) - ai ăn gì, ở hàng nào, bao nhiêu tiền;
  * người chơi bấm Thanh toán (lệnh crew/pay).
  */
 export function billHtml(game: Game): string {
@@ -415,7 +415,7 @@ export function billHtml(game: Game): string {
 
 /**
  * Bảng gọi món cho cả đội ở chợ, chia 2 cột:
- *  - trái (4/12): mọi người trong đợt nghỉ — biểu tượng, tên, thanh năng lượng (phần đặc = đang có, phần sọc = món đã gọi);
+ *  - trái (4/12): mọi người trong đợt nghỉ - biểu tượng, tên, thanh năng lượng (phần đặc = đang có, phần sọc = món đã gọi);
  *  - phải (8/12): thực đơn hàng rong / Tiệm 25caaaaa cho người đang chọn. Bấm món là gọi thêm, thanh đầy dần;
  *    đầy thanh thì người đó xong, tự chuyển sang người kế tiếp. Món đã gọi bấm ✕ để bỏ.
  * `ui.mealStall` = chỉ hiện thực đơn một hàng (mở từ bảng menu trong tiệm). Quá hạn chưa chọn thì mọi người tự chọn.
@@ -557,7 +557,7 @@ function lowStockChip(game: Game): string {
     const [first, ...rest] = list;
     return `<span class="sw-part"><b>${label}:</b> ${first.recipe.icon} ${esc(first.recipe.name)}${rest.length ? ` <em>${rest.map((l) => l.recipe.icon).join('')}</em>` : ''}</span>`;
   };
-  const title = low.map((l) => `${l.recipe.name}: ${l.count ? `còn ${l.count} phần` : 'hết'}`).join(' · ') + ' — bấm để mở Thực đơn';
+  const title = low.map((l) => `${l.recipe.name}: ${l.count ? `còn ${l.count} phần` : 'hết'}`).join(' · ') + ' - bấm để mở Thực đơn';
   return `<button class="stock-warn" data-key="stock-warn"${uiAttr('drawer:menu')} title="${esc(title)}">⚠️ ${part('Hết', out)}${part('Sắp hết', soon)}</button>`;
 }
 

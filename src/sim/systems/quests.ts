@@ -45,7 +45,7 @@ export function currentQuest(ctx: SimContext): QuestDef | null {
   return ctx.content.quests[ctx.state.quests.index] ?? null;
 }
 
-/** Cộng tiến độ cho mục tiêu dạng đếm — chỉ khi nhiệm vụ đang làm có đúng loại mục tiêu này. */
+/** Cộng tiến độ cho mục tiêu dạng đếm - chỉ khi nhiệm vụ đang làm có đúng loại mục tiêu này. */
 export function bumpQuest(ctx: SimContext, kind: QuestGoalKind, n = 1): void {
   tally(ctx, kind, n); // sổ thành tựu đếm trọn ván, kể cả khi nhiệm vụ đang làm là loại khác
   const def = currentQuest(ctx);

@@ -10,7 +10,7 @@ import { buildBarCounter, buildBarStool, buildChopstickSet, buildGrillInset, bui
 import { G, group, mesh, toon } from './toon';
 
 /**
- * MÔ HÌNH TRƯNG BÀY: dựng bộ bàn ghế / mẫu sàn / mẫu tường đứng riêng (không cần quán) để xem 3D —
+ * MÔ HÌNH TRƯNG BÀY: dựng bộ bàn ghế / mẫu sàn / mẫu tường đứng riêng (không cần quán) để xem 3D -
  * dùng cho trang models (dev/models.ts) và hộp "Xem chi tiết" trong Siêu thị.
  */
 
@@ -23,7 +23,7 @@ function furnitureMats(c: CuisineId) {
 }
 
 /** Bộ bàn + ghế như trong quán (bàn 2 / 4 người hoặc quầy ghế đơn), theo nội thất mặc định của quán. */
-/** `style`: bộ bàn ghế cao cấp riêng quán Việt (DecorDef.style) — dùng màu của đúng món nội thất đó. */
+/** `style`: bộ bàn ghế cao cấp riêng quán Việt (DecorDef.style) - dùng màu của đúng món nội thất đó. */
 export function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'six' | 'counter', style?: 'oak_vn' | 'luxury_vn' | 'zataku_jp' | 'stone_jp' | 'drum_kr' | 'crate_kr' | 'walnut_kr'): THREE.Group {
   const g = group(null);
   const mats = furnitureMats(c);

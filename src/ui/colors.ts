@@ -4,7 +4,7 @@
  */
 export const PARTY_COLORS = ['#7ed36f', '#ffb347', '#c493f0', '#6cb8f6', '#ff8fb1', '#4fd3c4', '#ffd84d', '#d0a57c'];
 
-/** Màu món của đơn giao tận nơi (màu giấy kraft của túi đóng gói) — trên quầy line, trên đầu bồi bàn. */
+/** Màu món của đơn giao tận nơi (màu giấy kraft của túi đóng gói) - trên quầy line, trên đầu bồi bàn. */
 export const TAKEOUT_COLOR = '#c99a62';
 
 /** Màu của một món: đơn giao tận nơi = màu túi; món của bàn = màu bàn. */

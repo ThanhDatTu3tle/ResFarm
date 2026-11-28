@@ -6,12 +6,12 @@ import { makeCharcoalGrill, makeSnailTable } from './snailstall';
 import { G, group, mesh, toon } from './toon';
 
 /**
- * QUÁN ỐC VỈA HÈ (CuisineId 'oc'): quán không có tường, WC, kho — thay cho phòng (buildRoom) và gian bếp (buildKitchen)
+ * QUÁN ỐC VỈA HÈ (CuisineId 'oc'): quán không có tường, WC, kho - thay cho phòng (buildRoom) và gian bếp (buildKitchen)
  * của RestaurantArea. Mặt bằng sim giữ nguyên (bàn, quầy ra món, chỗ bồi bàn đứng), chỉ khác hình:
  *  - nền bê tông lát ô (màu theo "Sàn nhà": bê tông → gạch lề đường đỏ → gạch hoa), bó vỉa, phố phía sau, đường phía trước;
  *  - sạp dù lớn che khu bếp (màu sọc theo "Sơn tường"), mái cao để nhìn rõ bên trong;
  *  - bàn bày rổ ốc + bếp ga chảo xào (bếp trưởng; bếp lên hạng thì bàn dài ra, thêm chỗ cho đầu bếp thứ 3), bếp nướng than
- *    có lưỡi lửa + tàn lửa (bếp phó), bàn sơ chế cho đầu bếp thứ 4 — hình ở snailstall.ts;
+ *    có lưỡi lửa + tàn lửa (bếp phó), bàn sơ chế cho đầu bếp thứ 4 - hình ở snailstall.ts;
  *  - bảng tên chân đứng bên trái bàn ốc (RestaurantArea.updateNameSign).
  *  - mưa thì mái sạp kéo dài ra che hết sân (bạt hơi trong).
  * Dây đèn vàng ở cuisine.ts (decorateInterior).

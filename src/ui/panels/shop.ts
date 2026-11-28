@@ -135,7 +135,7 @@ export const shopPanel: Panel = {
 
     const pv = Object.values(uiState.decorPreview ?? {}).filter((id): id is string => !!id && content.decor.has(id)).map((id) => content.decor.get(id));
     const previewBar = pv.length
-      ? `<div class="card previewing" data-key="decor-preview"><div class="row"><span class="big">👀</span><div class="grow"><b>Đang xem trước: ${pv.map((d) => `${d.icon} ${esc(d.name)}`).join(' + ')}</b><div class="muted">Quán đang tô màu thử — xem cùng lúc sàn, tường, bàn ghế để phối màu; mua thì giữ luôn, thôi thì về như cũ.</div></div><div class="btns"><button class="ghost"${ui('decorPreview:')}>Thôi</button></div></div></div>`
+      ? `<div class="card previewing" data-key="decor-preview"><div class="row"><span class="big">👀</span><div class="grow"><b>Đang xem trước: ${pv.map((d) => `${d.icon} ${esc(d.name)}`).join(' + ')}</b><div class="muted">Quán đang tô màu thử - xem cùng lúc sàn, tường, bàn ghế để phối màu; mua thì giữ luôn, thôi thì về như cũ.</div></div><div class="btns"><button class="ghost"${ui('decorPreview:')}>Thôi</button></div></div></div>`
       : '';
     return `${previewBar}<div class="row"><p class="muted grow">Mua nội thất là dùng ngay; món đã mua đổi qua lại miễn phí. Bấm 👀 Xem trước để thử màu sàn, tường, bàn ghế trong quán trước khi mua.</p>
       <button class="mini"${ui('edit')}>🪑 Sắp xếp quán</button></div>

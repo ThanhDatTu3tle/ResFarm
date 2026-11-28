@@ -1,5 +1,5 @@
 /**
- * ÂM THANH tổng hợp bằng Web Audio — không có file âm thanh, không thư viện.
+ * ÂM THANH tổng hợp bằng Web Audio - không có file âm thanh, không thư viện.
  * - Hiệu ứng (SFX): mỗi tên trong `Sfx` là một công thức nhỏ (sóng + bao biên độ + quét tần số / nhiễu).
  * - Nhạc nền: tự sinh giai điệu ngũ cung nhẹ nhàng trên vòng hợp âm I–vi–IV–V, lặp vô tận.
  * - Tiếng mưa: nhiễu lọc thấp, to nhỏ theo env.rain.
@@ -7,10 +7,10 @@
  * Bật/tắt nhạc và hiệu ứng lưu trong localStorage (mỗi máy một cài đặt, không nằm trong save game).
  */
 
-export type Sfx = 'click' | 'pop' | 'coin' | 'harvest' | 'dig' | 'water' | 'plant' | 'ripe' | 'serve' | 'bell' | 'sad' | 'error' | 'levelup' | 'dayEnd' | 'buy';
+export type Sfx = 'click' | 'pop' | 'coin' | 'harvest' | 'dig' | 'water' | 'plant' | 'ripe' | 'serve' | 'bell' | 'sad' | 'error' | 'levelup' | 'dayEnd' | 'buy' | 'fanfare' | 'firework';
 
 const PREFS_KEY = 'quan-nha-vuon/audio';
-/** Khoảng cách tối thiểu (giây) giữa hai lần phát cùng một âm — tránh ồn khi nhiều chuyện xảy ra cùng lúc. */
+/** Khoảng cách tối thiểu (giây) giữa hai lần phát cùng một âm - tránh ồn khi nhiều chuyện xảy ra cùng lúc. */
 const MIN_GAP = 0.07;
 
 // Nốt (Hz): ngũ cung Đô trưởng qua nhiều quãng tám
@@ -29,7 +29,7 @@ interface Prefs {
   sfx: boolean;
 }
 
-/** Âm lượng mặc định: tổng, hiệu ứng, nhạc nền (nhạc trước đây 0.22 — nhỏ quá trên máy tính). */
+/** Âm lượng mặc định: tổng, hiệu ứng, nhạc nền (nhạc trước đây 0.22 - nhỏ quá trên máy tính). */
 const MASTER = 1;
 const SFX = 0.6;
 const MUSIC = 0.5;
@@ -115,7 +115,7 @@ export class Sound {
     if (this.ctx) this.sfxBus.gain.setTargetAtTime(on ? SFX : 0, this.ctx.currentTime, 0.05);
   }
 
-  /** 0..1 — gọi mỗi khung hình với env.rain. */
+  /** 0..1 - gọi mỗi khung hình với env.rain. */
   setRain(amount: number): void {
     if (this.ctx) this.rainGain.gain.setTargetAtTime(amount * 0.12, this.ctx.currentTime, 0.5);
   }
@@ -178,6 +178,19 @@ export class Sound {
         break;
       case 'levelup':
         [0, 4, 7, 12, 16].forEach((s, i) => this.tone(NOTE(12 + s), t + i * 0.09, i === 4 ? 0.6 : 0.18, { type: 'triangle', vol: 0.25 }));
+        break;
+      case 'fanfare':
+        // Kèn mừng quán lên hạng: hai hợp âm rộn ràng + nốt ngân dài
+        [0, 4, 7].forEach((s) => this.tone(NOTE(12 + s), t, 0.16, { type: 'square', vol: 0.07 }));
+        [0, 4, 7].forEach((s) => this.tone(NOTE(12 + s), t + 0.18, 0.12, { type: 'square', vol: 0.07 }));
+        [5, 9, 12].forEach((s) => this.tone(NOTE(12 + s), t + 0.32, 0.16, { type: 'square', vol: 0.07 }));
+        [7, 12, 16, 19].forEach((s) => this.tone(NOTE(12 + s), t + 0.52, 0.9, { type: 'triangle', vol: 0.16 }));
+        break;
+      case 'firework':
+        // Pháo hoa: tiếng rít bay lên rồi nổ lép bép
+        this.tone(500, t, 0.35, { to: 1700, type: 'sine', vol: 0.05 });
+        this.noiseBurst(t + 0.36, 0.3, { type: 'lowpass', freq: 1800, to: 300, vol: 0.45 });
+        for (let i = 0; i < 6; i++) this.noiseBurst(t + 0.45 + i * 0.06 + Math.random() * 0.04, 0.04, { type: 'highpass', freq: 3000, vol: 0.18 });
         break;
       case 'dayEnd':
         [12, 7, 4, 0].forEach((s, i) => this.tone(NOTE(12 + s), t + i * 0.18, 0.5, { vol: 0.16 }));

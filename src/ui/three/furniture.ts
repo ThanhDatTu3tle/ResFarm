@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { G, group, mesh, seeded, toon } from './toon';
 
 /**
- * BÀN GHẾ GỖ MỘC (quán Việt) — mẫu đầu tiên theo hướng "đồ làm tay":
+ * BÀN GHẾ GỖ MỘC (quán Việt) - mẫu đầu tiên theo hướng "đồ làm tay":
  *  - Mặt bàn ghép từ 3 tấm ván, có khe nhỏ, mỗi tấm lệch chút xíu (dài / cao / xoay) như thợ đóng tay.
  *  - Vân gỗ vẽ bằng canvas (sọc lượn sóng + mắt gỗ), nhân với màu nội thất → đổi bộ nội thất vẫn giữ vân.
  *  - Chân chữ A choãi ra, có thanh giằng thấp; ghế đẩu mặt chữ nhật, chân choãi sang hai bên.
@@ -299,7 +299,7 @@ function archPanel(w: number, h: number, t: number): THREE.ExtrudeGeometry {
 
 /**
  * Bàn nhựa chữ nhật kiểu quán ốc (như bàn nhựa đúc Song Long): mặt dày bo viền, có gân chìm chạy quanh mặt bàn,
- * bốn hông là tấm nhựa liền có vòm cong — chân là bản rộng hình chữ L ở bốn góc, hơi choãi ra; miếng đệm chân sẫm màu.
+ * bốn hông là tấm nhựa liền có vòm cong - chân là bản rộng hình chữ L ở bốn góc, hơi choãi ra; miếng đệm chân sẫm màu.
  * `mats.top` mặt bàn + hông, `mats.base` gân chìm, lòng bàn, đệm chân.
  */
 export function buildPlasticTable(g: THREE.Object3D, w: number, d: number, top: number, mats: { top: THREE.Material; base: THREE.Material }, seed = 1): void {

@@ -34,7 +34,7 @@ export interface QuestDef {
   desc: string;
   goal: { kind: QuestGoalKind; target: number };
   reward: { money?: number; xp?: number };
-  /** Chương (1, 2, 3...) — tên chương ở `questChapters` (src/data/quests.ts). */
+  /** Chương (1, 2, 3...) - tên chương ở `questChapters` (src/data/quests.ts). */
   chapter: number;
 }
 
@@ -133,7 +133,7 @@ export interface SlotTypeDef {
   /**
    * Vị trí trên bản đồ nông trại (mét): ô thứ i ở (x + (i % cols)·dx, z + ⌊i / cols⌋·dz).
    * size = cạnh ô; tierGrowth = mỗi bậc nới rộng ô to thêm bao nhiêu lần;
-   * work = bác nông dân đứng ở mép nào của ô khi làm việc (mặc định 'front' — mép phía camera).
+   * work = bác nông dân đứng ở mép nào của ô khi làm việc (mặc định 'front' - mép phía camera).
    * Cả sim (chỗ bác nông dân đứng) lẫn cảnh 3D đều đọc từ đây.
    */
   layout: {
@@ -145,7 +145,7 @@ export interface SlotTypeDef {
     size: number;
     tierGrowth: number;
     work?: 'front' | 'left' | 'back';
-    /** Vị trí từng ô đặt tay (thay cho lưới x/z/cols/dx/dz) — dùng khi ô nằm thành nhiều cụm (vườn cây ăn quả). work riêng từng ô nếu có. */
+    /** Vị trí từng ô đặt tay (thay cho lưới x/z/cols/dx/dz) - dùng khi ô nằm thành nhiều cụm (vườn cây ăn quả). work riêng từng ô nếu có. */
     spots?: { x: number; z: number; work?: 'front' | 'left' | 'back' }[];
   };
   /** Ô khởi đầu đã trồng sẵn (producer theo thứ tự ô). */
@@ -211,13 +211,13 @@ export interface StallDef {
   calls?: string[];
   /**
    * Kiểu hàng quán (hình 3D): 'stall' sạp mái bạt trong dãy chợ (mặc định), 'kiosk' tiệm nhỏ trong dãy chợ,
-   * 'cart' xe đẩy, 'pole' gánh hàng rong, 'bike' xe đạp bán dạo — ba kiểu sau đứng trên vỉa hè ở `spot`.
+   * 'cart' xe đẩy, 'pole' gánh hàng rong, 'bike' xe đạp bán dạo - ba kiểu sau đứng trên vỉa hè ở `spot`.
    */
   kind?: 'stall' | 'kiosk' | 'cart' | 'pole' | 'bike';
   /** Chỗ đứng trên vỉa hè (x, z ở khu chợ) cho hàng rong. */
   spot?: { x: number; z: number };
   /**
-   * Hàng rong / tiệm ăn vặt: thực đơn cho cả đội ra ăn giờ nghỉ (KHÔNG phải nguyên liệu — mua không vào kho).
+   * Hàng rong / tiệm ăn vặt: thực đơn cho cả đội ra ăn giờ nghỉ (KHÔNG phải nguyên liệu - mua không vào kho).
    * Có `menu` thì `items` để trống.
    */
   menu?: StaffDishDef[];
@@ -248,7 +248,7 @@ export interface TableDef {
   cuisines?: CuisineId[];
   /** Bàn đang xoay 90° (w/h đã đổi chỗ; ghế xếp theo hai cạnh còn lại). Chỉ có ở bàn trả về từ activeTables(). */
   rotated?: boolean;
-  /** Bàn mua thêm: loại bàn (TableKindDef) — bán lại được. */
+  /** Bàn mua thêm: loại bàn (TableKindDef) - bán lại được. */
   kind?: string;
   /** Bàn xoay 90° sẵn khi chưa được người chơi xoay / dời (bàn bốn quán Nhật đặt dọc sát tường). */
   rot?: boolean;
@@ -259,7 +259,7 @@ export interface TableDef {
   wall?: 'east';
   /** Bàn kiểu quầy cao, ghế xếp một hàng ở cạnh phía Đông (quầy chữ L của quán Nhật). */
   bar?: 'east';
-  /** Ghi đè theo phong cách quán (vị trí, số ghế, kiểu quầy...) — id giữ nguyên để save cũ không vỡ. */
+  /** Ghi đè theo phong cách quán (vị trí, số ghế, kiểu quầy...) - id giữ nguyên để save cũ không vỡ. */
   byCuisine?: Partial<Record<CuisineId, Partial<Omit<TableDef, 'byCuisine' | 'id'>>>>;
   /** Vị trí mặc định khác từ hạng quán `tier` trở lên (phòng sâu hơn nên có chỗ xếp lại). */
   fromTier?: { tier: number; x: number; y: number } | { tier: number; x: number; y: number }[];
@@ -315,6 +315,8 @@ export interface RoomDef {
    * 'L' = quầy bếp chữ L ở góc trái-sau, quán xoay mặt hẹp ra đường (quán Nhật) · 'front' = bếp sát cửa bên trái (quán Việt).
    */
   plan?: 'back' | 'L' | 'front';
+  /** Bếp sát cửa ('front', quán Việt): mỗi hạng quán bếp dài thêm bao nhiêu đơn vị về phía sau (khối bếp, quầy ra món dời theo). */
+  kitchenGrow?: number;
   /**
    * Chỗ treo tranh (đồ trang trí `wall`): `back` = tường sau, `at` là toạ độ x 2D; `left` / `right` = tường bên,
    * `at` là tỉ lệ dọc tường tính từ tường sau (0..1). Thứ tự = thứ tự treo.
@@ -324,7 +326,7 @@ export interface RoomDef {
   passStand?: { x: number; y: number };
   /** Khối bếp / quầy cố định: không đặt bàn, người không đi xuyên qua. */
   walls?: { x1: number; y1: number; x2: number; y2: number }[];
-  /** Quầy cashier nhận đơn giao tận nơi (chỉ có từ hạng balance.takeout.tier — layout.roomOf tính): tâm quầy + chỗ bồi bàn đứng giao món. */
+  /** Quầy cashier nhận đơn giao tận nơi (chỉ có từ hạng balance.takeout.tier - layout.roomOf tính): tâm quầy + chỗ bồi bàn đứng giao món. */
   cashier?: {
     x: number;
     y: number;
@@ -369,7 +371,7 @@ export interface DecorDef {
   exclude?: CuisineId[];
   /** Màu cho tầng hiển thị, dạng 0xRRGGBB; tên khoá theo slot (xem decor.ts). */
   colors: Record<string, number>;
-  /** Sàn có hoa văn (tầng hiển thị vẽ texture thay cho sọc hai màu): 'encaustic' = gạch bông — `a` nền, `b` hoa văn · 'ngocdo' = gạch men ngọc đỏ · 'terracotta' = gạch xưa. */
+  /** Sàn có hoa văn (tầng hiển thị vẽ texture thay cho sọc hai màu): 'encaustic' = gạch bông - `a` nền, `b` hoa văn · 'ngocdo' = gạch men ngọc đỏ · 'terracotta' = gạch xưa. */
   pattern?: 'encaustic' | 'ngocdo' | 'terracotta' | 'checker' | 'concrete' | 'planks' | 'walltile';
   /** Bàn ghế có model riêng (tầng hiển thị dựng lại bàn ghế khi đổi): 'oak_vn' = gỗ chân tiện, ghế con tiện · 'luxury_vn' = ghế bành mây · quán Ốc: 'inox_oc' bàn inox gấp + ghế nhựa lưng nan, 'bamboo_oc' bàn tre + ghế đẩu tre, 'wood_oc' bàn gỗ + ghế lưng con tiện. */
   style?: FurnitureStyle;
@@ -414,7 +416,7 @@ export interface Balance {
   startReputation: number;
   /** Khoảng cách trung bình giữa hai lượt khách (phút) ở uy tín trung bình. */
   spawnInterval: number;
-  /** Khoảng cách tối đa giữa hai nhóm khách (phút game) — giờ nào trong ca cũng có khách. */
+  /** Khoảng cách tối đa giữa hai nhóm khách (phút game) - giờ nào trong ca cũng có khách. */
   spawnMaxGap: number;
   /** Mở ca được bao nhiêu phút game thì nhóm khách đầu tiên tới. */
   firstGuest: number;
@@ -427,7 +429,7 @@ export interface Balance {
   foodPatiencePerGuest: number;
   /** Thời gian ngồi ăn [ngắn nhất, dài nhất] theo số khách (phần tử i = nhóm i + 1 người). */
   eatTime: [number, number][];
-  /** Lưu lượng khách theo ngày: hệ số ngẫu nhiên mỗi sáng (ngày thường / ngày lễ — nhân thêm với hiệu ứng lễ). */
+  /** Lưu lượng khách theo ngày: hệ số ngẫu nhiên mỗi sáng (ngày thường / ngày lễ - nhân thêm với hiệu ứng lễ). */
   traffic: { normal: [number, number]; festival: [number, number] };
   tipRate: number;
   xpPerCoin: number;
@@ -440,7 +442,7 @@ export interface Balance {
     carryMax: number;
     /** Phút game đứng lau một vết bẩn. */
     mopTime: number;
-    /** Số màu bàn (bong bóng + món cùng màu) — khớp bảng màu trong UI. */
+    /** Số màu bàn (bong bóng + món cùng màu) - khớp bảng màu trong UI. */
     partyColors: number;
     /** Khách xem menu mất bao lâu [min, max] (phút game). */
     browseTime: [number, number];
@@ -554,6 +556,8 @@ export interface Balance {
     shipperTrip: { energy: [number, number]; minutes: [number, number] };
     /** Bác nông dân còn trên tỉ lệ năng lượng này lúc trưa thì không nghỉ ăn trưa. */
     farmerSkipLunchAbove: number;
+    /** Đội quán còn trên tỉ lệ năng lượng này lúc trưa thì không gọi món. */
+    crewSkipLunchAbove: number;
     chefPerDish: number;
     waiterPerTask: number;
     farmerPerTask: number;
@@ -587,7 +591,7 @@ export interface Balance {
 /** Dáng người: trẻ em (nhỏ, đầu to), thiếu niên, người lớn, người già (hơi khom). */
 export type PersonBuild = 'kid' | 'teen' | 'adult' | 'elder';
 export type HairStyle = 'short' | 'spiky' | 'long' | 'pony' | 'twin' | 'bun' | 'bald' | 'bob' | 'curly' | 'side' | 'buzz' | 'undercut' | 'braid' | 'wavy';
-/** Phụ kiện. Khách vãng lai không bao giờ có phụ kiện — thấy phụ kiện là biết khách quen. */
+/** Phụ kiện. Khách vãng lai không bao giờ có phụ kiện - thấy phụ kiện là biết khách quen. */
 export type Accessory =
   | 'bow'
   | 'backpack'
@@ -681,12 +685,21 @@ export interface TierDef {
   icon: string;
   /** Chiều sâu phòng (toạ độ 2D, thay RoomDef.height); khu ăn uống giãn theo. */
   height: number;
-  /** Chiều rộng phòng (giai đoạn 15: quán nới về phía Đông — bếp, quầy ghế đơn, quầy ra món dài / dời theo). Bỏ trống = RoomDef.width. */
+  /** Chiều rộng phòng (giai đoạn 15: quán nới về phía Đông - bếp, quầy ghế đơn, quầy ra món dài / dời theo). Bỏ trống = RoomDef.width. */
   width?: number;
+  /**
+   * Bề ngang tính cho gian bếp (dãy bếp dài ra, quầy ra món dời, quầy trước bếp thêm ghế). Bỏ trống = `width`.
+   * Giai đoạn 20: quán nới ~2 m mỗi hạng về phía bãi đất hoang nhưng bếp giữ nhịp dài ra như cũ.
+   */
+  kitchenWidth?: number;
   cost: number;
   level: number;
   desc: string;
   modifiers?: Partial<Record<ModifierKey, number>>;
+  /**
+   * Dọn lô đất hoang bên Đông quán trước khi lên hạng này (hạng 2..5 ứng với lô 1..4): tốn `cost` xu, đội thợ dọn trong `minutes` phút game.
+   */
+  clear?: { cost: number; minutes: number };
 }
 
 /** Bàn lẻ mua thêm ở Siêu thị (B7). Mỗi lần mua tạo một bàn mới trong state.restaurant.extraTables. */

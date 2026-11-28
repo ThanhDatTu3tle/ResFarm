@@ -51,7 +51,7 @@ export function friendsHtml(v: FriendsView, content: Content, enabled = onlineEn
           </div>`;
         })
         .join('')
-    : `<p class="muted">Chưa có bạn nào. Gửi link mời hoặc cho bạn quét mã QR — bạn mở là hai người thành bạn của nhau.</p>`;
+    : `<p class="muted">Chưa có bạn nào. Gửi link mời hoặc cho bạn quét mã QR - bạn mở là hai người thành bạn của nhau.</p>`;
   return wrap(`
     ${v.error ? `<p class="friends-err">${esc(v.error)}</p>` : ''}
     <section class="friend-me">
@@ -64,7 +64,7 @@ export function friendsHtml(v: FriendsView, content: Content, enabled = onlineEn
       ${v.showQr && v.qr ? `<div class="fm-qr">${v.qr}<small>${esc(link)}</small></div>` : ''}
     </section>
     <button class="toggle-row${me.sharing ? ' is-on' : ''}"${uiAttr('friends:sharing')} role="switch" aria-checked="${me.sharing}"${dis}>
-      <span>🏡 Cho bạn bè ghé thăm quán<small>${me.sharing ? `Quán tự cập nhật mỗi khi hết ngày · lần cuối ${ago(me.snapshot_at)}` : 'Đang tắt — bạn bè thấy quán "chưa mở cửa"'}</small></span><i class="switch"><i></i></i>
+      <span>🏡 Cho bạn bè ghé thăm quán<small>${me.sharing ? `Quán tự cập nhật mỗi khi hết ngày · lần cuối ${ago(me.snapshot_at)}` : 'Đang tắt - bạn bè thấy quán "chưa mở cửa"'}</small></span><i class="switch"><i></i></i>
     </button>
     <div class="friend-add"><input type="text" maxlength="8" placeholder="Nhập mã của bạn bè" data-friend-code autocomplete="off" autocapitalize="characters" enterkeyhint="go"><button class="primary"${uiAttr('friends:add')}${dis}>Kết bạn</button></div>
     <h3>Bạn bè (${v.friends.length})</h3>

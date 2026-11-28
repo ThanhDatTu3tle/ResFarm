@@ -118,9 +118,9 @@ function rollContracts(ctx: SimContext): void {
 /** Anh shipper đi giao được không: đang đi giao, đang ở chợ với đội, hoặc kiệt sức thì không. */
 export function shipperBlocked(ctx: SimContext): string | null {
   const s = ctx.state.restaurant.shipper;
-  if (s.trip) return 'Anh shipper đang đi giao đơn khác — đợi anh về nhé.';
+  if (s.trip) return 'Anh shipper đang đi giao đơn khác - đợi anh về nhé.';
   if (ctx.state.crew.restaurantAway) return 'Anh shipper đang ăn ở chợ cùng cả đội.';
-  if (s.fainted) return 'Anh shipper kiệt sức rồi — bồi dưỡng ở bảng Nhân viên.';
+  if (s.fainted) return 'Anh shipper kiệt sức rồi - bồi dưỡng ở bảng Nhân viên.';
   return null;
 }
 

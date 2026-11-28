@@ -1,5 +1,5 @@
 /**
- * SỔ THÀNH TỰU — huy hiệu cho người chơi lâu. Đạt mốc thì hiện huy hiệu và nhận thưởng một lần.
+ * SỔ THÀNH TỰU - huy hiệu cho người chơi lâu. Đạt mốc thì hiện huy hiệu và nhận thưởng một lần.
  * Thêm thành tựu: thêm 1 mục (giữ nguyên id đã phát hành). Chỉ số (`stat`) xem `achievementValue` trong sim/systems/achievements.ts:
  *   serve      số nhóm khách đã phục vụ xong (đếm từ giai đoạn 11)
  *   happy      số nhóm khách để lại tip

@@ -9,10 +9,10 @@ import { placeOrders, startBrowsing } from './customers';
 import { checkPacked } from './takeout';
 
 /**
- * PHỤC VỤ — người chơi đóng vai bồi bàn. Bấm vào khách / quầy line / bàn dơ / vết bẩn là giao việc; bồi bàn làm lần lượt:
+ * PHỤC VỤ - người chơi đóng vai bồi bàn. Bấm vào khách / quầy line / bàn dơ / vết bẩn là giao việc; bồi bàn làm lần lượt:
  * đi tới nơi (tốc độ balance.service.waiterSpeed, theo toạ độ mặt bằng) rồi mới mang menu / ghi món / bưng món / dọn / lau.
  *  - Bưng món (người chơi): bấm quầy line → `service/pickup`: ra quầy lấy món ra quầy sớm nhất, tối đa `carryMax` món;
- *    rồi bấm bàn → `service/serve`: giao những món đang cầm của bàn đó (món mang màu bàn — xem `Party.color`).
+ *    rồi bấm bàn → `service/serve`: giao những món đang cầm của bàn đó (món mang màu bàn - xem `Party.color`).
  *  - Nhân viên thuê / test: `service/deliver` (lấy đúng các món của một bàn ở quầy rồi giao một lượt).
  *  - Rảnh việc thì bồi bàn đứng yên tại chỗ (không chạy về quầy).
  * Vị trí bồi bàn nằm trong state nên cảnh 3D chỉ việc vẽ theo, và mọi thứ vẫn tất định.
@@ -34,7 +34,7 @@ export function isReserved(ctx: SimContext, orderId: number): boolean {
   return workers(ctx).some((w) => w.carrying.includes(orderId) || w.tasks.some((t) => (t.kind === 'deliver' || t.kind === 'handoff') && t.orderIds.includes(orderId)));
 }
 
-/** Món đang nằm ở quầy ra món và chưa ai nhận bưng — thứ người chơi chọn được. */
+/** Món đang nằm ở quầy ra món và chưa ai nhận bưng - thứ người chơi chọn được. */
 export function readyOrders(ctx: SimContext): Order[] {
   return ctx.state.restaurant.orders.filter((o) => o.status === 'ready' && !isReserved(ctx, o.id));
 }
@@ -44,7 +44,7 @@ export function wantedOrder(ctx: SimContext, party: Party, recipeId: string, ski
   return ctx.state.restaurant.orders.find((o) => o.partyId === party.id && o.recipeId === recipeId && o.status !== 'served' && o.status !== 'carrying' && !isReserved(ctx, o.id) && !skip.includes(o.id));
 }
 
-/** Các món nhóm còn chờ (chưa lên bàn, chưa ai bưng) — một khay "đủ bộ" phải khớp đúng số món này. */
+/** Các món nhóm còn chờ (chưa lên bàn, chưa ai bưng) - một khay "đủ bộ" phải khớp đúng số món này. */
 export function pendingOrders(ctx: SimContext, party: Party): Order[] {
   return ctx.state.restaurant.orders.filter((o) => o.partyId === party.id && o.status !== 'served' && o.status !== 'carrying' && !isReserved(ctx, o.id));
 }
@@ -206,7 +206,7 @@ function swapOwners(ctx: SimContext, a: Order, b: Order): void {
 
 /**
  * Dọn món mồ côi: đơn mà nhóm khách đã không còn trong quán (giận bỏ về, save cũ, đổi chủ món…) thì bỏ đi, và món nào
- * trên tay bồi bàn / nhân viên không còn đơn thì đổ luôn — nếu không người phục vụ cầm mãi, không giao được cho ai.
+ * trên tay bồi bàn / nhân viên không còn đơn thì đổ luôn - nếu không người phục vụ cầm mãi, không giao được cho ai.
  * Việc "giao" chỉ còn món đã mất thì cũng bỏ.
  */
 function dropOrphans(ctx: SimContext): void {
@@ -269,7 +269,7 @@ export const serviceSystem: System = {
       const party = ctx.state.restaurant.parties.find((p) => p.id === cmd.partyId);
       if (!party || party.phase !== 'readyToOrder') return fail('Khách chưa chọn xong món.');
       if (party.called) return fail('Đang tới ghi món cho bàn này rồi.');
-      if (party.want && !hasAll(ctx, ctx.content.recipes.get(party.want).ingredients)) return fail(`Khách muốn ${ctx.content.recipes.get(party.want).name} nhưng quán đang thiếu nguyên liệu — ra Chợ mua trước đã.`);
+      if (party.want && !hasAll(ctx, ctx.content.recipes.get(party.want).ingredients)) return fail(`Khách muốn ${ctx.content.recipes.get(party.want).name} nhưng quán đang thiếu nguyên liệu - ra Chợ mua trước đã.`);
       party.called = true;
       ctx.state.restaurant.waiter.tasks.push({ kind: 'takeOrder', partyId: party.id });
       return ok();
@@ -280,7 +280,7 @@ export const serviceSystem: System = {
       const w = ctx.state.restaurant.waiter;
       const max = ctx.content.balance.service.carryMax;
       if (w.tasks.some((t) => t.kind === 'pickup')) return fail('Đang ra quầy lấy món rồi.');
-      if (w.carrying.length >= max) return fail(`Đang cầm ${max} món rồi — bấm bàn cùng màu để giao.`);
+      if (w.carrying.length >= max) return fail(`Đang cầm ${max} món rồi - bấm bàn cùng màu để giao.`);
       if (!passQueue(ctx).length) return fail('Quầy line chưa có món nào nấu xong.');
       w.tasks.push({ kind: 'pickup' });
       return ok();
@@ -295,10 +295,10 @@ export const serviceSystem: System = {
       // Món đang cầm chưa hứa giao cho bàn nào
       const promised = new Set(w.tasks.flatMap((t) => (t.kind === 'deliver' ? t.orderIds : [])));
       const free = w.carrying.map((id) => r.orders.find((o) => o.id === id)).filter((o): o is Order => !!o && !promised.has(o.id));
-      if (!free.length) return fail(w.tasks.some((t) => t.kind === 'pickup') ? 'Đợi lấy món ở quầy xong đã.' : 'Chưa cầm món nào — bấm quầy line để lấy món.');
+      if (!free.length) return fail(w.tasks.some((t) => t.kind === 'pickup') ? 'Đợi lấy món ở quầy xong đã.' : 'Chưa cầm món nào - bấm quầy line để lấy món.');
       // Chỉ giao đúng món mang màu bàn này (món của bàn khác dù cùng loại cũng không đổi chủ)
       const mine = free.filter((o) => o.partyId === party.id);
-      if (!mine.length) return fail('Món đang cầm không phải của bàn này — giao cho bàn có bong bóng cùng màu nhé.');
+      if (!mine.length) return fail('Món đang cầm không phải của bàn này - giao cho bàn có bong bóng cùng màu nhé.');
       w.tasks.push({ kind: 'deliver', orderIds: mine.map((o) => o.id), partyId: party.id });
       return ok();
     },
@@ -340,8 +340,8 @@ export const serviceSystem: System = {
       const promised = new Set(w.tasks.flatMap((t) => (t.kind === 'deliver' || t.kind === 'handoff' ? t.orderIds : [])));
       const mine = w.carrying.filter((id) => !promised.has(id) && r.orders.find((o) => o.id === id)?.takeoutId != null);
       if (!mine.length) {
-        if (w.carrying.length) return fail('Món đang cầm là của khách trong quán — bấm bàn cùng màu để giao.');
-        return fail(w.tasks.some((t) => t.kind === 'pickup') ? 'Đợi lấy món ở quầy xong đã.' : 'Chưa cầm món giao tận nơi nào — lấy món 🛍️ ở quầy line trước.');
+        if (w.carrying.length) return fail('Món đang cầm là của khách trong quán - bấm bàn cùng màu để giao.');
+        return fail(w.tasks.some((t) => t.kind === 'pickup') ? 'Đợi lấy món ở quầy xong đã.' : 'Chưa cầm món giao tận nơi nào - lấy món 🛍️ ở quầy line trước.');
       }
       w.tasks.push({ kind: 'handoff', orderIds: mine });
       return ok();
@@ -428,7 +428,7 @@ function spendEnergy(ctx: SimContext, w: WaiterState): boolean {
 export function waiterBlocked(ctx: SimContext): string | null {
   const away = awayReason(ctx, 'restaurant');
   if (away) return away;
-  if (ctx.state.restaurant.waiter.fainted) return '😵 Bồi bàn kiệt sức rồi — bồi dưỡng ở bảng Nhân viên.';
+  if (ctx.state.restaurant.waiter.fainted) return '😵 Bồi bàn kiệt sức rồi - bồi dưỡng ở bảng Nhân viên.';
   return null;
 }
 

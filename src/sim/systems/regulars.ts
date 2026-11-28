@@ -5,7 +5,7 @@ import type { SimContext } from '../types';
 import { givePropGift } from './home';
 
 /**
- * KHÁCH QUEN (F2) — không phải system riêng: customers.ts gọi các hàm ở đây lúc khách tới, gọi món và trả tiền.
+ * KHÁCH QUEN (F2) - không phải system riêng: customers.ts gọi các hàm ở đây lúc khách tới, gọi món và trả tiền.
  *  - Tới: mỗi nhóm khách mới có balance.regulars.chance là khách quen (trong số khách đã mở, chưa ghé hôm nay,
  *    không đang ở quán). Khách quen ngồi ghế đầu của nhóm, nhóm tối đa maxPartySize người.
  *  - Gọi món: món ruột đang bán và đủ nguyên liệu thì khách quen gọi món đó (order.fav).

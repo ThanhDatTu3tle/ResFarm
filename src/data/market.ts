@@ -1,6 +1,6 @@
 import type { StallDef } from './types';
 
-/** Thêm sạp: thêm 1 mục ở đây — khu chợ 3D tự dựng thêm sạp, bảng tên (= name) và bày hàng theo `items`. */
+/** Thêm sạp: thêm 1 mục ở đây - khu chợ 3D tự dựng thêm sạp, bảng tên (= name) và bày hàng theo `items`. */
 export const stalls: StallDef[] = [
   { id: 'meat', name: 'Thịt bò/lợn cô Bủm', icon: '🥩', markup: 1, calls: ['Thịt heo tươi ngon đây các cô chú anh chị ơi!', 'Mua gì anh chị ơi?', 'Bò mới về sáng nay nè!', 'Gà ta chắc thịt lắm nha!', 'Lấy nhiêu cô chặt cho nè!'], items: ['beef', 'pork', 'chicken'], interior: 'butcher' },
   { id: 'produce', name: 'Tạp hóa cậu Ba', icon: '🥬', markup: 1, calls: ['Rau mới hái sáng nay nè!', 'Cà chua đỏ au, ngọt lắm!', 'Trứng gà ta đây cô chú ơi!', 'Mua gì em lấy cho!', 'Trái cây ngọt lịm nè!'], items: ['cabbage', 'tomato', 'onion', 'carrot', 'potato', 'chili', 'cucumber', 'mushroom', 'egg', 'milk', 'orange', 'apple', 'mango', 'banana', 'scallion'] }, // trái cây: mùa Đông vườn nghỉ vẫn mua được

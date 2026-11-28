@@ -17,7 +17,7 @@ import { mergeStatic } from '../merge';
 import { BusStopScene, makeCityBus, type CityBus } from '../busstop';
 
 /**
- * KHU CHỢ — mỗi StallDef trong src/data/market.ts thành một sạp có mái bạt sọc, tự bày hàng theo `items`.
+ * KHU CHỢ - mỗi StallDef trong src/data/market.ts thành một sạp có mái bạt sọc, tự bày hàng theo `items`.
  * Bấm vào sạp phát Pick {type:'stall'} để mở bảng mua hàng. Mỗi sạp có bảng tên (= StallDef.name) và có thể có
  * bảng chân đứng (StallDef.standee). Trước chợ: vỉa hè rộng cho người đi bộ, rồi tới con đường 2 làn xe chạy qua lại.
  */
@@ -34,7 +34,7 @@ const BRAKE = 4;
 const ACCEL = 2.2;
 /** Hai cột đèn lớn treo dây cờ: ngoài rìa dãy sạp (sạp ngoài cùng tâm ±11.8, rộng 5 m). */
 const LAMP_X = 15;
-/** Đầu trái dây cờ (góc mái sạp ngoài cùng bên trái — cột đèn trái đã bỏ). */
+/** Đầu trái dây cờ (góc mái sạp ngoài cùng bên trái - cột đèn trái đã bỏ). */
 const FLAG_LEFT = -12.6;
 /** Xe buýt chạy chậm cho người chơi kịp xem quảng cáo dán hông xe. */
 const BUS_SPEED = 1.6;
@@ -104,7 +104,7 @@ export class MarketArea implements Area {
   /** Hơi nóng bốc lên từ nồi hủ tiếu / ly cà phê. */
   private steams: THREE.Sprite[] = [];
 
-  /** Tâm hàng quán `id` (mét, toạ độ khu chợ) — app.ts lướt camera tới đây khi bấm sạp. */
+  /** Tâm hàng quán `id` (mét, toạ độ khu chợ) - app.ts lướt camera tới đây khi bấm sạp. */
   stallCenter(id: string): { x: number; z: number } | null {
     return this.centers.get(id) ?? null;
   }
@@ -146,7 +146,7 @@ export class MarketArea implements Area {
   private scenery!: THREE.Group;
 
   private buildScenery(): void {
-    // Cảnh tĩnh vào nhóm `scenery` (gộp mesh sau khi dựng — merge.ts); vật cử động (cờ, xe, người) gắn thẳng vào root
+    // Cảnh tĩnh vào nhóm `scenery` (gộp mesh sau khi dựng - merge.ts); vật cử động (cờ, xe, người) gắn thẳng vào root
     const top = this.root;
     const r = (this.scenery = group(top));
     const rnd = seeded(23);
@@ -199,7 +199,7 @@ export class MarketArea implements Area {
     };
     // Đèn đường sát mặt đường (−18 dời ra −20 nhường chỗ biển LED, 18 dời ra 19.3 nhường chỗ trạm xe buýt); đèn hắt
     // hơi lùi vào vỉa hè cho sáng chỗ người đi
-    // (đèn hắt chỉ cho hai cột giữa — bớt đèn điểm cho máy yếu; hai cột ngoài vẫn có bóng rực + quầng sáng)
+    // (đèn hắt chỉ cho hai cột giữa - bớt đèn điểm cho máy yếu; hai cột ngoài vẫn có bóng rực + quầng sáng)
     for (const lx of [-20, -6, 6, 19.3]) brightLamp(lx, SIDEWALK.z2 - 0.4, 1.3, Math.abs(lx) < 10 ? SIDEWALK.z2 - 1.6 : null);
     // Hai cột đèn lớn treo dây cờ: đứng ngoài rìa dãy sạp (không che sạp thịt / Tiệm 25caaaaa, không cản bấm sạp)
     for (const lx of [-LAMP_X, LAMP_X]) {
@@ -567,7 +567,7 @@ export class MarketArea implements Area {
 
   /**
    * Xe chạy theo làn, giữ khoảng cách với xe phía trước (tính vòng qua hai đầu đường): khoảng trống còn `gap` thì
-   * chạy tối đa √(2·BRAKE·gap) — xe trước dừng (xe buýt ghé trạm) thì xe sau phanh kịp, không tông. Xe buýt có lịch riêng.
+   * chạy tối đa √(2·BRAKE·gap) - xe trước dừng (xe buýt ghé trạm) thì xe sau phanh kịp, không tông. Xe buýt có lịch riêng.
    */
   private updateTraffic(t: number, dt: number): void {
     const span = ROAD_HALF * 2;

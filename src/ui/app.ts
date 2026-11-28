@@ -64,7 +64,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   const params = new URLSearchParams(location.search);
   // Xem trước quán (màn chọn quán): ván tạm, không đọc / ghi save, không có ngày hướng dẫn
   const preview = opts.preview ?? null;
-  // F1 · Thăm quán (?visit): bản chụp quán của bạn bè (tải từ máy chủ, cất trong sessionStorage) — chỉ xem, không lưu.
+  // F1 · Thăm quán (?visit): bản chụp quán của bạn bè (tải từ máy chủ, cất trong sessionStorage) - chỉ xem, không lưu.
   // Ván của mình đã lưu trước khi sang đây nên giờ của mình đứng yên; về lại thì chạy tiếp.
   const visit = params.has('visit') ? (import.meta.env.DEV && content.cuisines.has(params.get('visit') ?? '') ? demoVisit(content, params.get('visit') as CuisineId) : readVisit(content)) : null;
   const fresh = params.has('fresh') || !!preview || !!visit;
@@ -77,21 +77,23 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   const game = new Game(content, saved ? { state: saved } : { seed: params.has('seed') ? Number(params.get('seed')) : preview ? 11 : undefined, cuisine, tutorial, owner: opts.owner ?? paramOwner(params) });
   // Ván mới: tên quán người chơi đặt ở bước chọn quán (trống / sai thì giữ tên mặc định)
   if (!saved && opts.shopName) game.dispatch({ type: 'profile/rename', name: opts.shopName });
-  // Giờ trong ngày theo người đi thăm (?at=phút) — chỉ để vẽ trời / đèn; mùa / năm giữ theo bản chụp của chủ quán
+  // Giờ trong ngày theo người đi thăm (?at=phút) - chỉ để vẽ trời / đèn; mùa / năm giữ theo bản chụp của chủ quán
   const visitAt = visit ? Number(params.get('at')) : NaN;
   if (visit) prepareVisit(game);
   if (import.meta.env.DEV && !visit) {
-    // ?tut=market — nhảy tới một bước của ngày hướng dẫn (intro / serve / hard / market / cook / farm / morning / lunch / done)
+    // ?tut=market - nhảy tới một bước của ngày hướng dẫn (intro / serve / hard / market / cook / farm / morning / lunch / done)
     const tut = params.get('tut');
     if (tut) tutorialJump(game.ctx, tut as TutorialStep);
     // Chỉ ở bản dev: ?rich (nhiều tiền + cấp 9) · ?do=[{"type":"farm/plant",...}] chạy sẵn một chuỗi lệnh
     // · ?weather=rain ép thời tiết · ?edit mở sẵn chế độ sắp xếp bàn
     if (params.has('rich')) Object.assign(game.state, { money: 99999, level: 9 });
-    // ?max: quán "tối thượng" — mua / nâng / thuê hết mọi thứ (xem maxOut)
+    // ?lv=50: đặt cấp người chơi (thử đồ khoá theo cấp mà quán vẫn hạng 1)
+    if (Number(params.get('lv')) > 0) game.state.level = Math.floor(Number(params.get('lv')));
+    // ?max: quán "tối thượng" - mua / nâng / thuê hết mọi thứ (xem maxOut)
     if (params.has('max')) maxOut(game);
-    // ?tier=3: quán vừa lên hạng đó (đủ cấp, bếp nâng theo cấp, thuê đủ người) — xem tierUp
+    // ?tier=3: quán vừa lên hạng đó (đủ cấp, bếp nâng theo cấp, thuê đủ người) - xem tierUp
     if (Number(params.get('tier')) > 0) tierUp(game, Number(params.get('tier')));
-    // ?fill: mua thêm bàn mọi loại (theo cấp đang có) tới khi hết chỗ / chạm giới hạn — kèm ?tier=2 để xem quán hạng đó đầy bàn
+    // ?fill: mua thêm bàn mọi loại (theo cấp đang có) tới khi hết chỗ / chạm giới hạn - kèm ?tier=2 để xem quán hạng đó đầy bàn
     if (params.has('fill')) {
       const money = game.state.money;
       game.state.money = 9_999_999;
@@ -107,7 +109,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     const ev = params.get('event');
     if (ev) game.state.event = { id: ev, at: 0, status: 'scheduled', minutesLeft: defOf(ev).duration ?? 0, partyId: null, result: null };
     for (const command of JSON.parse(params.get('do') ?? '[]') as Command[]) game.dispatch(command);
-    // ?takeout: có khách gọi đặt món giao tận nơi ngay khi quán mở cửa (quán phải đủ hạng — kèm ?do nâng hạng)
+    // ?takeout: có khách gọi đặt món giao tận nơi ngay khi quán mở cửa (quán phải đủ hạng - kèm ?do nâng hạng)
     // ?takeout=demo: dựng sẵn tình huống (1 đơn món đã ở quầy line, 1 đơn đã đóng gói, thuê sẵn 1 shipper) để thử nhanh
     if (params.get('takeout') === 'demo') seedTakeoutDemo(game.ctx);
     else if (params.has('takeout')) game.state.takeout.nextCall = 1;
@@ -179,6 +181,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
 
   // Thứ tự mảng = thứ tự các khu từ trái sang phải khi bấm nút chuyển khu.
   let restaurant = new RestaurantArea(game);
+  // (chỉ bản dev) ?celebrate: bắn pháo hoa mừng lên hạng ngay khi vào (kèm ?tier=2 trở lên) để xem hiệu ứng
+  if (import.meta.env.DEV && params.has('celebrate')) setTimeout(() => restaurant.celebrateUpgrade(), 3000);
   const farm = new FarmArea(game);
   const greenhouse = new GreenhouseArea(game);
   // Nhà kính nằm bên trái nông trại trên thanh chuyển khu (vào được cả bằng cách bấm nhà kính ở nông trại)
@@ -220,6 +224,9 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     ui.area = 'stall';
   }
   stage.setArea(ui.area);
+  // Làm nóng trước các khu đang ẩn lúc máy rảnh (lần đầu sang Chợ / Nông trại không bị khựng)
+  const idle = (fn: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 3000 }) : setTimeout(fn, 1500));
+  setTimeout(() => idle(() => void stage.warmUp()), 800);
 
   /** Thông báo nổi; `pic` = HTML ảnh nhỏ đứng trước chữ (chân dung khách quen). */
   const toast = (text: string, kind = '', pic = '', ms = 2600) => {
@@ -232,7 +239,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   };
   /**
    * Thông báo khách quen: mỗi lần chỉ hiện MỘT cái (~2 s), nhiều khách cùng lúc thì xếp hàng hiện lần lượt.
-   * Canh mép phải theo thẻ nhiệm vụ (không sát lề trái — tai thỏ / Dynamic Island trên iPhone che mất).
+   * Canh mép phải theo thẻ nhiệm vụ (không sát lề trái - tai thỏ / Dynamic Island trên iPhone che mất).
    */
   const regularQueue: { text: string; kind: string; pic: string }[] = [];
   let regularBusy = false;
@@ -299,9 +306,9 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       toast(result.reason, 'bad');
       sound.play('error');
     } else if (ui.speed === 0 && /^(farmer|service)\//.test(command.type) && performance.now() - pauseHintAt > 4000) {
-      // Giao việc lúc đang tạm dừng: nhân vật nhận việc nhưng đứng yên tới khi chạy tiếp — nhắc kẻo tưởng hỏng
+      // Giao việc lúc đang tạm dừng: nhân vật nhận việc nhưng đứng yên tới khi chạy tiếp - nhắc kẻo tưởng hỏng
       pauseHintAt = performance.now();
-      toast('⏸ Game đang tạm dừng — chạy tiếp (⚙️ hoặc phím Space) để nhân vật bắt đầu làm');
+      toast('⏸ Game đang tạm dừng - chạy tiếp (⚙️ hoặc phím Space) để nhân vật bắt đầu làm');
     }
     return result.ok;
   };
@@ -366,7 +373,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   // Nhiệm vụ hệ thống: báo khi đạt mục tiêu, nhận thưởng thì xu nảy
   game.bus.on('quest/completed', (e) => {
     const q = content.quests.find((x) => x.id === e.questId);
-    if (q) toast(`🎯 Hoàn thành nhiệm vụ "${q.title}" — bấm Nhận thưởng`);
+    if (q) toast(`🎯 Hoàn thành nhiệm vụ "${q.title}" - bấm Nhận thưởng`);
     sound.play('ripe');
   });
   game.bus.on('quest/claimed', () => {
@@ -375,7 +382,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   });
   game.bus.on('achievement/reached', (e) => {
     const a = achievements.find((x) => x.id === e.id);
-    if (a) toast(`${a.icon} Thành tựu mới: "${a.name}" — mở 🏆 Thành tựu để nhận thưởng`);
+    if (a) toast(`${a.icon} Thành tựu mới: "${a.name}" - mở 🏆 Thành tựu để nhận thưởng`);
     sound.play('ripe');
   });
   game.bus.on('achievement/claimed', () => {
@@ -394,7 +401,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   });
   game.bus.on('crew/left', (e) => {
     if (e.group === 'farm') toast(e.kind === 'lunch' ? '🍜 Bác nông dân ra chợ ăn trưa, 13:00 về.' : '🌙 Bác nông dân nghỉ, ra chợ ăn tối.', '', '', 3200);
-    else toast(e.kind === 'lunch' ? '🍜 Quán vắng khách — cả đội ra chợ ăn trưa, 14:00 về chuẩn bị ca chiều.' : '🌙 Quán đóng cửa — cả đội ra chợ ăn tối, chơi bời.', '', '', 3600);
+    else toast(e.kind === 'lunch' ? '🍜 Quán vắng khách - cả đội ra chợ ăn trưa, 14:00 về chuẩn bị ca chiều.' : '🌙 Quán đóng cửa - cả đội ra chợ ăn tối, chơi bời.', '', '', 3600);
   });
   game.bus.on('crew/back', (e) => toast(e.group === 'farm' ? '👨‍🌾 Bác nông dân về nông trại rồi.' : '🙌 Cả đội về quán, sẵn sàng ca chiều!', 'good'));
   game.bus.on('crew/bill', () => sound.play('bell'));
@@ -416,7 +423,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     const cal = calendarOf(game.state.clock.day);
     if (cal.dayOfSeason !== 1 || game.state.clock.day <= 1) return;
     const s = seasons[cal.season];
-    toast(`${s.icon} Bắt đầu mùa ${s.name}${s.frozen ? ' — ngoài trời đóng băng, chỉ nhà kính trồng được.' : '. Rau củ hợp mùa ở chợ rẻ hơn, món hợp mùa bán được giá.'}`, 'good', '', 4800);
+    toast(`${s.icon} Bắt đầu mùa ${s.name}${s.frozen ? ' - ngoài trời đóng băng, chỉ nhà kính trồng được.' : '. Rau củ hợp mùa ở chợ rẻ hơn, món hợp mùa bán được giá.'}`, 'good', '', 4800);
   });
   // Món đang bán sắp hết nguyên liệu: báo một lần mỗi khi món tụt xuống dưới ngưỡng (trong giờ mở cửa)
   let lowShown = new Set<string>();
@@ -442,7 +449,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   // Đơn giao tận nơi (giai đoạn 18)
   game.bus.on('takeout/call', (e) => {
     const t = game.state.takeout.orders.find((x) => x.id === e.id);
-    toast(`☎️ ${t?.client ?? 'Khách'} gọi đặt món giao tận nơi — bấm quầy cashier để nhận đơn.`, 'good', '', 4600);
+    toast(`☎️ ${t?.client ?? 'Khách'} gọi đặt món giao tận nơi - bấm quầy cashier để nhận đơn.`, 'good', '', 4600);
     sound.play('bell');
   });
   game.bus.on('takeout/missed', (e) => {
@@ -474,7 +481,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   });
   game.bus.on('day/started', () => {
     const n = game.state.contracts.length;
-    if (n) setTimeout(() => toast(`📋 Có ${n} đơn đặt hàng mới — xem bảng Đơn hàng.`, '', '', 3600), 1600);
+    if (n) setTimeout(() => toast(`📋 Có ${n} đơn đặt hàng mới - xem bảng Đơn hàng.`, '', '', 3600), 1600);
   });
   game.bus.on('event/announced', (e) => {
     const def = defOf(e.id);
@@ -488,25 +495,25 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   game.bus.on('event/ended', (e) => {
     const def = defOf(e.id);
     let text = `${def.icon} ${def.name} đã kết thúc.`;
-    if (def.kind === 'critic') text = e.result === 'good' ? `🧐 Nhà phê bình khen nức nở! Uy tín +${def.reward?.rep}, thưởng ${e.money} xu.` : `🧐 Nhà phê bình không hài lòng — uy tín −${def.penalty?.rep}.`;
-    else if (def.kind === 'police') text = e.money < 0 ? `👮 Đã "bồi dưỡng" ${-e.money} xu, công an khu vực cho qua.` : e.table ? `👮 Công an khu vực thu mất ${e.table}. Uy tín giảm nhẹ.` : '👮 Công an khu vực nhắc nhở rồi đi — lần sau nhớ dọn gọn lề đường.';
+    if (def.kind === 'critic') text = e.result === 'good' ? `🧐 Nhà phê bình khen nức nở! Uy tín +${def.reward?.rep}, thưởng ${e.money} xu.` : `🧐 Nhà phê bình không hài lòng - uy tín −${def.penalty?.rep}.`;
+    else if (def.kind === 'police') text = e.money < 0 ? `👮 Đã "bồi dưỡng" ${-e.money} xu, công an khu vực cho qua.` : e.table ? `👮 Công an khu vực thu mất ${e.table}. Uy tín giảm nhẹ.` : '👮 Công an khu vực nhắc nhở rồi đi - lần sau nhớ dọn gọn lề đường.';
     else if (def.kind === 'inspector') text = e.result === 'good' ? `🕵️ Thanh tra khen quán sạch sẽ! Thưởng ${e.money} xu.` : `🕵️ Thanh tra phạt ${-e.money} xu vì ${e.mess} chỗ bẩn (vết bẩn, bàn chưa dọn).`;
     toast(text, e.result === 'bad' ? 'bad' : 'good', '', 5200);
     sound.play(e.result === 'bad' ? 'sad' : e.result === 'good' ? 'levelup' : 'pop');
   });
-  game.bus.on('shift/lastCall', () => toast('🔕 Ngưng nhận khách mới — phục vụ nốt khách đang ở quán rồi đóng cửa.', '', '', 3600));
+  game.bus.on('shift/lastCall', () => toast('🔕 Ngưng nhận khách mới - phục vụ nốt khách đang ở quán rồi đóng cửa.', '', '', 3600));
   game.bus.on('shift/started', (e) => {
     toast(`🔔 Mở cửa ${e.index === 0 ? 'ca sáng' : 'ca chiều tối'}! Khách sắp tới.`, 'good');
     sound.play('bell');
   });
   game.bus.on('shift/ended', (e) => {
     const next = content.balance.shifts[e.index + 1];
-    toast(next ? `😴 Đóng cửa nghỉ trưa — mở lại lúc ${String(next.from / 60).padStart(2, '0')}:00. Khách về hết thì cả đội ra chợ ăn trưa. Sàn có vết bẩn, bấm vào để lau.` : '🌙 Quán đóng cửa. Khách về hết thì cả đội ra chợ ăn tối.', '', '', 4200);
+    toast(next ? `😴 Đóng cửa nghỉ trưa - mở lại lúc ${String(next.from / 60).padStart(2, '0')}:00. Khách về hết thì cả đội ra chợ ăn trưa. Sàn có vết bẩn, bấm vào để lau.` : '🌙 Quán đóng cửa. Khách về hết thì cả đội ra chợ ăn tối.', '', '', 4200);
   });
   // Khách quen: thông báo có chân dung lúc ghé quán; lên tim / được ăn món ruột / tặng quà
   game.bus.on('regular/arrived', (e) => {
     const def = content.regulars.get(e.regularId);
-    regularToast(`${def.name} ghé quán — "${def.greet}"`, 'regular', portraitHtml(def, 'toast-pic'));
+    regularToast(`${def.name} ghé quán - "${def.greet}"`, 'regular', portraitHtml(def, 'toast-pic'));
     if (ui.area === 'restaurant') sound.play('bell');
   });
   game.bus.on('regular/visited', (e) => {
@@ -517,7 +524,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     regularToast(parts.join(' '), 'regular good', portraitHtml(def, 'toast-pic'));
     if (e.gift) {
       const gift = content.props.get(e.gift);
-      setTimeout(() => toast(`🎁 ${def.name} tặng quán "${gift.name}" — quà đã được chuyển vào kho.`, 'good', portraitHtml(def, 'toast-pic'), 5000), 900);
+      setTimeout(() => toast(`🎁 ${def.name} tặng quán "${gift.name}" - quà đã được chuyển vào kho.`, 'good', portraitHtml(def, 'toast-pic'), 5000), 900);
     }
     if (e.heartUp || e.gift) sound.play('levelup');
   });
@@ -529,8 +536,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     stage.replaceArea(restaurant, next);
     restaurant = next;
   };
-  // Xem trước: chỉ chiếu lại một đoạn ~1,5 giờ của ca sáng (08:50 → 10:20) rồi tua về đầu — không bao giờ tới giờ đội ra chợ / gọi món
-  // Thăm quán (F2) cũng chiếu lại như vậy: quán bạn có khách ra vào, nhân viên đi lại — chỉ là hoạt cảnh, không lưu
+  // Xem trước: chỉ chiếu lại một đoạn ~1,5 giờ của ca sáng (08:50 → 10:20) rồi tua về đầu - không bao giờ tới giờ đội ra chợ / gọi món
+  // Thăm quán (F2) cũng chiếu lại như vậy: quán bạn có khách ra vào, nhân viên đi lại - chỉ là hoạt cảnh, không lưu
   const previewLoop = preview || visit ? { snap: structuredClone(game.state), from: game.state.clock.minute } : null;
   const rewindPreview = () => {
     if (!previewLoop) return;
@@ -545,9 +552,27 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   };
   game.bus.on('restaurant/upgraded', (e) => {
     const tier = content.room.tiers[e.tier - 1];
-    rebuildRestaurant();
-    toast(`${tier.icon} Quán lên hạng: ${tier.name}!`, 'good');
-    sound.play('levelup');
+    // Chuyển cảnh lên hạng: đóng bảng, camera lướt vào lô đất vừa dọn → màn sáng dần lên → dựng quán mới đúng góc đó
+    // → màn tan ra, camera lùi chậm về toàn cảnh, pháo hoa bắn trên phần quán mới, sàn mới sáng lên, kèn rộn ràng
+    ui.drawer = null;
+    const lot = restaurant.lotCenter(e.tier - 1);
+    if (stage.areaId === 'restaurant' && lot) stage.focusAt(lot.x, lot.z, LOT_VIEW);
+    const veil = root.querySelector<HTMLElement>('#upgrade-veil') ?? root.appendChild(Object.assign(document.createElement('div'), { id: 'upgrade-veil' }));
+    setTimeout(() => {
+      veil.classList.add('on');
+      setTimeout(() => {
+        rebuildRestaurant();
+        if (stage.areaId === 'restaurant') {
+          const c = restaurant.newAreaCenter();
+          stage.focusAt(c.x, c.z, LOT_VIEW, true);
+        }
+        veil.classList.remove('on');
+        toast(`${tier.icon} Quán lên hạng: ${tier.name}!`, 'good');
+        sound.play('fanfare');
+        restaurant.celebrateUpgrade(() => setTimeout(() => sound.play('firework'), 600));
+        setTimeout(() => stage.areaId === 'restaurant' && stage.unfocus(2.4), 700);
+      }, 450);
+    }, 650);
   });
   // Bếp lên hạng / thuê thêm đầu bếp: dựng lại gian bếp + quầy line
   let lastKitchen = { tier: game.state.restaurant.kitchenTier, chefs: game.state.restaurant.staff.length };
@@ -582,7 +607,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
   /** Kho cuối ngày: mọi nguyên liệu / thành phẩm còn lại (theo nhóm), để biết mai cần mua gì. */
   const stockHtml = () => {
     const left = content.items.all().filter((i) => !i.infinite && (game.state.inventory[i.id] ?? 0) > 0);
-    if (!left.length) return '<p class="muted">Kho trống trơn — mai nhớ đi chợ nhé!</p>';
+    if (!left.length) return '<p class="muted">Kho trống trơn - mai nhớ đi chợ nhé!</p>';
     return '<div class="stock-grid">' + left.map((i) => `<span class="chip stock" title="${esc(i.name)}"><span class="big">${i.icon}</span>${esc(i.name)} <b>${game.state.inventory[i.id]}</b></span>`).join('') + '</div>';
   };
 
@@ -704,7 +729,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       const sell = def.giftOnly ? '' : `<button class="mini"${cmd({ type: 'prop/sell', uid: prop.uid })}>💰 Bán ${coins(resale(ctx, def.cost))}</button>`;
       // Tranh treo tường: không kéo, "Đổi chỗ" = sang khung trống kế tiếp
       if (def.wall)
-        return `<b data-key="edit">${def.icon} ${esc(def.name)}</b><span>Tranh treo trên tường — đổi sang khung khác hoặc cất kho.</span>
+        return `<b data-key="edit">${def.icon} ${esc(def.name)}</b><span>Tranh treo trên tường - đổi sang khung khác hoặc cất kho.</span>
         <div class="btns"><button class="mini"${cmd({ type: 'prop/rotate', uid: prop.uid })}>⇄ Đổi chỗ</button><button class="mini"${cmd({ type: 'prop/store', uid: prop.uid })}>📦 Cất kho</button>${sell}<button class="mini"${uiAttr('editSel:')}>Bỏ chọn</button>${done}</div>`;
       return `<b data-key="edit">${def.icon} ${esc(def.name)}</b><span>Kéo để dời chỗ.</span>
         <div class="btns"><button class="mini"${cmd({ type: 'prop/rotate', uid: prop.uid })}>⟳ Xoay</button><button class="mini"${cmd({ type: 'prop/store', uid: prop.uid })}>📦 Cất kho</button>${sell}<button class="mini"${uiAttr('editSel:')}>Bỏ chọn</button>${done}</div>`;
@@ -748,6 +773,8 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
 
   // Bấm vào vật thể trong cảnh 3D (đang thăm quán: chỉ cho bấm nhà kính / sạp chợ để đi vào xem)
   stage.onPick = (pick: Pick, held: number) => (visit && pick.type !== 'building' && pick.type !== 'stall' ? undefined : onPick(pick, held));
+  /** Góc camera cố định khi xem bãi đất hoang: chéo từ phía trước bên phải, cách tâm lô ~22 m. */
+  const LOT_VIEW: [number, number, number] = [7.4, 5.9, 20.2];
   const onPick = (pick: Pick, _held: number) => {
     if (pick.type === 'slot') {
       // Bác đang ở chợ / kiệt sức: nhắc (vẫn mở bảng để xem)
@@ -831,6 +858,12 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       ui.mealStall = pick.id;
     } else if (pick.type === 'stain') {
       if (run({ type: 'service/mop', stainId: Number(pick.id) })) sound.play('pop');
+    } else if (pick.type === 'lot') {
+      // Bấm bãi đất hoang (lô nào cũng vậy): camera lướt tới lô sát quán - lô duy nhất mở được - lô đó sáng lên,
+      // rồi mở bảng Quán (thẻ dọn lô / nâng hạng ở đầu bảng)
+      const c = restaurant.focusNextLot();
+      if (c) stage.focusAt(c.x, c.z, LOT_VIEW);
+      ui.drawer = 'restaurant';
     } else if (pick.type === 'cashier') {
       // Bấm quầy cashier: đang cầm món giao tận nơi thì mang tới đóng gói; không thì mở bảng Đơn hàng (nhận cuộc gọi)
       const r = game.state.restaurant;
@@ -1148,11 +1181,11 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     else if (what === 'copy') {
       try {
         await navigator.clipboard.writeText(inviteLink(me.friend_code));
-        toast('📋 Đã chép link mời — dán gửi cho bạn bè nhé.', 'good');
+        toast('📋 Đã chép link mời - dán gửi cho bạn bè nhé.', 'good');
       } catch {
         friends.showQr = true;
         renderDom();
-        toast('Trình duyệt không cho chép — link nằm dưới mã QR.', 'bad');
+        toast('Trình duyệt không cho chép - link nằm dưới mã QR.', 'bad');
       }
     } else if (what === 'share') {
       const url = inviteLink(me.friend_code);
@@ -1209,7 +1242,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     }
   }
   if (import.meta.env.DEV && params.get('friends') === 'demo') {
-    // Chỉ bản dev: ?friends=demo — bảng Bạn bè với dữ liệu mẫu (không cần máy chủ) để xem giao diện
+    // Chỉ bản dev: ?friends=demo - bảng Bạn bè với dữ liệu mẫu (không cần máy chủ) để xem giao diện
     Object.assign(friends, { open: true, status: 'ready', me: { id: 'me', friend_code: 'K7Q2MX', sharing: true, snapshot_at: new Date(Date.now() - 3600e3).toISOString() } });
     friends.friends = [
       { id: 'a', owner_name: 'Lan', shop_name: 'Quán Nhà Lan', cuisine: 'jp', game_day: 31, sharing: true, snapshot_at: new Date(Date.now() - 600e3).toISOString() },
@@ -1267,7 +1300,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
         <button class="primary"${cmd({ type: 'event/police', choice: 'bribe' })}${afford ? '' : ' disabled'}>💵 Bồi dưỡng · ${coins(money)}</button>
         <button${cmd({ type: 'event/police', choice: 'table' })}${table || neither ? '' : ' disabled'}>${neither ? '🙏 Xin khất lần sau (mất uy tín)' : `🪑 Để công an thu ${table ? esc(table.name) : 'một bàn đôi'}`}</button>
       </div>
-      <p class="muted">${table ? 'Bàn bị thu thì mất luôn, muốn có lại phải mua bàn mới ở Siêu thị. Uy tín giảm nhẹ.' : 'Bàn đôi nào cũng đang có khách — chỉ còn cách bồi dưỡng.'}</p>
+      <p class="muted">${table ? 'Bàn bị thu thì mất luôn, muốn có lại phải mua bàn mới ở Siêu thị. Uy tín giảm nhẹ.' : 'Bàn đôi nào cũng đang có khách - chỉ còn cách bồi dưỡng.'}</p>
     </div></div>`;
   }
 
@@ -1353,7 +1386,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     }
     if ((domTimer += dt) >= 1 / DOM_FPS) {
       domTimer = 0;
-      // Xem trước: quán tự chạy (tự phục vụ, đội tự gọi món, tự trả tiền) — người xem chỉ ngắm
+      // Xem trước: quán tự chạy (tự phục vụ, đội tự gọi món, tự trả tiền) - người xem chỉ ngắm
       if (preview || visit) previewAuto(game);
       if (previewLoop && game.state.clock.minute - previewLoop.from >= PREVIEW_LOOP_MINUTES) rewindPreview();
       renderDom();
@@ -1388,7 +1421,7 @@ function readSave(): string | null {
 /** Độ dài đoạn chiếu lại khi xem trước quán (phút game; 90 phút ≈ 1 phút thực ở x1). */
 const PREVIEW_LOOP_MINUTES = 90;
 
-/** Xem trước quán: người phục vụ mẫu làm mọi việc, đội tự gọi món / trả tiền — không có bảng nào hiện lên chặn màn. */
+/** Xem trước quán: người phục vụ mẫu làm mọi việc, đội tự gọi món / trả tiền - không có bảng nào hiện lên chặn màn. */
 function previewAuto(game: Game): void {
   for (const c of autoServeCommands(game.ctx)) game.dispatch(c);
   if (game.state.crew.pending.length) game.dispatch({ type: 'crew/autoOrder' });
@@ -1410,7 +1443,7 @@ function readVisit(content: Content): GameState | null {
 }
 
 /**
- * Chỉ bản dev: ?max — dựng ván "tối thượng" để xem quán khi đã mua hết: cấp cao, hạng quán + hạng bếp cao nhất, đủ đầu bếp /
+ * Chỉ bản dev: ?max - dựng ván "tối thượng" để xem quán khi đã mua hết: cấp cao, hạng quán + hạng bếp cao nhất, đủ đầu bếp /
  * nhân viên / shipper, mọi trang thiết bị, mọi món, nội thất đắt nhất mỗi loại, thú cưng, đồ trang trí, thêm bàn tới khi hết chỗ,
  * nông trại mua đủ ô / nới hết bậc / đủ cối, người làm vườn, dụng cụ. Đi qua lệnh thật nên luật đặt chỗ vẫn giữ.
  */
@@ -1421,6 +1454,7 @@ function maxOut(game: Game): void {
     for (let i = 0; i < max && run(c()); i++);
   };
   Object.assign(state, { money: 9_999_999, level: 50, reputation: 5 });
+  state.restaurant.lots = { cleared: content.room.tiers.length - 1 };
   repeat(() => ({ type: 'restaurant/upgrade' }));
   repeat(() => ({ type: 'kitchen/upgrade' }));
   repeat(() => ({ type: 'chef/hire' }));
@@ -1454,13 +1488,14 @@ function maxOut(game: Game): void {
 }
 
 /**
- * Chỉ bản dev: ?tier=N — quán vừa lên hạng N: cấp người chơi = cấp mở hạng đó, nâng bếp tới hạng cao nhất cấp đó cho phép,
+ * Chỉ bản dev: ?tier=N - quán vừa lên hạng N: cấp người chơi = cấp mở hạng đó, nâng bếp tới hạng cao nhất cấp đó cho phép,
  * thuê đủ đầu bếp / nhân viên phục vụ. Bàn ghế, nội thất giữ như ván mới để thấy đúng phòng của hạng.
  */
 function tierUp(game: Game, n: number): void {
   const { content, state } = game;
   const tier = content.room.tiers[Math.min(n, content.room.tiers.length) - 1];
   Object.assign(state, { money: 9_999_999, level: Math.max(state.level, tier.level) });
+  state.restaurant.lots = { cleared: Math.max(state.restaurant.lots?.cleared ?? 0, tier.id - 1) };
   while (state.restaurant.tier < tier.id && game.dispatch({ type: 'restaurant/upgrade' }).ok);
   while (game.dispatch({ type: 'kitchen/upgrade' }).ok);
   while (game.dispatch({ type: 'chef/hire' }).ok);
@@ -1469,7 +1504,7 @@ function tierUp(game: Game, n: number): void {
 }
 
 /**
- * Chỉ bản dev: ?visit=jp — quán mẫu để thử chế độ thăm quán mà không cần chọn file: bà chủ Lan, mùa Thu năm 1,
+ * Chỉ bản dev: ?visit=jp - quán mẫu để thử chế độ thăm quán mà không cần chọn file: bà chủ Lan, mùa Thu năm 1,
  * đã chạy tới giữa ca sáng có khách ngồi (giờ trong ngày vẫn lấy theo ?at=).
  */
 function demoVisit(content: Content, cuisine: CuisineId): GameState {

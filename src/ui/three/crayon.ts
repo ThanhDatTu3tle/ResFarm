@@ -6,7 +6,7 @@ import * as THREE from 'three';
  *   và hạt giấy lộ ra. Vân lấy theo toạ độ thế giới (chiếu 3 mặt) nên mesh gộp / dời / xoay vẫn liền vân.
  * - Viền lem: một lượt hậu kỳ (`CrayonPass`) dò mép vật từ bộ đệm độ sâu rồi tô nét nâu sẫm; độ dày nét lượn to nhỏ
  *   và lệch nhẹ theo vị trí trên màn hình nên trông như tô tay hơi lem. Vẽ được cả mép ngoài lẫn nếp gấp (mép bàn, cạnh hộp).
- * Bật / tắt trong Cài đặt (lưu theo máy, mặc định bật) — tắt thì vân về 0 và bỏ lượt hậu kỳ, không cần tải lại trang.
+ * Bật / tắt trong Cài đặt (lưu theo máy, mặc định bật) - tắt thì vân về 0 và bỏ lượt hậu kỳ, không cần tải lại trang.
  * Không dùng file ảnh ngoài: vân sáp vẽ bằng canvas lúc chạy.
  */
 
@@ -140,7 +140,7 @@ export function crayonize<M extends THREE.Material>(mat: M, key = '', extra?: (s
 
 /**
  * Lớp vẽ riêng cho đồ "luôn nổi trên cùng" (vật liệu tắt depthTest: bong bóng gọi món, bong bóng thoại, thanh kiên nhẫn,
- * chữ nổi). Chúng không ghi độ sâu nên lượt viền sẽ vẽ nét của đồ phía sau đè lên — vì vậy tách ra vẽ sau lượt viền.
+ * chữ nổi). Chúng không ghi độ sâu nên lượt viền sẽ vẽ nét của đồ phía sau đè lên - vì vậy tách ra vẽ sau lượt viền.
  * Raycaster của stage bật mọi lớp nên bấm chọn vẫn như cũ.
  */
 export const OVERLAY_LAYER = 1;
@@ -158,7 +158,7 @@ const LINE_PX = 0.72;
 /**
  * Lượt hậu kỳ vẽ viền lem: vẽ cảnh vào khung tạm (kèm độ sâu), rồi vẽ ra màn hình với nét viền ở chỗ độ sâu gãy.
  * Dò mép bằng toán tử Laplace trên 1/độ sâu: mặt phẳng nào cũng cho 0 (kể cả sàn nhìn nghiêng), chỉ mép ngoài và nếp
- * gấp mới ra nét — không bị vệt nét giả trên nền nhà.
+ * gấp mới ra nét - không bị vệt nét giả trên nền nhà.
  */
 export class CrayonPass {
   private target: THREE.WebGLRenderTarget;

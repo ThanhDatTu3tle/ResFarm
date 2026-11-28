@@ -12,7 +12,7 @@ import { cleanOwner, createMill, createSlot, plantInitial, DEFAULT_SHOP_NAME, SA
  * migrations[phiên bản cũ] trả về state ở phiên bản kế tiếp.
  */
 const migrations: Record<number, (old: any) => any> = {
-  // v7 (chọn phong cách quán Nhật / Hàn / Việt): chủ dự án chốt bản này CHƠI LẠI TỪ ĐẦU — save v1–v6 bị bỏ qua
+  // v7 (chọn phong cách quán Nhật / Hàn / Việt): chủ dự án chốt bản này CHƠI LẠI TỪ ĐẦU - save v1–v6 bị bỏ qua
   // (deserialize trả null, màn hình mở đầu chỉ còn nút Ván mới). Các migration v1→v6 cũ đã xoá; xem lịch sử git nếu cần.
   // v7 -> v8: cối chế biến (lúa mì, lúa nước) + bác nông dân chở hàng. reconcile() tạo đủ cối khởi đầu.
   7: (s) => ({ ...s, farm: { ...s.farm, mills: [], farmer: { ...s.farm.farmer, carry: null } }, version: 8 }),
@@ -99,7 +99,7 @@ const migrations: Record<number, (old: any) => any> = {
     const { pet, ...profile } = s.profile as { pet?: string | null } & Record<string, unknown>;
     return { ...s, profile: { ...profile, petsOut: pet ? [pet] : [] }, version: 24 };
   },
-  // Giai đoạn 16: quán Nhật (quầy chữ L, quán sâu) và quán Việt (bếp sát cửa) đổi mặt bằng — bàn gốc về chỗ mặc định mới,
+  // Giai đoạn 16: quán Nhật (quầy chữ L, quán sâu) và quán Việt (bếp sát cửa) đổi mặt bằng - bàn gốc về chỗ mặc định mới,
   // bồi bàn / nhân viên về chỗ đứng chờ mới (bàn mua thêm, đồ trang trí bị đè thì fixLayout tự dời)
   24: (s) => {
     const r = s.restaurant as { layout: Record<string, unknown>; waiter: { x: number }; helpers: { x: number }[] };
@@ -108,7 +108,7 @@ const migrations: Record<number, (old: any) => any> = {
     for (const id of ['counter', 'medium', 'pair', 'pair2']) delete layout[id];
     return { ...s, restaurant: { ...r, layout, waiter: { ...r.waiter, x: -1 }, helpers: r.helpers.map((h) => ({ ...h, x: -1 })) }, version: 25 };
   },
-  // Giai đoạn 17: ao chia nhiều ô nuôi (mỗi ô một loại): bậc t có 3 + 2·(t − 1) ô — bù thêm ô trống cùng bậc với ao cũ
+  // Giai đoạn 17: ao chia nhiều ô nuôi (mỗi ô một loại): bậc t có 3 + 2·(t − 1) ô - bù thêm ô trống cùng bậc với ao cũ
   25: (s) => {
     const farm = s.farm as { slots: { type: string; tier: number }[] };
     const ponds = farm.slots.filter((x) => x.type === 'pond');
@@ -142,7 +142,7 @@ export function readSnapshot(text: string, content: Content): SnapshotResult {
   }
   const looksLikeSave = !!data && typeof data === 'object' && typeof data.version === 'number' && !!data.clock && !!data.profile && typeof data.cuisine === 'string';
   if (!looksLikeSave) return { ok: false, reason: 'Quán này bị hỏng dữ liệu, không mở được.' };
-  if (data.version > SAVE_VERSION) return { ok: false, reason: 'Quán của bạn ở bản game mới hơn — tải lại trang để cập nhật game rồi thăm lại.' };
+  if (data.version > SAVE_VERSION) return { ok: false, reason: 'Quán của bạn ở bản game mới hơn - tải lại trang để cập nhật game rồi thăm lại.' };
   const raw = JSON.stringify(data);
   const state = deserialize(raw, content);
   if (!state) return { ok: false, reason: 'Quán này quá cũ hoặc bị hỏng dữ liệu, không mở được.' };

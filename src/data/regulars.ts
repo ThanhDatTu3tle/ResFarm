@@ -1,7 +1,7 @@
 import type { RegularDef } from './types';
 
 /**
- * KHÁCH QUEN — 8 người, mỗi người một dáng (trẻ em → người già), kiểu tóc và phụ kiện riêng.
+ * KHÁCH QUEN - 8 người, mỗi người một dáng (trẻ em → người già), kiểu tóc và phụ kiện riêng.
  * Khách vãng lai không có phụ kiện nên nhìn phụ kiện là nhận ra khách quen.
  * Món ruột theo từng phong cách quán; được ăn đúng món ruột thì tip thêm + uy tín.
  * Thêm khách quen: thêm 1 mục (giữ id cũ), quà tặng là một PropDef `giftOnly` trong props.ts.

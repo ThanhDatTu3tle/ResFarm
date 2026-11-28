@@ -13,16 +13,16 @@ export interface UiState {
   selectedStall: string | null;
   /** Đang ở chế độ kéo-thả sắp xếp bàn ghế trong quán. */
   editLayout: boolean;
-  /** Bảng Cài đặt (nút bánh răng) đang mở — game tạm dừng trong lúc mở. */
+  /** Bảng Cài đặt (nút bánh răng) đang mở - game tạm dừng trong lúc mở. */
   settings: boolean;
   /**
-   * Bảng Nông trại chỉ hiện một loại ô (SlotType) hoặc một loại cối (MillType) — khi người chơi bấm vào ô / cối / chỗ mở rộng
+   * Bảng Nông trại chỉ hiện một loại ô (SlotType) hoặc một loại cối (MillType) - khi người chơi bấm vào ô / cối / chỗ mở rộng
    * trong cảnh 3D. null = hiện tất cả (mở từ nút Nông trại).
    */
   farmFocus: string | null;
   /** Tooltip nguồn nguyên liệu đang mở (bấm tag nguyên liệu): bảng Đơn hàng "<id đơn>:<id nguyên liệu>", Thực đơn "m-<id món>:<id nguyên liệu>". */
   itemTip?: string | null;
-  /** Bàn (id) hoặc đồ trang trí (uid) đang chọn ở chế độ sắp xếp — thanh trên cùng hiện nút xoay / cất / bán. */
+  /** Bàn (id) hoặc đồ trang trí (uid) đang chọn ở chế độ sắp xếp - thanh trên cùng hiện nút xoay / cất / bán. */
   editSelected: string | null;
   /** Chế độ chụp ảnh: ẩn hết bảng biểu, chỉ còn cảnh 3D + nút chụp. */
   photo: boolean;
@@ -45,7 +45,7 @@ export interface UiState {
   /** Hộp đổi tên đang đổi tên gì: quán (biển hiệu) hay chủ quán (tên trên đầu nhân vật). */
   renameKind: 'shop' | 'owner';
   /**
-   * Nội thất đang xem trước trong quán ở bảng Siêu thị, mỗi loại (sàn / tường / bàn ghế) một món (DecorDef id) — xem cùng lúc
+   * Nội thất đang xem trước trong quán ở bảng Siêu thị, mỗi loại (sàn / tường / bàn ghế) một món (DecorDef id) - xem cùng lúc
    * để phối màu; chưa mua, chỉ tô lại màu; đóng bảng là thôi.
    */
   decorPreview?: Partial<Record<string, string>> | null;

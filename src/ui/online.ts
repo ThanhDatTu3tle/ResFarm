@@ -3,10 +3,10 @@ import type { GameState } from '../sim/state';
 import { ownerName } from '../sim/state';
 
 /**
- * F3 · BẠN BÈ ONLINE (lớp A) — Supabase: đăng nhập ẩn danh (không email / mật khẩu), kết bạn bằng mã / link mời / QR,
+ * F3 · BẠN BÈ ONLINE (lớp A) - Supabase: đăng nhập ẩn danh (không email / mật khẩu), kết bạn bằng mã / link mời / QR,
  * tự đẩy bản chụp quán khi bật "Cho bạn bè ghé thăm", xem danh sách bạn, lấy bản chụp quán bạn để sang thăm (F1).
  * Máy chủ: supabase/schema.sql (bảng players / friendships + hàm RPC). Cấu hình: .env (VITE_SUPABASE_URL / _ANON_KEY).
- * Thư viện supabase-js chỉ tải khi người chơi dùng tới (import động) — game chơi một mình không tốn thêm gì.
+ * Thư viện supabase-js chỉ tải khi người chơi dùng tới (import động) - game chơi một mình không tốn thêm gì.
  */
 
 const URL = import.meta.env.VITE_SUPABASE_URL ?? '';
@@ -47,7 +47,7 @@ function client(): Promise<SupabaseClient> {
 /** Lỗi đưa ra người chơi: lỗi do máy chủ tự báo (tiếng Việt) giữ nguyên, lỗi mạng đổi thành câu dễ hiểu. */
 function friendly(e: unknown): Error {
   const msg = (e as { message?: string })?.message ?? String(e);
-  if (/fetch|network|Failed to|timeout|load failed/i.test(msg)) return new Error('Không kết nối được máy chủ — kiểm tra mạng rồi thử lại.');
+  if (/fetch|network|Failed to|timeout|load failed/i.test(msg)) return new Error('Không kết nối được máy chủ - kiểm tra mạng rồi thử lại.');
   if (/anonymous/i.test(msg) && /disabled/i.test(msg)) return new Error('Máy chủ chưa bật đăng nhập ẩn danh (xem docs/08-ONLINE-SUPABASE.md).');
   return new Error(msg);
 }
@@ -159,7 +159,7 @@ export function takeInvite(): string | null {
   }
 }
 
-/** Mã QR (SVG) cho link mời — thư viện tải khi cần. */
+/** Mã QR (SVG) cho link mời - thư viện tải khi cần. */
 export async function qrSvg(text: string): Promise<string> {
   const { default: qrcode } = await import('qrcode-generator');
   const qr = qrcode(0, 'M');

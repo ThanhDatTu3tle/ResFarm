@@ -6,7 +6,7 @@ import { esc } from './dom';
 export function itemTipHtml(game: Game, itemId: string): string {
   const item = game.content.items.get(itemId);
   const { lines, summary } = itemSources(game.content, itemId);
-  return `<div class="item-tip"><b>${item.icon} ${esc(item.name)}</b> — ${esc(summary)}${lines.length ? `<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}</div>`;
+  return `<div class="item-tip"><b>${item.icon} ${esc(item.name)}</b> - ${esc(summary)}${lines.length ? `<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}</div>`;
 }
 
 /**
@@ -17,7 +17,7 @@ export function itemSources(content: Content, itemId: string): { lines: string[]
   const item = content.items.get(itemId);
   const lines: string[] = [];
   const stalls = content.stalls.all().filter((s) => !s.menu?.length && s.items.includes(itemId));
-  for (const s of stalls) lines.push(`${s.icon} Mua ở chợ — ${s.name}`);
+  for (const s of stalls) lines.push(`${s.icon} Mua ở chợ - ${s.name}`);
   for (const p of content.producers.all()) {
     if (!p.yields.some((y) => y.item === itemId)) continue;
     const slots = [p.slot, ...(p.alsoIn ?? [])].map((id) => content.slotTypes.get(id));
@@ -33,7 +33,7 @@ export function itemSources(content: Content, itemId: string): { lines: string[]
   let summary: string;
   if (item.infinite) summary = 'Có sẵn trong kho, không bao giờ hết.';
   else if (!lines.length) summary = 'Chưa có cách nào kiếm được.';
-  else if (!stalls.length) summary = 'Chợ không bán — chỉ tự làm ra được.';
+  else if (!stalls.length) summary = 'Chợ không bán - chỉ tự làm ra được.';
   else if (lines.length === stalls.length) summary = 'Chỉ mua được ở chợ.';
   else summary = 'Mua ở chợ hoặc tự làm ra.';
   return { lines, summary };

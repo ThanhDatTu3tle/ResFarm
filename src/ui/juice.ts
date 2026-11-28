@@ -2,7 +2,7 @@ import { CSS_BACK } from './ease';
 
 /**
  * "JUICE" phía DOM: biểu tượng bay về HUD, phần tử nảy, chữ nổi, bộ đếm số chạy dần.
- * Thuần hình ảnh — không đọc/sửa state của game. app.ts quyết định khi nào gọi.
+ * Thuần hình ảnh - không đọc/sửa state của game. app.ts quyết định khi nào gọi.
  */
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;

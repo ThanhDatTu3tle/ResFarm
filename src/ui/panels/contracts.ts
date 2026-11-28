@@ -22,13 +22,13 @@ function takeoutStatus(game: Game, t: TakeoutOrder): string {
     const at = (s: string[]) => mine.filter((o) => s.includes(o.status)).length;
     const bits = [
       at(['queued', 'cooking']) && `🍳 Bếp đang nấu ${at(['queued', 'cooking'])}`,
-      at(['ready']) && `🔔 ${at(['ready'])} món ở quầy line — lấy rồi bấm quầy cashier`,
+      at(['ready']) && `🔔 ${at(['ready'])} món ở quầy line - lấy rồi bấm quầy cashier`,
       at(['carrying']) && `🙋 Đang bưng ${at(['carrying'])}`,
       at(['served']) && `🛍️ Đã vào túi ${at(['served'])}/${t.orderIds.length}`,
     ].filter(Boolean);
     return bits.join(' · ');
   }
-  if (t.status === 'packed') return '🛍️ Đã đóng gói — chờ shipper rảnh tới lấy';
+  if (t.status === 'packed') return '🛍️ Đã đóng gói - chờ shipper rảnh tới lấy';
   if (t.status === 'shipping') {
     const rider = [r.shipper, ...r.couriers].find((v) => v.trip?.takeoutId === t.id);
     return `🛵 Đang chở đi giao${rider?.trip?.arrive != null ? `, tới nơi khoảng ${clockText(Math.ceil(rider.trip.arrive / 10) * 10)}` : ''}`;
@@ -68,8 +68,8 @@ function takeoutHtml(game: Game): string {
   const riders = [state.restaurant.shipper, ...state.restaurant.couriers];
   const free = riders.filter((v) => !v.trip && !v.fainted).length;
   return `<h3 class="section">🛵 Giao tận nơi</h3>
-    <p class="muted">Khách gọi tới quầy cashier ở cửa: nhận đơn thì món vào bếp. Món giao tận nơi ra quầy line có vòng màu giấy kraft 🛍️ — lấy món rồi bấm quầy cashier để đóng gói. Đủ món thì shipper rảnh tự chở đi (${free}/${riders.length} shipper đang rảnh). Đúng hẹn được tip, trễ hẹn chỉ nhận ${Math.round(b.lateRatio * 100)}% tiền.</p>
-    ${cards || '<p class="muted">Chưa có khách gọi — điện thoại reo thì bấm quầy cashier nhé.</p>'}`;
+    <p class="muted">Khách gọi tới quầy cashier ở cửa: nhận đơn thì món vào bếp. Món giao tận nơi ra quầy line có vòng màu giấy kraft 🛍️ - lấy món rồi bấm quầy cashier để đóng gói. Đủ món thì shipper rảnh tự chở đi (${free}/${riders.length} shipper đang rảnh). Đúng hẹn được tip, trễ hẹn chỉ nhận ${Math.round(b.lateRatio * 100)}% tiền.</p>
+    ${cards || '<p class="muted">Chưa có khách gọi - điện thoại reo thì bấm quầy cashier nhé.</p>'}`;
 }
 
 export const contractsPanel: Panel = {
@@ -121,6 +121,6 @@ export const contractsPanel: Panel = {
       })
       .join('');
     return `${takeoutHtml(game)}<h3 class="section">📦 Đơn hàng nguyên liệu</h3><div class="card shipper-line">${shipperLine}</div><p class="muted">Khách ngoài đặt hàng mỗi sáng. Gom đủ hàng trong kho (tự trồng, nuôi hoặc mua ở chợ) rồi bấm giao trước ${clockText(due)}: anh shipper chở đi (15–40 phút), giao xong nhận thưởng cao hơn giá chợ. Mỗi lần chỉ giao được một đơn. Quá giờ thì đơn hết hạn, không bị phạt.</p>
-      ${list || '<p class="muted">Hôm nay chưa có đơn nào — sáng mai ghé lại nhé.</p>'}`;
+      ${list || '<p class="muted">Hôm nay chưa có đơn nào - sáng mai ghé lại nhé.</p>'}`;
   },
 };

@@ -28,7 +28,7 @@ import { G, group, mesh, toon } from '../ui/three/toon';
 import { frame, lightUp, ocSet, tableSet } from '../ui/three/showcase';
 
 /**
- * TRANG XEM MODEL 3D — 3 trang, có trong bản build (Netlify phát cùng game, cạnh Sổ tay so-tay.html):
+ * TRANG XEM MODEL 3D - 3 trang, có trong bản build (Netlify phát cùng game, cạnh Sổ tay so-tay.html):
  *   models-nhan-vat.html · models-do-vat.html · models-mon-an.html
  * Mỗi model chụp thành ảnh nhỏ bằng một renderer dùng chung; bấm thẻ để xem to, xoay 360°, nhân vật có cử động.
  * Danh sách dựng thẳng từ các hàm dựng model của game (ui/three/*) + data, nên thêm model mới là tự hiện ở đây.
@@ -173,7 +173,7 @@ function thingSections(): Section[] {
     { name: 'Xe buýt 25 (mở cửa)', make: () => { const b = makeCityBus(); b.setDoors(1); return b.g; } },
     { name: 'Biển LED quảng cáo', note: 'Quảng cáo ở src/data/ads.ts', make: () => { const b = makeBillboard(); b.g.userData.tick = (t: number) => b.update(t, 0.3); return b.g; } },
   ];
-  // Quán Ốc: bàn ốc của bếp trưởng (dài ra theo hạng bếp) + bếp nướng than của bếp phó — lửa động qua userData.tick
+  // Quán Ốc: bàn ốc của bếp trưởng (dài ra theo hạng bếp) + bếp nướng than của bếp phó - lửa động qua userData.tick
   const ticking = <T extends { g: THREE.Group }>(o: T, tick: (t: number) => void): THREE.Group => ((o.g.userData.tick = tick), o.g);
   const snail: Entry[] = [
     { name: 'Bàn ốc + bếp ga (Bếp nhỏ)', make: () => { const t = makeSnailTable(1); return ticking(t, (s) => t.update(s)); } },
@@ -200,7 +200,7 @@ function thingSections(): Section[] {
     .all()
     .filter((u) => !['sign', 'irrigation'].includes(u.id))
     .map((u): Entry => ({ name: `${u.icon} ${u.name}`, note: 'Trang thiết bị', make: () => equipment(u.id) }));
-  // Giai đoạn 18: quầy cashier giao tận nơi (từ hạng Quán đông khách) — đang reo, có 2 túi chờ shipper
+  // Giai đoạn 18: quầy cashier giao tận nơi (từ hạng Quán đông khách) - đang reo, có 2 túi chờ shipper
   equip.push({ name: '🛵 Quầy cashier giao tận nơi', note: 'Từ hạng Quán đông khách', make: () => { const c = makeCashierCounter(); c.update(0, true, 3); c.g.userData.tick = (t: number) => c.update(t, true, 3); return c.g; } });
   return [
     { title: 'Mặt tiền quán (màn chọn quán)', entries: CUISINES.map((c) => ({ name: cuName(c), make: () => makeShopfront(c).g })) },
@@ -354,7 +354,7 @@ document.title = `Model 3D · ${PAGES[page].title}`;
 const app = document.getElementById('app')!;
 app.innerHTML = `
   <header>
-    <div class="title"><h1>🧊 Model 3D — ${esc(PAGES[page].title)}</h1>
+    <div class="title"><h1>🧊 Model 3D - ${esc(PAGES[page].title)}</h1>
       <p>${modelCount} model · bấm thẻ để xem to, kéo để xoay, lăn chuột để phóng to. Dựng trực tiếp từ code game.</p></div>
     <nav>${(Object.keys(PAGES) as Page[]).map((p) => `<a href="./models-${p}.html"${p === page ? ' class="on"' : ''}>${esc(PAGES[p].title)}</a>`).join('')}<a href="${import.meta.env.DEV ? '/notes/so-tay-quan-nha-vuon.html' : './so-tay.html'}">📖 Sổ tay</a></nav>
     <input id="q" type="search" placeholder="Tìm tên…" autocomplete="off">

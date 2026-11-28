@@ -33,7 +33,7 @@ export const props: PropDef[] = [
   { id: 'art_koi', name: 'Tranh cá chép koi', icon: '🎏', model: 'art_koi', cost: 320, level: 3, cuisine: 'jp', w: 50, h: 8, wall: true, modifiers: { spawnRate: 1.03 } },
   { id: 'art_tiger', name: 'Tranh hổ và chim ác là', icon: '🐯', model: 'art_tiger', cost: 180, level: 1, cuisine: 'kr', w: 46, h: 8, wall: true, modifiers: { patience: 1.03 } },
   { id: 'art_peony', name: 'Tranh hoa mẫu đơn', icon: '🌺', model: 'art_peony', cost: 240, level: 2, cuisine: 'kr', w: 36, h: 8, wall: true, modifiers: { tip: 1.03 } },
-  // Biển đèn treo tường (giai đoạn 20): cụm hộp đèn kiểu quán ramen / cụm biển neon phố ẩm thực Hàn — lightsigns.ts
+  // Biển đèn treo tường (giai đoạn 20): cụm hộp đèn kiểu quán ramen / cụm biển neon phố ẩm thực Hàn - lightsigns.ts
   { id: 'sign_lightbox_jp', name: 'Cụm hộp đèn LED', icon: '🏮', model: 'lightbox_jp', cost: 450, level: 3, cuisine: 'jp', w: 60, h: 8, wall: true, modifiers: { spawnRate: 1.04 } },
   { id: 'sign_neon_kr', name: 'Cụm biển neon', icon: '🌭', model: 'neon_kr', cost: 450, level: 3, cuisine: 'kr', w: 60, h: 8, wall: true, modifiers: { spawnRate: 1.04 } },
   { id: 'art_hanok', name: 'Tranh mái hanok dưới trăng', icon: '🌕', model: 'art_hanok', cost: 320, level: 3, cuisine: 'kr', w: 60, h: 8, wall: true, modifiers: { spawnRate: 1.03 } },

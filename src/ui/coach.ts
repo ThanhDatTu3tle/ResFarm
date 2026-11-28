@@ -14,18 +14,18 @@ function restaurantHint(game: Game): string {
   const { state, ctx } = game;
   const r = state.restaurant;
   const w = r.waiter;
-  if (w.carrying.length) return 'Bồi bàn đang cầm món — <b>bấm vào bàn cùng màu</b> với bong bóng trên đầu để giao.';
+  if (w.carrying.length) return 'Bồi bàn đang cầm món - <b>bấm vào bàn cùng màu</b> với bong bóng trên đầu để giao.';
   if (readyOrders(ctx).length) return 'Món đã ra <b>quầy line</b> (đĩa có vòng màu). <b>Bấm quầy line</b> để bồi bàn ra lấy món.';
   const dirty = Object.keys(r.dirty).some((id) => r.dirty[id]?.length);
   const p = r.parties[0];
-  if (!p) return dirty ? 'Khách về để lại chén dĩa dơ — <b>bấm vào bàn đó</b> để dọn.' : 'Đợi khách tới nhé…';
+  if (!p) return dirty ? 'Khách về để lại chén dĩa dơ - <b>bấm vào bàn đó</b> để dọn.' : 'Đợi khách tới nhé…';
   if (p.called) return 'Bồi bàn đang tới chỗ khách…';
   const need = needOf(p);
-  if (need === 'menu') return 'Khách vừa ngồi, bong bóng 📖 — <b>bấm vào khách</b> để mang menu.';
-  if (need === 'order') return 'Khách chọn xong (bong bóng 📝) — <b>bấm vào khách</b> để ghi món. Bếp sẽ tự nấu.';
+  if (need === 'menu') return 'Khách vừa ngồi, bong bóng 📖 - <b>bấm vào khách</b> để mang menu.';
+  if (need === 'order') return 'Khách chọn xong (bong bóng 📝) - <b>bấm vào khách</b> để ghi món. Bếp sẽ tự nấu.';
   if (p.phase === 'queue') return 'Khách đang vào bàn…';
   if (p.phase === 'browsing') return 'Khách đang xem menu…';
-  if (p.phase === 'waitingFood') return 'Bếp đang nấu — món xong sẽ ra quầy line.';
+  if (p.phase === 'waitingFood') return 'Bếp đang nấu - món xong sẽ ra quầy line.';
   if (p.phase === 'eating') return 'Khách đang ăn ngon miệng 😋 Ăn xong sẽ trả tiền.';
   return dirty ? 'Bấm vào bàn có chén dĩa dơ để dọn.' : '';
 }
@@ -45,7 +45,7 @@ function card(game: Game, ui: UiState, title: string, body: string, actions = ''
 const goBtn = (area: string, label: string) => `<button class="mini primary"${uiAttr(`coach:area:${area}`)}>${label}</button>`;
 
 /**
- * Thẻ chỉ dẫn của ngày hướng dẫn (state.tutorial — luật ở sim/systems/tutorial.ts). Lời chào và lời kết là hộp giữa màn hình,
+ * Thẻ chỉ dẫn của ngày hướng dẫn (state.tutorial - luật ở sim/systems/tutorial.ts). Lời chào và lời kết là hộp giữa màn hình,
  * các bước khác là thẻ nhỏ trên cùng, có nút đưa thẳng tới khu cần làm.
  */
 export function coachHtml(game: Game, ui: UiState): string {
@@ -58,7 +58,7 @@ export function coachHtml(game: Game, ui: UiState): string {
         <div class="dialog coach-dialog" role="dialog" aria-label="Ngày đầu mở quán">
           <h2>🎉 Ngày đầu mở quán!</h2>
           <p>Hôm nay mình đi cùng bạn một vòng: <b>đón khách và bưng món</b>, ra <b>Chợ</b> mua nguyên liệu còn thiếu, xuống <b>Nông trại</b> trồng trọt để tự có nguyên liệu, rồi trưa nay cả đội cùng <b>ra chợ ăn</b>.</p>
-          <p class="muted">Ở những bước cần đi xa, thời gian sẽ tạm dừng để bạn thong thả làm. Buổi chiều là của bạn — chơi tự do.</p>
+          <p class="muted">Ở những bước cần đi xa, thời gian sẽ tạm dừng để bạn thong thả làm. Buổi chiều là của bạn - chơi tự do.</p>
           <div class="row end"><button class="ghost"${cmd({ type: 'tutorial/skip' })}>Bỏ qua hướng dẫn</button><button class="primary"${cmd({ type: 'tutorial/next' })}>Bắt đầu ▶</button></div>
         </div>
       </div>`;
@@ -111,9 +111,9 @@ export function coachHtml(game: Game, ui: UiState): string {
       if (ui.mealOpen) return '';
       const c = state.crew;
       const body = c.bill.length
-        ? 'Mọi người ăn xong rồi — bấm <b>Thanh toán</b> trên hoá đơn.'
+        ? 'Mọi người ăn xong rồi - bấm <b>Thanh toán</b> trên hoá đơn.'
         : c.pending.length
-          ? 'Mỗi người có <b>năng lượng ⚡</b> — nấu, bưng, cuốc đất đều tốn sức, cạn là xỉu. Giờ nghỉ là lúc nạp lại: bấm <b>Gọi món cho đội</b> và chọn món cho từng người (món nhiều ⚡ hồi sức nhiều).'
+          ? 'Mỗi người có <b>năng lượng ⚡</b> - nấu, bưng, cuốc đất đều tốn sức, cạn là xỉu. Giờ nghỉ là lúc nạp lại: bấm <b>Gọi món cho đội</b> và chọn món cho từng người (món nhiều ⚡ hồi sức nhiều).'
           : 'Khách về hết, cả đội đang ra chợ ăn trưa…';
       return card(game, ui, '🍜 Nghỉ trưa, nạp năng lượng', body, c.pending.length ? `<button class="mini primary"${uiAttr('meal')}>🍜 Gọi món cho đội</button>` : '');
     }
@@ -134,5 +134,5 @@ export function coachHtml(game: Game, ui: UiState): string {
 /** Dòng nhắc trong bảng gọi món của đội ở ngày hướng dẫn. */
 export function mealCoachTip(game: Game): string {
   if (game.state.tutorial?.step !== 'lunch') return '';
-  return '<p class="coach-tip">💡 Chọn người rồi bấm món. Số <b>+⚡</b> là năng lượng hồi lại — chọn sao cho ai cũng đầy sức cho ca chiều.</p>';
+  return '<p class="coach-tip">💡 Chọn người rồi bấm món. Số <b>+⚡</b> là năng lượng hồi lại - chọn sao cho ai cũng đầy sức cho ca chiều.</p>';
 }

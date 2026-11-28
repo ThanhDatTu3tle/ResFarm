@@ -32,7 +32,7 @@ export const defaultSystems: System[] = [clockSystem, crewSystem, weatherSystem,
 /** System vẫn chạy khi ngày hướng dẫn dừng giờ (để bác nông dân đi gieo trồng theo hướng dẫn). */
 const FROZEN_OK = new Set(['farmer', 'gardeners', 'tutorial']);
 
-/** Bước mô phỏng tối đa (phút game) — giữ kết quả ổn định khi tua nhanh. */
+/** Bước mô phỏng tối đa (phút game) - giữ kết quả ổn định khi tua nhanh. */
 const MAX_STEP = 1;
 
 /**

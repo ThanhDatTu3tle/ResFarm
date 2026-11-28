@@ -3,7 +3,7 @@ import type { WoodMats } from './furniture';
 import { G, group, mesh, seeded, toon } from './toon';
 
 /**
- * BÀN GHẾ CAO CẤP QUÁN VIỆT (giai đoạn 20, chỉ quán Việt — DecorDef.style):
+ * BÀN GHẾ CAO CẤP QUÁN VIỆT (giai đoạn 20, chỉ quán Việt - DecorDef.style):
  *  - 'oak_vn' "Bàn ghế gỗ sồi xịn": bàn chân tiện (bầu, khoanh), mặt có gờ chỉ, giằng chữ H thấp; ghế tựa lưng có
  *    hàng con tiện nhỏ giữa hai thanh ngang (kiểu ghế gỗ nhà Việt xưa). Gỗ vàng cam (màu theo nội thất).
  *  - 'luxury_vn' "Bộ sang trọng": bàn vuông gỗ sẫm chân tiện; ghế bành tay vịn, mặt ngồi + lưng đan mây.
@@ -11,7 +11,7 @@ import { G, group, mesh, seeded, toon } from './toon';
  * Gốc bàn ở tâm mặt đất, mặt bàn cao `top`; gốc ghế ở tâm đất, khách nhìn về +z (lưng ghế phía -z).
  */
 
-/** Chân tiện: thân tròn có bầu phình, các khoanh chỉ, chân thuôn — dựng từ dưới lên trong group tại (x, 0, z). */
+/** Chân tiện: thân tròn có bầu phình, các khoanh chỉ, chân thuôn - dựng từ dưới lên trong group tại (x, 0, z). */
 function turnedLeg(parent: THREE.Object3D, mat: THREE.Material, x: number, z: number, h: number, r = 0.035): void {
   const g = group(parent, { p: [x, 0, z] });
   const k = h / 0.74;
