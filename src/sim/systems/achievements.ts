@@ -4,7 +4,7 @@ import { fail, ok, type SimContext, type System } from '../types';
 
 /**
  * SỔ THÀNH TỰU (danh sách ở src/data/achievements.ts).
- *  - Bộ đếm trọn ván `achievements.counts` (serve, happy, harvest, produce, contract) cộng qua `tally()` — quests.ts gọi trong `bumpQuest`.
+ *  - Bộ đếm trọn ván `achievements.counts` (serve, happy, harvest, produce, contract) cộng qua `tally()` - quests.ts gọi trong `bumpQuest`.
  *  - Chỉ số còn lại đọc thẳng từ state (`achievementValue`).
  *  - Đạt mốc → thêm vào `done` + sự kiện `achievement/reached`; lệnh `achievement/claim` nhận thưởng (không tính vào doanh thu ngày).
  */

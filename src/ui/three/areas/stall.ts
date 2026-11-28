@@ -20,7 +20,7 @@ import { blinkLeds, emojiSprite, G, group, ledFrame, mesh, paintSeason, type V3 
  *  - Sạp nguyên liệu: quầy gỗ bày các khay hàng, mỗi khay một nguyên liệu với biển giá hôm nay; bấm khay → Pick 'goods'
  *    (app.ts mở bảng mua nhỏ). Người bán đứng sau quầy.
  *  - Tiệm 25caaaaa: phòng hồng, quầy pha chế có biển logo, bảng menu (bảng chân đứng gần cửa; bấm → Pick 'menuboard', mở bảng gọi món
- *    cho cả đội), bàn ghế nhỏ — người trong đội gọi món ở tiệm thì ngồi ăn ở đây.
+ *    cho cả đội), bàn ghế nhỏ - người trong đội gọi món ở tiệm thì ngồi ăn ở đây.
  * Dựng lại khi đổi sạp (show) hoặc sang ngày mới (giá đổi).
  */
 
@@ -191,7 +191,7 @@ export class StallArea implements Area {
     vendor.scale.setScalar(1.25);
     g.add(vendor);
     this.vendor = vendor;
-    // Quầy gỗ + khay hàng: mỗi nguyên liệu một khay, xếp lưới (tối đa 5 cột, 2 hàng — dư thì lên kệ sau)
+    // Quầy gỗ + khay hàng: mỗi nguyên liệu một khay, xếp lưới (tối đa 5 cột, 2 hàng - dư thì lên kệ sau)
     const items = def.items.slice(0, FRONT_MAX);
     const cols = Math.min(5, items.length);
     const rows = Math.ceil(items.length / cols);
@@ -300,7 +300,7 @@ export class StallArea implements Area {
   }
 
   /**
-   * Sạp hải sản: bể nước xếp chữ U quanh sạp (hai bể sát vách sau, hai bể chéo hai bên), giữa sạp không có quầy —
+   * Sạp hải sản: bể nước xếp chữ U quanh sạp (hai bể sát vách sau, hai bể chéo hai bên), giữa sạp không có quầy -
    * người bán đứng cạnh cái cân, vài rổ hải sản và xô nước dưới chân.
    */
   private buildTanks(def: StallDef, index: number): void {

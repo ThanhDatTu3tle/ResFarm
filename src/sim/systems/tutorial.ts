@@ -4,7 +4,7 @@ import { fail, ok, type SimContext, type System } from '../types';
 import { spawnParty } from './customers';
 
 /**
- * NGÀY HƯỚNG DẪN — ngày 1 của ván mới (bắt đầu từ màn mở đầu) có kịch bản, `state.tutorial`:
+ * NGÀY HƯỚNG DẪN - ngày 1 của ván mới (bắt đầu từ màn mở đầu) có kịch bản, `state.tutorial`:
  *  intro   dừng giờ, lời chào.
  *  serve   khách dễ (1 người rồi 2 người) gọi món có sẵn nguyên liệu → làm quen mang menu, ghi món, bưng món, dọn bàn.
  *  hard    khách gọi một món đang thiếu nguyên liệu (`recipe`, thiếu `item`).

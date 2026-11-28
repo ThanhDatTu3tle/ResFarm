@@ -10,7 +10,7 @@ import { makeOwner } from './three/people';
 import { cleanOwner, DEFAULT_OWNER, DEFAULT_SHOP_NAME, OWNER_AGE, OWNER_HAIRS, OWNER_NAME_MAX, OWNER_OUTFITS, type OwnerProfile } from '../sim/state';
 
 /**
- * MÀN HÌNH MỞ ĐẦU — logo + "Chơi tiếp" (khi có save hợp lệ) + "Ván mới".
+ * MÀN HÌNH MỞ ĐẦU - logo + "Chơi tiếp" (khi có save hợp lệ) + "Ván mới".
  * Ván mới → chọn phong cách quán: 4 mặt tiền quán Nhật / Hàn / Việt / Ốc dựng 3D trên một con phố nhỏ,
  * mỗi quán một thẻ giới thiệu. Bấm thẻ (hoặc bấm vào quán) để xem gần, bấm "Chọn quán này" → chọn ông / bà chủ
  * (giới tính + tuổi 25..50, xem trước 3D đứng trước quán) → "Mở quán" để bắt đầu.
@@ -33,7 +33,7 @@ const FLAGS: Record<CuisineId, string> = {
   jp: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#fff"/><circle cx="15" cy="10" r="6" fill="#bc002d"/></svg>',
   kr: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#fff"/><path d="M10 10a5 5 0 0 1 10 0z" fill="#cd2e3a"/><path d="M10 10a5 5 0 0 0 10 0z" fill="#0047a0"/><g stroke="#000" stroke-width="1.2"><path d="M3 4l3-2M4 5.5l3-2M5 7l3-2M22 2l3 2M21 3.5l3 2M20 5l3 2M3 16l3 2M4 14.5l3 2M5 13l3 2M22 18l3-2M21 16.5l3-2M20 15l3-2"/></g></svg>',
   vn: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#da251d"/><path d="M15 4l1.76 5.4h5.68l-4.6 3.34 1.76 5.4L15 14.8l-4.6 3.34 1.76-5.4-4.6-3.34h5.68z" fill="#ff0"/></svg>',
-  // Quán ốc: không phải cờ nước — huy hiệu vỏ ốc trên nền dù sọc
+  // Quán ốc: không phải cờ nước - huy hiệu vỏ ốc trên nền dù sọc
   oc: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#faf3e6"/><path d="M0 0h5v20H0zM10 0h5v20h-5zM20 0h5v20h-5z" fill="#e2473c"/><circle cx="15" cy="10" r="7" fill="#fff6e0" stroke="#c9762c" stroke-width="1.4"/><path d="M15 4.5a5.5 5.5 0 0 1 0 11a3.6 3.6 0 0 1 0-7.2a2 2 0 0 1 0 4" fill="none" stroke="#c9762c" stroke-width="1.3"/></svg>',
 };
 
@@ -113,8 +113,8 @@ export function showTitle(root: HTMLElement, content: Content, opts: { hasSave: 
   let focus: CuisineId = 'vn';
   /** Trang hướng dẫn đang mở (null = đóng). */
   let guide: number | null = null;
-  // ?pick=oc: mở thẳng bước chọn quán (quay về từ màn xem trước — "Chọn quán khác"; bản dev dùng để chụp giao diện)
-  // ?choose=oc: quay về từ xem trước — "Chọn quán này": sang luôn bước chọn chủ quán
+  // ?pick=oc: mở thẳng bước chọn quán (quay về từ màn xem trước - "Chọn quán khác"; bản dev dùng để chụp giao diện)
+  // ?choose=oc: quay về từ xem trước - "Chọn quán này": sang luôn bước chọn chủ quán
   const query = new URLSearchParams(location.search);
   const pick = query.get('pick');
   if (pick && content.cuisines.has(pick)) [step, focus] = ['pick', pick as CuisineId];

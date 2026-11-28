@@ -30,7 +30,7 @@ export function seasonOf(ctx: SimContext): SeasonDef {
   return seasons[calendarOf(ctx.state.clock.day).season];
 }
 
-/** Ô loại này đang bị đóng băng (mùa đông, ở ngoài trời — nhà kính không tính). */
+/** Ô loại này đang bị đóng băng (mùa đông, ở ngoài trời - nhà kính không tính). */
 export function isFrozen(ctx: SimContext, type: SlotType): boolean {
   return !!seasonOf(ctx).frozen && !ctx.content.slotTypes.get(type).building;
 }

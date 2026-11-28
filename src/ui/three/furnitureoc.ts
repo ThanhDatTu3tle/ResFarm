@@ -175,7 +175,7 @@ export function buildBambooStool(chair: THREE.Object3D, seed = 1): void {
 }
 
 /**
- * Quán Ốc (quán nhậu lề đường) không có bàn 4 / bàn 6 riêng: kéo bàn đôi sát nhau mà ghép — bàn 4 = 2 bàn đôi,
+ * Quán Ốc (quán nhậu lề đường) không có bàn 4 / bàn 6 riêng: kéo bàn đôi sát nhau mà ghép - bàn 4 = 2 bàn đôi,
  * bàn 6 = 3 bàn đôi, xếp thành hàng theo chiều dài (x). Mỗi bàn con lệch / xoay chút xíu cho giống kéo tay.
  * `build(g, w, d, seed)` dựng một bàn con (gốc ở tâm).
  */

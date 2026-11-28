@@ -10,10 +10,11 @@ import { emojiSprite, G, group, mesh } from './toon';
 import { mergeAdded } from './merge';
 
 /**
- * TRƯỚC CỬA QUÁN (giai đoạn 15) — dùng chung cho cả 4 phong cách quán:
+ * TRƯỚC CỬA QUÁN (giai đoạn 15) - dùng chung cho cả 4 phong cách quán:
  *  - Vỉa hè + con đường 2 làn phía trước (quán ốc đã có sẵn đường trong street.ts, chỉ thêm xe cộ), xe chạy qua lại.
- *  - Bãi giữ xe máy bên PHẢI quán, bãi đậu ô tô bên TRÁI, bác bảo vệ đứng cạnh chòi gác ở bãi xe máy.
- *  - Khách tới bằng 3 cách (chọn tất định theo id nhóm — chỉ là hình, sim không biết): đi bộ dọc vỉa hè, chạy xe máy vào bãi
+ *  - Bãi đậu ô tô sát tường TRÁI quán, bãi giữ xe máy nằm ngoài bãi ô tô (cùng bên trái), bác bảo vệ đứng cạnh chòi gác ở bãi xe máy.
+ *    Bên phải quán để trống (dành cho mở rộng quán sau này).
+ *  - Khách tới bằng 3 cách (chọn tất định theo id nhóm - chỉ là hình, sim không biết): đi bộ dọc vỉa hè, chạy xe máy vào bãi
  *    phải, lái ô tô vào bãi trái. Xe đậu tới khi cả nhóm ra về; khách đi bộ từ chỗ đậu tới cửa quán rồi mới vào.
  * Toạ độ mét của cảnh quán (cửa ở giữa, z = frontZ là mép trước quán).
  */
@@ -42,6 +43,9 @@ const COLORS = [0xe2574c, 0x4a9bd8, 0xf2c94c, 0xf3f3f3, 0x2a2d35, 0x5fae57, 0x9a
 const ROAD_HALF = 26;
 const DRIVE = 5.5; // m/giây thực
 const THROUGH = 4.2;
+/** Bãi xe máy: mép trong cách tường trái quán MOTO_X1 m (ngay ngoài bãi ô tô), rộng MOTO_W m. */
+const MOTO_X1 = 5.8;
+export const MOTO_W = 4.7;
 
 export interface CurbDims {
   halfW: number;
@@ -55,9 +59,9 @@ export interface CurbDims {
   terrazzo?: boolean;
 }
 
-/** Đầu xe hướng vào tường quán: bãi xe máy bên phải → quay sang trái (−x), bãi ô tô bên trái → quay sang phải (+x). */
-function parkedHeading(mode: Exclude<Mode, 'walk'>): number {
-  return mode === 'moto' ? Math.PI : 0;
+/** Cả hai bãi đều bên trái quán: đầu xe quay về phía quán (+x). */
+function parkedHeading(_mode: Exclude<Mode, 'walk'>): number {
+  return 0;
 }
 
 export class Curbside {
@@ -82,20 +86,20 @@ export class Curbside {
     this.lanes = [frontZ + ROAD_MID - 1.2, frontZ + ROAD_MID + 1.6];
     this.busStop = [d.door[0] - 2.6, frontZ + SIDEWALK + 0.95];
     this.sidewalkZ = frontZ + 2.1;
-    this.aisle = { moto: halfW + 4.4, car: -halfW - 4.6 };
+    this.aisle = { moto: -halfW - MOTO_X1 - 3.9, car: -halfW - 4.6 };
     // Đường, vỉa hè, hai bãi xe (vạch, biển P): cảnh tĩnh → gộp mesh (merge.ts)
     mergeAdded(root, () => {
       if (!d.hasRoad) this.buildRoad();
       this.buildLots();
     }, false);
-    this.guard = this.buildGuard(halfW + 5.6, frontZ + 1.4);
+    this.guard = this.buildGuard(-halfW - MOTO_X1 - 5.1, frontZ + 1.4);
     this.guardTalk = new Chatter(this.guard, ['Gửi xe bên này nha!', 'Vô từ từ thôi nha!', 'Dắt xe vô trong nè!', 'Nhớ lấy vé xe nha!'], 1.95, 3, 0.2);
     this.buildThrough();
     // (chỉ bản dev) ?fullpark: lấp kín hai bãi bằng xe đậu sẵn để xem bãi đầy trông ra sao
     if (import.meta.env.DEV && new URLSearchParams(location.search).has('fullpark')) this.fillLots();
   }
 
-  /** Xe đậu kín bãi (chỉ để xem — không gắn với nhóm khách nào). */
+  /** Xe đậu kín bãi (chỉ để xem - không gắn với nhóm khách nào). */
   private fillLots(): void {
     this.motoSlots.forEach(([x, z], i) => {
       const g = makeScooter(COLORS[(i * 7 + 2) % COLORS.length], makePerson(LOOKS[i % LOOKS.length]));
@@ -127,7 +131,7 @@ export class Curbside {
   }
 
   /**
-   * Bãi xe máy (phải) + bãi ô tô (trái) chạy DỌC theo tường bên của quán, đầu xe hướng vào tường — quán nâng hạng sâu thêm
+   * Bãi xe máy (phải) + bãi ô tô (trái) chạy DỌC theo tường bên của quán, đầu xe hướng vào tường - quán nâng hạng sâu thêm
    * thì bãi dài ra, thêm chỗ. Nền xám, vạch trắng, biển P ở đầu bãi sát vỉa hè.
    */
   private buildLots(): void {
@@ -137,11 +141,12 @@ export class Curbside {
     const z2 = frontZ - 0.2;
     const len = z2 - z1;
     // Xe máy: 2 dãy dọc tường (dãy trong sát tường, dãy ngoài), mỗi chỗ cách 0.62 m
-    const mx1 = halfW + 0.5;
-    const mx2 = halfW + 5.2;
-    mesh(r, G.box(mx2 - mx1, 0.05, len + 0.4), 0xa4a7ad, { p: [(mx1 + mx2) / 2, 0.01, (z1 + z2) / 2], cast: false, receive: true });
+    // (bên trái, ngoài bãi ô tô; đầu xe quay về phía quán)
+    const mx1 = -halfW - MOTO_X1;
+    const mx2 = mx1 - MOTO_W;
+    mesh(r, G.box(mx1 - mx2, 0.05, len + 0.4), 0xa4a7ad, { p: [(mx1 + mx2) / 2, 0.01, (z1 + z2) / 2], cast: false, receive: true });
     const nMoto = Math.floor(len / 0.62);
-    for (const x of [halfW + 1.15, halfW + 2.85]) {
+    for (const x of [mx1 - 0.65, mx1 - 2.35]) {
       for (let k = 0; k < nMoto; k++) this.motoSlots.push([x, z2 - 0.35 - k * 0.62]);
       for (let k = 0; k <= nMoto; k++) mesh(r, G.box(1.0, 0.01, 0.03), 0xf3efe6, { p: [x, 0.04, z2 - 0.04 - k * 0.62], cast: false });
     }
@@ -152,7 +157,7 @@ export class Curbside {
     const nCar = Math.floor(len / 1.8);
     for (let k = 0; k < nCar; k++) this.carSlots.push([-halfW - 1.9, z2 - 0.9 - k * 1.8]);
     for (let k = 0; k <= nCar; k++) mesh(r, G.box(2.6, 0.01, 0.05), 0xf3efe6, { p: [-halfW - 1.9, 0.04, z2 - k * 1.8], cast: false });
-    this.sign(mx2 - 0.2, frontZ + 0.3, 'GIỮ XE', '🏍️');
+    this.sign(mx2 + 0.2, frontZ + 0.3, 'GIỮ XE', '🏍️');
     this.sign(cx2 + 0.2, frontZ + 0.3, 'Ô TÔ', '🚗');
   }
 
@@ -175,19 +180,19 @@ export class Curbside {
   /** Bác bảo vệ: áo xanh nhạt, quần xanh đen, mũ kê-pi, còi; chòi gác + ghế nhựa bên cạnh. */
   private buildGuard(x: number, z: number): THREE.Group {
     const r = this.root;
-    const booth = group(r, { p: [x + 1.7, 0, z - 0.9] });
+    const booth = group(r, { p: [x - 1.7, 0, z - 0.9] });
     mesh(booth, G.box(1.1, 2.0, 1.0), 0xe9e4d8, { p: [0, 1.0, 0] });
     mesh(booth, G.box(1.25, 0.1, 1.15), 0x2f6fbf, { p: [0, 2.05, 0] });
     mesh(booth, G.box(0.8, 0.6, 0.04), 0x9fd0ef, { p: [0, 1.35, 0.51], cast: false });
     const lbl = signText('BẢO VỆ', '#2f3a4a', 0.9, 0.2);
     lbl.position.set(0, 1.85, 0.52);
     booth.add(lbl);
-    const stool = group(r, { p: [x + 0.9, 0, z + 0.2] });
+    const stool = group(r, { p: [x - 0.9, 0, z + 0.2] });
     mesh(stool, G.cyl(0.2, 0.17, 0.05, 12), 0xe2574c, { p: [0, 0.42, 0] });
     for (const [sx, sz] of [[-0.12, -0.12], [0.12, -0.12], [-0.12, 0.12], [0.12, 0.12]]) mesh(stool, G.cyl(0.025, 0.025, 0.42, 6), 0xe2574c, { p: [sx, 0.21, sz] });
     const p = makeGuard();
     p.position.set(x, 0, z);
-    p.rotation.y = -0.4;
+    p.rotation.y = 0.4;
     r.add(p);
     return p;
   }
@@ -388,7 +393,7 @@ export class Curbside {
     setVehicleLights(night);
     // Bác bảo vệ: xe máy đang vào bãi thì quay ra vẫy tay chỉ chỗ; rảnh thì đứng ngó đường
     const busy = [...this.rides.values()].some((r) => r.mode === 'moto' && r.phase !== 'parked');
-    const face = busy ? -1.2 : -0.4 + Math.sin(t * 0.3) * 0.5;
+    const face = busy ? 1.2 : 0.4 + Math.sin(t * 0.3) * 0.5;
     this.guard.rotation.y += (face - this.guard.rotation.y) * Math.min(1, dt * 3);
     animatePerson(this.guard, t, { wave: busy ? 1 : 0 });
     this.guardTalk.update(t, busy);

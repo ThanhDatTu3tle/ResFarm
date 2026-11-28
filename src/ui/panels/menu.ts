@@ -7,7 +7,7 @@ import { coins, duration, qty } from '../format';
 import type { Panel, UiState } from './types';
 import { isSeasonalDish, seasonalPrice, seasonNames } from '../../sim/calendar';
 
-/** Tag nguyên liệu của món — bấm để xem nguyên liệu đó kiếm ở đâu (chợ / trồng / nuôi / chế biến), tooltip ngay dưới. */
+/** Tag nguyên liệu của món - bấm để xem nguyên liệu đó kiếm ở đâu (chợ / trồng / nuôi / chế biến), tooltip ngay dưới. */
 function ingredients(game: Game, recipe: RecipeDef, ui: UiState): string {
   const prefix = `m-${recipe.id}:`;
   const chips = recipe.ingredients
@@ -42,7 +42,7 @@ export const menuPanel: Panel = {
         const active = state.menu.active.includes(r.id);
         const can = craftableCount(ctx, r.ingredients);
         const low = active && can < content.balance.lowStockPortions;
-        return `<div class="card ${active ? '' : 'off'}${low ? ' low-stock' : ''}" data-key="${r.id}">${low ? `<div class="low-note">⚠️ ${can ? 'Sắp hết nguyên liệu' : 'Hết nguyên liệu'} — thiếu: ${missingText(game, r)}</div>` : ''}
+        return `<div class="card ${active ? '' : 'off'}${low ? ' low-stock' : ''}" data-key="${r.id}">${low ? `<div class="low-note">⚠️ ${can ? 'Sắp hết nguyên liệu' : 'Hết nguyên liệu'} - thiếu: ${missingText(game, r)}</div>` : ''}
           <div class="row"><span class="big">${r.icon}</span>
             <div class="grow"><b>${esc(r.name)}</b>
               ${seasonBadge(game, r)}<div class="muted">${priceText(game, r)} · nấu ${duration(r.cookTime)} · còn nấu được <b class="${can ? '' : 'bad-text'}">${qty(can)}</b> phần</div></div>

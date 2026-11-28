@@ -8,16 +8,16 @@
 - Toàn bộ game chạy trên máy người chơi. Bản lưu nằm trong `localStorage` của trình duyệt người đó.
 - Thư viện dùng đều miễn phí, mã nguồn mở: Three.js, Vite, TypeScript, Vitest (giấy phép MIT / Apache-2.0).
 - Hình ảnh dựng bằng code và emoji của hệ điều hành, không mua tài nguyên nào. Âm thanh tổng hợp bằng Web Audio, không có file.
-- Font Mali (giấy phép SIL OFL, dùng tự do) đóng gói qua `@fontsource/mali` và nằm luôn trong bản build — không gọi Google Fonts lúc chạy.
+- Font Mali (giấy phép SIL OFL, dùng tự do) đóng gói qua `@fontsource/mali` và nằm luôn trong bản build - không gọi Google Fonts lúc chạy.
 - GitHub miễn phí cho repo. Các dịch vụ chứa web tĩnh (Netlify, GitHub Pages, Cloudflare Pages, Vercel) đều có gói miễn phí.
 
-**Giới hạn của gói miễn phí** là lượng truy cập và số lần build mỗi tháng. Mỗi lượt vào game tải khoảng 200 KB (đã nén), nên vài người bạn chơi hằng ngày cách rất xa mọi giới hạn. Thứ dễ chạm hơn là số lần build nếu push liên tục — mỗi lần push là một lần build khoảng nửa phút.
+**Giới hạn của gói miễn phí** là lượng truy cập và số lần build mỗi tháng. Mỗi lượt vào game tải khoảng 200 KB (đã nén), nên vài người bạn chơi hằng ngày cách rất xa mọi giới hạn. Thứ dễ chạm hơn là số lần build nếu push liên tục - mỗi lần push là một lần build khoảng nửa phút.
 
-Con số và chính sách gói miễn phí của từng dịch vụ thay đổi theo thời gian — xem trang giá của dịch vụ đang dùng. Nếu một dịch vụ đổi chính sách, chuyển sang dịch vụ khác chỉ mất vài phút vì game không phụ thuộc gì vào nơi chứa.
+Con số và chính sách gói miễn phí của từng dịch vụ thay đổi theo thời gian - xem trang giá của dịch vụ đang dùng. Nếu một dịch vụ đổi chính sách, chuyển sang dịch vụ khác chỉ mất vài phút vì game không phụ thuộc gì vào nơi chứa.
 
 **Điều cần biết khi cho bạn bè chơi:**
 
-- Mỗi người, mỗi trình duyệt có **bản lưu riêng**. Đổi máy, đổi trình duyệt, xoá dữ liệu duyệt web hoặc dùng chế độ ẩn danh là mất tiến trình. (Nhiệm vụ E2 trong roadmap — xuất/nhập save — giải quyết việc này mà không tốn phí.)
+- Mỗi người, mỗi trình duyệt có **bản lưu riêng**. Đổi máy, đổi trình duyệt, xoá dữ liệu duyệt web hoặc dùng chế độ ẩn danh là mất tiến trình. (Nhiệm vụ E2 trong roadmap - xuất/nhập save - giải quyết việc này mà không tốn phí.)
 - Mọi người chơi **độc lập**, không thấy quán của nhau.
 - Ai có đường link đều vào được.
 
@@ -31,7 +31,7 @@ Yêu cầu: Node 20.19+ hoặc 22.
 | Thư mục phát hành | `dist` |
 | Phiên bản Node | 22 |
 
-- **Netlify:** `netlify.toml` trong repo đã khai sẵn ba giá trị trên. Nối repo GitHub là tự build mỗi lần push lên `main` — vì vậy **làm ở nhánh riêng, gộp vào `main` qua Pull Request** khi muốn đưa lên bản online. Đổi cấu trúc save thì người chơi được nâng cấp save tự động lúc tải (migration).
+- **Netlify:** `netlify.toml` trong repo đã khai sẵn ba giá trị trên. Nối repo GitHub là tự build mỗi lần push lên `main` - vì vậy **làm ở nhánh riêng, gộp vào `main` qua Pull Request** khi muốn đưa lên bản online. Đổi cấu trúc save thì người chơi được nâng cấp save tự động lúc tải (migration).
 - **GitHub Pages / nơi khác:** `vite.config.ts` đặt `base: './'` nên bản build chạy được ở cả đường dẫn con.
 - Bản deploy **không có** các tham số debug `?rich`, `?edit`, `?weather=`, `?do=` (chỉ chạy ở bản dev). `?fresh`, `?seed=`, `?ff=`, `?area=`, `?tab=`, `?speed=` vẫn dùng được.
 

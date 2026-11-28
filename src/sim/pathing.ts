@@ -2,9 +2,9 @@ import { activeTables, footprint, placedProps, propRect, roomOf, tablePos, type 
 import type { SimContext } from './types';
 
 /**
- * ĐI VÒNG QUA BÀN — người phục vụ đi thẳng nếu đường thẳng không cắt bàn / đồ trang trí; vướng thì tìm đường trên lưới
+ * ĐI VÒNG QUA BÀN - người phục vụ đi thẳng nếu đường thẳng không cắt bàn / đồ trang trí; vướng thì tìm đường trên lưới
  * (A*, ô 15 đơn vị) rồi đi tới điểm xa nhất trên đường còn nhìn thấy thẳng. Hàm thuần theo state (vẫn tất định).
- * Vật cản = bàn kèm ghế (`footprint` — không đi xuyên ghế / khách đang ngồi) và đồ trang trí đang bày, nới thêm `CLEAR`.
+ * Vật cản = bàn kèm ghế (`footprint` - không đi xuyên ghế / khách đang ngồi) và đồ trang trí đang bày, nới thêm `CLEAR`.
  * Bàn có thể dời tuỳ ý nên lưới được tính lại theo "chữ ký" bố cục và lưu cache (ít khi đổi).
  */
 const CELL = 15;
@@ -28,7 +28,7 @@ function bodiesOf(ctx: SimContext): Rect[] {
   // Khối bếp / quầy cố định (quầy chữ L quán Nhật, bếp sát cửa quán Việt)
   const room = roomOf(ctx);
   rects.push(...(room.walls ?? []));
-  // Tường trước hai bên cửa (quán trong nhà): không đi tắt ra ngoài rồi vòng vào — vd vào ghế chờ sau quầy cashier sát tường
+  // Tường trước hai bên cửa (quán trong nhà): không đi tắt ra ngoài rồi vòng vào - vd vào ghế chờ sau quầy cashier sát tường
   if (ctx.state.cuisine !== 'oc') {
     const door = room.width / 2;
     rects.push({ x1: -20, y1: room.height + 4, x2: door - 46, y2: room.height + 24 }, { x1: door + 46, y1: room.height + 4, x2: room.width + 20, y2: room.height + 24 });

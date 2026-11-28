@@ -4,7 +4,7 @@ import { makeCashierCounter, type CashierView } from '../cashier';
 import { passSlots } from '../../../sim/systems/kitchen';
 import type { RoomDef, StaffDef, TableDef } from '../../../data';
 import type { Game } from '../../../sim/game';
-import { blockerOf, canPlaceProp, canPlaceTable, LAYOUT_GRID, nearestPlaceable, placedProps, roomOf, seatSpots, tableById, tablePos, wallProps, withRotation } from '../../../sim/layout';
+import { blockerOf, canPlaceProp, canPlaceTable, LAYOUT_GRID, nearestPlaceable, placedProps, roomOf, roomAtTier, kitchenExtra as kitchenExtraOf, seatSpots, tableById, tablePos, wallProps, withRotation } from '../../../sim/layout';
 import { heartsOf } from '../../../sim/systems/regulars';
 import { makeCashierStaff, makeHelperPerson, makePet, makePolice, makeRegular, makeShipper, makeShipperBike, makeWaiter } from '../people';
 import { isManager } from '../../../sim/systems/helpers';
@@ -32,12 +32,15 @@ import { buildEquipment, type EquipDims, type EquipView } from '../equipment';
 import { buildBarCounter, buildBarStool, buildGrillInset, buildGrillTable, buildLeatherChair, buildOakChair, buildOakTable, buildPlasticChair, buildPlasticTable, buildWoodStool, buildWoodTable, tintWood, woodMats } from '../furniture';
 import { buildBoxStool, buildFloorSeat, buildStoneTable, buildZataku, ZATAKU_TOP } from '../furniturejp';
 import { buildHood } from '../hoods';
+import { buildWasteland, type WastelandView } from '../wasteland';
+import { Fireworks } from '../fireworks';
+import { lotsCleared } from '../../../sim/systems/home';
 import { buildPochaAwning, buildCrateSeat, buildDrumStool, buildDrumTable, buildWalnutGrill } from '../furniturekr';
 import { buildBambooStool, buildBambooTable, buildInoxTable, buildSlatChair, joinedTables } from '../furnitureoc';
 import type { FurnitureStyle } from '../../../data/types';
 
 /**
- * KHU QUÁN — nội thất quán ăn tông ấm, nhìn kiểu "cắt mái".
+ * KHU QUÁN - nội thất quán ăn tông ấm, nhìn kiểu "cắt mái".
  *  - Kích thước phòng lấy từ content.room, bàn từ TableDef + state.restaurant.layout (toạ độ 2D),
  *    quy đổi sang mét bằng wx()/wz(). Nới rộng quán chỉ cần sửa data.
  *  - Màu sàn, tường, bàn ghế lấy từ nội thất đang dùng (state.decor.equipped).
@@ -199,6 +202,10 @@ export class RestaurantArea implements Area {
   private windowMat = toon(0xbfe6ff, { transparent: true, opacity: 0.3 });
   /** Lớp gạch bông trên sàn phòng ăn (null ở quán ốc ngoài trời). */
   private tileFloor: THREE.Mesh | null = null;
+  /** Phần quán còn nới thêm về phía Đông tới hạng cao nhất (m). */
+  private eastExtra = 0;
+  /** Bãi đất hoang bên Đông + phía sau quán (wasteland.ts). */
+  private wasteland: WastelandView | null = null;
   /** Lớp gạch ốp tường (mặt trong tường sau + hai tường bên), hiện khi tường đang dùng có pattern 'walltile'. */
   private wallTiles: THREE.Mesh[] = [];
   private wallTileKey = '';
@@ -248,11 +255,11 @@ export class RestaurantArea implements Area {
   private signLeds: THREE.MeshBasicMaterial[] = [];
   /** Đồ trang trí theo phong cách quán (đèn lồng đung đưa, quạt quay...). */
   private interior: InteriorAnimator;
-  /** Quán ốc vỉa hè (không tường, xe đẩy + bếp nướng dưới sạp dù — xem street.ts). */
+  /** Quán ốc vỉa hè (không tường, xe đẩy + bếp nướng dưới sạp dù - xem street.ts). */
   private street: boolean;
   /** Cập nhật xóm quanh quán (cửa sổ sáng đèn khi tối). */
   private neighborhood: (night: number) => void = () => {};
-  /** Quán ốc về đêm tối hơn hẳn (chỉ còn dây đèn vàng, lửa than) — Stage đọc. */
+  /** Quán ốc về đêm tối hơn hẳn (chỉ còn dây đèn vàng, lửa than) - Stage đọc. */
   nightDark = 0;
   /** Ông / bà chủ đi chậm quanh khu ăn quan sát. */
   private owner: OwnerWalker | null = null;
@@ -271,12 +278,12 @@ export class RestaurantArea implements Area {
     // Gian bếp giữ nguyên chỗ so với quầy ra món khi quán rộng thêm (giai đoạn 14: 540 → 620); lối đi WC / kho bên trái rộng ra
     // Giai đoạn 15: quán nới về phía Đông thì gian bếp giữ mép trái, dãy bếp dài thêm sang phải (kitchenExtra)
     this.kitchenX1 = -this.halfW + 4 + 40 / UNIT;
-    this.kitchenExtra = (room.width - game.content.room.width) / UNIT;
+    this.kitchenExtra = kitchenExtraOf(game.ctx) / UNIT;
     this.door = [0, this.frontZ + 0.6];
     this.queueZ = this.wz(room.height - 32);
     const depth = this.frontZ - this.backZ;
     // Giai đoạn 15: nhìn lùi ra một chút để thấy vỉa hè, con đường, bãi giữ xe hai bên
-    this.view = { position: [0, depth * 1.0, depth * 1.18 + 1.4], target: [0, 0.6, 1.4], orbit: 0.95 };
+    this.view = { position: [0, depth * 1.0, depth * 1.18 + 1.4], target: [0, 0.6, 1.4], orbit: 0.95, zoomOut: 2.2 };
     this.rainBox = { min: [-22, 0, this.backZ - 13], max: [22, 14, this.backZ - 0.5] };
 
     this.label = game.content.cuisines.get(game.state.cuisine).name;
@@ -298,7 +305,7 @@ export class RestaurantArea implements Area {
       }
     } else this.mergeBuilt(() => this.buildRoom()); // tường, sàn, cửa sổ, hành lang: cảnh tĩnh → gộp mesh
     {
-      // Lớp gạch hoa văn phủ sàn (quán trong nhà: phòng ăn, bếp lát gạch trắng đè lên; quán ốc: cả nền lát ô) —
+      // Lớp gạch hoa văn phủ sàn (quán trong nhà: phòng ăn, bếp lát gạch trắng đè lên; quán ốc: cả nền lát ô) -
       // hiện khi sàn đang dùng có hoa văn (DecorDef.pattern), texture đổi theo món
       const z1 = this.street ? this.backZ - 0.3 : this.plan === 'back' ? this.kitchenZ : this.backZ;
       const z2 = this.street ? this.frontZ + 0.3 : this.frontZ;
@@ -326,10 +333,33 @@ export class RestaurantArea implements Area {
     }
     this.buildKitchen();
     this.buildCashier();
+    // Quán lớn về phía Đông + ra phía sau (tường Tây sát bãi xe và mặt tiền đứng yên): dời cả khu theo phần đã nới so với hạng 1.
+    // Phần đất quán sẽ lấn ra ở các hạng sau là bãi đất hoang (wasteland.ts), dọn xong mới nâng hạng.
+    {
+      const ctx = game.ctx;
+      const base = roomAtTier(ctx, 1);
+      const fin = roomAtTier(ctx, game.content.room.tiers.length);
+      const sx = (room.width - base.width) / 2 / UNIT;
+      const sz = -(room.height - base.height) / 2 / UNIT;
+      this.root.position.set(sx, 0, sz);
+      const shift = (v: [number, number, number]): [number, number, number] => [v[0] + sx, v[1], v[2] + sz];
+      this.view = { ...this.view, position: shift(this.view.position as [number, number, number]), target: shift(this.view.target as [number, number, number]) };
+      this.rainBox = { min: shift(this.rainBox.min as [number, number, number]), max: shift(this.rainBox.max as [number, number, number]) };
+      this.eastExtra = (fin.width - room.width) / UNIT;
+      this.wasteland = buildWasteland(group(this.root), {
+        westX: -this.halfW,
+        frontZ: this.frontZ,
+        // Mép Đông / mép sau của quán ở từng hạng (toạ độ khu quán hiện tại)
+        tiers: game.content.room.tiers.map((_, i) => {
+          const r = roomAtTier(ctx, i + 1);
+          return { eastX: -this.halfW + r.width / UNIT + 0.8, backZ: this.frontZ - (r.height / UNIT + 1.1) };
+        }),
+      });
+    }
     this.curb = new Curbside(this.root, { halfW: this.halfW, frontZ: this.frontZ, backZ: this.backZ, door: this.door, hasRoad: this.street, terrazzo: game.state.cuisine === 'vn' });
     // Xóm quanh quán: dãy nhà sau hẻm, nhà mặt tiền + cây xanh hai bên ngoài bãi xe (neighborhood.ts)
     const hood = group(this.root);
-    this.neighborhood = buildNeighborhood(hood, { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, street: this.street });
+    this.neighborhood = buildNeighborhood(hood, { halfW: this.halfW, backZ: this.backZ, frontZ: this.frontZ, street: this.street, eastExtra: this.eastExtra });
     mergeStatic(hood, false);
     this.interior = decorateInterior(game.state.cuisine, this.root, {
       halfW: this.halfW,
@@ -518,7 +548,7 @@ export class RestaurantArea implements Area {
     return state.crew.hungry.includes(who) && state.clock.minute < content.balance.shifts[0].from + HUNGRY_UNTIL;
   }
 
-  /** Chỗ đứng ngẫu nhiên trong khu ăn (không vướng bàn ghế, đồ trang trí, lối vào) — toạ độ mét. */
+  /** Chỗ đứng ngẫu nhiên trong khu ăn (không vướng bàn ghế, đồ trang trí, lối vào) - toạ độ mét. */
   private ownerSpot(): Spot {
     const { ctx } = this.game;
     const d = roomOf(ctx).dining;
@@ -542,7 +572,7 @@ export class RestaurantArea implements Area {
   }
 
   /**
-   * Điểm hướng tới kế tiếp trên đường từ (x, z) tới đích (gx, gz) — mét. Ngoài vỉa hè đi thẳng; trong quán dùng pathing của sim
+   * Điểm hướng tới kế tiếp trên đường từ (x, z) tới đích (gx, gz) - mét. Ngoài vỉa hè đi thẳng; trong quán dùng pathing của sim
    * (lưới A* vòng qua bàn kèm ghế, đồ trang trí, khối bếp). Tính lại mỗi 0,25 giây, khi tới điểm rẽ hoặc đổi đích.
    */
   private pathStep(a: { wp?: PathCache }, x: number, z: number, gx: number, gz: number, t: number): [number, number] {
@@ -569,7 +599,7 @@ export class RestaurantArea implements Area {
 
   /**
    * Tối ưu: chạy hàm dựng `fn` rồi gom mọi thứ nó vừa gắn vào root vào một nhóm và gộp mesh (merge.ts).
-   * Chỉ dùng cho phần dựng cảnh tĩnh — không chỗ nào giữ tham chiếu tới từng mesh để cử động / ẩn hiện.
+   * Chỉ dùng cho phần dựng cảnh tĩnh - không chỗ nào giữ tham chiếu tới từng mesh để cử động / ẩn hiện.
    */
   private mergeBuilt(fn: () => void): void {
     mergeAdded(this.root, fn, false);
@@ -628,7 +658,7 @@ export class RestaurantArea implements Area {
     // Mép trước: chân tường thấp hai bên cửa (không che phòng)
     for (const side of [-1, 1]) mesh(r, G.box(halfW - 1.3, 0.5, 0.3), mats.trim, { p: [side * (halfW + 1.3) / 2, 0.25, frontZ + 0.15] });
 
-    // Bảng thực đơn phấn trên tường sau (quán Việt; quán Nhật treo thẻ gỗ, quán Hàn treo biển neon — xem cuisine.ts)
+    // Bảng thực đơn phấn trên tường sau (quán Việt; quán Nhật treo thẻ gỗ, quán Hàn treo biển neon - xem cuisine.ts)
     // (Bếp sát cửa quán Việt: không treo bảng thực đơn sau lưng đầu bếp)
     if (this.game.state.cuisine === 'vn' && this.plan === 'back') {
       const mx = this.kitchenCenter() - 0.6;
@@ -653,7 +683,7 @@ export class RestaurantArea implements Area {
     welcome.rotation.x = -Math.PI / 2;
     r.add(welcome);
 
-    // Đèn treo trần: kiểu đèn theo quán (cuisine.ts); ở đây chỉ có nguồn sáng — sáng dần khi trời tối
+    // Đèn treo trần: kiểu đèn theo quán (cuisine.ts); ở đây chỉ có nguồn sáng - sáng dần khi trời tối
     for (const x of [-halfW * 0.5, halfW * 0.5]) {
       const lamp = new THREE.PointLight(0xffc27a, 0, 0, 0);
       lamp.position.set(x, 3.2, 0.5);
@@ -784,7 +814,7 @@ export class RestaurantArea implements Area {
     this.buildPass();
     this.buildWaiter();
 
-    // Đầu bếp đứng sau quầy, quay mặt ra phòng ăn — dàn đều theo số đầu bếp thật (bếp lên hạng thì dãy dài thêm)
+    // Đầu bếp đứng sau quầy, quay mặt ra phòng ăn - dàn đều theo số đầu bếp thật (bếp lên hạng thì dãy dài thêm)
     const staff = this.game.state.restaurant.staff.map((s) => this.game.content.staff.get(s.id));
     const lo = this.kitchenCenter() - 1.6 - ext / 2;
     const hi = this.kitchenCenter() + 1.6 + ext / 2 + (ktier >= 2 ? 1.1 : 0);
@@ -806,7 +836,7 @@ export class RestaurantArea implements Area {
   /** Gian bếp lát gạch [x1, x2, z1, z2] (mét) theo mặt bằng. */
   private kitchenFloor(): [number, number, number, number] {
     if (this.plan === 'L') return [-this.halfW, this.wx(152), this.backZ, this.wz(322)];
-    if (this.plan === 'front') return [-this.halfW, this.wx(168), this.wz(this.room.height - 240), this.frontZ];
+    if (this.plan === 'front') return [-this.halfW, this.wx(168), this.wz(this.kitchenBack()), this.frontZ];
     return [this.kitchenX1, this.halfW, this.backZ, this.kitchenZ];
   }
 
@@ -826,14 +856,14 @@ export class RestaurantArea implements Area {
     this.chefs.push({ g, icon, iconFor: '', bar, smoke: i * 0.2, yaw, puff, ...chefKit(g, i) });
   }
 
-  /** Bếp + chảo trên mặt bàn bếp ở (x, z) — đầu bếp đứng trước nó. */
+  /** Bếp + chảo trên mặt bàn bếp ở (x, z) - đầu bếp đứng trước nó. */
   private burner(x: number, z: number, top: number, color = 0x3b3f46): void {
     mesh(this.root, G.cyl(0.24, 0.22, 0.06, 12), 0x2a2d35, { p: [x, top + 0.03, z] });
     mesh(this.root, G.cyl(0.3, 0.24, 0.1, 14), color, { p: [x, top + 0.11, z] });
   }
 
   /**
-   * QUÁN NHẬT — quầy bếp chữ L ở góc trái-sau (kiểu izakaya): cạnh dài dọc tường trái (quầy ra món sát tường sau + 2 quầy đôi),
+   * QUÁN NHẬT - quầy bếp chữ L ở góc trái-sau (kiểu izakaya): cạnh dài dọc tường trái (quầy ra món sát tường sau + 2 quầy đôi),
    * cạnh ngắn quay ra cửa (2 ghế đơn). Đầu bếp đứng trong lòng chữ L quay mặt ra quầy; tủ lạnh, kệ rượu sake dọc tường trái.
    * Khúc quầy ra món và hai quầy đôi / quầy ghế đơn do buildPass / buildTable dựng; ở đây dựng phần quầy nối giữa chúng.
    */
@@ -898,15 +928,20 @@ export class RestaurantArea implements Area {
   }
 
   /**
-   * QUÁN VIỆT — bếp nấu ngay cửa bên trái, dài nửa quán (kiểu quán phở): tủ kính bánh phở nhìn ra đường,
+   * QUÁN VIỆT - bếp nấu ngay cửa bên trái, dài nửa quán (kiểu quán phở): tủ kính bánh phở nhìn ra đường,
    * bàn bếp inox với nồi nước dùng to bốc khói, đầu bếp đứng sát tường trái quay mặt vào quán.
    * Quầy ra món ở đầu trong của bếp (bồi bàn đứng phía sau lấy món); xa hơn là lối đi vào WC + kho.
    */
+  /** Mép trong (phía sau) của khối bếp sát cửa - dời theo hạng quán (RoomDef.kitchenGrow). */
+  private kitchenBack(): number {
+    return this.room.walls?.[0]?.y1 ?? this.room.height - 240;
+  }
+
   private buildKitchenFront(): void {
     const r = this.root;
     const { halfW, frontZ } = this;
     const X = (px: number) => this.wx(px);
-    const k1 = this.wz(this.room.height - 240);
+    const k1 = this.wz(this.kitchenBack());
     const ktier = this.game.state.restaurant.kitchenTier;
     // Bàn bếp inox dọc theo bếp (mặt quay vào quán)
     const sx = X(140);
@@ -1014,7 +1049,7 @@ export class RestaurantArea implements Area {
     g.userData.plates = group(g, { p: [0, PASS_TOP, 0] });
   }
 
-  /** Bồi bàn — nhân vật của người chơi: áo xanh, tạp dề trắng, vòng sáng dưới chân cho dễ nhận ra. */
+  /** Bồi bàn - nhân vật của người chơi: áo xanh, tạp dề trắng, vòng sáng dưới chân cho dễ nhận ra. */
   private buildWaiter(): void {
     const g = makeWaiter();
     const ring = mesh(g, G.torus(0.42, 0.04, 6, 24), new THREE.MeshBasicMaterial({ color: 0xffd23e }), { p: [0, 0.03, 0], r: [Math.PI / 2, 0, 0], cast: false, receive: false });
@@ -1156,7 +1191,7 @@ export class RestaurantArea implements Area {
     const hand = emojiSprite('✋', 0.55);
     hand.position.set(0, 1.75, 0);
     g.add(hand);
-    // Tối ưu: gộp mesh bàn + ghế + đồ trên bàn (pad / ✋ giữ riêng — được bật tắt)
+    // Tối ưu: gộp mesh bàn + ghế + đồ trên bàn (pad / ✋ giữ riêng - được bật tắt)
     mergeStatic(g, false);
     return { def: t, g, pad, hand };
   }
@@ -1165,7 +1200,7 @@ export class RestaurantArea implements Area {
 
   /**
    * Khách vào trước mà bị "qua mặt": khi một nhóm vừa được mang menu / được ghi món / có món ra, nếu còn nhóm vào
-   * TRƯỚC (id nhỏ hơn — tới quán trước) vẫn đang chờ đúng bước đó, nhóm vào trước than một câu (bong bóng chữ trên
+   * TRƯỚC (id nhỏ hơn - tới quán trước) vẫn đang chờ đúng bước đó, nhóm vào trước than một câu (bong bóng chữ trên
    * đầu, ~4 giây; mỗi nhóm cách nhau ít nhất 15 giây mới than tiếp). Chỉ là hình ảnh, không đổi kiên nhẫn trong sim.
    */
   private checkFairness(env: Env): void {
@@ -1447,8 +1482,155 @@ export class RestaurantArea implements Area {
   // ---------- Sắp xếp bàn ----------
 
   /** Đang kéo bàn `id` tới điểm (x, z) trên sàn: cập nhật vị trí xem trước. */
+  /**
+   * Mừng quán vừa lên hạng (gọi ngay sau khi dựng lại khu quán): pháo hoa nhẹ bắn trên phần quán mới nới ra
+   * và phần sàn mới sáng lên rồi tắt dần. `onBang` gọi mỗi lần một quả pháo nổ (app.ts phát tiếng).
+   */
+  celebrateUpgrade(onBang?: () => void): void {
+    const tier = this.game.state.restaurant.tier;
+    if (tier < 2) return;
+    const prev = roomAtTier(this.game.ctx, tier - 1);
+    const prevEast = -this.halfW + prev.width / UNIT + 0.8;
+    const prevBack = this.frontZ - (prev.height / UNIT + 1.1);
+    // Phần sàn mới: dải phía Đông (cả chiều sâu) + dải phía sau (phần quán sâu thêm)
+    const rects: [number, number, number, number][] = [
+      [prevEast, this.halfW, this.backZ, this.frontZ],
+      [-this.halfW, prevEast, this.backZ, prevBack],
+    ];
+    const mat = new THREE.MeshBasicMaterial({ color: 0xfff3b0, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    const glow = group(this.root);
+    for (const [x1, x2, z1, z2] of rects) if (x2 - x1 > 0.05 && z2 - z1 > 0.05) mesh(glow, G.box(x2 - x1, 0.02, z2 - z1), mat, { p: [(x1 + x2) / 2, 0.06, (z1 + z2) / 2], cast: false });
+    this.party = { t0: -1, last: 0, glow, mat, rects, bangs: 0, onBang, fw: new Fireworks(this.root) };
+  }
+
+  /** Tâm phần quán vừa nới ra khi lên hạng (toạ độ thế giới) - camera chuyển cảnh nhìn vào đây. */
+  newAreaCenter(): { x: number; z: number } {
+    const tier = this.game.state.restaurant.tier;
+    const prev = roomAtTier(this.game.ctx, Math.max(1, tier - 1));
+    const prevEast = -this.halfW + prev.width / UNIT + 0.8;
+    return { x: (prevEast + this.halfW) / 2 + this.root.position.x, z: (this.backZ + this.frontZ) / 2 + this.root.position.z };
+  }
+
+  /** Tâm một lô đất hoang (toạ độ thế giới), null nếu không có. */
+  lotCenter(lot: number): { x: number; z: number } | null {
+    const c = this.wasteland?.centerOf(lot);
+    return c ? { x: c.x + this.root.position.x, z: c.z + this.root.position.z } : null;
+  }
+
+  /**
+   * Đội quán đi bộ ra chợ / về quán (giờ nghỉ trưa, ăn tối): lúc đội rời quán thì từng người (đầu bếp đội mũ, bồi bàn,
+   * nhân viên) lần lượt ra cửa, xuống vỉa hè rồi đi về phía chợ (phía Đông) tới khuất.
+   * Chỉ là hình: sim ẩn / hiện người thật tức thì, nhóm người đi bộ này vẽ thêm cho có cảnh.
+   */
+  private crewWalk: { g: THREE.Group; path: [number, number][]; seg: number; delay: number }[] = [];
+  private crewWasAway: boolean | null = null;
+
+  private updateCrewWalk(dt: number, t: number): void {
+    const s = this.game.state;
+    const away = !!s.crew.restaurantAway;
+    if (this.crewWasAway === null) this.crewWasAway = away; // lần đầu dựng khu: không diễn
+    if (away !== this.crewWasAway) {
+      this.crewWasAway = away;
+      for (const w of this.crewWalk) this.root.remove(w.g);
+      this.crewWalk = [];
+      // Chỉ diễn lúc đi (người thật đã ẩn); lúc về người thật hiện ngay trong quán nên không vẽ thêm người đi vào
+      if (!away) return;
+      const r = s.restaurant;
+      const people: THREE.Group[] = [
+        ...r.staff.map((_, i) => makePerson(LOOKS[(i * 3 + 1) % LOOKS.length], 'chef', adultShape(i * 7 + 2))),
+        makeWaiter(),
+        ...r.helpers.filter((h) => !h.sick).map((_, i) => makePerson(LOOKS[(i * 5 + 4) % LOOKS.length], 'none', adultShape(i * 11 + 9))),
+      ];
+      const [dx, dz] = this.door;
+      const side = dz + 1.5; // giữa vỉa hè trước cửa
+      const far = this.halfW + 16; // đi khuất về phía chợ
+      people.forEach((g, i) => {
+        // Đi thành hàng, mỗi người lệch một chút cho tự nhiên
+        const lane = side + ((i % 2) - 0.5) * 0.5;
+        const out: [number, number][] = [[dx + (i % 3 - 1) * 0.4, dz - 1.6], [dx, dz - 0.2], [dx + 0.6, lane], [far, lane]];
+        const path = out;
+        g.position.set(path[0][0], 0, path[0][1]);
+        g.visible = false;
+        this.root.add(g);
+        this.crewWalk.push({ g, path, seg: 0, delay: i * 0.7 });
+      });
+    }
+    const SPEED = 1.5;
+    this.crewWalk = this.crewWalk.filter((w) => {
+      if (w.delay > 0) {
+        w.delay -= dt;
+        return true;
+      }
+      w.g.visible = true;
+      const to = w.path[w.seg + 1];
+      if (!to) {
+        this.root.remove(w.g);
+        return false;
+      }
+      const ddx = to[0] - w.g.position.x;
+      const ddz = to[1] - w.g.position.z;
+      const d = Math.hypot(ddx, ddz);
+      const step = SPEED * dt;
+      if (d <= step) {
+        w.g.position.set(to[0], 0, to[1]);
+        w.seg++;
+      } else {
+        w.g.position.x += (ddx / d) * step;
+        w.g.position.z += (ddz / d) * step;
+        w.g.rotation.y = Math.atan2(ddx, ddz);
+      }
+      animatePerson(w.g, t, { walk: 1 });
+      return true;
+    });
+  }
+
+  /** Pháo hoa + sàn sáng sau khi lên hạng (celebrateUpgrade). */
+  private party: { t0: number; last: number; glow: THREE.Group; mat: THREE.MeshBasicMaterial; rects: [number, number, number, number][]; bangs: number; onBang?: () => void; fw: Fireworks } | null = null;
+
+  private updateParty(t: number): void {
+    const p = this.party;
+    if (!p) return;
+    if (p.t0 < 0) p.t0 = p.last = t;
+    const age = t - p.t0;
+    p.fw.update(Math.min(0.05, t - p.last));
+    p.last = t;
+    // Sàn mới: sáng lên nhanh, nhấp nháy nhẹ rồi tắt dần trong ~5 giây
+    p.mat.opacity = Math.max(0, Math.min(1, age * 3) * Math.min(1, (5 - age) / 1.5)) * (0.7 + 0.2 * Math.sin(age * 8));
+    // 7 quả pháo bắn lên từ phần quán mới, nhịp lệch nhau cho tự nhiên, nổ trên cao
+    const SHOTS = 7;
+    const at = [0.2, 0.7, 1.0, 1.6, 2.1, 2.3, 2.9];
+    while (p.bangs < SHOTS && age >= at[p.bangs]) {
+      const [x1, x2, z1, z2] = p.rects[0];
+      p.fw.launch(x1 + Math.random() * (x2 - x1), z1 + (0.25 + Math.random() * 0.5) * (z2 - z1), 3.8 + Math.random() * 1.8);
+      p.onBang?.();
+      p.bangs++;
+    }
+    if (age > 5.2 && !p.fw.busy) {
+      p.fw.dispose();
+      this.root.remove(p.glow);
+      for (const m of p.glow.children) (m as THREE.Mesh).geometry.dispose();
+      p.mat.dispose();
+      this.party = null;
+    }
+  }
+
+  /**
+   * Bấm vào bãi đất hoang: chỉ mở được lô sát quán (lô kế tiếp = hạng hiện tại) - trả tâm lô đó (toạ độ thế giới) để camera lướt tới,
+   * và cho lô đó sáng nhấp nháy. null = đã hạng cao nhất.
+   */
+  focusNextLot(): { x: number; z: number } | null {
+    const lot = this.game.state.restaurant.tier;
+    const c = this.wasteland?.centerOf(lot);
+    if (!c) return null;
+    this.wasteland!.flash(lot);
+    return { x: c.x + this.root.position.x, z: c.z + this.root.position.z };
+  }
+
   dragItem(kind: 'table' | 'prop', id: string, x: number, z: number): void {
     const room = this.room;
+    // Điểm chạm sàn là toạ độ thế giới; khu quán đã dời theo phần nới rộng (root.position)
+    x -= this.root.position.x;
+    z -= this.root.position.z;
     const { ctx, state } = this.game;
     const snap = (v: number) => Math.round(v / LAYOUT_GRID) * LAYOUT_GRID;
     // Tranh treo tường không kéo được (đổi khung bằng nút "Đổi chỗ")
@@ -1836,7 +2018,7 @@ export class RestaurantArea implements Area {
       };
     }
     if (this.plan === 'front') {
-      const k1 = this.wz(this.room.height - 240);
+      const k1 = this.wz(this.kitchenBack());
       return {
         line: { x: this.wx(140), z: (k1 + frontZ) / 2 - 0.2, len: frontZ - k1 - 1.6, rot: Math.PI / 2 },
         // Dao treo ngay sau mép cửa sổ tây phía trước, tủ kem kê giữa hai cửa sổ tây (không bị cửa sổ che)
@@ -1908,6 +2090,12 @@ export class RestaurantArea implements Area {
       }
     }
     this.updatePolice(env);
+    {
+      // Bãi đất hoang: rác vơi dần theo tiến độ dọn, đội thợ làm việc, biển đổi theo trạng thái lô
+      const r = state.restaurant;
+      const c = r.lots?.clearing;
+      this.wasteland?.update({ tier: r.tier, cleared: lotsCleared(state), clearing: c, clearMinutes: c ? content.room.tiers[c.lot]?.clear?.minutes : undefined }, env.t);
+    }
 
     // Màu theo nội thất đang dùng
     // Đang xem trước một món ở Siêu thị (previewDecor) thì tô bằng màu món đó thay cho món đang dùng cùng loại
@@ -2227,6 +2415,8 @@ export class RestaurantArea implements Area {
     }
 
     this.fx.update(dt);
+    this.updateParty(env.t);
+    this.updateCrewWalk(dt, env.t);
 
     // Chữ nổi
     for (const f of this.floats) {
@@ -2336,7 +2526,7 @@ function buildWindowBars(g: THREE.Object3D): void {
 
 /**
  * Cánh cửa gỗ chớp lật xanh lá (phía trong, +z cục bộ) đang mở: mỗi bên 2 cánh hẹp gấp kiểu xếp, cánh trong mở chếch vào
- * phòng, cánh ngoài gập ngược về sát tường — gọn để hai cửa sổ cạnh nhau trên cùng một tường không đụng cánh nhau.
+ * phòng, cánh ngoài gập ngược về sát tường - gọn để hai cửa sổ cạnh nhau trên cùng một tường không đụng cánh nhau.
  */
 function buildShutters(g: THREE.Object3D): void {
   const W = 0.5;

@@ -8,7 +8,7 @@ import type { ModifierKey } from './types';
  *  - modifier: hiệu ứng nhân vào `modifier()` trong `duration` phút (xe du lịch, mất điện, khách sộp...).
  *  - tour: minibus du lịch đỗ trước quán, một đoàn khách vào ngồi kín 100% bàn còn trống (`Party.tour`); xe đợi tới khi
  *    cả đoàn ăn xong ra về.
- *  - police: (chỉ quán ốc vỉa hè) công an khu vực ghé nhắc lấn chiếm lề đường — game dừng, chủ quán chọn "bồi dưỡng"
+ *  - police: (chỉ quán ốc vỉa hè) công an khu vực ghé nhắc lấn chiếm lề đường - game dừng, chủ quán chọn "bồi dưỡng"
  *    (`bribe`: [hạng 1, hạng cao nhất] xu, theo hạng quán) hoặc để công an thu một bàn đôi (lệnh `event/police`).
  */
 export interface EventDef {
@@ -21,7 +21,7 @@ export interface EventDef {
   /** police: số xu "bồi dưỡng" ở hạng quán thấp nhất / cao nhất (ở giữa chia đều theo hạng). */
   bribe?: [number, number];
   weight: number;
-  /** Báo trước từ sáng (critic, inspector) — người chơi có thời gian chuẩn bị. */
+  /** Báo trước từ sáng (critic, inspector) - người chơi có thời gian chuẩn bị. */
   announce?: string;
   /** Lời báo lúc sự kiện bắt đầu. */
   start: string;
@@ -40,7 +40,7 @@ export const events: EventDef[] = [
     icon: '🧐',
     kind: 'critic',
     weight: 3,
-    announce: 'Nghe nói hôm nay có nhà phê bình ẩm thực ghé quán khoảng {time} — phục vụ thật nhanh nhé!',
+    announce: 'Nghe nói hôm nay có nhà phê bình ẩm thực ghé quán khoảng {time} - phục vụ thật nhanh nhé!',
     start: 'Nhà phê bình ẩm thực vừa tới! Mang menu, ghi món, bưng món thật nhanh.',
     reward: { money: 150, rep: 0.3 },
     penalty: { money: 0, rep: 0.3 },
@@ -51,7 +51,7 @@ export const events: EventDef[] = [
     icon: '🕵️',
     kind: 'inspector',
     weight: 3,
-    announce: 'Thanh tra vệ sinh sẽ ghé kiểm tra khoảng {time} — lau sàn, dọn bàn trước nhé!',
+    announce: 'Thanh tra vệ sinh sẽ ghé kiểm tra khoảng {time} - lau sàn, dọn bàn trước nhé!',
     start: 'Thanh tra vệ sinh đang kiểm tra quán…',
     reward: { money: 120, rep: 0.1 },
     penalty: { money: 40, rep: 0.1, max: 200 },
@@ -63,7 +63,7 @@ export const events: EventDef[] = [
     kind: 'tour',
     weight: 3,
     // Giai đoạn 15: một chiếc minibus đỗ trước quán, cả đoàn khách vào ngồi kín mọi bàn còn trống
-    start: 'Một chiếc minibus du lịch vừa đỗ trước cửa — cả đoàn khách kéo vào, ngồi kín mọi bàn!',
+    start: 'Một chiếc minibus du lịch vừa đỗ trước cửa - cả đoàn khách kéo vào, ngồi kín mọi bàn!',
   },
   {
     id: 'outage',
@@ -81,7 +81,7 @@ export const events: EventDef[] = [
     icon: '💸',
     kind: 'modifier',
     weight: 2,
-    start: 'Mấy đoàn khách sộp đang đi ăn quanh khu — tip gấp đôi trong 2 tiếng!',
+    start: 'Mấy đoàn khách sộp đang đi ăn quanh khu - tip gấp đôi trong 2 tiếng!',
     duration: 120,
     effects: { tip: 2 },
   },

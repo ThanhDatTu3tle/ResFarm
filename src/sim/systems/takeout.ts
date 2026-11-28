@@ -8,7 +8,7 @@ import { tire } from './crew';
 import { bumpQuest } from './quests';
 
 /**
- * ĐƠN GIAO TẬN NƠI (giai đoạn 18) — mở khi quán lên hạng `balance.takeout.tier` ("Quán đông khách"), có quầy cashier ở cửa.
+ * ĐƠN GIAO TẬN NƠI (giai đoạn 18) - mở khi quán lên hạng `balance.takeout.tier` ("Quán đông khách"), có quầy cashier ở cửa.
  *  1. Trong giờ mở cửa, thỉnh thoảng có khách gọi điện tới quầy cashier (đơn 'calling', chuông reo `ring` phút).
  *  2. Người chơi nhận đơn (`takeout/accept`): trừ nguyên liệu, món vào hàng chờ bếp như món của khách tại quán
  *     (Order.takeoutId, partyId = 0); hẹn giao trong `due` phút. Từ chối / để chuông reo hết thì đơn 'missed'.
@@ -20,7 +20,7 @@ import { bumpQuest } from './quests';
  * Shipper thuê thêm (`courier/hire`) chỉ giao đơn giao tận nơi; anh shipper gốc vẫn giao cả đơn hàng nguyên liệu (contracts.ts).
  */
 const CLIENTS: [string, string][] = [
-  ['Chị Lan — văn phòng tầng 5', '👩‍💼'],
+  ['Chị Lan - văn phòng tầng 5', '👩‍💼'],
   ['Nhà anh Hùng hẻm 12', '🏠'],
   ['Ký túc xá sinh viên', '🎓'],
   ['Tiệm tóc cô Mai', '💇'],
@@ -166,7 +166,7 @@ export const takeoutSystem: System = {
       const { state, content } = ctx;
       const t = state.takeout.orders.find((x) => x.id === cmd.id);
       if (!t || t.status !== 'calling') return fail('Cuộc gọi này đã kết thúc.');
-      if (state.crew.restaurantAway) return fail('Cả đội đang ở chợ — về quán rồi mới nhận đơn được.');
+      if (state.crew.restaurantAway) return fail('Cả đội đang ở chợ - về quán rồi mới nhận đơn được.');
       const items = takeoutItems(ctx, t);
       if (!hasAll(ctx, items)) return fail('Kho không đủ nguyên liệu cho đơn này.');
       removeAll(ctx, items);
@@ -200,7 +200,7 @@ export const takeoutSystem: System = {
       const r = ctx.state.restaurant;
       const c = r.couriers.find((x) => x.id === cmd.courierId);
       if (!c) return fail('Không có shipper này.');
-      if (c.trip) return fail('Shipper đang đi giao — đợi về rồi cho nghỉ.');
+      if (c.trip) return fail('Shipper đang đi giao - đợi về rồi cho nghỉ.');
       r.couriers = r.couriers.filter((x) => x !== c);
       ctx.state.crew.pending = ctx.state.crew.pending.filter((p) => p.who !== c.id);
       return ok();

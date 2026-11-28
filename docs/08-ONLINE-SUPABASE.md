@@ -1,4 +1,4 @@
-# Bạn bè online (Supabase) — cài đặt máy chủ
+# Bạn bè online (Supabase) - cài đặt máy chủ
 
 Tính năng **🤝 Bạn bè** (giai đoạn 19, lớp A của mục F trong `04-ROADMAP.md`):
 
@@ -14,7 +14,7 @@ Tính năng **🤝 Bạn bè** (giai đoạn 19, lớp A của mục F trong `04
 3. **SQL Editor** → dán toàn bộ `supabase/schema.sql` → **Run**. Chạy lại nhiều lần vẫn được (khi file SQL đổi thì chạy lại).
 4. **Project Settings → API** (hoặc **API Keys**): lấy **Project URL** và khoá **anon / publishable**.
    - Khoá anon được thiết kế để nằm công khai trong app; an toàn nhờ RLS + hàm trong `schema.sql`.
-   - **Không bao giờ** dùng / gửi khoá `service_role` (secret) — khoá đó bỏ qua mọi quyền.
+   - **Không bao giờ** dùng / gửi khoá `service_role` (secret) - khoá đó bỏ qua mọi quyền.
 
 ## 2. Nối vào game
 
@@ -33,8 +33,8 @@ Khởi động lại `npm run dev`.
 
 | Phần | Ở đâu |
 | --- | --- |
-| Bảng, quyền, hàm RPC | `supabase/schema.sql` — `players` (mã, tên quán, tên chủ quán, phong cách, ngày, `sharing`, `snapshot` jsonb ≤ ~1,5 MB), `friendships (a < b)`; RLS chỉ cho đọc / sửa dòng của mình; `ensure_player`, `add_friend`, `remove_friend`, `my_friends`, `friend_snapshot` (chỉ khi là bạn + đang bật cho ghé thăm), `delete_me`. Trigger chặn đẩy bản chụp dưới 20 giây một lần |
-| Gọi máy chủ | `src/ui/online.ts` — supabase-js tải động (chunk riêng, game chơi một mình không tải), `signIn` (ẩn danh), `setSharing`, `pushSnapshot`, `addFriend`, `listFriends`, `friendSnapshot`, `deleteMe`, link mời `stashInvite` / `takeInvite`, `qrSvg` (qrcode-generator, tải động) |
+| Bảng, quyền, hàm RPC | `supabase/schema.sql` - `players` (mã, tên quán, tên chủ quán, phong cách, ngày, `sharing`, `snapshot` jsonb ≤ ~1,5 MB), `friendships (a < b)`; RLS chỉ cho đọc / sửa dòng của mình; `ensure_player`, `add_friend`, `remove_friend`, `my_friends`, `friend_snapshot` (chỉ khi là bạn + đang bật cho ghé thăm), `delete_me`. Trigger chặn đẩy bản chụp dưới 20 giây một lần |
+| Gọi máy chủ | `src/ui/online.ts` - supabase-js tải động (chunk riêng, game chơi một mình không tải), `signIn` (ẩn danh), `setSharing`, `pushSnapshot`, `addFriend`, `listFriends`, `friendSnapshot`, `deleteMe`, link mời `stashInvite` / `takeInvite`, `qrSvg` (qrcode-generator, tải động) |
 | Bảng Bạn bè | `src/ui/friends.ts` (`friendsHtml`, trạng thái `FriendsView`), xử lý thao tác `friendsAction` trong `src/ui/app.ts` (lệnh UI `friends:open / add / visit:<id> / sharing / …`) |
 | Tự đẩy quán | `syncSnapshot` trong app.ts: sự kiện `day/started`, bật công tắc, trước khi sang thăm bạn. Máy đã từng dùng bạn bè (`localStorage quan-nha-vuon/online`) thì mở game tự đăng nhập lại ngầm |
 | Thử giao diện không cần máy chủ | Bản dev: `?friends=demo` (dữ liệu mẫu), `?friends` (mở sẵn bảng) |

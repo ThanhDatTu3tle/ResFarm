@@ -3,7 +3,7 @@ import type { GardenerJob } from '../data/farmhands';
 import { defaultDecor, recipesFor, roomFor, type Content, type CuisineId, type DecorSlot, type ItemStack, type MillType, type SlotType } from '../data';
 
 /**
- * TRẠNG THÁI GAME — chỉ gồm dữ liệu JSON thuần (không class, không hàm, không Map/Set)
+ * TRẠNG THÁI GAME - chỉ gồm dữ liệu JSON thuần (không class, không hàm, không Map/Set)
  * để lưu/tải bằng JSON.stringify và dễ port sang engine khác.
  * Đổi cấu trúc ở đây => tăng SAVE_VERSION và thêm migration trong save.ts.
  */
@@ -13,7 +13,7 @@ export interface GameState {
   cuisine: CuisineId;
   /** Nợ quá balance.debtLimit: phá sản, hết ván (game dừng, mời chơi lại). */
   bankrupt: boolean;
-  /** Ông / bà chủ quán (người chơi) chọn lúc tạo ván: giới tính + tuổi (25..50) — chỉ đổi hình nhân vật đi dạo. */
+  /** Ông / bà chủ quán (người chơi) chọn lúc tạo ván: giới tính + tuổi (25..50) - chỉ đổi hình nhân vật đi dạo. */
   owner: OwnerProfile;
   rng: RngState;
   /** Bộ đếm sinh id cho party/order. */
@@ -40,7 +40,7 @@ export interface GameState {
   /** Khách quen đã từng ghé (id RegularDef -> số lần, ngày ghé gần nhất, đã tặng quà chưa). Chưa ghé lần nào thì không có mục. */
   regulars: Record<string, RegularState>;
   /** Quán của riêng mình: tên quán, thú cưng đang nuôi và các con đã nhận nuôi. */
-  /** pets = đã nhận nuôi; petsOut = đang ở quán (giai đoạn 15: nhiều con cùng lúc — cả chó lẫn mèo). */
+  /** pets = đã nhận nuôi; petsOut = đang ở quán (giai đoạn 15: nhiều con cùng lúc - cả chó lẫn mèo). */
   profile: { name: string; pets: string[]; petsOut: string[] };
   /** Hệ số giá chợ hôm nay theo từng nguyên liệu. */
   market: { priceFactor: Record<string, number> };
@@ -53,11 +53,11 @@ export interface GameState {
   takeout: TakeoutState;
   /** Sự kiện ngẫu nhiên hôm nay (null = không có). */
   event: EventState | null;
-  /** Lưu lượng khách hôm nay (hệ số nhân tốc độ khách tới, tung mỗi sáng — `balance.traffic`). */
+  /** Lưu lượng khách hôm nay (hệ số nhân tốc độ khách tới, tung mỗi sáng - `balance.traffic`). */
   traffic: number;
   /** Ngày hướng dẫn (ngày 1 của ván mới chơi từ màn mở đầu); null = không có / đã xong. Xem systems/tutorial.ts. */
   tutorial: TutorialState | null;
-  /** season / year: cộng dồn từ đầu mùa / đầu năm (cộng lúc hết mỗi ngày) — để tổng kết mùa, năm. */
+  /** season / year: cộng dồn từ đầu mùa / đầu năm (cộng lúc hết mỗi ngày) - để tổng kết mùa, năm. */
   stats: { today: DayStats; total: DayStats; season: DayStats; year: DayStats };
 }
 
@@ -112,7 +112,7 @@ export interface Party {
   looks: number[];
   /** Bồi bàn đã nhận việc cho nhóm này (đang trên đường mang menu / tới ghi món). */
   called: boolean;
-  /** Phút món của nhóm đã nằm ở quầy ra món mà chưa được mang tới — quyết định tâm trạng. */
+  /** Phút món của nhóm đã nằm ở quầy ra món mà chưa được mang tới - quyết định tâm trạng. */
   wait: number;
   /** Khách quen dẫn đầu nhóm (ngồi ghế đầu tiên, looks[0] bỏ qua); null = khách vãng lai. */
   regular: string | null;
@@ -123,7 +123,7 @@ export interface Party {
   /** Ngày hướng dẫn: món nhóm khách này nhất định gọi (id món) khi đủ nguyên liệu. */
   want?: string;
   /**
-   * Giai đoạn 15: phút còn lại khách mới tới nơi — trong hàng chờ: đang đi bộ / gửi xe ngoài bãi (chưa xếp bàn);
+   * Giai đoạn 15: phút còn lại khách mới tới nơi - trong hàng chờ: đang đi bộ / gửi xe ngoài bãi (chưa xếp bàn);
    * đã có bàn: đang đi từ cửa vào chỗ ngồi (chưa cần menu, không mất kiên nhẫn). Không có / 0 = đã tới.
    */
   walking?: number;
@@ -197,7 +197,7 @@ export interface Order {
   progress: number;
   /** Món ruột của khách quen trong nhóm. */
   fav?: boolean;
-  /** Lúc món ra quầy line (ngày × 1440 + phút) — bồi bàn lấy món ra quầy trước trước. */
+  /** Lúc món ra quầy line (ngày × 1440 + phút) - bồi bàn lấy món ra quầy trước trước. */
   readyAt?: number;
   /** Món của đơn giao tận nơi (id TakeoutOrder): partyId = 0, bưng tới quầy cashier thay vì bàn khách. */
   takeoutId?: number;
@@ -305,13 +305,13 @@ export interface CrewState {
   farmerWaiting: boolean;
   /** Giờ bác ăn xong về nông trại (bác ăn nhanh, về trước đội quán); null = chưa ăn. */
   farmerBack: number | null;
-  /** Ngày đã quyết định giờ nghỉ trưa của bác (đi hay ở lại làm vì còn khoẻ) — mỗi ngày một lần. */
+  /** Ngày đã quyết định giờ nghỉ trưa của bác (đi hay ở lại làm vì còn khoẻ) - mỗi ngày một lần. */
   farmerLunchDay: number;
-  /** Số lần bồi dưỡng nhanh hôm nay (giá tăng dần — reviveCostOf); sang ngày về 0. */
+  /** Số lần bồi dưỡng nhanh hôm nay (giá tăng dần - reviveCostOf); sang ngày về 0. */
   revives: number;
   /** Ai đã có món trong bữa tối hôm nay; null = chưa tới bữa tối. */
   dinnerAte: string[] | null;
-  /** Ai tối qua không được ăn (hết tiền): sáng nay than đói trên đầu — chỉ là hình, không trừ năng lượng. */
+  /** Ai tối qua không được ăn (hết tiền): sáng nay than đói trên đầu - chỉ là hình, không trừ năng lượng. */
   hungry: string[];
 }
 
@@ -352,7 +352,7 @@ export interface HelperState extends WaiterState {
   look: number;
   jobs: Record<HelperJob, boolean>;
   /**
-   * Từ 2 nhân viên trở lên: mỗi người giữ một bàn — mang menu cho bàn nào thì ghi món, bưng món, dọn bàn đó (giai đoạn 15).
+   * Từ 2 nhân viên trở lên: mỗi người giữ một bàn - mang menu cho bàn nào thì ghi món, bưng món, dọn bàn đó (giai đoạn 15).
    * null / không có = đang rảnh tay, nhận bàn mới.
    */
   focus?: { partyId: number; tableId: string } | null;
@@ -372,19 +372,24 @@ export interface RestaurantState {
   layout: Record<string, { x: number; y: number; rot?: boolean }>;
   /** Bàn lẻ mua thêm (id bàn, loại TableKindDef). */
   extraTables: { id: string; kind: string }[];
-  /** Bàn gốc bị công an khu vực thu (quán ốc lấn chiếm lề đường) — không còn trong quán. */
+  /** Bàn gốc bị công an khu vực thu (quán ốc lấn chiếm lề đường) - không còn trong quán. */
   confiscated: string[];
-  /** Bàn người chơi cất bớt (chế độ sắp xếp) — không bày trong quán, bày lại được bất cứ lúc nào. */
+  /** Bàn người chơi cất bớt (chế độ sắp xếp) - không bày trong quán, bày lại được bất cứ lúc nào. */
   storedTables?: string[];
   /** Đồ trang trí đã mua (đang bày hoặc cất kho). */
   props: PropState[];
   /** Hạng quán (1 = Quán nhỏ), chỉ số trong content.room.tiers + 1. */
   tier: number;
+  /**
+   * Bãi đất hoang bên Đông quán: `cleared` = số lô đã dọn (lô k mở đường lên hạng k + 1), `clearing` = lô đang dọn + số phút còn lại.
+   * Save cũ không có: coi như đã dọn đủ cho hạng hiện tại (lotsCleared).
+   */
+  lots?: { cleared: number; clearing?: { lot: number; left: number } };
   /** Chén dĩa dơ khách để lại: tableId -> các ghế còn dơ. Ghế dơ không xếp khách được tới khi dọn. */
   dirty: Record<string, number[]>;
   /** Vết bẩn trên sàn (toạ độ mặt bằng), level 1..maxLevel. */
   stains: { id: number; x: number; y: number; level: number }[];
-  /** Bồi bàn — do người chơi điều khiển bằng cách bấm vào khách / quầy ra món. */
+  /** Bồi bàn - do người chơi điều khiển bằng cách bấm vào khách / quầy ra món. */
   waiter: WaiterState;
   /** Anh shipper giao đơn hàng (giai đoạn 14). */
   shipper: ShipperState;
@@ -424,7 +429,7 @@ export interface FarmerTask {
   producerId?: string;
 }
 
-/** Bác nông dân — vị trí trên bản đồ nông trại (mét) và hàng việc người chơi giao. */
+/** Bác nông dân - vị trí trên bản đồ nông trại (mét) và hàng việc người chơi giao. */
 export interface FarmerState extends Vitals {
   x: number;
   z: number;

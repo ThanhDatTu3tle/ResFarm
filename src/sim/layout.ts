@@ -33,7 +33,7 @@ const SEAT_RADIUS = 12;
 
 /**
  * Mặt bằng quán theo hạng hiện tại: phòng sâu thêm về phía cửa, khu ăn uống giãn theo.
- * Mỗi phong cách quán có thể có mặt bằng riêng (room.variants — quán Nhật quầy chữ L, quán Việt bếp sát cửa);
+ * Mỗi phong cách quán có thể có mặt bằng riêng (room.variants - quán Nhật quầy chữ L, quán Việt bếp sát cửa);
  * hạng quán cộng thêm phần chênh so với hạng 1 của mặt bằng chung.
  */
 export function roomOf(ctx: SimContext): RoomDef {
@@ -46,8 +46,10 @@ export function roomOf(ctx: SimContext): RoomDef {
   const plan = base.plan ?? 'back';
   // Bếp dọc tường sau (mặc định): nới về phía Đông thì quầy ra món, chỗ bồi bàn đứng dời sang phải theo phần rộng thêm.
   // Bếp sát cửa (quán Việt): phòng sâu thêm thì bếp + quầy ra món đi theo mặt tiền.
-  const dx = plan === 'back' ? extra : 0;
-  const dy = plan === 'front' ? dh : 0;
+  const dx = plan === 'back' ? kitchenExtra(ctx) : 0;
+  // Bếp sát cửa: đi theo mặt tiền, mỗi hạng dài thêm kitchenGrow về phía sau (quầy ra món ở đầu trong của bếp lùi theo)
+  const grow = plan === 'front' ? (base.kitchenGrow ?? 0) * (ctx.state.restaurant.tier - 1) : 0;
+  const dy = plan === 'front' ? dh - grow : 0;
   const move = (p: Point): Point => ({ x: p.x + dx, y: p.y + dy });
   return withCashier(ctx, {
     ...base,
@@ -57,7 +59,7 @@ export function roomOf(ctx: SimContext): RoomDef {
     pass: move(base.pass),
     passStand: base.passStand && move(base.passStand),
     waiterHome: move(base.waiterHome),
-    walls: base.walls?.map((w) => ({ ...w, y1: w.y1 + dy, y2: w.y2 + dy })),
+    walls: base.walls?.map((w) => ({ ...w, y1: w.y1 + dy, y2: w.y2 + dy + grow })),
   });
 }
 
@@ -65,7 +67,7 @@ export function roomOf(ctx: SimContext): RoomDef {
  * Giai đoạn 18: từ hạng balance.takeout.tier có quầy cashier nhận đơn giao tận nơi (bồi bàn mang món tới đây đóng gói).
  *  - Quán trong nhà: quầy DỌC bên PHẢI cửa ra vào, đầu quầy sát tường trước; mặt quầy quay về phía cửa (bồi bàn đứng đó),
  *    nhân viên cashier đứng sau quầy, sau lưng nhân viên là dãy ghế chờ dọc tường trước (khách tới sau ngồi đợi bàn,
- *    đi vòng qua đầu trong của quầy — pathing.ts).
+ *    đi vòng qua đầu trong của quầy - pathing.ts).
  *  - Quán ốc vỉa hè: quầy ngang ngay bên phải quầy line (bưng món), mặt quay ra khu ăn; không có ghế chờ.
  * Quầy + chỗ nhân viên + dãy ghế là khối cố định (walls): không đặt bàn đè lên, người đi vòng qua.
  */
@@ -86,7 +88,7 @@ function withCashier(ctx: SimContext, room: RoomDef): RoomDef {
   const seats: Point[] = [];
   for (let i = 0; i < 5 && x + 80 + i * 31 <= room.width - 70; i++) seats.push({ x: x + 80 + i * 31, y: H - 26 });
   const walls = [...(room.walls ?? []), { x1: x - 20, y1: H - 98, x2: x + 60, y2: H }];
-  // Dãy ghế chờ: chỉ cấm đặt bàn (blockerOf), không chặn đường đi — khách phải đi tới tận ghế
+  // Dãy ghế chờ: chỉ cấm đặt bàn (blockerOf), không chặn đường đi - khách phải đi tới tận ghế
   const zone = seats.length ? { x1: x + 62, y1: H - 50, x2: seats[seats.length - 1].x + 18, y2: H } : undefined;
   return { ...room, walls, cashier: { x, y, stand: { x: x - 48, y }, staff: { x: x + 38, y }, face: 'left', seats, zone } };
 }
@@ -100,10 +102,17 @@ export function widthExtra(ctx: SimContext): number {
   return Math.max(0, (tier.width ?? base.width) - base.width) + more;
 }
 
+/** Phần bếp dài thêm so với hạng 1 (TierDef.kitchenWidth): dãy bếp, quầy ra món, ghế quầy trước bếp theo phần này. */
+export function kitchenExtra(ctx: SimContext): number {
+  const base = ctx.content.room;
+  const tier = base.tiers[ctx.state.restaurant.tier - 1] ?? base.tiers[0];
+  return Math.max(0, (tier.kitchenWidth ?? tier.width ?? base.width) - base.width);
+}
+
 /** Quầy ghế đơn trước bếp dài theo bếp: mỗi 60 đơn vị rộng thêm có thêm 1 ghế (mép trái giữ nguyên). */
 function withCounterSeats(ctx: SimContext, t: TableDef): TableDef {
   if (!t.shared || !t.fixed || (roomFor(ctx.content, ctx.state.cuisine).plan ?? 'back') !== 'back') return t;
-  const more = Math.floor(widthExtra(ctx) / 60);
+  const more = Math.floor(kitchenExtra(ctx) / 60);
   if (!more) return t;
   const seatW = t.w / t.seats;
   return { ...t, seats: t.seats + more, w: t.w + seatW * more, x: t.x + (seatW * more) / 2 };
@@ -281,7 +290,7 @@ export function blockerOf(ctx: SimContext, rect: Rect, skip: string): string | n
 }
 
 /**
- * Chỗ đặt được gần (x, y) nhất trong bán kính `radius` (dò theo lưới LAYOUT_GRID, gần trước xa sau) — dùng khi kéo thả:
+ * Chỗ đặt được gần (x, y) nhất trong bán kính `radius` (dò theo lưới LAYOUT_GRID, gần trước xa sau) - dùng khi kéo thả:
  * thả hơi lệch vào khe vẫn tự hít vào chỗ trống. `check` trả lý do vướng hoặc null. Không có chỗ nào thì null.
  */
 export function nearestPlaceable(check: (x: number, y: number) => string | null, x: number, y: number, radius = 45): Point | null {
@@ -366,4 +375,10 @@ export function serviceSpot(t: TableDef, at: Point, seats: number[]): Point {
   if (t.wall === 'east') return { x: at.x - t.w / 2 - 62, y: at.y };
   if (t.seats === 2) return { x: at.x, y: at.y + t.h / 2 + 24 };
   return { x: at.x + t.w / 2 + 24, y: at.y };
+}
+
+/** Mặt bằng quán ở hạng `tier` (không đổi state) - để vẽ trước phần đất quán sẽ lấn ra khi nâng hạng. */
+export function roomAtTier(ctx: SimContext, tier: number): RoomDef {
+  const state = { ...ctx.state, restaurant: { ...ctx.state.restaurant, tier } };
+  return roomOf({ ...ctx, state });
 }

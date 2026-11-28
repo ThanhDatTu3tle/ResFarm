@@ -26,7 +26,7 @@ Phụ thuộc: `ui → sim → data → core`.
 
 ```
 src/core/events.ts        EventBus<E> có kiểu
-src/core/rng.ts           rand, randRange, randInt, weightedIndex — trạng thái RNG nằm trong GameState
+src/core/rng.ts           rand, randRange, randInt, weightedIndex - trạng thái RNG nằm trong GameState
 src/core/registry.ts      Registry<T>: get(id) ném lỗi nếu thiếu, has(id), all()
 
 src/data/types.ts         MỌI kiểu Def: ItemDef, RecipeDef, ProducerDef, SlotTypeDef, StallDef, TableDef,
@@ -91,7 +91,7 @@ GameState {
     layout: Record<tableId, {x, y, rot?}>  // bàn gốc đã dời / xoay (rot = xoay 90°); bàn mua thêm luôn có
     extraTables: { id, kind }[]            // bàn lẻ mua thêm (kind = TableKindDef)
     props: { uid, def, x, y, rot, stored }[]   // đồ trang trí đặt tự do; stored = đang cất kho
-    tier                                   // hạng quán 1..3 (content.room.tiers) — phòng sâu thêm theo hạng
+    tier                                   // hạng quán 1..3 (content.room.tiers) - phòng sâu thêm theo hạng
     dirty: Record<tableId, ghế[]>          // chén dĩa dơ khách để lại; ghế dơ không xếp khách
     stains: { id, x, y, level }[]          // vết bẩn sàn (thêm lúc hết ca), làm khách kém kiên nhẫn
     helpers: HelperState[]                 // nhân viên thuê: như waiter + id, name, look, jobs
@@ -167,7 +167,7 @@ UI dùng `farmer/*` cho mọi thao tác trên ô; `farm/till|water|plant|harvest
 
 Handler trả `{ ok: true }` hoặc `{ ok: false, reason }`. `reason` là câu tiếng Việt hiện thẳng cho người chơi.
 
-**Thêm lệnh — từng bước:**
+**Thêm lệnh - từng bước:**
 
 1. Thêm vào union `Command` trong `src/sim/types.ts`. TypeScript sẽ đòi mọi chỗ khớp kiểu.
 2. Viết handler trong `commands` của system liên quan. Kiểm tra điều kiện trước, sửa state sau; không sửa nửa chừng rồi `fail`.
@@ -195,7 +195,7 @@ farm/ready     level/up      weather/changed
 day/ended      day/started
 ```
 
-Sự kiện dùng cho hiệu ứng, thông báo, âm thanh. **Không** dùng để truyền dữ liệu cần lưu — thứ gì cần nhớ phải nằm trong state. UI nghe sự kiện không được sửa state.
+Sự kiện dùng cho hiệu ứng, thông báo, âm thanh. **Không** dùng để truyền dữ liệu cần lưu - thứ gì cần nhớ phải nằm trong state. UI nghe sự kiện không được sửa state.
 
 ## 6. Vòng lặp và thời gian
 
@@ -212,7 +212,7 @@ mỗi khung hình (app.ts):
 - Khi `clock.phase === 'summary'` thì `tick()` không làm gì. **Bẫy khi viết test:** tua quá cuối ngày là sim đứng; phải `dispatch({ type: 'day/next' })` để chạy tiếp (xem test ao cá làm mẫu).
 - Sang ngày mới: `Game.nextDay()` gọi `onDayStart` của mọi system (chợ đổi giá, nông trại cộng `nightMinutes`).
 
-## 7. Modifier — cách mọi "buff" hoạt động
+## 7. Modifier - cách mọi "buff" hoạt động
 
 `modifier(ctx, key)` trong `helpers.ts` trả về tích của mọi hệ số đang có hiệu lực cho `key`, lấy từ ba nguồn:
 
@@ -224,14 +224,14 @@ Các key hiện có: `cookSpeed`, `patience`, `tip`, `spawnRate`, `growSpeed`, `
 
 **Thêm chỉ số mới:** thêm key vào `ModifierKey` (`data/types.ts`), thêm tên hiển thị vào `MODIFIER_NAMES` (`ui/panels/shop.ts`), gọi `modifier(ctx, 'key')` ở nơi tính toán. **Thêm nguồn buff mới** (vd nhân viên, sự kiện): thêm một dòng vào `modifier()`.
 
-## 8. Save và migration — quy trình bắt buộc
+## 8. Save và migration - quy trình bắt buộc
 
 Người chơi đang có save thật trong trình duyệt. Mỗi lần đổi hình dạng `GameState`:
 
 1. Sửa interface trong `state.ts` và giá trị khởi tạo trong `createInitialState()`.
 2. Tăng `SAVE_VERSION`.
 3. Thêm `migrations[phiên bản cũ]` trong `save.ts`: nhận state cũ, trả state mới có `version` tăng 1. Migration chạy nối tiếp nhau nên save v1 vẫn lên được bản mới nhất.
-4. Nếu cần "sửa cho hợp lệ" (id bị xoá, số ô khởi đầu tăng...), thêm vào `reconcile()` — hàm này chạy sau migration ở mọi lần tải.
+4. Nếu cần "sửa cho hợp lệ" (id bị xoá, số ô khởi đầu tăng...), thêm vào `reconcile()` - hàm này chạy sau migration ở mọi lần tải.
 5. Thêm test: lấy state mới, xoá trường mới, hạ `version`, `deserialize` lại, kiểm tra kết quả và chạy thử `tick`.
 
 v7 (phong cách quán) được chủ dự án chốt là **chơi lại từ đầu**: migration v1→v6 đã xoá, save cũ bị bỏ qua. Muốn xem mẫu migration cũ: lịch sử git trước nhánh `giai-doan-2`. Từ v7 trở đi viết migration bình thường: v7→v8 thêm cối + `farmer.carry` (`reconcile()` tạo đủ cối khởi đầu), v8→v9 thêm `quests`, v9→v10 thêm `regulars`, `profile`, `restaurant.extraTables/props/tier`, `party.regular`; v10→v11 đổi `waiter.carrying` thành mảng, `deliver.orderIds`, thêm `restaurant.dirty/stains` (reconcile dời bàn / đồ nằm ngoài phòng khi quán nhỏ lại); v11→v12 thêm `restaurant.helpers`; v12→v13 thêm `crew`, năng lượng cho đầu bếp / bồi bàn / bác nông dân (đầy 30), bỏ `helper.away`.
@@ -240,16 +240,16 @@ v7 (phong cách quán) được chủ dự án chốt là **chơi lại từ đ�
 
 ## 9. UI: ba mảnh
 
-**`app.ts`** — nơi duy nhất biết cả sim, 3D và panel. Giữ `UiState` (khu đang xem, panel đang mở, tốc độ, ô đang chọn, sạp đang chọn, chế độ sắp xếp). `UiState` không được lưu.
+**`app.ts`** - nơi duy nhất biết cả sim, 3D và panel. Giữ `UiState` (khu đang xem, panel đang mở, tốc độ, ô đang chọn, sạp đang chọn, chế độ sắp xếp). `UiState` không được lưu.
 
-**Panel** — hàm thuần `(game, ui) → chuỗi HTML`, gọi lại 8 lần/giây. `morph()` vá DOM tại chỗ nên nút đang bấm không bị thay giữa chừng. Quy tắc:
+**Panel** - hàm thuần `(game, ui) → chuỗi HTML`, gọi lại 8 lần/giây. `morph()` vá DOM tại chỗ nên nút đang bấm không bị thay giữa chừng. Quy tắc:
 
 - Phần tử trong danh sách có `data-key` ổn định.
 - Nút gửi lệnh: `cmd({...})`. Nút thuần giao diện: `ui('tên:tham số')`, xử lý trong `app.ts`.
 - Chuỗi từ dữ liệu qua `esc()`.
-- Không tự tính luật — gọi hàm export từ system (`priceOf`, `slotPrice`, `cycleTime`, `yieldsOf`, `needsWatering`, `nextTier`, `craftableCount`, `activeTables`, `canPlaceTable`...).
+- Không tự tính luật - gọi hàm export từ system (`priceOf`, `slotPrice`, `cycleTime`, `yieldsOf`, `needsWatering`, `nextTier`, `craftableCount`, `activeTables`, `canPlaceTable`...).
 
-**Cảnh 3D** — xem `03-DO-HOA-3D.md`.
+**Cảnh 3D** - xem `03-DO-HOA-3D.md`.
 
 ## 10. Test
 

@@ -11,7 +11,7 @@ export interface SimContext {
 }
 
 /**
- * LỆNH — cách DUY NHẤT để UI (hay AI, test, mạng...) thay đổi trạng thái game.
+ * LỆNH - cách DUY NHẤT để UI (hay AI, test, mạng...) thay đổi trạng thái game.
  * Thêm lệnh mới: thêm vào union này, rồi viết handler trong system liên quan.
  */
 export type Command =
@@ -42,6 +42,8 @@ export type Command =
   | { type: 'table/unstore'; tableId: string }
   | { type: 'layout/rotateTable'; tableId: string }
   | { type: 'restaurant/upgrade' }
+  /** Thuê đội dọn lô đất hoang kế tiếp (TierDef.clear). */
+  | { type: 'lot/clear' }
   /** Nâng hạng quán + mua đủ số bàn tối đa của hạng mới trong một lần, giảm FULL_KIT_DISCOUNT. */
   | { type: 'restaurant/upgradeFull' }
   | { type: 'farm/plant'; slotId: string; producerId: string }
@@ -113,7 +115,7 @@ export type CommandHandlers = {
 export const ok = (): CommandResult => ({ ok: true });
 export const fail = (reason: string): CommandResult => ({ ok: false, reason });
 
-/** serviceTimeout: chờ mang menu / chờ ghi món quá lâu. closed: còn xếp hàng lúc hết ca (quán nghỉ) — về vui vẻ, không trừ uy tín. */
+/** serviceTimeout: chờ mang menu / chờ ghi món quá lâu. closed: còn xếp hàng lúc hết ca (quán nghỉ) - về vui vẻ, không trừ uy tín. */
 export type LeaveReason = 'paid' | 'queueTimeout' | 'serviceTimeout' | 'foodTimeout' | 'noFood' | 'closed';
 
 /** SỰ KIỆN sim phát ra cho UI (hiệu ứng, âm thanh, thông báo). UI không được sửa state khi nghe sự kiện. */
@@ -147,7 +149,7 @@ export interface SimEvents {
   'crew/left': { group: 'restaurant' | 'farm'; kind: 'lunch' | 'dinner' };
   /** Hết giờ nghỉ trưa, về chỗ làm. */
   'crew/back': { group: 'restaurant' | 'farm' };
-  /** Mọi người ăn xong — hoá đơn chờ thanh toán. */
+  /** Mọi người ăn xong - hoá đơn chờ thanh toán. */
   'crew/bill': { total: number };
   'farm/ready': { slotId: string };
   'farmer/done': { kind: FarmerTaskKind; slotId: string; ok: boolean; reason?: string };
@@ -168,8 +170,9 @@ export interface SimEvents {
   'regular/arrived': { regularId: string; partyId: number };
   /** Khách quen trả tiền xong: số tim mới, có lên tim không, được ăn món ruột không, quà tặng (id PropDef). */
   'regular/visited': { regularId: string; hearts: number; heartUp: boolean; fav: boolean; gift: string | null };
-  /** Quán vừa lên hạng (phòng to hơn — cảnh quán cần dựng lại). */
+  /** Quán vừa lên hạng (phòng to hơn - cảnh quán cần dựng lại). */
   'restaurant/upgraded': { tier: number };
+  'lot/cleared': { lot: number };
   /** Bếp lên hạng / thuê / cho nghỉ đầu bếp: cảnh quán cần dựng lại gian bếp. */
   'kitchen/changed': { tier: number; chefs: number };
   /** Đơn đặt hàng vừa giao xong / hết hạn. */

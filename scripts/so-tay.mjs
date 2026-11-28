@@ -1,5 +1,5 @@
 /**
- * SỔ TAY (cơ sở dữ liệu tra cứu) — tự sinh từ src/data, đổi số trong game thì chạy lại là khớp.
+ * SỔ TAY (cơ sở dữ liệu tra cứu) - tự sinh từ src/data, đổi số trong game thì chạy lại là khớp.
  *
  *   npm run sotay                 → notes/so-tay-quan-nha-vuon.html (notes/ không lên GitHub)
  *   npm run sotay -- <đường-dẫn>  → ghi ra chỗ khác
@@ -184,7 +184,7 @@ function build(raw, m) {
 
 /**
  * Mỗi quán, mỗi hạng: số bàn tối đa theo số ghế (đã trang bị đủ) và giá gói "nâng hạng + đủ bàn"
- * tính từ hạng trước đã trang bị đủ (đúng luật trong game — fullKitPlan).
+ * tính từ hạng trước đã trang bị đủ (đúng luật trong game - fullKitPlan).
  */
 function tierKits(data, raw, simGame, simHome, simLayout) {
   const rows = [];

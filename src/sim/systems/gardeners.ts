@@ -7,7 +7,7 @@ import { needsWatering } from './farm';
 import { isAutoSlot, nextWaypoint, perform, taskSpot, walkSpeed, workSpot, workTimeOf } from './farmer';
 
 /**
- * NGƯỜI LÀM VƯỜN — thuê thêm ở bảng Nhà nông (chỗ thứ i mở ở cấp `balance.gardeners.levels[i]`).
+ * NGƯỜI LÀM VƯỜN - thuê thêm ở bảng Nhà nông (chỗ thứ i mở ở cấp `balance.gardeners.levels[i]`).
  *  - Người chơi bật / tắt việc cho từng người (`gardenerJobs`: thu hoạch, chuồng + ao, tưới, cuốc + gieo lại).
  *  - Rảnh thì tự nhận MỘT việc: ô gần nhất cần làm, theo thứ tự ưu tiên thu hoạch → chuồng/ao → tưới → gieo lại;
  *    bỏ qua ô bác nông dân hoặc người khác đang lo. Đi theo lối như bác (`nextWaypoint`), tới nơi làm rồi gọi `perform`.

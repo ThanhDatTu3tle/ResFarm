@@ -3,7 +3,7 @@ import { G, group, mesh } from './toon';
 
 /**
  * ỐNG HÚT KHÓI trên bàn nướng quán Hàn: chụp inox tròn treo trên vỉ + ống co giãn lên trần.
- * Bật / tắt trong Cài đặt (lưu theo máy, mặc định bật) — chỉ ẩn / hiện, không dựng lại bàn.
+ * Bật / tắt trong Cài đặt (lưu theo máy, mặc định bật) - chỉ ẩn / hiện, không dựng lại bàn.
  */
 
 const PREF_KEY = 'quan-nha-vuon/hoods';

@@ -4,7 +4,7 @@ import { signText } from './cuisine';
 import { emojiSprite, G, group, mesh, seeded, type V3 } from './toon';
 
 /**
- * TRANG THIẾT BỊ ĐÃ MUA Ở SIÊU THỊ hiện trong quán (giai đoạn 15) — mua xong là thấy ngay:
+ * TRANG THIẾT BỊ ĐÃ MUA Ở SIÊU THỊ hiện trong quán (giai đoạn 15) - mua xong là thấy ngay:
  *  - decor (Cây cảnh & tranh treo): 2 chậu cây lá to hai bên cửa + tranh phong cảnh có đèn rọi treo tường bên (quán ốc: chậu cây ở góc trước)
  *  - knives (Bộ dao bếp xịn): thanh nam châm treo dao trên tường bếp (quán ốc: hộp dao trên xe đẩy)
  *  - music (Dàn loa): 2 loa treo góc tường sau, nốt nhạc bay lên (quán ốc: loa đứng trên cột đèn)
@@ -27,7 +27,7 @@ export interface EquipDims {
   kitchenHalf: number;
   door: [number, number];
   /**
-   * Mặt bằng riêng (quầy chữ L quán Nhật, bếp sát cửa quán Việt): dãy bếp (tâm, chiều dài, góc xoay — 0 = dọc tường sau),
+   * Mặt bằng riêng (quầy chữ L quán Nhật, bếp sát cửa quán Việt): dãy bếp (tâm, chiều dài, góc xoay - 0 = dọc tường sau),
    * chỗ treo dao, tủ chén, tủ kem [x, z, góc xoay]. Bỏ trống = theo dãy bếp tường sau.
    */
   line?: { x: number; z: number; len: number; rot: number };

@@ -1,5 +1,5 @@
 -- ============================================================================
--- Quán Nhà Vườn — máy chủ bạn bè (F3, lớp A): đăng nhập ẩn danh, kết bạn bằng mã / link mời / QR,
+-- Quán Nhà Vườn - máy chủ bạn bè (F3, lớp A): đăng nhập ẩn danh, kết bạn bằng mã / link mời / QR,
 -- tự đẩy bản chụp quán để bạn bè ghé thăm.
 --
 -- Cách dùng: Supabase → SQL Editor → dán toàn bộ file này → Run. Chạy lại nhiều lần vẫn được (idempotent).
@@ -8,7 +8,7 @@
 -- Nguyên tắc quyền:
 --   * Bảng chỉ đọc / sửa được dòng của CHÍNH MÌNH (RLS). Mã kết bạn do máy chủ sinh, không sửa được.
 --   * Mọi thứ liên quan tới người khác (kết bạn, danh sách bạn, xem quán bạn) đi qua hàm security definer
---     bên dưới — hàm tự kiểm tra hai người có là bạn không, bạn có bật "cho ghé thăm" không.
+--     bên dưới - hàm tự kiểm tra hai người có là bạn không, bạn có bật "cho ghé thăm" không.
 --   * Không lưu email / số điện thoại / mạng xã hội. Chỉ có tên quán + tên chủ quán người chơi tự đặt trong game.
 -- ============================================================================
 
@@ -111,7 +111,7 @@ begin
   if other is null then raise exception 'Không có ai dùng mã này.' using errcode = 'P0001'; end if;
   if other = me then raise exception 'Đây là mã của chính bạn.' using errcode = 'P0001'; end if;
   if (select count(*) from friendships f where f.a = me or f.b = me) >= 200 then
-    raise exception 'Bạn đã có 200 người bạn — tối đa rồi.' using errcode = 'P0001';
+    raise exception 'Bạn đã có 200 người bạn - tối đa rồi.' using errcode = 'P0001';
   end if;
   insert into friendships (a, b) values (least(me, other), greatest(me, other)) on conflict do nothing;
   return query select p.id, p.owner_name, p.shop_name from players p where p.id = other;
@@ -133,7 +133,7 @@ language sql stable security definer set search_path = public as $$
   order by p.snapshot_at desc nulls last;
 $$;
 
--- Bản chụp quán của một người bạn — chỉ khi là bạn của nhau VÀ người đó đang bật "cho ghé thăm"
+-- Bản chụp quán của một người bạn - chỉ khi là bạn của nhau VÀ người đó đang bật "cho ghé thăm"
 create or replace function public.friend_snapshot(friend uuid) returns jsonb
 language plpgsql stable security definer set search_path = public as $$
 declare

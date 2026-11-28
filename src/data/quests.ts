@@ -1,7 +1,7 @@
 import type { QuestDef } from './types';
 
 /**
- * NHIỆM VỤ HỆ THỐNG — làm lần lượt từ trên xuống (dễ → khó), mỗi lúc một nhiệm vụ.
+ * NHIỆM VỤ HỆ THỐNG - làm lần lượt từ trên xuống (dễ → khó), mỗi lúc một nhiệm vụ.
  * Xong thì người chơi bấm "Nhận thưởng" trên HUD để lấy thưởng và mở nhiệm vụ kế.
  * Thêm / đổi nhiệm vụ: sửa danh sách này (giữ nguyên id đã phát hành; thêm mới thì thêm vào CUỐI để save cũ không lệch).
  *

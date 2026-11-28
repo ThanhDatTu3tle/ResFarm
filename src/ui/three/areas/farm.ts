@@ -19,7 +19,7 @@ import { Bar3D, emojiSprite, G, group, mesh, seeded, toon, type V3, paintSeason 
 import { HUNGRY_UNTIL, updateHunger } from '../chatter';
 
 /**
- * KHU NÔNG TRẠI — ruộng, chuồng, ao ngoài trời. Mỗi ô trong state.farm.slots có một SlotView;
+ * KHU NÔNG TRẠI - ruộng, chuồng, ao ngoài trời. Mỗi ô trong state.farm.slots có một SlotView;
  * bấm vào ô phát Pick {type:'slot'} (app.ts quyết định: thu hoạch / cuốc / tưới / mở bảng chọn giống).
  * Mua thêm ô thì ô mới tự mọc ra theo SlotTypeDef.layout (src/data/farm.ts); ô lên bậc (ao nới rộng) thì to ra và nuôi nhiều con hơn.
  * Bác nông dân là nhân vật trong sim (systems/farmer.ts): khu này chỉ vẽ bác theo state.farm.farmer.
@@ -73,7 +73,7 @@ interface SlotView {
   hint?: THREE.Group;
   drop: THREE.Sprite;
   hoe: THREE.Sprite;
-  /** Trạng thái ô ở khung hình trước — so sánh để biết vừa xảy ra chuyện gì (gieo, chín, thu...) mà phát hiệu ứng. */
+  /** Trạng thái ô ở khung hình trước - so sánh để biết vừa xảy ra chuyện gì (gieo, chín, thu...) mà phát hiệu ứng. */
   prev: SlotSnapshot | null;
   /** Mốc env.t của các hiệu ứng đang chạy: ô bị nhún, cây bật lên khi gieo, cây nảy khi chín. */
   kickAt: number;
@@ -159,7 +159,7 @@ export class FarmArea implements Area {
   private scenery!: THREE.Group;
 
   private buildScenery(): void {
-    // Cảnh tĩnh vào nhóm `scenery` (gộp mesh sau khi dựng — merge.ts); bác nông dân, máy cày gắn thẳng vào root
+    // Cảnh tĩnh vào nhóm `scenery` (gộp mesh sau khi dựng - merge.ts); bác nông dân, máy cày gắn thẳng vào root
     const top = this.root;
     const r = (this.scenery = group(top));
     const rnd = seeded(7);
@@ -226,7 +226,7 @@ export class FarmArea implements Area {
       r.add(light);
     }
 
-    // Bác nông dân — vị trí cập nhật mỗi khung hình theo state.farm.farmer
+    // Bác nông dân - vị trí cập nhật mỗi khung hình theo state.farm.farmer
     const farmer = (this.farmer = makePerson(LOOKS[2], 'straw', FARMER_SHAPE));
     const home = this.game.state.farm.farmer;
     farmer.position.set(home.x, 0, home.z);
@@ -245,7 +245,7 @@ export class FarmArea implements Area {
   /**
    * Con sông chảy dọc mép trái nông trại và con suối nhỏ từ sông dẫn nước vào ao đầu tiên.
    * Suối chạy trước hàng ruộng cuối (ruộng tối đa 5 hàng, mép trước z ≈ 10), chui dưới cầu gỗ trên đường đất
-   * rồi kết thúc ở tâm ao — ao nới rộng cỡ nào thì bờ ao vẫn phủ lên đầu suối.
+   * rồi kết thúc ở tâm ao - ao nới rộng cỡ nào thì bờ ao vẫn phủ lên đầu suối.
    * Chỉ là cảnh: bác nông dân không bao giờ đi qua vùng nước (lối dọc x = -8.3 dừng ở hàng ruộng cuối).
    */
   private buildWater(): void {
@@ -375,7 +375,7 @@ export class FarmArea implements Area {
       g.add(sign);
     }
 
-    // Ao: mỗi ô nuôi một góc ao — vòng chọn, thanh tiến độ, con vật dời ra góc đó
+    // Ao: mỗi ô nuôi một góc ao - vòng chọn, thanh tiến độ, con vật dời ra góc đó
     const sector = slot.type === 'pond' ? pondSector(pondIndex(this.game, slot), s) : { x: 0, z: 0 };
     const ringSize = slot.type === 'pond' ? s * 0.4 : s + 0.35;
     const ring = mesh(g, G.box(1, 0.04, 1), this.ringMat, { p: [sector.x, slot.type === 'pond' ? 0.25 : 0.01, sector.z], s: [ringSize, 1, ringSize], cast: false, receive: false });
@@ -639,7 +639,7 @@ export class FarmArea implements Area {
           spot(c.x, c.z, t.layout.size, t.id, t.icon);
         }
       }
-      // Ao: không đào ao mới mà nới rộng — viền đứt khúc theo hình ao ở bậc kế tiếp
+      // Ao: không đào ao mới mà nới rộng - viền đứt khúc theo hình ao ở bậc kế tiếp
       for (const slot of state.farm.slots.filter((s) => s.type === 'pond' && nextTier(ctx, s)).slice(0, 1)) {
         const { layout } = content.slotTypes.get(slot.type);
         const c = slotCenter(ctx, slot);

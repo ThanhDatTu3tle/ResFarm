@@ -7,9 +7,25 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#e2703a" />
     <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="./logo.svg" />
     <title>Quán Nhà Vườn</title>
+    <!-- Màn hình chờ: viết thẳng trong HTML nên hiện ngay khi mở trang (trước khi tải xong code 3D), main.ts ẩn đi khi cảnh đầu tiên đã vẽ -->
+    <style>
+      #boot { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+        background: radial-gradient(circle at 50% 40%, #fffaf1 0%, #fdebcf 70%, #f6d9ad 100%); color: #8a4a24;
+        font-family: "Mali", system-ui, -apple-system, "Segoe UI", sans-serif; transition: opacity 0.45s ease; }
+      #boot.hide { opacity: 0; pointer-events: none; }
+      #boot .logo { width: 128px; height: 128px; animation: boot-bob 1.6s ease-in-out infinite; }
+      #boot b { font-size: 30px; letter-spacing: 0.5px; }
+      #boot small { font-size: 15px; opacity: 0.8; }
+      #boot .bar { width: min(260px, 70vw); height: 10px; border-radius: 10px; background: #f0d2a8; overflow: hidden; }
+      #boot .bar i { display: block; height: 100%; width: 40%; border-radius: 10px; background: #e2703a; animation: boot-bar 1.2s ease-in-out infinite; }
+      @keyframes boot-bob { 50% { transform: translateY(-6px) rotate(-3deg); } }
+      @keyframes boot-bar { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
+    </style>
   </head>
   <body>
+    <div id="boot"><img class="logo" src="./logo.svg" width="128" height="128" alt="" /><b>Quán Nhà Vườn</b><small>Đang dọn quán…</small><div class="bar"><i></i></div></div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -23,7 +23,7 @@ export class OwnerWalker {
   private wait = 1 + Math.random() * 2;
   private lookPhase = Math.random() * 10;
   private face: number | null = null;
-  /** Đứng yên tại chỗ (không tự đi dạo) — vd đang mua hàng trong sạp. */
+  /** Đứng yên tại chỗ (không tự đi dạo) - vd đang mua hàng trong sạp. */
   stay = false;
   /** Ngôi sao nhấp nhô trên đầu (khu nhìn xa: chợ, nông trại) để nhận ra chủ quán giữa đám đông. */
   private marker: THREE.Sprite | null = null;

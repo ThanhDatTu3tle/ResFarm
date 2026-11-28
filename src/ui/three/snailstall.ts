@@ -3,7 +3,7 @@ import { signText } from './cuisine';
 import { G, group, mesh, seeded, toon } from './toon';
 
 /**
- * QUÁN ỐC — khu bếp bếp trưởng và bếp phó (dùng ở street.ts, xem thử ở trang models).
+ * QUÁN ỐC - khu bếp bếp trưởng và bếp phó (dùng ở street.ts, xem thử ở trang models).
  *  - makeSnailTable(tier): bàn inox chữ nhật bày đầy rổ nhựa đỏ / khay inox / thau trắng đựng ốc, sò, nghêu, hàu, tôm,
  *    trứng cút…; đầu bên phải có bếp ga + chảo xào lửa xanh. Bếp lên hạng thì bàn dài ra về bên trái (thêm rổ, thêm
  *    chỗ đứng cho đầu bếp khác). Gốc ở chỗ bếp trưởng đứng (giữa phần bàn đầu tiên), mặt bàn nhìn về +z.
@@ -47,7 +47,7 @@ function pile(parent: THREE.Object3D, w: number, d: number, kind: Kind, seed: nu
   }
 }
 
-/** Rổ nhựa đỏ có lỗ thoáng (viền + các thanh) / khay inox / thau nhựa trắng — w × d, cao h, gốc ở đáy. */
+/** Rổ nhựa đỏ có lỗ thoáng (viền + các thanh) / khay inox / thau nhựa trắng - w × d, cao h, gốc ở đáy. */
 function container(parent: THREE.Object3D, x: number, z: number, w: number, d: number, style: 0 | 1 | 2, kind: Kind, seed: number): void {
   const g = group(parent, { p: [x, TOP, z] });
   const h = style === 1 ? 0.07 : 0.13;

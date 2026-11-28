@@ -7,7 +7,7 @@ import { tire } from './crew';
 /**
  * Bếp: mỗi đầu bếp nấu 1 đơn một lúc, lấy đơn cũ nhất còn chờ.
  * Mỗi món nấu xong tốn năng lượng (balance.crew.chefPerDish); kiệt sức thì nghỉ nấu (systems/crew.ts).
- * Nấu xong thì đặt món ra quầy ra món ('ready'); bồi bàn (người chơi) bưng lên bàn — xem service.ts.
+ * Nấu xong thì đặt món ra quầy ra món ('ready'); bồi bàn (người chơi) bưng lên bàn - xem service.ts.
  */
 export const kitchenSystem: System = {
   id: 'kitchen',
@@ -104,8 +104,8 @@ export const kitchenCommands = {
     const r = ctx.state.restaurant;
     const def = nextChefDef(ctx);
     if (!def) return fail('Đã thuê đủ đầu bếp.');
-    if (r.staff.length >= kitchenTierOf(ctx).chefs) return fail('Bếp chật rồi — nâng hạng bếp để thuê thêm đầu bếp.');
-    if (ctx.state.crew.restaurantAway) return fail('Cả đội đang ở chợ — đợi về quán rồi thuê nhé.');
+    if (r.staff.length >= kitchenTierOf(ctx).chefs) return fail('Bếp chật rồi - nâng hạng bếp để thuê thêm đầu bếp.');
+    if (ctx.state.crew.restaurantAway) return fail('Cả đội đang ở chợ - đợi về quán rồi thuê nhé.');
     if (!spend(ctx, ctx.content.balance.kitchen.chefHireCost)) return fail('Không đủ tiền.');
     r.staff.push({ id: def.id, orderId: null, energy: ctx.content.balance.crew.chefMaxEnergy, fainted: false });
     ctx.bus.emit('kitchen/changed', { tier: r.kitchenTier, chefs: r.staff.length });
@@ -115,7 +115,7 @@ export const kitchenCommands = {
     const r = ctx.state.restaurant;
     const s = chef(ctx, cmd.chefId);
     if (!s || !ctx.content.staff.get(s.id).hire) return fail('Chỉ cho nghỉ được đầu bếp thuê thêm.');
-    if (ctx.state.crew.restaurantAway) return fail('Cả đội đang ở chợ — đợi về quán đã.');
+    if (ctx.state.crew.restaurantAway) return fail('Cả đội đang ở chợ - đợi về quán đã.');
     // Món đang nấu dở trả lại hàng chờ
     const order = r.orders.find((o) => o.id === s.orderId);
     if (order) order.status = 'queued';

@@ -2,7 +2,7 @@
  * QUẢNG CÁO TRÊN BIỂN LED Ở CHỢ (trước sạp Thịt lợn cô Bủm). Biển chạy lần lượt từng mẫu, mỗi mẫu `seconds` giây.
  *
  * Hiện chỉ là quảng cáo vui trong game. Sau này game public có thể thay bằng quảng cáo thật: thêm mẫu có `image`
- * (đường dẫn ảnh tỉ lệ 16:9, vd '/ads/brand.png' trong thư mục public) — có ảnh thì biển vẽ ảnh thay cho chữ.
+ * (đường dẫn ảnh tỉ lệ 16:9, vd '/ads/brand.png' trong thư mục public) - có ảnh thì biển vẽ ảnh thay cho chữ.
  */
 export interface AdSlide {
   /** Dòng chữ lớn. */

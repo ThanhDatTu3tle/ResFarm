@@ -7,13 +7,13 @@ export const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 
 export const easeOutCubic = (t: number) => 1 - (1 - clamp01(t)) ** 3;
 
-/** Vọt quá rồi lùi về — hợp với thứ "bật" ra (cây mới gieo, biểu tượng xuất hiện). */
+/** Vọt quá rồi lùi về - hợp với thứ "bật" ra (cây mới gieo, biểu tượng xuất hiện). */
 export function easeOutBack(t: number, overshoot = 1.9): number {
   const x = clamp01(t) - 1;
   return 1 + (overshoot + 1) * x ** 3 + overshoot * x ** 2;
 }
 
-/** Nảy như lò xo — hợp với cây vừa chín. */
+/** Nảy như lò xo - hợp với cây vừa chín. */
 export function easeOutElastic(t: number): number {
   const x = clamp01(t);
   if (x === 0 || x === 1) return x;

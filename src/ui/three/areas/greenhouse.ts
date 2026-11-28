@@ -13,7 +13,7 @@ import { Bar3D, emojiSprite, G, group, mesh, paintSeason, type V3 } from '../too
 /**
  * KHU NHÀ KÍNH (bên trong nhà màng ở nông trại). Toạ độ riêng của khu: nhà chạy dọc +x từ x = 0 (cửa, đầu tây),
  * lối đi bê tông ở giữa (z = 0), mỗi cột 2 luống hai bên lối đi. Luống thứ i: cột ⌊i/2⌋, bên (i chẵn: bắc, lẻ: nam).
- * Nhà dài thêm về phía đông khi nới rộng (mua thêm lô luống) — cùng số đo với nhà trên bản đồ nông trại (buildingRect).
+ * Nhà dài thêm về phía đông khi nới rộng (mua thêm lô luống) - cùng số đo với nhà trên bản đồ nông trại (buildingRect).
  * Bấm luống phát Pick {type:'slot'} như ô ngoài nông trại; bác nông dân đứng ở cửa nhà kính trong sim,
  * khu này vẽ bác ở cạnh luống đang làm cho có cảm giác.
  */

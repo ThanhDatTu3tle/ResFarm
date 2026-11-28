@@ -72,5 +72,5 @@ export function updateHunger(host: THREE.Object3D, active: boolean, t: number, s
   c.update(t, active);
 }
 
-/** Than đói tới bao lâu sau giờ mở ca đầu (phút game) — 07:00 → 09:00. */
+/** Than đói tới bao lâu sau giờ mở ca đầu (phút game) - 07:00 → 09:00. */
 export const HUNGRY_UNTIL = 120;

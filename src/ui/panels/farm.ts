@@ -49,7 +49,7 @@ function slotDetail(game: Game, slot: FarmSlot): string {
     const frozen = isFrozen(ctx, slot.type);
     const status =
       slot.stage === 'ready'
-        ? `<div class="row"><span class="grow">✅ Đã chín — thu được ${yieldsText(game, slot, def)}</span><button class="primary"${cmd({ type: 'farmer/do', kind: 'harvest', slotId: slot.id })}${queued.includes('harvest') ? ' disabled' : ''}>Thu hoạch</button></div>`
+        ? `<div class="row"><span class="grow">✅ Đã chín - thu được ${yieldsText(game, slot, def)}</span><button class="primary"${cmd({ type: 'farmer/do', kind: 'harvest', slotId: slot.id })}${queued.includes('harvest') ? ' disabled' : ''}>Thu hoạch</button></div>`
         : `<div class="row"><div class="grow">${bar(slot.progress / total, 'green')}<div class="muted">${frozen ? '❄️ Đang nghỉ đông' : `còn ${farmTime(total - slot.progress)}`}</div></div>${
             needsWatering(ctx, slot) && !frozen ? `<button class="water"${cmd({ type: 'farmer/do', kind: 'water', slotId: slot.id })}${queued.includes('water') ? ' disabled' : ''}>💧 Tưới</button>` : ''
           }</div>`;
@@ -170,10 +170,10 @@ export const farmPanel: Panel = {
     const tasks = state.farm.farmer.tasks.filter((t) => t.kind !== 'visit');
     const farmer = tasks.length
       ? `<span class="grow">🧑‍🌾 Bác nông dân còn <b>${tasks.length}</b> việc</span><button class="mini"${cmd({ type: 'farmer/cancel' })} title="Bỏ các việc chưa tới lượt">Huỷ bớt</button>`
-      : '<span class="grow muted">🧑‍🌾 Bác nông dân đang rảnh — bấm ô để giao việc</span>';
+      : '<span class="grow muted">🧑‍🌾 Bác nông dân đang rảnh - bấm ô để giao việc</span>';
 
     const winter = seasonOf(ctx).frozen
-      ? '<p class="winter-note">❄️ Mùa đông: đất ngoài trời đóng băng, chuồng và ao nghỉ — cây ngoài trời ngừng lớn tới mùa Xuân. Nhà kính vẫn trồng bình thường.</p>'
+      ? '<p class="winter-note">❄️ Mùa đông: đất ngoài trời đóng băng, chuồng và ao nghỉ - cây ngoài trời ngừng lớn tới mùa Xuân. Nhà kính vẫn trồng bình thường.</p>'
       : '';
     return `${winter}${focusBar}${focus ? '' : '<p class="muted">👆 Bấm thẳng vào ô trên nông trại để cuốc, gieo, tưới, thu. Cây lớn tính bằng ngày (qua đêm vẫn lớn); tưới một lần ẩm cả ngày, trời mưa khỏi tưới. Ruộng lúa thu tự động bằng máy cày.</p>'}
       <div class="row farmer-status">${farmer}<button class="mini"${ui('drawer:farmhands')}>🧰 Nhà nông${state.farm.gardeners.length ? ` · ${state.farm.gardeners.length} 👩‍🌾` : ''}</button></div>

@@ -4,35 +4,35 @@ Mỗi phiên ghi một mục (mới nhất ở trên): đã làm gì, quyết đ
 
 ---
 
-## 21/11/2026 (laptop) — Giai đoạn 16: tối ưu UX / UI
+## 21/11/2026 (laptop) - Giai đoạn 16: tối ưu UX / UI
 
 **Nhánh:** `giai-doan-16`. Xem trước quán ở màn chọn quán.
-AI tự chọn: xem trước bằng cách tải lại trang với `?preview=` (ván tạm, seed 11, tua 110 phút tới ~08:50) thay vì dựng cảnh trong màn mở đầu — dùng lại nguyên cảnh quán thật, không phải dọn renderer; quay về bằng `?pick=` / `?choose=` (giờ chạy cả bản build, bản build tự xoá tham số khỏi thanh địa chỉ). Lúc xem trước ẩn HUD / ngăn kéo / thông báo, game không bao giờ hết tiền, không ghi đè save đang có.
-Sau góp ý: xem trước chỉ chiếu lại 90 phút game (chụp state lúc vào, hết đoạn thì gán lại + dựng lại khu quán, chớp trắng nhẹ) — không còn hiện bảng gọi món cho đội.
-Mặt bằng riêng quán Nhật (quầy chữ L) và quán Việt (bếp sát cửa): `RoomDef.plan / passStand / walls / variants` + `TableDef.byCuisine / bar`; giữ id bàn cũ (`pair`, `pair2` của quán Nhật thành 2 quầy đôi gắn cố định) để save cũ không vỡ. `walls` = khối bếp: không đặt bàn, người phục vụ đi vòng (pathing). Quán Nhật dùng chung bậc hạng quán (cộng phần chênh so với hạng 1) — hạng cao quán vẫn nới cả sâu lẫn ngang, quầy chữ L giữ nguyên (không thêm ghế quầy như quán Hàn).
+AI tự chọn: xem trước bằng cách tải lại trang với `?preview=` (ván tạm, seed 11, tua 110 phút tới ~08:50) thay vì dựng cảnh trong màn mở đầu - dùng lại nguyên cảnh quán thật, không phải dọn renderer; quay về bằng `?pick=` / `?choose=` (giờ chạy cả bản build, bản build tự xoá tham số khỏi thanh địa chỉ). Lúc xem trước ẩn HUD / ngăn kéo / thông báo, game không bao giờ hết tiền, không ghi đè save đang có.
+Sau góp ý: xem trước chỉ chiếu lại 90 phút game (chụp state lúc vào, hết đoạn thì gán lại + dựng lại khu quán, chớp trắng nhẹ) - không còn hiện bảng gọi món cho đội.
+Mặt bằng riêng quán Nhật (quầy chữ L) và quán Việt (bếp sát cửa): `RoomDef.plan / passStand / walls / variants` + `TableDef.byCuisine / bar`; giữ id bàn cũ (`pair`, `pair2` của quán Nhật thành 2 quầy đôi gắn cố định) để save cũ không vỡ. `walls` = khối bếp: không đặt bàn, người phục vụ đi vòng (pathing). Quán Nhật dùng chung bậc hạng quán (cộng phần chênh so với hạng 1) - hạng cao quán vẫn nới cả sâu lẫn ngang, quầy chữ L giữ nguyên (không thêm ghế quầy như quán Hàn).
 Góp ý UX: gợi ý phục vụ chỉ hiện lần đầu (cờ trong localStorage `quan-nha-vuon:hints`, màn xem trước không tính); toast khách quen vào `#toasts-left`; bong bóng 📖 chờ cả nhóm tới ghế trong cảnh (sim cũng nới thời gian đi vào ghế ×1.3 + 0.8 phút).
-Khách / thú cưng trong cảnh đi theo `nextWaypoint` (RestaurantArea.pathStep, tính lại 4 lần/giây); khách tới chỗ đứng sau ghế (`Actor.out`) trước khi ngồi và lùi ra đó trước khi về — đo 250 mẫu khách đang đi ở quán Việt + Nhật: 0 lần xuyên bàn. Tooltip nguồn nguyên liệu: `src/ui/sources.ts` (`itemSources`).
+Khách / thú cưng trong cảnh đi theo `nextWaypoint` (RestaurantArea.pathStep, tính lại 4 lần/giây); khách tới chỗ đứng sau ghế (`Actor.out`) trước khi ngồi và lùi ra đó trước khi về - đo 250 mẫu khách đang đi ở quán Việt + Nhật: 0 lần xuyên bàn. Tooltip nguồn nguyên liệu: `src/ui/sources.ts` (`itemSources`).
 Trang xem model 3D (chỉ bản dev): `models-nhan-vat.html`, `models-do-vat.html`, `models-mon-an.html` → `src/dev/models.ts`. Tách bồi bàn / công an / shipper / xe shipper vào people.ts (`makeWaiter`, `makePolice`, `makeShipper`, `makeShipperBike`), bác bảo vệ + minibus vào hàm export của curbside.ts (`makeGuard`, `makeMinibus`), `hasCropModel` trong models.ts. Sổ tay: bảng Bàn thêm cột Quán + Khác theo quán; artifact Sổ tay cập nhật cùng link.
 Chủ dự án muốn xem Sổ tay + 3 trang model ở nhiều máy, cùng repo: `vite.config.ts` build thêm 3 trang model (`rollupOptions.input`), `npm run build` sinh thêm `dist/so-tay.html` → Netlify phát cùng game sau khi gộp vào main (Sổ tay chỉ chứa số liệu game, không có thông tin cá nhân; `notes/` vẫn không lên GitHub).
 
 ---
 
-## 21/11/2026 (laptop) — Giai đoạn 15: trước cửa quán, nhân viên, công an
+## 21/11/2026 (laptop) - Giai đoạn 15: trước cửa quán, nhân viên, công an
 
 **Nhánh:** `giai-doan-15`. 7 mục từ lượt chơi thử tiếp (xem `04-ROADMAP.md`). Shipper giữ nguyên.
-AI tự chọn: cách khách tới chọn theo id nhóm (40% đi bộ, 40% xe máy, 20% ô tô) và chỉ là hình; kéo bàn lệch do tia chuột chạm mặt bàn cao hơn sàn — giữ chỗ nắm + hít chỗ trống trong 45 đơn vị; "nhân viên giữ bàn" áp cho mọi nhân viên kể cả quản lý; người bệnh chọn ngẫu nhiên trong các nhân viên; tiền bồi dưỡng chia đều theo hạng quán (200, 330, 450, 580, 700); bàn bị thu ưu tiên bàn mua thêm, bàn có khách không bị thu; hết tiền và không còn bàn đôi trống thì xin khất (mất uy tín).
+AI tự chọn: cách khách tới chọn theo id nhóm (40% đi bộ, 40% xe máy, 20% ô tô) và chỉ là hình; kéo bàn lệch do tia chuột chạm mặt bàn cao hơn sàn - giữ chỗ nắm + hít chỗ trống trong 45 đơn vị; "nhân viên giữ bàn" áp cho mọi nhân viên kể cả quản lý; người bệnh chọn ngẫu nhiên trong các nhân viên; tiền bồi dưỡng chia đều theo hạng quán (200, 330, 450, 580, 700); bàn bị thu ưu tiên bàn mua thêm, bàn có khách không bị thu; hết tiền và không còn bàn đôi trống thì xin khất (mất uy tín).
 Lượt 2: khách đi bộ 2 / xe máy 4 / ô tô 4.5 / minibus 4 phút game mới vào hàng chờ, đi vào ghế theo quãng đường (150 đơn vị / phút); hạng quán rộng 620 / 660 / 720 / 780 / 840, mỗi 60 đơn vị thêm 1 ghế quầy; bãi xe máy 2 dãy dọc tường (0.62 m / chỗ), bãi ô tô 1 dãy (1.8 m / chỗ).
 
 ---
 
-## 21/11/2026 (laptop) — Giai đoạn 14: sửa lỗi sau khi chơi thử
+## 21/11/2026 (laptop) - Giai đoạn 14: sửa lỗi sau khi chơi thử
 
-**Nhánh:** `giai-doan-14`. Chủ dự án và người thân chơi thử 3 ngày đầu, gửi 22 mục — làm hết (xem `04-ROADMAP.md`).
+**Nhánh:** `giai-doan-14`. Chủ dự án và người thân chơi thử 3 ngày đầu, gửi 22 mục - làm hết (xem `04-ROADMAP.md`).
 AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm khách đông tính theo loại bàn vừa nhóm; shipper nhận thưởng khi giao xong; quà khách quen để trong kho; quán rộng thêm 80 đơn vị và dời mọi toạ độ x 40 (migration v21); nhịp lên cấp ×(1 + 0.5 × (cấp − 3)) từ cấp 4, lên sao còn 35% / 15% từ 3 / 4 sao; nhà kính vốn đã trồng được trái mùa (không cần sửa).
 
 ---
 
-## 20/11/2026 (laptop) — Giai đoạn 13: cân bằng nông trại + kinh tế, chủ quán tuỳ biến, HUD gọn
+## 20/11/2026 (laptop) - Giai đoạn 13: cân bằng nông trại + kinh tế, chủ quán tuỳ biến, HUD gọn
 
 **Nhánh:** `giai-doan-13` (từ main sau khi merge giai đoạn 12).
 
@@ -44,13 +44,13 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 22/11/2026 (laptop) — Giai đoạn 12: Sổ tay tự sinh
+## 22/11/2026 (laptop) - Giai đoạn 12: Sổ tay tự sinh
 
 **Nhánh:** `giai-doan-12` (đã push 9d0b279; phần 8 chưa commit). Giai đoạn 11 đã merge vào `main`.
 
 11. Khách tới đông và đều hơn theo yêu cầu (trước đó 15–17 h có lúc không ai vì lượt chờ cũ quá dài): `spawnInterval` 72 → 52, thêm giờ đông chiều 15–17 h ×1.2, `spawnMaxGap` 40 phút, mở ca có khách sau 6 phút (`firstGuest`); test ngày vắng nhất giờ nào cũng có khách.
 10. Đổi tên quán không được: `window.prompt` bị chặn trên một số môi trường (bấm không thấy gì) → thay bằng hộp đổi tên trong game (`renameHtml` trong hud.ts, `ui.rename`; Enter để đổi, Esc huỷ; lỗi thì giữ hộp mở).
-9. Ông / bà chủ quán theo yêu cầu: màn mở đầu thêm bước chọn chủ quán sau khi chọn quán (giới tính + thanh tuổi 25–50, xem trước 3D trước mặt tiền quán); `GameState.owner` (save v18); `makeOwner` (people.ts) — AI chọn: ông áo gi-lê sẫm, bà áo kiểu + váy, huy hiệu vàng trên ngực; 25 tóc tạo kiểu, 35 chững chạc, ≥ 40 tóc muối tiêu dần, ≥ 44 kính lão, ông ≥ 40 để ria, người đậm dần theo tuổi. `OwnerWalker` (owner.ts) đi dạo ở quán (né bàn), chợ (ghé ngó sạp, ngôi sao trên đầu), nông trại (theo lối của bác, ngôi sao), trong sạp (bước vào, đứng chọn hàng). Cuốn lịch 📅 trên đồng hồ (calendar.ts): lịch mùa 2 tuần, dải 4 mùa, lật mùa, sắp tới (sự kiện hôm nay, lễ, sang mùa, tổng kết); mở lịch thì game dừng.
+9. Ông / bà chủ quán theo yêu cầu: màn mở đầu thêm bước chọn chủ quán sau khi chọn quán (giới tính + thanh tuổi 25–50, xem trước 3D trước mặt tiền quán); `GameState.owner` (save v18); `makeOwner` (people.ts) - AI chọn: ông áo gi-lê sẫm, bà áo kiểu + váy, huy hiệu vàng trên ngực; 25 tóc tạo kiểu, 35 chững chạc, ≥ 40 tóc muối tiêu dần, ≥ 44 kính lão, ông ≥ 40 để ria, người đậm dần theo tuổi. `OwnerWalker` (owner.ts) đi dạo ở quán (né bàn), chợ (ghé ngó sạp, ngôi sao trên đầu), nông trại (theo lối của bác, ngôi sao), trong sạp (bước vào, đứng chọn hàng). Cuốn lịch 📅 trên đồng hồ (calendar.ts): lịch mùa 2 tuần, dải 4 mùa, lật mùa, sắp tới (sự kiện hôm nay, lễ, sang mùa, tổng kết); mở lịch thì game dừng.
 8. Sau commit 9d0b279, theo yêu cầu: quán ốc đêm rực hơn (6 đèn ấm `PointLight` cường độ `night * 5`, thử `* 9` thì sáng như ban ngày nên hạ), bỏ ô che bàn, mưa thì mái sạp dù kéo dài ra che cả sân (`awning` trong street.ts, bạt trong 26% để vẫn thấy khách; bung theo `env.t` vì khung hình thưa khi tab ẩn); có mái thì mưa chỉ rơi hai bên trái / phải ngoài quán (`Area.rainShelter`). Năng lượng cả đội 30 → 40 (`balance.crew.maxEnergy`). Sạp nguyên liệu ở chợ có 2–3 khách mua hàng (`StallArea.addShoppers`: 2 người đứng chọn, ngày lẻ / chẵn thêm 1 người đi dạo; chỗ đứng riêng từng kiểu sạp để không che biển giá).
 1. `scripts/so-tay.mjs` + khuôn `scripts/so-tay.html`, lệnh `npm run sotay`. Sổ tay cũ viết tay (dừng ở giai đoạn 6) thay bằng bản sinh từ data nên không còn lệch số. Đã xem trên localhost: không lỗi console, các mục hiện đủ.
 2. Chủ dự án chọn: Sổ tay tự sinh từ data; đồ hoạ cần tinh chỉnh là **nhân vật và HUD**. Đã cập nhật artifact Sổ tay trên claude.ai (cùng link).
@@ -62,7 +62,7 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 21/11/2026 (laptop) — Giai đoạn 11b: nhịp quán + ngày hướng dẫn
+## 21/11/2026 (laptop) - Giai đoạn 11b: nhịp quán + ngày hướng dẫn
 
 **Nhánh:** `giai-doan-11` (chung nhánh, chưa commit). **Kết quả:** typecheck sạch, 111 test qua (thêm test chạy trọn ngày hướng dẫn). Đã xem trên localhost: lời chào, thẻ bưng món, thẻ ra chợ, thẻ nông trại (`?fresh&seed=4&tut=market&area=market`...). Chưa thử được trên điện thoại thật (âm thanh iOS) và chưa nhìn tận mắt động tác lau nhà.
 
@@ -74,7 +74,7 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 21/11/2026 (laptop) — Giai đoạn 11: mùa 2 tuần, người làm vườn, dụng cụ, nhiệm vụ dài + thành tựu
+## 21/11/2026 (laptop) - Giai đoạn 11: mùa 2 tuần, người làm vườn, dụng cụ, nhiệm vụ dài + thành tựu
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-11` (tách từ `main` đã gộp giai đoạn 10). **Kết quả:** typecheck sạch, 102 test qua (thêm 11); save v17. Đã xem trên localhost: bảng Nhà nông, 3 người làm vườn đi tưới hàng ruộng hành (`?fresh&rich&seed=2&ff=262&weather=sunny&area=farm&do=[gardener/hire ×3, till + plant field-0..8]`), bảng Thành tựu, thẻ nhiệm vụ có dòng chương.
 
@@ -87,7 +87,7 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 20/11/2026 (laptop) — Giai đoạn 10: sửa bên trong Tiệm 25caaaaa
+## 20/11/2026 (laptop) - Giai đoạn 10: sửa bên trong Tiệm 25caaaaa
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-10` (tách từ `giai-doan-9` vì `main` chưa gộp giai đoạn 9). **Kết quả:** typecheck sạch, 91 test qua; đã xem trên localhost lúc 21:35 (`?seed=1&ff=935&stall=snack`): tiệm sáng đèn, hai người trong đội ngồi hai bên bàn, ly matcha trên mặt bàn.
 
@@ -95,7 +95,7 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 20/11/2026 (laptop) — Giai đoạn 9: bưng món theo màu bàn
+## 20/11/2026 (laptop) - Giai đoạn 9: bưng món theo màu bàn
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-9`. **Kết quả:** typecheck sạch, 91 test qua (thêm 3 test); đã xem trên localhost (`?ff=150&ffserve&pickup`): bàn chờ món có bong bóng nền màu, bồi bàn cầm 2 món cùng màu, thanh "Đang cầm" phía dưới. **Chưa thử bằng tay:** bấm quầy / bấm bàn.
 
@@ -104,7 +104,7 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 19/11/2026 (laptop) — Giai đoạn 8: đơn đặt hàng, bán hàng dư, sự kiện ngẫu nhiên
+## 19/11/2026 (laptop) - Giai đoạn 8: đơn đặt hàng, bán hàng dư, sự kiện ngẫu nhiên
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-8`. **Kết quả:** typecheck sạch, 88 test qua (thêm 6 test); đã xem trên localhost: bảng Đơn hàng, nút bán ở Kho, dải sự kiện (xe du lịch, nhà phê bình), nhà phê bình ngồi trong quán. **Chưa thử bằng tay:** bấm giao đơn, bán hàng, phục vụ nhà phê bình tới cuối.
 
@@ -113,7 +113,7 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 19/11/2026 (laptop) — Giai đoạn 7: mở rộng bếp, giao món, hướng dẫn, cảnh báo nguyên liệu
+## 19/11/2026 (laptop) - Giai đoạn 7: mở rộng bếp, giao món, hướng dẫn, cảnh báo nguyên liệu
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-7`. **Kết quả:** typecheck sạch, 82 test qua (thêm 3 test bếp); đã xem trên localhost: bếp hạng 3 có 4 đầu bếp, bảng Quán có thẻ mở rộng bếp, bảng Nhân viên có nút giao món, cảnh báo "Hết: Phở bò", trang hướng dẫn ở màn mở đầu. **Chưa thử bằng tay:** bấm các nút (chỉ xem), hướng dẫn trong Cài đặt.
 
@@ -122,7 +122,7 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 19/11/2026 (laptop) — Giai đoạn 6: mùa vụ và lễ hội
+## 19/11/2026 (laptop) - Giai đoạn 6: mùa vụ và lễ hội
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-6`. **Kết quả:** typecheck sạch, 79 test qua (thêm 5 test mùa vụ / lễ hội); đã xem trên localhost: trang trí Tết trong quán, Trung thu và Giáng sinh ngoài chợ, dải lễ trên HUD, nhãn món hợp mùa, màn hết ngày báo lễ ngày mai. **Chưa thử bằng tay:** bảng chọn giống theo mùa (cần bấm ô), lì xì trong ván thật.
 
@@ -132,7 +132,7 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 19/11/2026 (laptop) — Đợt 18: HUD gọn lại, bốn mùa
+## 19/11/2026 (laptop) - Đợt 18: HUD gọn lại, bốn mùa
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-5`. **Kết quả:** typecheck sạch, 74 test qua; đã xem trên localhost (1000×470): HUD mới, cột nút tròn, thanh dưới có nút chuyển khu, ngăn kéo với nút ✕ to, nông trại / chợ mùa Đông (tuyết, nước đóng băng), Hạ, Thu, màn tổng kết ngày 112 (mùa Đông + năm 1). **Chưa thử bằng tay:** bấm các nút mới (chỉ xem), khăn quàng nhìn gần.
 
@@ -143,7 +143,7 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 19/11/2026 (laptop) — Đợt 17: gọi món cho cả đội, vào bên trong quầy chợ
+## 19/11/2026 (laptop) - Đợt 17: gọi món cho cả đội, vào bên trong quầy chợ
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-4`. **Kết quả:** typecheck sạch, 70 test qua; đã xem trên localhost: bên trong sạp Tạp hoá (khay + biển giá + bảng mua), bên trong Tiệm 25caaaaa (logo, menu, cả đội ngồi ăn), bảng gọi món (kiểm tra DOM). **Chưa thử bằng tay:** bấm chọn người / món trong bảng gọi món, nút mua trong quầy, nút "‹ Chợ".
 
@@ -153,18 +153,18 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 19/11/2026 (laptop) — Đợt 16: cả đội có năng lượng + giờ nghỉ ra chợ, G10 cân bằng kinh tế
+## 19/11/2026 (laptop) - Đợt 16: cả đội có năng lượng + giờ nghỉ ra chợ, G10 cân bằng kinh tế
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-4`. **Kết quả:** typecheck sạch, 69 test qua (7 test mới cho cả đội); đã xem trên localhost: quầy ra món bên phải, bảng Nhân viên (bồi bàn xỉu nằm ra sàn), cả đội ngồi ăn ở hàng rong, hoá đơn bữa trưa, cây cam / táo / xoài / chuối. **Chưa thử bằng tay:** kéo món vào khay rồi "Cầm khay" + bấm bàn, nút Kết thúc ngày, bồi dưỡng, trả hoá đơn.
 
 1. Save v13: `Vitals` (energy, fainted) cho đầu bếp, bồi bàn, nhân viên thuê, bác nông dân; `GameState.crew`. System mới `systems/crew.ts` (giờ nghỉ, gọi món ngẫu nhiên có giới hạn tiền, hoá đơn, `crew/revive`, `crew/pay`, `day/end`). kitchen / service / helpers / farmer dừng khi vắng mặt hoặc xỉu và trừ sức mỗi việc. `StallDef.staffMeal` → `menu`; bỏ `helper/eat`, `helper/revive`.
 2. customers.ts: khách còn xếp hàng lúc hết ca thì về (`LeaveReason 'closed'`, không tính khách mất, không trừ uy tín) để đội ra chợ đúng giờ.
 3. UI: `panels/crew.ts`; `billHtml` + nút Kết thúc ngày (hud.ts); quầy ra món render vào ngăn kéo; `ui.trayPick`; vết bẩn bấm 1 cái (bỏ `holdTick` ở stage.ts); `--tools-h` cho nút chuyển khu; `MarketArea.updateEaters` theo `crew.meals`; xe cùng tốc độ; farmkit: trái cây + cây chuối mới; farm.ts: vườn cây không chạy vòng.
-4. G10: script mô phỏng tạm (đã xoá) — xem số liệu ở roadmap Đợt 16.
+4. G10: script mô phỏng tạm (đã xoá) - xem số liệu ở roadmap Đợt 16.
 
 ---
 
-## 19/11/2026 (laptop) — Đợt 15: nhân viên phục vụ thuê thêm
+## 19/11/2026 (laptop) - Đợt 15: nhân viên phục vụ thuê thêm
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-3`. **Kết quả:** typecheck sạch, 63 test qua (5 test mới); đã xem trên localhost bảng Quán có 2 nhân viên (đang làm, xỉu, đang ăn), nhân viên trong quán, nhân viên ngồi ăn ở xe hủ tiếu. **Chưa thử bằng tay:** các nút trong bảng nhân viên, chọn món rồi bấm bàn.
 
@@ -174,7 +174,7 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 19/11/2026 (laptop) — Đợt 14: chỉnh theo phản hồi (nông trại, quán, chợ, giao diện điện thoại)
+## 19/11/2026 (laptop) - Đợt 14: chỉnh theo phản hồi (nông trại, quán, chợ, giao diện điện thoại)
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-3`. **Kết quả:** typecheck sạch, 58 test qua (6 test mới); đã xem trên localhost: quán nhỏ có tường đủ, khay quầy ra món, chén dĩa dơ + vết bẩn, nông trại có vườn cây + đường đá, chợ có 4 hàng mới, zoom sạp, bố cục màn ngang thấp. **Chưa thử bằng tay:** kéo thả món vào khay, bấm giữ lau vết bẩn, bấm bàn dơ, bảng nhiệm vụ; vùng an toàn tai thỏ chỉ thấy được trên iPhone thật.
 
@@ -187,7 +187,7 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 19/11/2026 (laptop) — Đợt 13: Khách quen (F2) + Giai đoạn 3 "Quán của riêng mình"
+## 19/11/2026 (laptop) - Đợt 13: Khách quen (F2) + Giai đoạn 3 "Quán của riêng mình"
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-3` (tách từ `main` sau PR #2). **Kết quả:** typecheck sạch, 52 test qua (7 test mới); đã xem trên localhost: khách quen có bảng tên + vòng hồng + thông báo chân dung, bảng Khách quen, đồ trang trí 3 quán, quán hạng 3, lên hạng giữa ván, chế độ chụp ảnh. **Chưa thử bằng tay:** kéo thả đồ trang trí, nút xoay / cất / bán, đổi tên (hộp prompt), bấm Chụp ảnh tải file.
 
@@ -200,16 +200,16 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 18/11/2026 (laptop) — Đợt 12: nhiệm vụ hệ thống (+ sửa chợ)
+## 18/11/2026 (laptop) - Đợt 12: nhiệm vụ hệ thống (+ sửa chợ)
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2`. **Kết quả:** typecheck sạch, 45 test qua, build qua; đã xem thẻ nhiệm vụ đang làm / chờ nhận thưởng trên HUD.
 
 1. **Sửa chợ:** bảng chân đứng sạp hải sản thành "Chuyên các loại ốc", chữ to, 2 dòng; vạch qua đường xoay đúng (vạch dài theo chiều xe chạy, xếp nối từ mép này sang mép kia).
-2. **Nhiệm vụ hệ thống** (save v9): `QuestDef` + `src/data/quests.ts` (7 nhiệm vụ), `systems/quests.ts` — mục tiêu dạng đếm qua `bumpQuest()` (gọi ở customers.ts lúc khách trả tiền, farm.ts lúc thu hoạch, mills.ts lúc ra thành phẩm), dạng trạng thái đọc state (món đã mở, doanh thu hôm nay, uy tín); lệnh `quest/claim`; sự kiện `quest/completed`, `quest/claimed`. HUD: `questCard` trong hud.ts. 3 test mới.
+2. **Nhiệm vụ hệ thống** (save v9): `QuestDef` + `src/data/quests.ts` (7 nhiệm vụ), `systems/quests.ts` - mục tiêu dạng đếm qua `bumpQuest()` (gọi ở customers.ts lúc khách trả tiền, farm.ts lúc thu hoạch, mills.ts lúc ra thành phẩm), dạng trạng thái đọc state (món đã mở, doanh thu hôm nay, uy tín); lệnh `quest/claim`; sự kiện `quest/completed`, `quest/claimed`. HUD: `questCard` trong hud.ts. 3 test mới.
 
 ---
 
-## 18/11/2026 (laptop) — Đợt 11: chợ có đường, xe cộ, bảng tên sạp
+## 18/11/2026 (laptop) - Đợt 11: chợ có đường, xe cộ, bảng tên sạp
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2`. **Kết quả:** typecheck sạch, 42 test qua, build qua; đã xem trong trình duyệt.
 
@@ -218,17 +218,17 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 18/11/2026 (laptop) — Đợt 10: nhà màng + khu bên trong
+## 18/11/2026 (laptop) - Đợt 10: nhà màng + khu bên trong
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2`. **Kết quả:** typecheck sạch, 42 test qua, build qua; đã xem nhà màng ở nông trại và khu bên trong (8 luống có cây đang lớn).
 
-1. **Sim:** loại ô `gplot` (luống nhà kính) với `SlotTypeDef.building` (vị trí nhà trên bản đồ, cửa), `batch: 4` (mua theo lô — `farm/buySlot` thêm 4 luống, nhà dài thêm), `growMul: 1.3`; `ProducerDef.alsoIn` + `fitsSlot()` cho rau củ trồng được cả trong nhà kính; `buildingRect()` tính hình nhà theo số luống; `workSpot` của luống = cửa nhà. Không đổi cấu trúc state (reconcile tự bù 8 luống khởi đầu cho save cũ). Test mới: lô 4 luống, tối đa 20, không cần cuốc, lớn nhanh hơn ruộng, bác vào cửa.
+1. **Sim:** loại ô `gplot` (luống nhà kính) với `SlotTypeDef.building` (vị trí nhà trên bản đồ, cửa), `batch: 4` (mua theo lô - `farm/buySlot` thêm 4 luống, nhà dài thêm), `growMul: 1.3`; `ProducerDef.alsoIn` + `fitsSlot()` cho rau củ trồng được cả trong nhà kính; `buildingRect()` tính hình nhà theo số luống; `workSpot` của luống = cửa nhà. Không đổi cấu trúc state (reconcile tự bù 8 luống khởi đầu cho save cũ). Test mới: lô 4 luống, tối đa 20, không cần cuốc, lớn nhanh hơn ruộng, bác vào cửa.
 2. **Nông trại:** `farmkit.makeGreenhouse` (khung vòm thép trắng, màng trong mờ, cửa, quạt), dựng lại khi nhà dài thêm; viền đứt khúc phần nhà nới thêm ở đầu đông; bấm nhà → `Pick { type: 'building' }` → vào khu nhà kính.
 3. **Khu nhà kính** `areas/greenhouse.ts`: lối đi bê tông, 2 dãy luống viền trắng, ống tưới nhỏ giọt + dây treo, bàn dụng cụ, quạt quay; cây theo giai đoạn, thanh tiến độ, hiệu ứng gieo / chín / thu (bay về Kho); góc nhìn tự giãn theo chiều dài nhà.
 
 ---
 
-## 18/11/2026 (laptop) — Đợt 9: chỉnh nông trại lần 2
+## 18/11/2026 (laptop) - Đợt 9: chỉnh nông trại lần 2
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2`. **Kết quả:** typecheck sạch, 41 test qua, build qua; đã xem trong trình duyệt.
 
@@ -240,14 +240,14 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ---
 
-## 18/11/2026 (laptop) — Đợt 8: chỉnh theo phản hồi, ruộng lúa tự động + cối chế biến
+## 18/11/2026 (laptop) - Đợt 8: chỉnh theo phản hồi, ruộng lúa tự động + cối chế biến
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2`. **Kết quả:** typecheck sạch, 41 test qua, build qua; đã xem trong trình duyệt: quán nhỏ + lối WC/kho (cả 3 quán), nông trại bố cục mới, máy cày chở lúa qua cầu tới cối, bảng lọc theo chuồng, sáng sớm / trưa / tối có đèn.
 
 ### Đã làm
 
 1. **Quán:** `room` 640×540 (cũ 720×600), bàn dời lại cho vừa; bếp 3.4 m dồn phải (`kitchenX1`, `kitchenCenter()`), bên trái là lối đi có vách ngăn, cửa **WC** và cửa **KHO** (`buildCorridor`). Đồ trang trí 3 quán bám theo vị trí bếp mới.
-2. **Nông trại — bố cục:** chuồng 4.2 m (cũ 3.3) có rơm rải, kiện rơm, đống rơm; ao 6 m (gấp đôi), 3 ao xếp dọc con suối về phía hạ lưu (bên phải), bác đứng bờ sau ao (`layout.work = 'back'`); suối chảy qua lần lượt các ao rồi ra khỏi bản đồ; thêm cầu ở lối dọc x = -8.3; hàng ruộng rau giãn 2.75 m (cũ 2.6 — chỗ đứng lấn 5 cm vào ô dưới, test mới bắt được).
+2. **Nông trại - bố cục:** chuồng 4.2 m (cũ 3.3) có rơm rải, kiện rơm, đống rơm; ao 6 m (gấp đôi), 3 ao xếp dọc con suối về phía hạ lưu (bên phải), bác đứng bờ sau ao (`layout.work = 'back'`); suối chảy qua lần lượt các ao rồi ra khỏi bản đồ; thêm cầu ở lối dọc x = -8.3; hàng ruộng rau giãn 2.75 m (cũ 2.6 - chỗ đứng lấn 5 cm vào ô dưới, test mới bắt được).
 3. **Viền đứt khúc + ➕** ở mọi chỗ còn mua thêm ô / cối (`FarmArea.updateExpand`, `farmkit.dashedRect/dashedCircle`); bấm vào → camera lướt tới + mở bảng có nút mua (`Pick { type: 'expand' }`).
 4. **Bấm ô / cối:** `Stage.focusOn(x, z, closer)` lướt camera lại gần (55–62%); `ui.farmFocus` lọc bảng Nông trại chỉ còn loại đó (ruộng lúa đi kèm cối của nó), có nút "Xem cả nông trại"; đóng bảng thì `Stage.unfocus()`.
 5. **Ruộng lúa mì / lúa nước + cối** (save v8): `SlotTypeDef.mill`, `MillTypeDef` (`data/farm.ts`), `systems/mills.ts` (chế biến, `mill/buy`, `mill/setProduct`), việc `haul` + `farmer.carry` trong `farmer.ts` (`autoChain`: thu → gieo lại → chở tới cối ít hàng nhất; huỷ bớt vẫn giữ việc chở). 3D: `farmkit.ts` (cối xay gió, nhà xay lúa có bánh xe nước, máy cày, bao lúa, khóm lúa 3 giai đoạn đung đưa theo gió). Nguyên liệu mới: lúa mì, lúa (thóc), bánh mì; 3 món mới dùng bánh mì (đủ model).
@@ -257,63 +257,63 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 
 ### Còn dở
 
-- Vệt gió có trong cảnh nhưng khó thấy ở góc nhìn xa (trắng trên cỏ nhạt) — cần chủ dự án xem khi chơi thật.
+- Vệt gió có trong cảnh nhưng khó thấy ở góc nhìn xa (trắng trên cỏ nhạt) - cần chủ dự án xem khi chơi thật.
 - Chưa bấm tay luồng zoom / bảng lọc / mua chỗ đứt khúc (AI không bấm trong trình duyệt). Chưa commit.
 
 ---
 
-## 18/11/2026 (laptop) — Giai đoạn 2 phần đầu: sông + suối, màn mở đầu, 3 phong cách quán
+## 18/11/2026 (laptop) - Giai đoạn 2 phần đầu: sông + suối, màn mở đầu, 3 phong cách quán
 
 **Model:** Claude Opus 5.5. **Nhánh:** `giai-doan-2` (tách từ `nong-dan` sau khi commit bác nông dân). **Kết quả:** typecheck sạch, 37 test qua, build qua; đã xem trong trình duyệt màn mở đầu, bước chọn quán (cả cỡ điện thoại ngang), nội thất 3 quán, 42 món, nông trại có sông.
 
 ### Đã làm
 
-1. **G1 — sông + suối:** `FarmArea.buildWater()`: sông chạy dọc mép trái, suối uốn trước hàng ruộng cuối (ruộng tối đa 5 hàng), chui dưới cầu gỗ trên đường đất rồi đổ vào tâm ao đầu tiên. Dải nước dựng bằng `ribbon()` theo `CatmullRomCurve3`, vệt sóng trắng trôi theo dòng (nhanh hơn khi mưa). Camera nông trại hạ xuống 1 m cho thấy suối.
-2. **G2 — màn mở đầu:** `src/ui/title.ts` (renderer riêng, huỷ khi vào game): logo, Chơi tiếp (khi có save hợp lệ), Ván mới → 3 mặt tiền quán trên một con phố + 3 thẻ giới thiệu; bấm thẻ hoặc bấm vào quán để chọn; có save thì hỏi lại trước khi xoá. Cờ vẽ bằng SVG (Windows không có emoji cờ). `main.ts` quyết định hiện màn mở đầu hay vào thẳng game (`?fresh` / `?play`).
-3. **Sim:** `GameState.cuisine`, `CuisineDef` (`src/data/cuisines.ts`, kèm `startInventory` riêng từng quán — bỏ `balance.startInventory`), `RecipeDef.cuisine`, `DecorDef.cuisine`; `recipesFor` / `decorFor` / `defaultDecor`; mở món / mua nội thất của quán khác bị từ chối. **Save v7, không migration** (chủ dự án chốt chơi lại từ đầu); xoá migration v1→v6.
-4. **G3 — nội thất:** `src/ui/three/cuisine.ts`: Nhật (tatami, vách shoji, noren, đèn lồng giấy, mèo thần tài vẫy tay, thẻ gỗ ghi món, bonsai, tủ kính sushi trên quầy), Hàn (sàn xi măng, biển neon, bàn nướng + ống hút khói theo bàn, ghế đẩu inox, poster, két soju), Việt (đèn lồng Hội An, quạt trần quay, chữ Phúc, bàn thờ ông Địa, ghế nhựa đỏ, ống đũa + tương ớt). Mặt tiền 3 quán (`makeShopfront`) cho màn mở đầu.
-5. **G4 — thực đơn:** 16 món Việt (thêm cơm tấm, hủ tiếu, bún bò, cơm gia đình), 13 Nhật, 13 Hàn; 12 nguyên liệu mới (nước tương, miso, tương ớt Hàn vô hạn; dưa leo, nấm, cá hồi, bún, mì sợi, bánh gạo, đậu phụ, rong biển, bột mì); sạp mới "Tiệm đồ khô chị Sáu"; dưa leo và cá hồi nuôi được. Đủ model 3D cho cả 42 món.
+1. **G1 - sông + suối:** `FarmArea.buildWater()`: sông chạy dọc mép trái, suối uốn trước hàng ruộng cuối (ruộng tối đa 5 hàng), chui dưới cầu gỗ trên đường đất rồi đổ vào tâm ao đầu tiên. Dải nước dựng bằng `ribbon()` theo `CatmullRomCurve3`, vệt sóng trắng trôi theo dòng (nhanh hơn khi mưa). Camera nông trại hạ xuống 1 m cho thấy suối.
+2. **G2 - màn mở đầu:** `src/ui/title.ts` (renderer riêng, huỷ khi vào game): logo, Chơi tiếp (khi có save hợp lệ), Ván mới → 3 mặt tiền quán trên một con phố + 3 thẻ giới thiệu; bấm thẻ hoặc bấm vào quán để chọn; có save thì hỏi lại trước khi xoá. Cờ vẽ bằng SVG (Windows không có emoji cờ). `main.ts` quyết định hiện màn mở đầu hay vào thẳng game (`?fresh` / `?play`).
+3. **Sim:** `GameState.cuisine`, `CuisineDef` (`src/data/cuisines.ts`, kèm `startInventory` riêng từng quán - bỏ `balance.startInventory`), `RecipeDef.cuisine`, `DecorDef.cuisine`; `recipesFor` / `decorFor` / `defaultDecor`; mở món / mua nội thất của quán khác bị từ chối. **Save v7, không migration** (chủ dự án chốt chơi lại từ đầu); xoá migration v1→v6.
+4. **G3 - nội thất:** `src/ui/three/cuisine.ts`: Nhật (tatami, vách shoji, noren, đèn lồng giấy, mèo thần tài vẫy tay, thẻ gỗ ghi món, bonsai, tủ kính sushi trên quầy), Hàn (sàn xi măng, biển neon, bàn nướng + ống hút khói theo bàn, ghế đẩu inox, poster, két soju), Việt (đèn lồng Hội An, quạt trần quay, chữ Phúc, bàn thờ ông Địa, ghế nhựa đỏ, ống đũa + tương ớt). Mặt tiền 3 quán (`makeShopfront`) cho màn mở đầu.
+5. **G4 - thực đơn:** 16 món Việt (thêm cơm tấm, hủ tiếu, bún bò, cơm gia đình), 13 Nhật, 13 Hàn; 12 nguyên liệu mới (nước tương, miso, tương ớt Hàn vô hạn; dưa leo, nấm, cá hồi, bún, mì sợi, bánh gạo, đậu phụ, rong biển, bột mì); sạp mới "Tiệm đồ khô chị Sáu"; dưa leo và cá hồi nuôi được. Đủ model 3D cho cả 42 món.
 6. **Sửa lỗi có sẵn (Giai đoạn 1):** bồi bàn ghi món cho bàn hết nguyên liệu → khách bỏ về, `leave()` lọc lại hàng việc rồi `shift()` xoá nhầm việc kế tiếp của bàn khác → bàn đó chờ mãi, ngày không kết thúc. Giờ xoá đúng việc vừa làm (`service.ts`). Có test hồi quy.
 7. **Cài đặt:** nút "Chơi lại từ đầu" thay bằng "🏠 Màn hình chính" (lưu rồi về màn mở đầu).
 
 ### Còn dở
 
-- Chưa bấm thử luồng Chơi tiếp / Ván mới / xác nhận xoá bằng tay (quy tắc: AI không bấm nút trong trình duyệt) — chủ dự án thử giúp. `?pick=jp|kr|vn` (bản dev) mở thẳng bước chọn quán để xem.
+- Chưa bấm thử luồng Chơi tiếp / Ván mới / xác nhận xoá bằng tay (quy tắc: AI không bấm nút trong trình duyệt) - chủ dự án thử giúp. `?pick=jp|kr|vn` (bản dev) mở thẳng bước chọn quán để xem.
 - Chưa commit. Tiếp theo theo thứ tự đã chốt: **F2 Khách quen** (phương án ngoại hình + cách nhận ra ở `04-ROADMAP.md`).
 
 ---
 
-## 18/11/2026 (laptop) — Bác nông dân chạy theo tương tác
+## 18/11/2026 (laptop) - Bác nông dân chạy theo tương tác
 
 **Model:** Claude Opus 5.5 (Claude Code, desktop). **Nhánh:** `nong-dan` (tách từ `main` sau khi gộp Giai đoạn 1). **Kết quả:** typecheck sạch, 33 test qua, build qua; đã xem trong trình duyệt (bác ra ruộng theo lối, cuốc + gieo, ra bờ ao thả cá, sang chuồng thả gà).
 
 ### Đã làm
 
-1. **Sim:** `src/sim/systems/farmer.ts` — hàng việc của bác (`farmer/do`, `farmer/doAll`, `farmer/cancel`), chạy theo toạ độ mét, tới nơi làm `workTime` rồi gọi handler `farm/*`. `preview()` chạy thử hàng việc trên `structuredClone` của state để báo lỗi ngay lúc bấm. `nextWaypoint` cho đi theo lối (ngang theo khe, dọc trên `balance.farmer.lanes`). Việc 'visit' (chỉ chạy tới xem) tới nơi là xong và bị thay bằng việc thật nếu người chơi giao việc cho ô đó. **Save v6** + migration + test.
+1. **Sim:** `src/sim/systems/farmer.ts` - hàng việc của bác (`farmer/do`, `farmer/doAll`, `farmer/cancel`), chạy theo toạ độ mét, tới nơi làm `workTime` rồi gọi handler `farm/*`. `preview()` chạy thử hàng việc trên `structuredClone` của state để báo lỗi ngay lúc bấm. `nextWaypoint` cho đi theo lối (ngang theo khe, dọc trên `balance.farmer.lanes`). Việc 'visit' (chỉ chạy tới xem) tới nơi là xong và bị thay bằng việc thật nếu người chơi giao việc cho ô đó. **Save v6** + migration + test.
 2. **Data:** vị trí ô nông trại chuyển từ `SLOT_LAYOUT` trong UI vào `SlotTypeDef.layout` (sim cần biết để tính chỗ đứng); `balance.farmer` (home, lanes, speed, workTime).
-3. **3D:** `FarmArea.updateFarmer()` vẽ bác theo state: chạy (vung tay chân), tới nơi quay mặt vào ô và làm động tác theo việc — tư thế mới trong `animatePerson`: `dig` (bổ cuốc), `pour` (tưới), `reach` (cúi gieo / thu / thả giống); biểu tượng việc trên đầu (⛏️ 💧 🌱 🧺 🧹 👀).
+3. **3D:** `FarmArea.updateFarmer()` vẽ bác theo state: chạy (vung tay chân), tới nơi quay mặt vào ô và làm động tác theo việc - tư thế mới trong `animatePerson`: `dig` (bổ cuốc), `pour` (tưới), `reach` (cúi gieo / thu / thả giống); biểu tượng việc trên đầu (⛏️ 💧 🌱 🧺 🧹 👀).
 4. **UI:** bấm ô trong cảnh 3D và mọi nút trong bảng Nông trại đi qua `farmer/*`; ô đã có việc hiện 🧑‍🌾 "Bác đang tới"; dòng trạng thái "Bác còn N việc" + nút "Huỷ bớt"; việc hỏng lúc tới nơi hiện thông báo.
 
 ### Còn dở
 
 - Chưa thử trên điện thoại thật. Chưa commit / chưa gộp vào `main` (chờ chủ dự án).
-- Hiệu ứng hạt (bụi, nước) vẫn phát ở ô lúc việc có tác dụng — khớp thời điểm bác làm xong, nhưng chưa gắn vào tay bác (N2).
+- Hiệu ứng hạt (bụi, nước) vẫn phát ở ô lúc việc có tác dụng - khớp thời điểm bác làm xong, nhưng chưa gắn vào tay bác (N2).
 
 ---
 
-## 18/11/2026 — Giai đoạn 1: game sống động + người chơi làm bồi bàn
+## 18/11/2026 - Giai đoạn 1: game sống động + người chơi làm bồi bàn
 
 **Model:** Claude Opus 5.5 (Claude Code, desktop). **Nhánh:** `giai-doan-1` (gộp vào `main` qua Pull Request). **Kết quả:** typecheck sạch, 25 test qua, build qua.
 
 ### Đã làm (theo thứ tự)
 
 1. **Đọc toàn bộ tài liệu**, tổng hợp kinh nghiệm thiết kế cozy game → `06-KINH-NGHIEM-THIET-KE.md` (10 nguyên tắc, roadmap 4 giai đoạn mã F*, cách dùng skill).
-2. **Cài skill cho Claude Code:** 2 bộ skill Three.js vào `.claude/skills/` của dự án (không đưa lên repo — cách cài lại ở `00-DOC-TRUOC.md`), skill `impeccable` cài global (có thêm hook vào `~/.claude/settings.json`).
+2. **Cài skill cho Claude Code:** 2 bộ skill Three.js vào `.claude/skills/` của dự án (không đưa lên repo - cách cài lại ở `00-DOC-TRUOC.md`), skill `impeccable` cài global (có thêm hook vào `~/.claude/settings.json`).
 3. **F1 · Juice:** `src/ui/ease.ts` (easing, wobble), `src/ui/juice.ts` (icon bay về HUD, bump, chữ nổi +/−, số tiền chạy dần), `src/ui/three/fx.ts` (hạt emoji). Nông trại tự phát hiệu ứng bằng cách so state với khung trước (`FarmArea.react()`): cuốc 💨, tưới 💧, gieo 🌱, chín ✨ + nảy lò xo, thu hoạch bung sản phẩm rồi bay về nút Kho. Quán: xu bay từ bàn về số tiền, đĩa nảy khi ra món. Nút lún khi bấm (CSS `scale`).
 4. **D2 · Nhân vật sống:** `makePerson` dựng lại kiểu chibi có khớp (`userData.rig`), `animatePerson` (thở, chớp mắt, nhìn quanh, đi, ngồi, ăn, nấu, vẫy, bưng). Con vật chớp mắt, heo/bò vẫy đuôi.
 5. **B4 · Hạt:** khói bếp ☁️ khi nấu, tim 💖 khi khách trả tiền.
 6. **D7 · Nét viền:** làm bằng hậu kỳ theo độ sâu → **chủ dự án thấy "hơi bể" → đã gỡ hoàn toàn**.
-7. **C10 · Âm thanh:** `src/ui/audio.ts` tổng hợp bằng Web Audio — hiệu ứng (cuốc, tưới, gieo, chín, thu hoạch, xu, mua, chuông, ding, buồn, lỗi, lên cấp, hết ngày), nhạc nền ngũ cung tự sinh, tiếng mưa theo thời tiết. Không cần file, không cần API key.
+7. **C10 · Âm thanh:** `src/ui/audio.ts` tổng hợp bằng Web Audio - hiệu ứng (cuốc, tưới, gieo, chín, thu hoạch, xu, mua, chuông, ding, buồn, lỗi, lên cấp, hết ngày), nhạc nền ngũ cung tự sinh, tiếng mưa theo thời tiết. Không cần file, không cần API key.
 8. **D3 · Món ăn 3D:** 12 món trong `DISHES` (`makeDish`). **D4 · Cây 3 giai đoạn:** mầm → cây non → trưởng thành.
 9. **HUD mới** (`src/ui/hud.ts`): huy hiệu cấp có vòng kinh nghiệm, tiền, uy tín; đồng hồ: vòng ngày đêm (đĩa trời xoay theo giờ), lịch (`T2 1 · 🌸 Xuân · Năm 1`), icon thời tiết, giờ làm tròn 10 phút, nhãn 🔥 Đông / 🌙 Nghỉ / ⏸ / x2. **Lịch** mới: `src/data/calendar.ts` + `src/sim/calendar.ts` (không đổi save, có test).
 10. **Bảng Cài đặt ⚙️:** tốc độ, nhạc/hiệu ứng, toàn màn hình, hướng dẫn nhanh, chơi lại; mở thì game tạm dừng; phím `Space` / `Esc`.
@@ -344,6 +344,6 @@ AI tự chọn: thông báo nổi đặt góc phải dưới đồng hồ; nhóm
 ### Còn dở / việc tiếp theo
 
 - **Chưa gộp vào `main`** tới khi Pull Request được merge → bản online (Netlify) vẫn là bản cũ.
-- **Chưa thử trên điện thoại thật** (chạm, âm thanh, tốc độ khung hình). Draw call 560–650/khung — nên gộp mesh tĩnh (D5) trước khi thêm nhiều vật thể.
+- **Chưa thử trên điện thoại thật** (chạm, âm thanh, tốc độ khung hình). Draw call 560–650/khung - nên gộp mesh tĩnh (D5) trước khi thêm nhiều vật thể.
 - Câu hỏi còn treo: có làm **bồi bàn tự động** khi người chơi sang nông trại/chợ không (S1)?
-- Gợi ý phiên sau: chơi thử khâu phục vụ rồi chỉnh nhịp (S5), hoặc S1–S4 trong `04-ROADMAP.md`, hoặc Giai đoạn 2 trong `06-KINH-NGHIEM-THIET-KE.md` (khách quen, đơn hàng mỗi ngày) — ưu tiên phần Quán.
+- Gợi ý phiên sau: chơi thử khâu phục vụ rồi chỉnh nhịp (S5), hoặc S1–S4 trong `04-ROADMAP.md`, hoặc Giai đoạn 2 trong `06-KINH-NGHIEM-THIET-KE.md` (khách quen, đơn hàng mỗi ngày) - ưu tiên phần Quán.

@@ -7,7 +7,7 @@ import { coins, qty } from '../format';
 import type { Panel } from './types';
 
 /**
- * Bảng Kho: mọi nguyên liệu theo nhóm. Món đang có trong kho bán lại được (nửa giá gốc, theo mùa) — tiện khi nông trại
+ * Bảng Kho: mọi nguyên liệu theo nhóm. Món đang có trong kho bán lại được (nửa giá gốc, theo mùa) - tiện khi nông trại
  * thu nhiều hơn quán dùng. Đồ có sẵn (gạo, nước, gia vị) không bán.
  */
 export const inventoryPanel: Panel = {

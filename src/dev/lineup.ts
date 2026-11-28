@@ -63,7 +63,7 @@ for (const [build, hairs] of builds) {
   x += 0.4;
 }
 
-// Hàng 2: cử động — đi tại chỗ, ngồi, vẫy, bưng, ăn, lau nhà, nấu
+// Hàng 2: cử động - đi tại chỗ, ngồi, vẫy, bưng, ăn, lau nhà, nấu
 const moves: [string, (t: number) => Pose][] = [
   ['đi', () => ({ walk: 1 })],
   ['đi rồi dừng', (t) => ({ walk: Math.sin(t * 0.8) > 0 ? 1 : 0 })],

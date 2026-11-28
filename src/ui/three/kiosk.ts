@@ -45,7 +45,7 @@ export function makeTeaKiosk(W = 4.6): TeaKiosk {
   const zF = 0.7;
   const zB = zF - D;
   const H = 3.6;
-  // Vỏ tiệm: tường sau, 2 tường hông, sàn, trần — mặt trước để hở ô cửa
+  // Vỏ tiệm: tường sau, 2 tường hông, sàn, trần - mặt trước để hở ô cửa
   mesh(g, G.box(W, H, 0.12), PINK, { p: [0, H / 2, zB + 0.06] });
   for (const s of [-1, 1]) mesh(g, G.box(0.14, H, D), PINK, { p: [s * (W / 2 - 0.07), H / 2, zB + D / 2] });
   mesh(g, G.box(W, 0.06, D), 0xf2ece4, { p: [0, 0.03, zB + D / 2], cast: false });

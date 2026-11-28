@@ -72,9 +72,9 @@ export const crewPanel: Panel = {
       r.helpers.length < max
         ? `<button class="wide"${cmd({ type: 'helper/hire' })}${state.money >= hb.hireCost ? '' : ' disabled'}>➕ Thuê nhân viên phục vụ · ${coins(hb.hireCost)}</button>`
         : `<div class="muted">${max >= content.room.tiers.length - 1 ? 'Đã đủ 4 nhân viên phục vụ.' : `Nâng hạng quán để thuê thêm nhân viên phục vụ (mỗi bậc thêm 1 người, hiện ${r.helpers.length}/${max}).`}</div>`;
-    const sick = r.helpers.filter((h) => h.sick).map((h) => `<div class="card helper sick" data-key="sick-${h.id}"><div class="row"><span class="big">🤒</span><div class="grow"><b>${esc(h.name)}</b> <span class="pill">Nhân viên</span><div class="muted">Bị bệnh, xin nghỉ hôm nay — mai đi làm lại.</div></div></div></div>`).join('');
+    const sick = r.helpers.filter((h) => h.sick).map((h) => `<div class="card helper sick" data-key="sick-${h.id}"><div class="row"><span class="big">🤒</span><div class="grow"><b>${esc(h.name)}</b> <span class="pill">Nhân viên</span><div class="muted">Bị bệnh, xin nghỉ hôm nay - mai đi làm lại.</div></div></div></div>`).join('');
     const team = r.helpers.length >= 2 ? `<p class="muted">🤵 ${esc(r.helpers[0].name)} làm quản lý. Từ 2 nhân viên, mỗi người giữ một bàn: mang menu bàn nào thì ghi món, bưng món, dọn bàn đó.</p>` : '';
-    return `<p class="muted">Đầu bếp tối đa ${b.chefMaxEnergy} ⚡, bồi bàn / nhân viên / bác nông dân ${b.maxEnergy} ⚡. Đầu bếp nấu 1 món tốn ${b.chefPerDish}; phục vụ (menu, ghi món, bưng, lau sàn — dọn bàn không tốn) và bác nông dân (cuốc, gieo, tưới, thu hoạch) mỗi việc tốn ${b.waiterPerTask}; anh shipper mỗi chuyến giao tốn ${b.shipperTrip.energy[0]}–${b.shipperTrip.energy[1]}. Ai cạn cũng xỉu: bồi dưỡng nhanh hồi một nửa sức, ${b.reviveCost} xu lần đầu trong ngày, mỗi lần sau thêm ${b.reviveStep} xu.
+    return `<p class="muted">Đầu bếp tối đa ${b.chefMaxEnergy} ⚡, bồi bàn / nhân viên / bác nông dân ${b.maxEnergy} ⚡. Đầu bếp nấu 1 món tốn ${b.chefPerDish}; phục vụ (menu, ghi món, bưng, lau sàn - dọn bàn không tốn) và bác nông dân (cuốc, gieo, tưới, thu hoạch) mỗi việc tốn ${b.waiterPerTask}; anh shipper mỗi chuyến giao tốn ${b.shipperTrip.energy[0]}–${b.shipperTrip.energy[1]}. Ai cạn cũng xỉu: bồi dưỡng nhanh hồi một nửa sức, ${b.reviveCost} xu lần đầu trong ngày, mỗi lần sau thêm ${b.reviveStep} xu.
       Nghỉ trưa: bác ra chợ ${clockText(b.farmerLunch.from)}–${clockText(b.farmerLunch.to)}, đội quán ra chợ khi hết ca sáng và quán vắng khách, ${clockText(b.lunchBack)} về. Tối sau ca cuối cả đội ra chợ ăn tối. Ngủ qua đêm là đầy sức.</p>
       ${uncookedNote(game)}${team}${rows}${sick}${chefHire(game)}${hire}${courierHire(game)}`;
   },
@@ -107,7 +107,7 @@ function helperControls(h: HelperState): string {
 
 /**
  * Giao món cho đầu bếp (chỉ hiện khi bếp có từ 2 đầu bếp): "Mọi món" hoặc chọn từng món đang bán.
- * Đầu bếp được giao món nào thì chỉ nhận đơn món đó — bếp tự chạy, không cần người chơi điều.
+ * Đầu bếp được giao món nào thì chỉ nhận đơn món đó - bếp tự chạy, không cần người chơi điều.
  */
 function chefControls(game: Game, chefId: string): string {
   const { state, content } = game;
@@ -137,12 +137,12 @@ function chefHire(game: Game): string {
   const cost = content.balance.kitchen.chefHireCost;
   return state.restaurant.staff.length < tier.chefs
     ? `<button class="wide"${cmd({ type: 'chef/hire' })}${state.money >= cost ? '' : ' disabled'}>🧑‍🍳 Thuê đầu bếp (${esc(def.name)}) · ${coins(cost)}</button>`
-    : `<div class="muted">Bếp đủ ${tier.chefs} đầu bếp — mở rộng bếp (bảng Quán) để thuê thêm.</div>`;
+    : `<div class="muted">Bếp đủ ${tier.chefs} đầu bếp - mở rộng bếp (bảng Quán) để thuê thêm.</div>`;
 }
 
 /** Cảnh báo: món đang bán mà không đầu bếp nào được giao nấu. */
 function uncookedNote(game: Game): string {
   const ids = uncookedDishes(game.ctx);
   if (!ids.length) return '';
-  return `<div class="low-note">⚠️ Chưa đầu bếp nào nấu: ${ids.map((id) => `${game.content.recipes.get(id).icon} ${esc(game.content.recipes.get(id).name)}`).join(', ')} — khách gọi món này sẽ phải chờ mãi.</div>`;
+  return `<div class="low-note">⚠️ Chưa đầu bếp nào nấu: ${ids.map((id) => `${game.content.recipes.get(id).icon} ${esc(game.content.recipes.get(id).name)}`).join(', ')} - khách gọi món này sẽ phải chờ mãi.</div>`;
 }

@@ -880,7 +880,7 @@ button.danger {
 
 /*
  * Thẻ trong ngăn kéo (biểu tượng · chữ · nút): ngăn kéo hẹp (điện thoại ngang) thì nút xuống hàng dưới, canh phải,
- * chữ giữ đủ bề rộng — không còn cột chữ bị ép mỗi dòng một từ.
+ * chữ giữ đủ bề rộng - không còn cột chữ bị ép mỗi dòng một từ.
  */
 #panel .card > .row,
 #panel > .row {
@@ -896,7 +896,7 @@ button.danger {
 #panel .card > .row > .btns {
   margin-left: auto;
 }
-/* Danh sách giống (bảng Nông trại): nút giá ngắn, luôn nằm cùng hàng với chữ cho gọn — đỡ phải cuộn */
+/* Danh sách giống (bảng Nông trại): nút giá ngắn, luôn nằm cùng hàng với chữ cho gọn - đỡ phải cuộn */
 #panel .card > .row.seed-row {
   flex-wrap: nowrap;
   gap: 8px;
@@ -1171,7 +1171,7 @@ button.water {
   text-align: center;
 }
 
-/* Thông báo nổi: góc phải, dưới đồng hồ, cạnh cột nút tròn — không che giữa màn hình */
+/* Thông báo nổi: góc phải, dưới đồng hồ, cạnh cột nút tròn - không che giữa màn hình */
 .dialog.police .police-choices {
   display: flex;
   flex-wrap: wrap;
@@ -3360,7 +3360,7 @@ button.service-card.pass-hint {
     font-size: 12px;
   }
 }
-/* Bước nông trại: ruộng rau và chuồng nằm bên trái / giữa — thẻ sang bên phải, dưới đồng hồ */
+/* Bước nông trại: ruộng rau và chuồng nằm bên trái / giữa - thẻ sang bên phải, dưới đồng hồ */
 .coach.right {
   left: 12px;
   right: auto;
@@ -3659,7 +3659,7 @@ button.quest-claim {
   }
 }
 
-/* F1: thăm quán người khác (?visit) — chỉ xem: ẩn HUD, ngăn kéo, mọi bảng / hộp thoại của ván đó */
+/* F1: thăm quán người khác (?visit) - chỉ xem: ẩn HUD, ngăn kéo, mọi bảng / hộp thoại của ván đó */
 #app.visiting #hud,
 #app.visiting #tools,
 #app.visiting #areabar,
@@ -3868,7 +3868,7 @@ button.quest-claim {
   justify-content: space-between;
 }
 
-/* ---------- Giai đoạn 20: HUD gọn — cụm cấp + tiền + uy tín + 🏆 chung một khung; đồng hồ sát lề phải, nút tròn xuống dưới đồng hồ ---------- */
+/* ---------- Giai đoạn 20: HUD gọn - cụm cấp + tiền + uy tín + 🏆 chung một khung; đồng hồ sát lề phải, nút tròn xuống dưới đồng hồ ---------- */
 .hud-stats {
   display: flex;
   align-items: center;
@@ -3970,4 +3970,19 @@ button.quest-claim {
   #tools button.navbtn .big {
     font-size: 12px;
   }
+}
+
+/* Chuyển cảnh lên hạng quán: màn kem sáng dần lên rồi tan ra (app.ts, sự kiện restaurant/upgraded) */
+#upgrade-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 45%, #fffdf6 0%, #fff4dc 60%, #ffe9bf 100%);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+#upgrade-veil.on {
+  opacity: 1;
+  transition: opacity 0.42s ease-in;
 }

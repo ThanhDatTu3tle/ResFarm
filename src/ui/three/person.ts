@@ -50,7 +50,7 @@ const BUILDS: Record<PersonBuild, { scale: number; leg: number; head: number; to
 
 /** Các khớp của người để khu vực cử động. */
 export interface Rig {
-  /** Gốc bên trong (nhún khi bước, lắc hông) — vị trí / hướng của cả người vẫn là group ngoài. */
+  /** Gốc bên trong (nhún khi bước, lắc hông) - vị trí / hướng của cả người vẫn là group ngoài. */
   root: THREE.Group;
   body: THREE.Group;
   head: THREE.Group;
@@ -132,7 +132,7 @@ export function makePerson(look: Look, hat: 'none' | 'chef' | 'straw' = 'none', 
     }
   }
 
-  // Khăn quàng cổ (chỉ hiện mùa đông — xem `wardrobe`), mỗi người một màu
+  // Khăn quàng cổ (chỉ hiện mùa đông - xem `wardrobe`), mỗi người một màu
   const scarfColor = SCARVES[personSeed % SCARVES.length];
   const scarf = group(body, { p: [0, (NECK_Y - HIP_Y) * t - 0.02, 0], s: [w, 1, w] });
   mesh(scarf, G.torus(0.165, 0.062, 6, 16), scarfColor, { r: [Math.PI / 2, 0, 0] });
@@ -185,7 +185,7 @@ function shadowMat(): THREE.MeshBasicMaterial {
 
 /**
  * Đổi vật liệu của người sang bản có viền sáng mềm (rim light): mép người hắt sáng nhẹ, tách khỏi nền.
- * Bỏ qua chi tiết nhỏ trên mặt (mắt, má, miệng — mesh không đổ bóng) và vật liệu trong suốt.
+ * Bỏ qua chi tiết nhỏ trên mặt (mắt, má, miệng - mesh không đổ bóng) và vật liệu trong suốt.
  * Gọi lại sau khi gắn thêm đồ (khách quen, tạp dề) cũng được.
  */
 export function rimify(obj: THREE.Object3D): void {
@@ -355,7 +355,7 @@ export const FARMER_SHAPE: Shape = { width: 1.18, height: 0.97 };
 export const wardrobe = { winter: false, rain: false };
 
 /**
- * Gắn cây dù (ẩn sẵn) vào tay phải — chỉ người đứng ngoài trời (chợ) mới gắn. Trời mưa (`wardrobe.rain`) thì
+ * Gắn cây dù (ẩn sẵn) vào tay phải - chỉ người đứng ngoài trời (chợ) mới gắn. Trời mưa (`wardrobe.rain`) thì
  * animatePerson giơ tay cầm dù lên che đầu.
  */
 export function addUmbrella(person: THREE.Object3D, color: number): void {

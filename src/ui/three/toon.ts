@@ -13,7 +13,7 @@ gradientMap.needsUpdate = true;
 
 const matCache = new Map<number, THREE.MeshToonMaterial>();
 
-/** Vật liệu toon theo màu. Không truyền opts thì dùng chung (cache) — đừng sửa trực tiếp vật liệu dùng chung. */
+/** Vật liệu toon theo màu. Không truyền opts thì dùng chung (cache) - đừng sửa trực tiếp vật liệu dùng chung. */
 export function toon(color: number, opts?: THREE.MeshToonMaterialParameters): THREE.MeshToonMaterial {
   if (opts) return crayonize(new THREE.MeshToonMaterial({ color, gradientMap, ...opts }));
   let m = matCache.get(color);
@@ -153,9 +153,9 @@ export function emojiSprite(icon: string, size = 0.6): THREE.Sprite {
 const bubbleTextures = new Map<string, THREE.Texture>();
 
 /**
- * Bong bóng chat (nền trắng bo tròn, đuôi nhọn chỉ xuống) chứa một hoặc nhiều emoji — dùng cho yêu cầu của khách
+ * Bong bóng chat (nền trắng bo tròn, đuôi nhọn chỉ xuống) chứa một hoặc nhiều emoji - dùng cho yêu cầu của khách
  * (📖 cần menu, 😊 chọn xong món, mặt theo tâm trạng, các món đã gọi). Texture có cache theo nội dung.
- * Luôn vẽ đè lên cảnh (không bị quầy / mái quầy / tường che — vd bàn dơ ở quầy chữ L quán Nhật).
+ * Luôn vẽ đè lên cảnh (không bị quầy / mái quầy / tường che - vd bàn dơ ở quầy chữ L quán Nhật).
  */
 export function bubbleSprite(icons: string[], size = 0.62, bg?: string | null): THREE.Sprite {
   const key = icons.join('|') + (bg ? `#${bg}` : '');
@@ -242,7 +242,7 @@ export function speechSprite(text: string, size = 0.22): THREE.Sprite {
   return sprite;
 }
 
-/** Chữ nổi (vd "+52"). Mỗi lần gọi tạo texture riêng — nhớ dispose khi bỏ. */
+/** Chữ nổi (vd "+52"). Mỗi lần gọi tạo texture riêng - nhớ dispose khi bỏ. */
 /**
  * Viền đèn LED nhiều màu quanh một bảng hiệu (khung chữ nhật w × h, mặt nhìn về +z). Trả về danh sách bóng để
  * `blinkLeds` nhấp nháy chạy vòng mỗi khung hình.

@@ -10,7 +10,7 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 ## Yêu cầu chủ dự án đã nêu (theo thứ tự thời gian)
 
-### Đợt 1 — ý tưởng
+### Đợt 1 - ý tưởng
 
 - Khởi đầu là quán ăn tối giản, về sau phát triển thành nhà hàng xịn.
 - Quán có: 1 bàn lớn 6 người, 1 bàn vừa 4 người, 2 bàn đôi, 1 dãy bàn dài 4 ghế đơn đặt ngay trước gian bếp cho khách đi một mình. *(Sau đó đổi: bỏ bớt 1 bàn đôi, xem đợt 3.)*
@@ -20,16 +20,16 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 - Nguyên liệu phải đi chợ mua hoặc trồng trọt/chăn nuôi mới có: rau, thịt, cá, trứng, sữa...
 - Hệ thống thực đơn, nguyên liệu, quy trình trồng trọt chăn nuôi phải có nền đủ vững để phát triển tiếp.
 
-### Đợt 2 — đồ hoạ và các khu
+### Đợt 2 - đồ hoạ và các khu
 
 - Đồ hoạ 3D phong cách hoạt hình, giống dự án `co-thu-3d`.
 - Mỗi khu một màn hình riêng: quán (chủ yếu nhìn bên trong, tông ấm), nông trại, chợ.
 - Nông trại: các khu đất, mặc định 9 ô, mở rộng được; có chuồng nuôi gà...
-- Chợ: trước mắt 3 sạp — thịt bò/heo/gà · rau, trứng, sữa · hải sản, cá, tôm, mực.
+- Chợ: trước mắt 3 sạp - thịt bò/heo/gà · rau, trứng, sữa · hải sản, cá, tôm, mực.
 - Chuyển khu bằng nút ở hai bên màn hình.
 - Có thời tiết (mưa, nắng, gió) và ngày/đêm.
 
-### Đợt 3 — tinh chỉnh
+### Đợt 3 - tinh chỉnh
 
 - Một ngày trong game khoảng **20 phút thực**; thời gian nấu và thời gian cây/con lớn co giãn theo. Danh sách thời gian chi tiết và thực đơn chi tiết **chủ dự án sẽ đưa sau**, giao cho Opus/Sonnet nhập.
 - Camera xoay và zoom được. Đồ hoạ, tông màu, model nhân vật hiện tại đã ổn.
@@ -38,37 +38,37 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 - Cho phép di chuyển, đặt lại bàn ghế theo sở thích.
 - Quán ban đầu nhỏ lại để còn cảm giác nâng cấp: bỏ 1 bàn đôi, dồn bàn gần nhau, thu gọn khu bếp.
 
-### Đợt 4 — nông trại
+### Đợt 4 - nông trại
 
 - Tưới cây; trời mưa thì khỏi tưới. Đất đã tưới hoặc hứng mưa có màu sẫm hơn.
 - Cuốc đất: đất có trạng thái chưa tơi xốp, phải cuốc mới gieo được.
 - Thêm 1 ao cá; ao nâng cấp rộng ra để nuôi được nhiều cá hơn.
 - Nền tảng phải đủ chuẩn để sau này đổi/nâng cấp model chi tiết hơn, đẹp hơn, nhiều hơn.
 
-### Đợt 5 — Giai đoạn 1 (18/11/2026)
+### Đợt 5 - Giai đoạn 1 (18/11/2026)
 
 - Game phải "cute" và có cảm giác đã tay hơn: hiệu ứng nảy, hạt, nhân vật cử động, món ăn 3D, cây lớn theo giai đoạn, âm thanh.
 - **Bỏ nét viền** hoạt hình: đã thử viền mảnh theo độ sâu, chủ dự án thấy "nhìn hơi bể" → gỡ.
 - **HUD mới** tham khảo bố cục game nông trại kinh điển (không sao chép): đồng hồ ngày đêm, lịch trong năm, icon thời tiết, huy hiệu cấp; gom tốc độ / âm thanh / toàn màn hình vào nút bánh răng kèm hướng dẫn nhanh.
 - **Bỏ thẻ chỉ dẫn** tên khu ở cả ba khu (hướng dẫn đã nằm trong bảng Cài đặt).
 - **Font Mali** (chọn từ 6 font có hỗ trợ tiếng Việt).
-- **Quán phải có việc cho người chơi làm:** người chơi đóng vai **bồi bàn** — mang menu (khách xem 3–7 giây), xác nhận món, lấy món ở **quầy ra món** giao đúng bàn; khách có 4 bậc tâm trạng Vui vẻ → Bình thường → Chán nản → Tức giận, mỗi bậc 10 giây.
+- **Quán phải có việc cho người chơi làm:** người chơi đóng vai **bồi bàn** - mang menu (khách xem 3–7 giây), xác nhận món, lấy món ở **quầy ra món** giao đúng bàn; khách có 4 bậc tâm trạng Vui vẻ → Bình thường → Chán nản → Tức giận, mỗi bậc 10 giây.
 - Nông trại và chợ **chưa cần** thêm việc ở giai đoạn này.
 
-### Đợt 6 — Bác nông dân (18/11/2026)
+### Đợt 6 - Bác nông dân (18/11/2026)
 
 - Nhân vật nông dân ở nông trại không đứng yên nữa mà **di chuyển theo tương tác**: bấm ô ruộng để trồng/tưới thì bác chạy tới thửa ruộng đó; bấm ao cá thì chạy ra ao; bấm chuồng thì chạy sang chuồng.
 - Ngoài chợ không cần nhân vật phục vụ. (AI hiểu câu này là: chưa làm bồi bàn tự động S1.)
 
 **AI tự chọn (đổi được):** bác làm lần lượt theo hàng việc (tối đa 24 việc), tới nơi mới có tác dụng; chạy ~5.6 m/giây thực, mỗi việc ~0.7 giây (`balance.farmer`); đi theo lối (ngang theo khe ruộng, dọc trên đường đất hoặc mép trái ruộng); đứng mép trước ruộng/chuồng, bờ trái ao; rảnh thì đứng yên tại chỗ vừa làm và thỉnh thoảng vẫy tay.
 
-### Đợt 7 — Giai đoạn 2, chọn phong cách quán, con sông (18/11/2026)
+### Đợt 7 - Giai đoạn 2, chọn phong cách quán, con sông (18/11/2026)
 
 - **F2 Khách quen: đồng ý làm.** Chủ dự án lo nhất phần **ngoại hình**: phải đa dạng độ tuổi, giới tính, ngoại hình; và với model khách hiện tại thì **khó nhận ra ai là khách quen** → cần thiết kế kỹ cách nhận diện (xem phương án ở `04-ROADMAP.md`, mục "Giai đoạn 2").
 - **Màn hình mở đầu:** có menu. Chưa có server nên trước mắt chỉ có **"New game"**. Bấm Play → chọn **phong cách quán**:
-  - 🇯🇵 **Quán Nhật** — sushi, cơm cuộn, mì ramen...
-  - 🇰🇷 **Quán Hàn** — tokbokki, gà rán...
-  - 🇻🇳 **Quán Việt** — cơm gia đình, phở, bún bò, hủ tiếu, cơm tấm...
+  - 🇯🇵 **Quán Nhật** - sushi, cơm cuộn, mì ramen...
+  - 🇰🇷 **Quán Hàn** - tokbokki, gà rán...
+  - 🇻🇳 **Quán Việt** - cơm gia đình, phở, bún bò, hủ tiếu, cơm tấm...
 - Màn chọn hiện **3 model ngoại thất** tương ứng 3 nước. Chọn xong thì vào quán có **nội thất thiết kế theo đặc trưng văn hoá** nước đó.
 - **Nông trại và chợ dùng chung** cho cả 3 nước.
 - **Nông trại có một con sông**, từ sông có **một con suối nhỏ dẫn nước vào ao**.
@@ -77,7 +77,7 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** thực đơn 3 nước (bảng ở mục "Nội dung đang có", chủ dự án duyệt/sửa), đồ trang trí từng quán (xem `src/ui/three/cuisine.ts`), phong cách quán cố định trong một ván (muốn đổi thì Ván mới), nút "Chơi lại từ đầu" trong Cài đặt thay bằng "Màn hình chính".
 
-### Đợt 8 — Chỉnh sau khi thử Giai đoạn 2 phần đầu (18/11/2026)
+### Đợt 8 - Chỉnh sau khi thử Giai đoạn 2 phần đầu (18/11/2026)
 
 - Menu mở đầu ổn. **Model 3 mặt tiền quán chưa ưng** → để vậy, có thời gian sẽ đầu tư chỉnh sau.
 - Trong quán vẫn hơi to, **gian bếp to quá** → thu nhỏ; **bên trái gian bếp có lối vào WC và kho hàng**.
@@ -91,31 +91,31 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** quán 640×540 (cũ 720×600), bếp 3.4 m; cối chế biến cho người chơi **chọn thành phẩm** (cối xay gió: bột mì / mì sợi / bánh mì; nhà xay lúa: bánh phở / bún / bánh gạo), 1 lúa → 1 thành phẩm, 10 phút game mỗi phần; tối đa 4 ruộng lúa mì, 4 ruộng lúa nước, 2 cối mỗi loại; gieo lại tự động vẫn trừ tiền giống (thiếu tiền thì ô để trống, có thông báo); thêm 3 món dùng bánh mì (bánh mì thịt, sandwich heo chiên xù, bánh mì nướng đường phố); ao nằm dọc suối, bác đứng bờ sau ao; zoom = 55–62% khoảng cách mặc định, đóng bảng thì camera lướt về.
 
-### Đợt 9 — Chỉnh nông trại lần 2 (18/11/2026)
+### Đợt 9 - Chỉnh nông trại lần 2 (18/11/2026)
 
-- **Vệt gió** phải thật mỏng, ít, ngắn, hơi uốn lượn — chỉ để có cảm giác.
+- **Vệt gió** phải thật mỏng, ít, ngắn, hơi uốn lượn - chỉ để có cảm giác.
 - **Cối xay gió** về chỗ cũ: phía bắc, sau hàng rào.
 - **Ao** không tròn: cong, méo tự nhiên. **Mở rộng ao = nới rộng diện tích ao**, không xây thêm ao mới.
 - Khu 4 ô bên kia suối: **2 ô cạnh sông là ruộng lúa nước** (mặc định 1, ô kia phải mở rộng), **bên cạnh là ruộng lúa mì**.
 - **Nhà xay lúa** đặt sát bờ sông, ở vị trí cối xay gió cũ (phía nam).
 
-**AI tự chọn (đổi được):** ao 4 bậc (6 → 7.8 → 9.6 → 11.4 m bề ngang), viền đứt khúc của ao là hình ao ở bậc kế tiếp; lúa mì tối đa 2 ô (khu đã chốt 4 ô); mương nhỏ dẫn nước sông vào ruộng lúa nước; bỏ lối dọc bên trái (x = -8.3) — mọi chỗ đều tới được qua đường đất giữa, lối trái làm bác chạy ngang xuyên ruộng; vệt gió là nét 1 px dài ~1.2 m, tối đa 6 sợi.
+**AI tự chọn (đổi được):** ao 4 bậc (6 → 7.8 → 9.6 → 11.4 m bề ngang), viền đứt khúc của ao là hình ao ở bậc kế tiếp; lúa mì tối đa 2 ô (khu đã chốt 4 ô); mương nhỏ dẫn nước sông vào ruộng lúa nước; bỏ lối dọc bên trái (x = -8.3) - mọi chỗ đều tới được qua đường đất giữa, lối trái làm bác chạy ngang xuyên ruộng; vệt gió là nét 1 px dài ~1.2 m, tối đa 6 sợi.
 
-### Đợt 10 — Nhà lồng / nhà màng (18/11/2026)
+### Đợt 10 - Nhà lồng / nhà màng (18/11/2026)
 
 - Thêm **một căn nhà lồng kính / nhà màng nông nghiệp** phía nam ao. Mở rộng giống ao: **nhà dài ra về phía đông**, không xây thêm căn mới.
 - Có **giao diện bên trong** (tham khảo ảnh nhà màng thật, vẫn theo phong cách đồ hoạ của game): mặc định **8 ô đất nhỏ, 4 ô mỗi bên, lối đi ở giữa**.
 
 **AI tự chọn (đổi được):** mỗi lần nới rộng +4 luống (+3.8 m), tối đa 20 luống; trồng được mọi rau củ của ruộng; không cần cuốc / tưới (có tưới nhỏ giọt), lớn nhanh hơn 30%; vào bên trong bằng cách bấm nhà kính ở nông trại hoặc nút chuyển khu (nhà kính nằm bên trái nông trại); trong sim bác nông dân đứng ở cửa nhà kính, khu bên trong vẽ bác cạnh luống đang làm.
 
-### Đợt 11 — Chợ (18/11/2026)
+### Đợt 11 - Chợ (18/11/2026)
 
 - Chợ có thêm **đường và xe cộ chạy qua lại**; **vỉa hè rộng gấp đôi**.
-- Gian hàng có **bảng tên**: thịt "Chuyên thịt heo/lợn", rau "Tạp hóa cậu Ba", hải sản "Hải sản Tuyết Nhung" (kèm **bảng chân đứng** "Chuyên các loại ốc" — chữ to, đã đổi từ "Chuyên các loại ốc, nghêu, sò"), đồ khô "Chuyên đồ khô, mì, bún, phở".
+- Gian hàng có **bảng tên**: thịt "Chuyên thịt heo/lợn", rau "Tạp hóa cậu Ba", hải sản "Hải sản Tuyết Nhung" (kèm **bảng chân đứng** "Chuyên các loại ốc" - chữ to, đã đổi từ "Chuyên các loại ốc, nghêu, sò"), đồ khô "Chuyên đồ khô, mì, bún, phở".
 
 **AI tự chọn (đổi được):** tên sạp trong bảng Chợ cũng đổi theo bảng tên; "đồ kho" hiểu là "đồ khô"; xe gồm ô tô, xe tải nhỏ, xe máy (người lái đội mũ bảo hiểm), chạy 2 làn ngược chiều, đèn xe sáng khi tối; có vạch qua đường, đèn đường và cây trên vỉa hè.
 
-### Đợt 12 — Nhiệm vụ hệ thống (18/11/2026)
+### Đợt 12 - Nhiệm vụ hệ thống (18/11/2026)
 
 - Thêm **nhiệm vụ hệ thống** để tăng tương tác, đỡ nhàm chán: 5–7 nhiệm vụ từ dễ đến khó, dựa trên luật hiện có của game.
 
@@ -131,7 +131,7 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 | 6 | 🔥 Ngày đắt hàng | Doanh thu một ngày đạt 600 xu | 300 xu, 60 XP |
 | 7 | ⭐ Quán có tiếng | Uy tín đạt 4 sao | 500 xu, 100 XP |
 
-### Đợt 13 — Khách quen + Giai đoạn 3 "Quán của riêng mình" (19/11/2026)
+### Đợt 13 - Khách quen + Giai đoạn 3 "Quán của riêng mình" (19/11/2026)
 
 - Làm **F2 Khách quen** trước rồi vào **Giai đoạn 3** (F4 đồ trang trí tự do, F5 tên quán / thú cưng / chụp ảnh, C3 nâng hạng quán, B2 xoay bàn, B7 mua thêm bàn).
 
@@ -143,17 +143,17 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 - Thú cưng: Mèo mướp (khách kiên nhẫn +6%), Cún vàng (khách tới +6%). Bán lại đồ / bàn được 50% giá.
 - Trước cửa có "lối ra vào" không đặt bàn / đồ được (chỗ khách xếp hàng).
 
-### Đợt 14 — Chỉnh theo phản hồi (19/11/2026)
+### Đợt 14 - Chỉnh theo phản hồi (19/11/2026)
 
 - Khách quen: chủ dự án thấy hơi lạ với người chơi nhưng **cứ để chạy thử**.
 - Nông trại: bỏ nhánh suối phía đông ao; vườn cây ăn quả (cam, táo, xoài, chuối) 8 gốc, có sẵn 1 cam + 1 táo; đường đất thêm đá, cát.
-- Quán: bỏ bàn thờ (cả 3 quán); quán khởi đầu nhỏ lại — 1 bàn bốn, 2 bàn đôi, 3 ghế quầy; khách thưa hơn chút; bồi bàn đưa menu xong đứng yên tại bàn; 1 ngày 12 phút, giờ chạy 06:00–24:00; 2 ca 07:00–12:00 và 15:00–20:00; khay bưng cả bàn ở quầy ra món (kéo thả món vào khay 2 / 4 ô); chén dĩa dơ phải dọn; vết bẩn sau mỗi ca, bấm giữ để lau; tường hai bên đầy đủ; tổng kết ngày kèm kho.
+- Quán: bỏ bàn thờ (cả 3 quán); quán khởi đầu nhỏ lại - 1 bàn bốn, 2 bàn đôi, 3 ghế quầy; khách thưa hơn chút; bồi bàn đưa menu xong đứng yên tại bàn; 1 ngày 12 phút, giờ chạy 06:00–24:00; 2 ca 07:00–12:00 và 15:00–20:00; khay bưng cả bàn ở quầy ra món (kéo thả món vào khay 2 / 4 ô); chén dĩa dơ phải dọn; vết bẩn sau mỗi ca, bấm giữ để lau; tường hai bên đầy đủ; tổng kết ngày kèm kho.
 - Chợ: thêm xe hủ tiếu, gánh bánh tráng trộn, xe cà phê dạo (trên vỉa hè), tiệm ăn vặt / trà sữa cạnh quầy đồ khô; sạp thịt đổi tên "Thịt bò/lợn cô Bủm"; bấm sạp thì zoom sát vào.
 - Giao diện: nút không bị tai thỏ / góc màn hình che, tránh góc logo Netlify; bảng nhiệm vụ bấm xem chi tiết.
 
 **AI tự chọn (đổi được):** món dùng trái cây (Đĩa trái cây, Chè chuối, Sandwich trái cây, Trà trái cây hwachae); hàng rong mới bán nguyên liệu có sẵn với giá cao hơn 10%; nhóm 5–6 người chỉ tới khi có bàn đủ chỗ; khay 2 ô dành cho bàn đôi / quầy, 4 ô cho bàn từ 3 ghế; mỗi ca để lại 3 vết bẩn, vết cũ bẩn thêm, mỗi bậc bẩn làm khách kém kiên nhẫn 1.5% (tối đa −20%).
 
-### Giai đoạn 11 — Mùa 2 tuần, người làm vườn, dụng cụ, nhiệm vụ dài + thành tựu (21/11/2026)
+### Giai đoạn 11 - Mùa 2 tuần, người làm vườn, dụng cụ, nhiệm vụ dài + thành tựu (21/11/2026)
 
 - Một năm hơi dài: rút mỗi mùa còn 14 ngày (2 tuần).
 - Đơn mang về và giao tận nơi: ý tưởng hay nhưng chưa cần, ghi lại để làm sau (roadmap).
@@ -162,7 +162,7 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** ngày lễ dời theo mùa 14 ngày (pháo hoa Hạ ngày 10, Trung thu Thu ngày 8, Giáng sinh Đông ngày 12, Tất niên Đông ngày 14); 3 người làm vườn, chỗ mở ở cấp 2 / 4 / 6, phí thuê 350 xu một lần (chưa có lương), không có năng lượng, nghỉ cùng giờ bác nông dân, đi chậm hơn bác (3.0 so với 3.7 m/phút) và làm lâu hơn (1.4 so với 1.1 phút); người làm vườn không đụng ruộng lúa (máy cày vẫn là việc của bác); 4 dụng cụ: liềm bén 300 xu cấp 2 (thu nhanh gấp đôi), bình tưới lớn 380 xu cấp 2, giày vải 450 xu cấp 3 (đi ×1.3), máy cày đời mới 900 xu cấp 4; 22 nhiệm vụ chia 4 chương (thêm 15 nhiệm vụ mới: lên cấp, giao đơn, thuê người làm vườn, sắm dụng cụ, nâng bếp / quán, thu hoạch, qua mùa, tròn năm...); 23 thành tựu (bậc đồng / bạc / vàng cho phục vụ, khách vui, thu hoạch, doanh thu...); bộ đếm thành tựu đếm từ lúc cập nhật (save cũ bắt đầu từ 0).
 
-### Giai đoạn 9 — Bưng món theo màu bàn (20/11/2026)
+### Giai đoạn 9 - Bưng món theo màu bàn (20/11/2026)
 
 - Cơ chế kéo thả vào khay rối: bỏ. Nhân viên vẫn gửi menu, ghi món như cũ; bưng tối đa 2 món.
 - Quầy line có món thì người chơi bấm quầy để nhân viên đi bưng; lấy theo thứ tự món nào nấu trước lấy trước. Món đang cầm hiện icon trên đầu nhân viên, có màu giống màu khung bong bóng của khách đang chờ món đó; các món cùng bàn cùng màu.
@@ -170,13 +170,13 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** bảng 8 màu (`src/ui/colors.ts`); màu gán lúc ghi món, chọn màu chưa bàn nào đang dùng; đĩa trên quầy line có vòng màu bên dưới; thanh "Đang cầm" phía dưới có nút "+ Lấy thêm món" khi tay còn trống.
 
-### Giai đoạn 8 — Đơn đặt hàng, bán hàng dư, sự kiện ngẫu nhiên (19/11/2026)
+### Giai đoạn 8 - Đơn đặt hàng, bán hàng dư, sự kiện ngẫu nhiên (19/11/2026)
 
 - Chủ dự án chọn: bán hàng dư + đơn đặt hàng, sự kiện ngẫu nhiên. Chưa làm: chế biến / chăn nuôi sâu, khách quen có hội thoại, làm đẹp quán, tiện ích (save, offline).
 
 **AI tự chọn (đổi được):** đơn hàng chỉ cần nguyên liệu (không phải món nấu sẵn), không cần bấm nhận đơn, quá hạn không phạt; giá bán lại = 50% giá gốc; 5 sự kiện và số liệu trong `src/data/events.ts` (nhà phê bình thưởng 150 xu + 0.3⭐ / phạt 0.3⭐; thanh tra thưởng 120 xu / phạt 40 xu mỗi chỗ bẩn, tối đa 200; xe du lịch khách ×2 trong 90 phút; mất điện nấu chậm ½ trong 60 phút; khách sộp tip ×2 trong 120 phút).
 
-### Giai đoạn 7 — Mở rộng bếp, hướng dẫn, cảnh báo nguyên liệu (19/11/2026)
+### Giai đoạn 7 - Mở rộng bếp, hướng dẫn, cảnh báo nguyên liệu (19/11/2026)
 
 - Nhân viên + lương để dành sau. Làm mở rộng nhà bếp và quầy line → thuê thêm đầu bếp và nhân viên; có từ 2 người thì giao việc cụ thể để họ tự làm.
 - Hướng dẫn chơi ở ngoài menu: người chơi tuỳ ý học cách chơi hoặc vào game luôn.
@@ -184,13 +184,13 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** 3 hạng bếp (giá 0 / 1200 / 2800 xu, cấp 1 / 3 / 5); phí thuê đầu bếp 400 xu, đầu bếp thuê nấu chậm hơn bếp trưởng (1.35 so với 1.6); "giao việc" cho đầu bếp = chọn món người đó nấu, nhân viên phục vụ giữ cách giao việc cũ; quầy line đầy (tính cả món đang nấu) thì bếp chờ; ngưỡng cảnh báo 3 phần; hướng dẫn dạng các trang chữ (không chơi thử có dẫn từng bước).
 
-### Giai đoạn 6 — Mùa vụ và lễ hội (19/11/2026)
+### Giai đoạn 6 - Mùa vụ và lễ hội (19/11/2026)
 
 - Chủ dự án chọn hướng "mùa vụ + lễ hội" cho giai đoạn 6. Bỏ Tết Đoan Ngọ, giữ 5 lễ.
 
 **AI tự chọn (đổi được):** mùa của từng giống (rau cải Xuân/Thu, cà chua Xuân/Hạ, hành tây Xuân/Hạ/Thu, cà rốt Xuân/Thu, khoai tây Hạ/Thu, dưa leo Xuân/Hạ, ớt Hạ/Thu, lúa mì Xuân/Thu, lúa nước Hạ/Thu); cây ăn quả, vật nuôi, cá quanh năm (chỉ nghỉ Đông); cây trái mùa héo kiểu Stardew (cây chín thì giữ); giá chợ ×0.85 / ×1.3, món hợp mùa +20% (Xuân tươi mát, Hạ món lạnh / trái cây, Thu nướng / om, Đông món nước nóng); 5 lễ hội và hiệu ứng (bảng trong Sổ tay); năm đầu không ăn Tết ngày khai trương; bão dập 35% ô ngoài trời mất nửa tiến độ.
 
-### Đợt 18 — HUD gọn lại, bốn mùa (19/11/2026)
+### Đợt 18 - HUD gọn lại, bốn mùa (19/11/2026)
 
 - Thẻ nhiệm vụ nằm cạnh tiền và sao. Đồng xu luôn màu vàng.
 - 5 nút Nông trại, Quán, Chợ, Nhân viên, Siêu thị thành nút tròn chỉ có icon, xếp dọc dưới nút Cài đặt. Thanh dưới còn Khách quen, Thực đơn, Kho và 2 nút chuyển khu (đổi màu cho dễ phân biệt). Nút ✕ của các bảng to hơn.
@@ -200,7 +200,7 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** mùa Đông cây ngoài trời đang trồng dở chỉ ngừng lớn (không chết), sang Xuân lớn tiếp; ruộng tự động không gieo lại giữa mùa Đông; thời tiết mùa Đông có "Tuyết rơi" thay cho mưa; tổng kết hiện ngay trên màn hết ngày 28 (không thêm màn riêng); save cũ bắt đầu đếm doanh thu mùa / năm từ lúc nâng cấp.
 
-### Đợt 17 — Gọi món cho cả đội, vào bên trong quầy chợ (19/11/2026)
+### Đợt 17 - Gọi món cho cả đội, vào bên trong quầy chợ (19/11/2026)
 
 - Trưa: quán đóng 12:00, 11:30 ngưng nhận khách. Tối: quán đóng 21:00, 20:30 ngưng nhận khách. Đóng cửa xong cả đội (nhân viên, đầu bếp, bác nông dân) ra chợ ăn.
 - Người chơi được chọn món cho từng người; sắp tới giờ vào ca mà chưa chọn thì hệ thống tự chọn và gửi hoá đơn.
@@ -210,7 +210,7 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** gọi món xong ăn 30 phút; hạn chọn = giờ về trừ 30 phút (bác 12:30, đội quán 13:30, tối 21:30); bảng gọi món tự mở khi đội ra chợ; khay hàng phía sau đặt trên bậc cao; logo đã cắt bỏ dòng số điện thoại (repo công khai); hàng rong ngoài vỉa hè vẫn chỉ lướt camera tới (chưa có cảnh bên trong).
 
-### Đợt 16 — Cả đội có giờ nghỉ (19/11/2026)
+### Đợt 16 - Cả đội có giờ nghỉ (19/11/2026)
 
 - Cây ăn quả đứng yên; cây nào ra trái nấy; cây chuối không phải thân gỗ.
 - Quầy ra món hiện dọc bên phải như các bảng khác; xếp món vào khay rồi người chơi bấm khay, bấm bàn để bưng (không tự bưng). Lau sàn bấm 1 cái. Đèn lồng, quạt, máy hút khói treo cao hơn. Phục vụ chậm hơn nữa; bếp nấu nhanh hơn, bếp phó nhanh bằng bếp trưởng.
@@ -221,9 +221,9 @@ Vòng lặp chính: **khách tới ăn → cần nguyên liệu → mua ngoài c
 
 **AI tự chọn (đổi được):** đội quán chỉ ra chợ khi quán đã vắng khách (khách còn xếp hàng lúc hết ca thì về, không trừ uy tín); xỉu vẫn giữ bồi dưỡng 100 xu (hồi 15); nghỉ trưa hồi thêm 10 ngoài món ăn; ngủ qua đêm đầy 30; hoá đơn quên trả thì sang ngày tự trả; giá món hàng rong: cà phê 8–10 (+5–7), bánh tráng 14–18 (+9–11), hủ tiếu 22–27 (+13–15), Tiệm 25caaaaa 30–42 (+16–22); trái cây giờ chỉ có từ vườn; uy tín lên chậm lại (~0.4⭐/ngày); lau nhà, dọn bàn của nhân viên thuê cũng −1.
 
-### Đợt 15 — Nhân viên phục vụ (19/11/2026)
+### Đợt 15 - Nhân viên phục vụ (19/11/2026)
 
-- Bồi bàn đi chậm lại. Bấm món ở quầy thì phải chọn bàn để giao, hoặc kéo vào khay 2 / 4 ô — không tự thêm vào khay.
+- Bồi bàn đi chậm lại. Bấm món ở quầy thì phải chọn bàn để giao, hoặc kéo vào khay 2 / 4 ô - không tự thêm vào khay.
 - Thuê nhân viên phục vụ, giao được các việc: bưng món, đưa menu, dọn bàn, dọn dẹp quán. Phải nâng hạng quán: mỗi bậc thêm 1 nhân viên, tối đa 4.
 - Nhân viên có thanh năng lượng, tốn mỗi lần làm việc; cạn thì xỉu, bồi dưỡng nhanh 100 xu. Giờ nghỉ cho đi ăn hàng rong ở chợ, năng lượng từ ít đến nhiều: cà phê → bánh tráng → hủ tiếu → tiệm ăn vặt (đổi tên "Tiệm 25caaaaa").
 
@@ -357,30 +357,30 @@ Chỉ mua được ngoài chợ (chưa có nguồn tự làm): **mực, nấm v�
 
 Chủ dự án nói sẽ đưa danh sách chi tiết. Khi có, điền theo mẫu dưới rồi giao cho Sonnet nhập (mẫu lời nhắc ở `00-DOC-TRUOC.md`).
 
-**Mẫu bảng thời gian** (đơn vị: giây thực ở tốc độ x1 — AI sẽ tự nhân 0.7 ra phút game):
+**Mẫu bảng thời gian** (đơn vị: giây thực ở tốc độ x1 - AI sẽ tự nhân 0.7 ra phút game):
 
 | Loại | Tên | Thời gian (giây thực) | Ghi chú |
 | --- | --- | --- | --- |
 | Nấu | Cơm trứng chiên | ? | |
 | Lớn | Rau cải | ? | |
 | Lớn lần đầu / chu kỳ sau | Gà mái đẻ | ? / ? | |
-| Khách chờ xếp hàng | — | ? | hiện 86 giây |
-| Khách chờ món | — | ? | hiện 114 giây + 17 giây mỗi người |
-| Khách ăn | — | ? | hiện 43 giây |
+| Khách chờ xếp hàng | - | ? | hiện 86 giây |
+| Khách chờ món | - | ? | hiện 114 giây + 17 giây mỗi người |
+| Khách ăn | - | ? | hiện 43 giây |
 
 **Mẫu bảng món:**
 
 | Tên món | Biểu tượng | Nguyên liệu × số lượng | Giá bán | Cấp mở | Giá mở |
 | --- | --- | --- | --- | --- | --- |
 
-Nguyên liệu mới xuất hiện trong danh sách phải có nguồn (sạp chợ nào bán, hoặc cây/con nào cho) — game sẽ báo lỗi lúc khởi động nếu thiếu.
+Nguyên liệu mới xuất hiện trong danh sách phải có nguồn (sạp chợ nào bán, hoặc cây/con nào cho) - game sẽ báo lỗi lúc khởi động nếu thiếu.
 
 ## Câu hỏi thiết kế còn mở
 
 Chưa ai quyết; AI gặp thì hỏi chủ dự án thay vì tự chọn.
 
-- ~~Có muốn người chơi tự tay phục vụ?~~ → Có (đợt 5). Còn mở: khi người chơi sang Nông trại/Chợ thì quán không ai phục vụ — có thuê **bồi bàn tự động** không (chủ dự án chưa trả lời)?
+- ~~Có muốn người chơi tự tay phục vụ?~~ → Có (đợt 5). Còn mở: khi người chơi sang Nông trại/Chợ thì quán không ai phục vụ - có thuê **bồi bàn tự động** không (chủ dự án chưa trả lời)?
 - Nâng hạng quán theo mốc (quán → tiệm → nhà hàng) hay nới dần từng chút?
 - Bạn bè chơi **cùng nhau** (ghé thăm quán, trao đổi nông sản) hay mỗi người một quán riêng? Đây là quyết định lớn nhất về chi phí và kỹ thuật (xem `05-TRIEN-KHAI-CHI-PHI.md`).
 - Thời gian có tiếp tục trôi khi tắt game không (cây lớn khi offline)?
-- Có mùa trong năm (đã có lịch 4 mùa để hiển thị) — có làm **món theo mùa / thời tiết theo mùa** không?
+- Có mùa trong năm (đã có lịch 4 mùa để hiển thị) - có làm **món theo mùa / thời tiết theo mùa** không?

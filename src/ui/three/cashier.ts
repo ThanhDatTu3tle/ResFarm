@@ -3,7 +3,7 @@ import { signText } from './cuisine';
 import { emojiSprite, G, group, mesh } from './toon';
 
 /**
- * QUẦY CASHIER (giai đoạn 18 — đơn giao tận nơi): quầy gỗ nhỏ sát tường trước, cạnh cửa ra vào. Mặt quầy có máy tính tiền,
+ * QUẦY CASHIER (giai đoạn 18 - đơn giao tận nơi): quầy gỗ nhỏ sát tường trước, cạnh cửa ra vào. Mặt quầy có máy tính tiền,
  * điện thoại bàn đỏ (reo khi khách gọi: rung + bong bóng ☎️), xiên hoá đơn, sổ ghi đơn; túi giấy đóng gói chờ shipper
  * xếp trên mặt quầy + dưới đất cạnh quầy (hiện theo số đơn đã đóng gói). Bảng "🛵 GIAO TẬN NƠI" ở mặt quầy quay ra cửa.
  * Gốc ở giữa chân quầy, mặt quầy (phía bồi bàn đứng) nhìn về +z.
@@ -26,7 +26,7 @@ function paperBag(parent: THREE.Object3D, x: number, z: number, s = 1): THREE.Gr
 
 /**
  * sign: bảng "🛵 GIAO TẬN NƠI" gắn ở mặt nào cho camera (nhìn từ phía trước quán) thấy: 'back' = mặt sau quầy (−z),
- * 'front' = mặt quầy (+z, quầy quay ra khu ăn — quán ốc), 'end' = đầu quầy +x (quầy dọc, xoay −90°).
+ * 'front' = mặt quầy (+z, quầy quay ra khu ăn - quán ốc), 'end' = đầu quầy +x (quầy dọc, xoay −90°).
  */
 export function makeCashierCounter(sign: 'back' | 'front' | 'end' = 'back'): CashierView {
   const g = group(null);
@@ -39,7 +39,7 @@ export function makeCashierCounter(sign: 'back' | 'front' | 'end' = 'back'): Cas
   mesh(g, G.box(W + 0.08, 0.06, D + 0.08), 0xf1ece2, { p: [0, H - 0.03, 0.02] });
   mesh(g, G.box(W + 0.02, 0.08, D + 0.02), 0x6b4428, { p: [0, 0.04, 0], cast: false });
   for (const sx of [-1, 1]) mesh(g, G.box(0.04, H - 0.14, 0.02), 0x8a5a35, { p: [sx * (W / 2 - 0.25), H / 2 - 0.02, D / 2 + 0.005], cast: false });
-  // Bảng "🛵 GIAO TẬN NƠI" ở mặt quầy quay ra cửa / ra đường (−z) — camera nhìn từ phía trước quán thấy mặt này
+  // Bảng "🛵 GIAO TẬN NƠI" ở mặt quầy quay ra cửa / ra đường (−z) - camera nhìn từ phía trước quán thấy mặt này
   const end = sign === 'end';
   const pw = end ? 0.56 : 1.3;
   const plate = group(g, sign === 'end' ? { p: [W / 2 + 0.012, 0.55, 0], r: [0, Math.PI / 2, 0] } : sign === 'front' ? { p: [0, 0.55, D / 2 + 0.012] } : { p: [0, 0.55, -D / 2 - 0.012], r: [0, Math.PI, 0] });

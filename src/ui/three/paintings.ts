@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { G, mesh, seeded, toon } from './toon';
 
 /**
- * TRANH TREO TƯỜNG (đồ trang trí `wall`, giai đoạn 20) — 3 bức mỗi quán Việt / Nhật / Hàn, vẽ bằng canvas lúc chạy
+ * TRANH TREO TƯỜNG (đồ trang trí `wall`, giai đoạn 20) - 3 bức mỗi quán Việt / Nhật / Hàn, vẽ bằng canvas lúc chạy
  * (không dùng ảnh ngoài), nét giản lược hơi run tay, phủ hạt giấy cho hợp phong cách màu sáp.
  * Model dựng mặt nhìn về +z, lưng sát z = 0, tâm tranh ở gốc; `userData.size` = [rộng, cao] (m) để chỗ treo căn khung chọn.
  */

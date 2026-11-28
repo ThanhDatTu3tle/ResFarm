@@ -1,19 +1,35 @@
 import { spend } from '../helpers';
 import { activeTables, canPlaceProp, canPlaceTable, findFreeSpot, footprint, freeArtSlot, LAYOUT_GRID, occupiedSeats, propRect, roomOf, tableById, withRotation } from '../layout';
 import { TABLE_CAPS, TABLE_EXTRA_BY_TIER } from './helpers';
-import { OWNER_NAME_MAX, type PropState } from '../state';
+import { OWNER_NAME_MAX, type GameState, type PropState } from '../state';
 import { fail, ok, type SimContext, type System } from '../types';
 
 /**
  * QUÁN CỦA RIÊNG MÌNH (Giai đoạn 3):
  *  - F5: đặt tên quán, nhận nuôi thú cưng (1 con đang ở quán, đổi qua lại miễn phí).
- *  - F4: đồ trang trí đặt tự do — mua là tự đặt vào chỗ trống; dời, xoay, cất kho, bày lại, bán lại.
+ *  - F4: đồ trang trí đặt tự do - mua là tự đặt vào chỗ trống; dời, xoay, cất kho, bày lại, bán lại.
  *  - B2: xoay bàn 90°. B7: mua thêm bàn lẻ, bán lại khi không cần.
  *  - C3: nâng hạng quán (phòng ăn sâu thêm, xem roomOf trong layout.ts).
  * Hiệu ứng của thú cưng, đồ trang trí và hạng quán được gộp trong modifier() ở helpers.ts.
  */
+/** Số lô đất hoang đã dọn (save cũ chưa có lots: coi như đã dọn đủ tới hạng đang có). */
+export function lotsCleared(state: GameState): number {
+  return Math.max(state.restaurant.lots?.cleared ?? 0, state.restaurant.tier - 1);
+}
+
 export const homeSystem: System = {
   id: 'home',
+  update(ctx, dt) {
+    // Đội thợ dọn lô đất hoang: hết giờ thì lô sạch, mở đường nâng hạng
+    const lots = ctx.state.restaurant.lots;
+    const c = lots?.clearing;
+    if (!lots || !c) return;
+    c.left -= dt;
+    if (c.left > 0) return;
+    lots.cleared = Math.max(lots.cleared, c.lot);
+    delete lots.clearing;
+    ctx.bus.emit('lot/cleared', { lot: c.lot });
+  },
   commands: {
     'profile/rename'(ctx, cmd) {
       const name = cmd.name.replace(/\s+/g, ' ').trim();
@@ -60,13 +76,13 @@ export const homeSystem: System = {
       if (state.level < def.level) return fail(`Cần cấp ${def.level}.`);
       if (def.wall) {
         const slot = freeArtSlot(ctx);
-        if (slot == null) return fail('Tường hết chỗ treo tranh — cất bớt tranh vào kho.');
+        if (slot == null) return fail('Tường hết chỗ treo tranh - cất bớt tranh vào kho.');
         if (!spend(ctx, def.cost)) return fail('Không đủ tiền.');
         state.restaurant.props.push({ uid: `p${state.nextId++}`, def: def.id, x: slot, y: 0, rot: 0, stored: false });
         return ok();
       }
       const spot = findFreeSpot(ctx, (x, y) => propRect(def, x, y, 0));
-      if (!spot) return fail('Khu ăn uống hết chỗ trống — dời bớt bàn hoặc cất bớt đồ.');
+      if (!spot) return fail('Khu ăn uống hết chỗ trống - dời bớt bàn hoặc cất bớt đồ.');
       if (!spend(ctx, def.cost)) return fail('Không đủ tiền.');
       state.restaurant.props.push({ uid: `p${state.nextId++}`, def: def.id, x: spot.x, y: spot.y, rot: 0, stored: false });
       return ok();
@@ -74,7 +90,7 @@ export const homeSystem: System = {
     'prop/move'(ctx, cmd) {
       const prop = findProp(ctx, cmd.uid);
       if (!prop || prop.stored) return fail('Món này đang cất trong kho.');
-      if (ctx.content.props.get(prop.def).wall) return fail('Tranh treo trên tường — bấm "Đổi chỗ" để chuyển sang khung khác.');
+      if (ctx.content.props.get(prop.def).wall) return fail('Tranh treo trên tường - bấm "Đổi chỗ" để chuyển sang khung khác.');
       const x = snap(cmd.x);
       const y = snap(cmd.y);
       const problem = canPlaceProp(ctx, prop.uid, x, y, prop.rot);
@@ -111,7 +127,7 @@ export const homeSystem: System = {
       const def = ctx.content.props.get(prop.def);
       if (def.wall) {
         const slot = freeArtSlot(ctx, prop.uid);
-        if (slot == null) return fail('Tường hết chỗ treo tranh — cất bớt tranh vào kho.');
+        if (slot == null) return fail('Tường hết chỗ treo tranh - cất bớt tranh vào kho.');
         Object.assign(prop, { x: slot, y: 0, stored: false });
         return ok();
       }
@@ -125,7 +141,7 @@ export const homeSystem: System = {
       const prop = findProp(ctx, cmd.uid);
       if (!prop) return fail('Không có món này.');
       const def = content.props.get(prop.def);
-      if (def.giftOnly) return fail('Quà của khách quen, bán đi thì buồn lắm — cất kho nhé.');
+      if (def.giftOnly) return fail('Quà của khách quen, bán đi thì buồn lắm - cất kho nhé.');
       state.restaurant.props = state.restaurant.props.filter((p) => p !== prop);
       const refund = resale(ctx, def.cost);
       state.money += refund; // tiền bán lại không tính vào doanh thu
@@ -158,7 +174,7 @@ export const homeSystem: System = {
       const rot = !!prefer[0]?.rot;
       const probe = withRotation({ id: '', name: kind.name, seats: kind.seats, w: kind.w, h: kind.h, x: 0, y: 0 }, rot);
       const spot = findFreeSpot(ctx, (x, y) => footprint(probe, { x, y }), '', prefer);
-      if (!spot) return fail('Khu ăn uống hết chỗ đặt bàn — nâng hạng quán hoặc dời bớt đồ.');
+      if (!spot) return fail('Khu ăn uống hết chỗ đặt bàn - nâng hạng quán hoặc dời bớt đồ.');
       if (!spend(ctx, kind.cost)) return fail('Không đủ tiền.');
       const id = `t${state.nextId++}`;
       state.restaurant.extraTables.push({ id, kind: kind.id });
@@ -198,7 +214,7 @@ export const homeSystem: System = {
         const spot = findFreeSpot(ctx, (x, y) => footprint(table, { x, y }), table.id);
         if (!spot) {
           r.storedTables.push(cmd.tableId);
-          return fail('Khu ăn uống hết chỗ — dời hoặc cất bớt đồ rồi bày lại nhé.');
+          return fail('Khu ăn uống hết chỗ - dời hoặc cất bớt đồ rồi bày lại nhé.');
         }
         r.layout[table.id] = { x: spot.x, y: spot.y, rot: table.rotated };
       }
@@ -216,11 +232,23 @@ export const homeSystem: System = {
     },
 
     // ---------- Hạng quán ----------
+    'lot/clear'(ctx) {
+      const { state, content } = ctx;
+      const lot = lotsCleared(state) + 1;
+      const tier = content.room.tiers[lot];
+      if (!tier?.clear) return fail('Không còn lô đất nào để dọn.');
+      if (state.restaurant.lots?.clearing) return fail('Đội thợ đang dọn một lô rồi.');
+      if (state.level < tier.level) return fail(`Cần cấp ${tier.level}.`);
+      if (!spend(ctx, tier.clear.cost)) return fail('Không đủ tiền.');
+      state.restaurant.lots = { cleared: lot - 1, clearing: { lot, left: tier.clear.minutes } };
+      return ok();
+    },
     'restaurant/upgrade'(ctx) {
       const { state, content } = ctx;
       const next = content.room.tiers[state.restaurant.tier];
       if (!next) return fail('Quán đã ở hạng cao nhất.');
       if (state.level < next.level) return fail(`Cần cấp ${next.level}.`);
+      if (lotsCleared(state) < next.id - 1) return fail('Cần dọn xong lô đất bên cạnh trước.');
       if (!spend(ctx, next.cost)) return fail('Không đủ tiền.');
       state.restaurant.tier = next.id;
       ctx.bus.emit('restaurant/upgraded', { tier: next.id });
@@ -231,8 +259,9 @@ export const homeSystem: System = {
       const next = content.room.tiers[state.restaurant.tier];
       if (!next) return fail('Quán đã ở hạng cao nhất.');
       if (state.level < next.level) return fail(`Cần cấp ${next.level}.`);
+      if (lotsCleared(state) < next.id - 1) return fail('Cần dọn xong lô đất bên cạnh trước.');
       const plan = fullKitPlan(ctx);
-      if (!plan || !plan.tables.length) return fail('Hạng mới không có thêm bàn nào để trang bị — nâng hạng thường là đủ.');
+      if (!plan || !plan.tables.length) return fail('Hạng mới không có thêm bàn nào để trang bị - nâng hạng thường là đủ.');
       if (state.money < plan.price) return fail('Không đủ tiền.');
       // Trừ giá trọn gói, rồi nạp lại đúng giá lẻ để các lệnh thật tự trừ (giữ luật đặt bàn như mua lẻ)
       state.money -= plan.price;

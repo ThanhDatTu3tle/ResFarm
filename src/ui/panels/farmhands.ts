@@ -11,7 +11,7 @@ const DOING: Record<string, string> = { till: '⛏️ đang cuốc đất', wate
 function gardenerCard(game: Game, g: GardenerState): string {
   const slot = g.task ? game.state.farm.slots.find((s) => s.id === g.task!.slotId) : undefined;
   const where = slot ? ` · ${esc(game.content.slotTypes.get(slot.type).name.toLowerCase())}` : '';
-  const status = game.state.crew.farmerAway ? '🍜 đang nghỉ cùng bác' : g.task ? `${DOING[g.task.kind] ?? '🚶 đang đi'}${where}` : '😌 rảnh — chưa có việc hợp';
+  const status = game.state.crew.farmerAway ? '🍜 đang nghỉ cùng bác' : g.task ? `${DOING[g.task.kind] ?? '🚶 đang đi'}${where}` : '😌 rảnh - chưa có việc hợp';
   const jobs = gardenerJobs
     .map((j) => `<button class="mini${g.jobs[j.id] ? ' on' : ''}" title="${esc(j.desc)}"${cmd({ type: 'gardener/setJob', gardenerId: g.id, job: j.id, on: !g.jobs[j.id] })}>${j.icon} ${esc(j.name)}</button>`)
     .join('');

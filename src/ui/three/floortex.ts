@@ -217,7 +217,7 @@ function wobblyRect(c: CanvasRenderingContext2D, rnd: () => number, x: number, y
 
 let ngocdoTex: THREE.Texture | null = null;
 /**
- * Gạch men ngọc đỏ: bàn cờ 2 kiểu viên — (A) nền trắng viền xanh ngọc, góc tam giác xanh, đĩa tròn đỏ đô với hoa 4 cánh
+ * Gạch men ngọc đỏ: bàn cờ 2 kiểu viên - (A) nền trắng viền xanh ngọc, góc tam giác xanh, đĩa tròn đỏ đô với hoa 4 cánh
  * vàng nghệ nhuỵ trắng; (B) nền đỏ đô, ô vuông vàng nghệ, ngôi sao 4 cánh trắng giữa có dấu X xanh. Texture = 2×2 viên (1.6 m).
  */
 export function ngocdoTexture(): THREE.Texture {
@@ -337,7 +337,7 @@ export function terracottaTexture(): THREE.Texture {
 
 let terrazzoTex: THREE.Texture | null = null;
 /**
- * Gạch vỉa hè (terrazzo xi măng đá rửa): nền be lốm đốm đá vụn, rãnh lõm sẫm — lưới ô nhỏ, 3 vòng cung đồng tâm từ một góc
+ * Gạch vỉa hè (terrazzo xi măng đá rửa): nền be lốm đốm đá vụn, rãnh lõm sẫm - lưới ô nhỏ, 3 vòng cung đồng tâm từ một góc
  * và vòng tròn nhỏ giữa viên; các viên xoay 90° xen kẽ nên rãnh nối thành hình cong liên tục. Texture = 2×2 viên (0.8 m).
  */
 export function terrazzoTexture(): THREE.Texture {
@@ -442,12 +442,12 @@ export function terrazzoSidewalk(parent: THREE.Object3D, len: number, width: num
   return m;
 }
 
-/** Cỡ một viên gạch ốp tường (m) — gạch vuông nhỏ kiểu quán ăn châu Á. */
+/** Cỡ một viên gạch ốp tường (m) - gạch vuông nhỏ kiểu quán ăn châu Á. */
 export const WALL_TILE = 0.22;
 
 const wallTileCache = new Map<string, THREE.CanvasTexture>();
 
-/** Gạch ốp tường: một viên vuông màu `tile`, ron (đường vữa) màu `grout`, bóng sáng nhẹ ở góc — lặp bằng `repeat`. */
+/** Gạch ốp tường: một viên vuông màu `tile`, ron (đường vữa) màu `grout`, bóng sáng nhẹ ở góc - lặp bằng `repeat`. */
 export function wallTileTexture(tile: number, grout: number): THREE.CanvasTexture {
   const key = `${tile}-${grout}`;
   let tex = wallTileCache.get(key);

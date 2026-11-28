@@ -5,23 +5,23 @@ import { isManager } from './helpers';
 import { roomOf } from '../layout';
 import type { BreakKind, MealLine, PendingMeal, Vitals, WaiterState } from '../state';
 
-/** Hoá đơn lần trước đã báo chưa (theo state, không lưu vào save — chỉ để phát sự kiện một lần). */
+/** Hoá đơn lần trước đã báo chưa (theo state, không lưu vào save - chỉ để phát sự kiện một lần). */
 const wasDue = new WeakMap<object, boolean>();
 import { fail, ok, type SimContext, type System } from '../types';
 
 /**
- * CẢ ĐỘI — đầu bếp, bồi bàn (người chơi điều khiển), nhân viên thuê, bác nông dân.
+ * CẢ ĐỘI - đầu bếp, bồi bàn (người chơi điều khiển), nhân viên thuê, bác nông dân.
  *  - Năng lượng: tối đa `maxEnergyOf` (đầu bếp balance.crew.chefMaxEnergy, còn lại balance.crew.maxEnergy); mỗi việc tốn (nấu 1 món, phục vụ 1 việc, 1 việc đồng áng).
  *    Cạn thì xỉu (ai cũng vậy: đầu bếp, bồi bàn, nhân viên, shipper, bác nông dân): đứng im tới khi được bồi dưỡng
- *    (reviveCostOf — 50 xu lần đầu trong ngày, mỗi lần sau đắt thêm; hồi một nửa năng lượng), ăn ở chợ, hoặc ngủ qua đêm (đầy lại).
+ *    (reviveCostOf - 50 xu lần đầu trong ngày, mỗi lần sau đắt thêm; hồi một nửa năng lượng), ăn ở chợ, hoặc ngủ qua đêm (đầy lại).
  *  - Bữa tối ai không có món (hết tiền) thì sáng hôm sau than đói (crew.hungry) và dậy chỉ còn 60% sức (hungryWakeRatio).
  *  - Giờ nghỉ: hết ca sáng, quán vắng khách thì đội quán ra chợ, về lúc crew.lunchBack; bác nông dân ra chợ
  *    crew.farmerLunch.from, về lúc .to. Hết ca cuối (tối) cả đội ra chợ ăn tối, không quay lại.
- *    Trong lúc ở chợ, việc ở quán / nông trại tạm ngưng (lệnh bị từ chối kèm lời nhắc — awayReason).
+ *    Trong lúc ở chợ, việc ở quán / nông trại tạm ngưng (lệnh bị từ chối kèm lời nhắc - awayReason).
  *  - Ra chợ thì mỗi người vào crew.pending chờ người chơi gọi món (crew/order, StallDef.menu); quá hạn (giờ về − eatMinutes)
  *    chưa chọn thì tự chọn ngẫu nhiên (crew/autoOrder làm ngay). Tổng không vượt tiền đang có (hết tiền thì món rẻ hơn,
  *    không đủ thì nhịn). Ăn xong cộng năng lượng, ghi vào hoá đơn (crew.bill); khi cả đợt ăn xong (billDue) người chơi
- *    trả một lần (crew/pay) — tiền ăn của bác nông dân (về sớm hơn) gộp chung.
+ *    trả một lần (crew/pay) - tiền ăn của bác nông dân (về sớm hơn) gộp chung.
  */
 
 export type CrewGroup = 'restaurant' | 'farm';
@@ -185,7 +185,7 @@ function autoPick(ctx: SimContext, p: PendingMeal): void {
 /**
  * "Để mọi người tự chọn": chia đều cho cả nhóm, không để tiền âm. Mỗi lượt người đang thiếu sức nhiều nhất (theo tỉ lệ
  * thanh năng lượng, tính cả món đã gọi) được gọi thêm một món: món rẻ nhất đủ bù phần thiếu, không có thì món nhiều ⚡ / xu
- * nhất còn mua được. Hết tiền thì dừng — ai cũng được chia phần trước khi có người ăn thêm món thứ hai.
+ * nhất còn mua được. Hết tiền thì dừng - ai cũng được chia phần trước khi có người ăn thêm món thứ hai.
  */
 function autoPickFair(ctx: SimContext, people: PendingMeal[]): void {
   const c = ctx.state.crew;
@@ -226,7 +226,9 @@ function depart(ctx: SimContext, group: CrewGroup, kind: BreakKind): void {
   for (const w of [r.waiter, ...r.helpers]) dropWork(ctx, w);
   const back = kind === 'dinner' ? state.clock.minute + b.dinnerMinutes : b.lunchBack;
   const deadline = Math.max(state.clock.minute, back - b.eatMinutes);
-  for (const m of crewMembers(ctx).filter((x) => x.group === group)) state.crew.pending.push({ who: m.who, name: m.name, kind, deadline, back });
+  // Bữa trưa: ai còn khoẻ (trên crewSkipLunchAbove) thì không đòi ăn - không ai đói thì không hiện bảng gọi món
+  const hungry = (m: CrewMember) => kind !== 'lunch' || m.vitals.fainted || m.vitals.energy <= maxEnergyOf(ctx, m.who) * b.crewSkipLunchAbove;
+  for (const m of crewMembers(ctx).filter((x) => x.group === group && hungry(x))) state.crew.pending.push({ who: m.who, name: m.name, kind, deadline, back });
   if (state.crew.farmerWaiting && state.crew.farmerAway === kind) farmerJoins(ctx, kind);
   ctx.bus.emit('crew/left', { group, kind });
 }
@@ -246,7 +248,7 @@ function farmerJoins(ctx: SimContext, kind: BreakKind): void {
 
 /**
  * Hoá đơn hiện lúc mọi người của đợt nghỉ này đã ăn xong: không còn ai chờ gọi món / đang ăn, và đội quán không còn
- * "sắp ra chợ" (đang trong giờ nghỉ mà quán chưa vắng khách) — bác nông dân về sớm hơn nên tiền ăn của bác gộp chung.
+ * "sắp ra chợ" (đang trong giờ nghỉ mà quán chưa vắng khách) - bác nông dân về sớm hơn nên tiền ăn của bác gộp chung.
  */
 export function billDue(ctx: SimContext): boolean {
   const c = ctx.state.crew;
@@ -365,7 +367,7 @@ export const crewSystem: System = {
     state.crew.farmerAway = null;
     state.crew.farmerWaiting = false;
     state.crew.farmerBack = null;
-    // Ngủ một đêm: ai cũng đầy năng lượng — trừ người tối qua nhịn đói, chỉ còn hungryWakeRatio
+    // Ngủ một đêm: ai cũng đầy năng lượng - trừ người tối qua nhịn đói, chỉ còn hungryWakeRatio
     for (const m of crewMembers(ctx)) {
       const ratio = state.crew.hungry.includes(m.who) ? ctx.content.balance.crew.hungryWakeRatio : 1;
       Object.assign(m.vitals, { energy: Math.round(maxEnergyOf(ctx, m.who) * ratio), fainted: false });
@@ -381,7 +383,7 @@ export const crewSystem: System = {
       const stall = ctx.content.stalls.has(cmd.stallId) ? ctx.content.stalls.get(cmd.stallId) : null;
       const dish = stall?.menu?.[cmd.dish];
       if (!dish) return fail('Hàng này không có món đó.');
-      if (dish.price > mealBudget(ctx)) return fail('Không đủ tiền cho món này — chọn món rẻ hơn nhé.');
+      if (dish.price > mealBudget(ctx)) return fail('Không đủ tiền cho món này - chọn món rẻ hơn nhé.');
       serveMeal(ctx, p, cmd.stallId, dish);
       return ok();
     },
@@ -400,7 +402,7 @@ export const crewSystem: System = {
       const c = ctx.state.crew;
       const before = c.pending.length;
       c.pending = c.pending.filter((p) => !c.meals.some((l) => l.who === p.who));
-      return before === c.pending.length && before ? fail('Chưa ai được gọi món — chọn món hoặc để mọi người tự chọn nhé.') : ok();
+      return before === c.pending.length && before ? fail('Chưa ai được gọi món - chọn món hoặc để mọi người tự chọn nhé.') : ok();
     },
     'crew/autoOrder'(ctx) {
       if (!ctx.state.crew.pending.length) return fail('Mọi người đã có món rồi.');
@@ -435,10 +437,10 @@ export const crewSystem: System = {
   },
 };
 
-/** Trả hoá đơn ăn uống: trừ tiền (tối đa số đang có — lúc gọi món đã giữ không vượt), xoá hoá đơn. */
+/** Trả hoá đơn ăn uống: trừ tiền (tối đa số đang có - lúc gọi món đã giữ không vượt), xoá hoá đơn. */
 function payBill(ctx: SimContext): void {
   const { state } = ctx;
-  // Trả đủ hoá đơn, kể cả phải nợ (quá mức nợ thì phá sản — checkBankrupt)
+  // Trả đủ hoá đơn, kể cả phải nợ (quá mức nợ thì phá sản - checkBankrupt)
   const amount = billTotal(ctx);
   state.money -= amount;
   state.stats.today.spent += amount;

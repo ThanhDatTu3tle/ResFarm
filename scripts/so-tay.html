@@ -83,11 +83,11 @@ const by = (arr) => Object.fromEntries(arr.map((x) => [x.id, x]));
 const I = by(DB.items), R = by(DB.recipes), P = by(DB.producers), S = by(DB.stalls), T = by(DB.slotTypes), M = by(DB.mills);
 const U = by(DB.upgrades), PR = by(DB.props), CU = by(DB.cuisines);
 const seasonName = (i) => DB.seasons[i] ? DB.seasons[i].icon + ' ' + DB.seasons[i].name : '?';
-const xu = (n) => (n == null ? '—' : `${Math.round(n).toLocaleString('vi-VN')} xu`);
-const num = (n, d = 1) => (n == null ? '—' : (Math.round(n * 10 ** d) / 10 ** d).toLocaleString('vi-VN'));
-const s = (n) => (n == null ? '—' : `${num(n)} s`);
-const mins = (secs) => (secs == null ? '—' : secs >= 90 ? `${num(secs / 60)} phút` : `${num(secs)} s`);
-const days = (d) => (d == null ? '—' : `${num(d)} ngày`);
+const xu = (n) => (n == null ? '-' : `${Math.round(n).toLocaleString('vi-VN')} xu`);
+const num = (n, d = 1) => (n == null ? '-' : (Math.round(n * 10 ** d) / 10 ** d).toLocaleString('vi-VN'));
+const s = (n) => (n == null ? '-' : `${num(n)} s`);
+const mins = (secs) => (secs == null ? '-' : secs >= 90 ? `${num(secs / 60)} phút` : `${num(secs)} s`);
+const days = (d) => (d == null ? '-' : `${num(d)} ngày`);
 const pct = (x) => `${x >= 1 ? '+' : ''}${Math.round((x - 1) * 100)}%`;
 const signed = (n) => `<span class="${n >= 0 ? 'pos' : 'neg'}">${n >= 0 ? '+' : ''}${Math.round(n).toLocaleString('vi-VN')}</span>`;
 const MOD = { cookSpeed: 'Nấu nhanh', patience: 'Kiên nhẫn', tip: 'Tip', spawnRate: 'Lượng khách', growSpeed: 'Cây lớn nhanh', dishPrice: 'Giá món' };
@@ -132,7 +132,7 @@ sec('tong-quan', '⏱️ Tổng quan', () => `
     ${card('Vốn đầu', `${xu(O.startMoney)} · uy tín ${O.startReputation}`)}
     ${O.shifts.map((x, i) => card(`Ca ${i + 1}`, `Mở ${x.from} · ngưng nhận ${x.lastCall} · đóng ${x.to} · khách về hết ${x.kickOut}`)).join('')}
     ${card('Khách tới', `trung bình mỗi ${s(O.spawnSec)} · lưu lượng ngày thường ×${O.traffic.normal.join('–')}, ngày lễ ×${O.traffic.festival.join('–')}`)}
-    ${card('Giờ đông', O.rushHours.map((r) => `${r.from}–${r.to} ×${r.factor}`).join(' · ') || '—')}
+    ${card('Giờ đông', O.rushHours.map((r) => `${r.from}–${r.to} ×${r.factor}`).join(' · ') || '-')}
     ${card('Cỡ nhóm khách (trọng số)', O.partySizeWeights.map((w, i) => (w ? `${i} người: ${w}` : '')).filter(Boolean).join(' · '))}
     ${card('Thời gian ngồi ăn', O.eatTime.map((e) => `${e.size} người ${num(e.from, 0)}–${num(e.to, 0)} s`).join(' · '))}
     ${card('Kiên nhẫn của khách', `xếp hàng ${s(O.patience.queue)} · chờ menu ${s(O.patience.menu)} · xem menu ${O.patience.browse.map((x) => num(x)).join('–')} s · chờ ghi món ${s(O.patience.order)} · chờ món ${s(O.patience.food)} (+${s(O.patience.perGuest)}/khách) · món ra quầy mà chưa bưng: tụt 1 bậc tâm trạng mỗi ${s(O.patience.moodStep)}`)}
@@ -158,8 +158,8 @@ sec('nguyen-lieu', '🥬 Nguyên liệu', () => `
     { h: 'Nhóm', v: (i) => esc(i.categoryName), sort: (i) => i.categoryName },
     { h: 'Giá gốc', num: true, v: (i) => (i.infinite ? 'vô hạn' : xu(i.basePrice)), sort: (i) => i.basePrice },
     { h: 'Bán dư', num: true, v: (i) => xu(i.sellPrice), sort: (i) => i.sellPrice ?? -1 },
-    { h: 'Mua ở', v: (i) => i.stalls.map((x) => `${stall(x.id)} <span class="tag">${xu(x.price)}</span>`).join('<br>') || '—' },
-    { h: 'Làm ra từ', v: (i) => [...i.producers.map(producer), ...i.mills.map((id) => `${M[id].icon} ${esc(M[id].name)}`)].join('<br>') || '—' },
+    { h: 'Mua ở', v: (i) => i.stalls.map((x) => `${stall(x.id)} <span class="tag">${xu(x.price)}</span>`).join('<br>') || '-' },
+    { h: 'Làm ra từ', v: (i) => [...i.producers.map(producer), ...i.mills.map((id) => `${M[id].icon} ${esc(M[id].name)}`)].join('<br>') || '-' },
     { h: 'Dùng trong món', num: true, v: (i) => `<span title="${esc(i.recipes.map((id) => R[id].name).join(', '))}">${i.recipes.length}</span>`, sort: (i) => i.recipes.length },
   ], (i) => `item-${i.id}`)}`);
 
@@ -179,7 +179,7 @@ sec('mon-an', '🍜 Món ăn', () => {
     { h: 'Lãi/s', num: true, v: (r) => num(r.profitPerSec), sort: (r) => r.profitPerSec },
     { h: 'Mở khoá', num: true, v: (r) => (r.unlock.level <= 1 && !r.unlock.cost ? 'có sẵn' : `cấp ${r.unlock.level} · ${xu(r.unlock.cost)}`), sort: (r) => r.unlock.level * 1e5 + r.unlock.cost },
     { h: 'Ưa chuộng', num: true, v: (r) => num(r.popularity ?? 1), sort: (r) => r.popularity ?? 1 },
-    { h: 'Hợp mùa', v: (r) => (r.seasons ? `${r.seasons.map(seasonName).join(', ')} <span class="tag">${xu(r.seasonPrice)}</span>` : '—'), sort: (r) => (r.seasons ? r.seasons[0] : 9) },
+    { h: 'Hợp mùa', v: (r) => (r.seasons ? `${r.seasons.map(seasonName).join(', ')} <span class="tag">${xu(r.seasonPrice)}</span>` : '-'), sort: (r) => (r.seasons ? r.seasons[0] : 9) },
   ], (r) => `recipe-${r.id}`)}`;
 });
 
@@ -195,7 +195,7 @@ sec('nong-trai', '🌾 Nông trại', () => `
     { h: 'Sản lượng', v: (p) => p.yields.map(stack).join(', ') },
     { h: 'Giá trị', num: true, v: (p) => xu(p.yieldValue), sort: (p) => p.yieldValue },
     { h: 'Lời vụ đầu', num: true, v: (p) => signed(p.firstProfit), sort: (p) => p.firstProfit },
-    { h: 'Hoà vốn', num: true, v: (p) => (p.cycles === 1 || p.firstProfit >= 0 ? '—' : `sau ${Math.ceil(p.cost / p.yieldValue)} lần thu`), sort: (p) => (p.cycles === 1 || p.firstProfit >= 0 ? 0 : Math.ceil(p.cost / p.yieldValue)) },
+    { h: 'Hoà vốn', num: true, v: (p) => (p.cycles === 1 || p.firstProfit >= 0 ? '-' : `sau ${Math.ceil(p.cost / p.yieldValue)} lần thu`), sort: (p) => (p.cycles === 1 || p.firstProfit >= 0 ? 0 : Math.ceil(p.cost / p.yieldValue)) },
     { h: 'Cấp', num: true, v: (p) => p.level, sort: (p) => p.level },
     { h: 'Mùa gieo', v: (p) => (p.seasons ? p.seasons.map(seasonName).join(', ') : 'quanh năm'), sort: (p) => (p.seasons ? p.seasons[0] : -1) },
   ], (p) => `prod-${p.id}`)}
@@ -203,10 +203,10 @@ sec('nong-trai', '🌾 Nông trại', () => `
   ${table(DB.slotTypes, [
     { h: 'Loại ô', v: (t) => `<span class="ic">${t.icon}</span>${esc(t.name)}`, sort: (t) => t.name },
     { h: 'Có sẵn / tối đa', num: true, v: (t) => `${t.initial} / ${t.max}${t.batch ? ` (mua lô ${t.batch})` : ''}`, sort: (t) => t.max },
-    { h: 'Giá mua thêm', v: (t) => (t.prices.length ? t.prices.slice(0, 6).map(xu).join(' → ') + (t.prices.length > 6 ? ' …' : '') : '—') },
+    { h: 'Giá mua thêm', v: (t) => (t.prices.length ? t.prices.slice(0, 6).map(xu).join(' → ') + (t.prices.length > 6 ? ' …' : '') : '-') },
     { h: 'Cấp', num: true, v: (t) => t.level, sort: (t) => t.level },
     { h: 'Chăm', v: (t) => [t.needsTilling && 'cuốc', t.needsWater && 'tưới', t.mill && 'tự động + cối', t.animals && 'vật nuôi', t.growMul && `lớn ×${t.growMul}`].filter(Boolean).map((x) => `<span class="tag">${x}</span>`).join('') },
-    { h: 'Nới rộng', v: (t) => (t.tiers ? t.tiers.map((x, i) => `bậc ${i + 2}: ${xu(x.cost)}, cấp ${x.level}, ×${x.yieldMul}`).join('<br>') : '—') },
+    { h: 'Nới rộng', v: (t) => (t.tiers ? t.tiers.map((x, i) => `bậc ${i + 2}: ${xu(x.cost)}, cấp ${x.level}, ×${x.yieldMul}`).join('<br>') : '-') },
     { h: 'Trồng được', v: (t) => t.producers.map(producer).join(', ') },
   ], (t) => `slot-${t.id}`)}
   <h3>Cối chế biến</h3>
@@ -216,7 +216,7 @@ sec('nong-trai', '🌾 Nông trại', () => `
     { h: 'Làm ra', v: (x) => x.products.map(item).join(', ') },
     { h: '1 đơn vị', num: true, v: (x) => s(x.timeSec), sort: (x) => x.timeSec },
     { h: 'Có sẵn / tối đa', num: true, v: (x) => `${x.initial} / ${x.max}` },
-    { h: 'Giá mua thêm', v: (x) => x.prices.map(xu).join(' → ') || '—' },
+    { h: 'Giá mua thêm', v: (x) => x.prices.map(xu).join(' → ') || '-' },
     { h: 'Cấp', num: true, v: (x) => x.level, sort: (x) => x.level },
   ], (x) => `mill-${x.id}`)}`);
 
@@ -272,7 +272,7 @@ sec('quan', '🏠 Quán', () => `
     { h: 'Nâng cấp', v: (u) => `<span class="ic">${u.icon}</span>${esc(u.name)}`, sort: (u) => u.name },
     { h: 'Giá', num: true, v: (u) => xu(u.cost), sort: (u) => u.cost },
     { h: 'Cấp', num: true, v: (u) => u.level, sort: (u) => u.level },
-    { h: 'Cần trước', v: (u) => (u.requires ? `${U[u.requires].icon} ${esc(U[u.requires].name)}` : '—') },
+    { h: 'Cần trước', v: (u) => (u.requires ? `${U[u.requires].icon} ${esc(U[u.requires].name)}` : '-') },
     { h: 'Hiệu ứng', v: (u) => mods(u.modifiers) || esc(u.desc) },
   ], (u) => `upg-${u.id}`)}
   <h3>Bàn</h3>
@@ -280,9 +280,9 @@ sec('quan', '🏠 Quán', () => `
     { h: 'Bàn', v: (t) => esc(t.name) },
     { h: 'Ghế', num: true, v: (t) => t.seats, sort: (t) => t.seats },
     { h: 'Quán', v: (t) => (t.cuisines ? t.cuisines.map(cuisineTag).join('') : cuisineTag(null)) },
-    { h: 'Ghi chú', v: (t) => [t.shared && 'ghế dùng chung', t.fixed && 'cố định', t.requiresUpgrade && `cần ${U[t.requiresUpgrade]?.name ?? t.requiresUpgrade}`].filter(Boolean).map((x) => `<span class="tag">${esc(x)}</span>`).join('') || '—' },
+    { h: 'Ghi chú', v: (t) => [t.shared && 'ghế dùng chung', t.fixed && 'cố định', t.requiresUpgrade && `cần ${U[t.requiresUpgrade]?.name ?? t.requiresUpgrade}`].filter(Boolean).map((x) => `<span class="tag">${esc(x)}</span>`).join('') || '-' },
     // Bàn khác đi theo quán (TableDef.byCuisine): quán Nhật quầy chữ L, bàn bốn sát tường; quán Việt / Ốc dời chỗ
-    { h: 'Khác theo quán', v: (t) => Object.entries(t.byCuisine ?? {}).map(([cu, o]) => `${CU[cu]?.flag ?? ''} ${esc([o.name, o.seats && `${o.seats} ghế`, o.bar && 'quầy dọc', o.wall && !o.name?.includes('sát tường') && 'sát tường', o.fixed && 'cố định'].filter(Boolean).join(', ') || 'dời chỗ')}`).join('<br>') || '—' },
+    { h: 'Khác theo quán', v: (t) => Object.entries(t.byCuisine ?? {}).map(([cu, o]) => `${CU[cu]?.flag ?? ''} ${esc([o.name, o.seats && `${o.seats} ghế`, o.bar && 'quầy dọc', o.wall && !o.name?.includes('sát tường') && 'sát tường', o.fixed && 'cố định'].filter(Boolean).join(', ') || 'dời chỗ')}`).join('<br>') || '-' },
   ])}
   <h3>Bàn mua thêm</h3>
   ${table(DB.tableKinds, [
@@ -300,10 +300,10 @@ sec('quan', '🏠 Quán', () => `
     { h: 'Bàn 4', num: true, v: (r) => r.tables[4] ?? 0 },
     { h: 'Bàn đôi', num: true, v: (r) => r.tables[2] ?? 0 },
     { h: 'Bàn đơn', num: true, v: (r) => r.tables[1] ?? 0 },
-    { h: 'Nâng hạng', num: true, v: (r) => (r.plan ? xu(r.plan.upgradeCost) : '—'), sort: (r) => r.plan?.upgradeCost ?? 0 },
-    { h: 'Tiền bàn', num: true, v: (r) => (r.plan ? xu(r.plan.tablesCost) : '—'), sort: (r) => r.plan?.tablesCost ?? 0 },
-    { h: 'Mua lẻ', num: true, v: (r) => (r.plan ? xu(r.plan.full) : '—'), sort: (r) => r.plan?.full ?? 0 },
-    { h: 'Gói trọn', num: true, v: (r) => (r.plan ? '<b>' + xu(r.plan.price) + '</b>' : '—'), sort: (r) => r.plan?.price ?? 0 },
+    { h: 'Nâng hạng', num: true, v: (r) => (r.plan ? xu(r.plan.upgradeCost) : '-'), sort: (r) => r.plan?.upgradeCost ?? 0 },
+    { h: 'Tiền bàn', num: true, v: (r) => (r.plan ? xu(r.plan.tablesCost) : '-'), sort: (r) => r.plan?.tablesCost ?? 0 },
+    { h: 'Mua lẻ', num: true, v: (r) => (r.plan ? xu(r.plan.full) : '-'), sort: (r) => r.plan?.full ?? 0 },
+    { h: 'Gói trọn', num: true, v: (r) => (r.plan ? '<b>' + xu(r.plan.price) + '</b>' : '-'), sort: (r) => r.plan?.price ?? 0 },
   ])}
   <h3>Nội thất (sàn, tường, bàn ghế)</h3>
   ${table(DB.decor, [
@@ -312,7 +312,7 @@ sec('quan', '🏠 Quán', () => `
     { h: 'Quán', v: (d) => cuisineTag(d.cuisine), sort: (d) => d.cuisine ?? '' },
     { h: 'Giá', num: true, v: (d) => (d.isDefault ? 'mặc định' : xu(d.cost)), sort: (d) => d.cost },
     { h: 'Cấp', num: true, v: (d) => d.level, sort: (d) => d.level },
-    { h: 'Hiệu ứng', v: (d) => mods(d.modifiers) || '—' },
+    { h: 'Hiệu ứng', v: (d) => mods(d.modifiers) || '-' },
   ])}
   <h3>Đồ trang trí</h3>
   ${table(DB.props, [
@@ -320,7 +320,7 @@ sec('quan', '🏠 Quán', () => `
     { h: 'Quán', v: (p) => cuisineTag(p.cuisine), sort: (p) => p.cuisine ?? '' },
     { h: 'Giá', num: true, v: (p) => (p.giftOnly ? 'quà khách quen' : xu(p.cost)), sort: (p) => (p.giftOnly ? 1e9 : p.cost) },
     { h: 'Cấp', num: true, v: (p) => p.level, sort: (p) => p.level },
-    { h: 'Hiệu ứng', v: (p) => mods(p.modifiers) || '—' },
+    { h: 'Hiệu ứng', v: (p) => mods(p.modifiers) || '-' },
   ], (p) => `prop-${p.id}`)}
   <h3>Thú cưng</h3>
   ${table(DB.pets, [
@@ -394,13 +394,13 @@ sec('lich', '🗓️ Mùa, lễ hội, thời tiết, sự kiện', () => `
     { h: 'Trời', v: (w) => `<span class="ic">${w.icon}</span>${esc(w.name)}` },
     { h: 'Trọng số Xuân · Hạ · Thu · Đông', num: true, v: (w) => (w.seasonWeights ?? [w.weight, w.weight, w.weight, w.weight]).join(' · ') },
     { h: 'Kéo dài', num: true, v: (w) => `${mins(w.durationSec[0])} – ${mins(w.durationSec[1])}`, sort: (w) => w.durationSec[0] },
-    { h: 'Hiệu ứng', v: (w) => mods(w.effects) + (w.wetsSoil ? '<span class="tag">tự tưới</span>' : '') + (w.dryRate ? `<span class="tag">đất khô ×${w.dryRate}</span>` : '') + (w.damage ? `<span class="tag">dập cây ${Math.round(w.damage * 100)}%</span>` : '') || '—' },
+    { h: 'Hiệu ứng', v: (w) => mods(w.effects) + (w.wetsSoil ? '<span class="tag">tự tưới</span>' : '') + (w.dryRate ? `<span class="tag">đất khô ×${w.dryRate}</span>` : '') + (w.damage ? `<span class="tag">dập cây ${Math.round(w.damage * 100)}%</span>` : '') || '-' },
   ])}
   <h3>Sự kiện ngẫu nhiên</h3>
   ${table(DB.events, [
     { h: 'Sự kiện', v: (e) => `<span class="ic">${e.icon}</span>${esc(e.name)}` },
     { h: 'Trọng số', num: true, v: (e) => e.weight, sort: (e) => e.weight },
-    { h: 'Kéo dài', num: true, v: (e) => (e.duration ? mins(e.duration / O.mps) : '—') },
+    { h: 'Kéo dài', num: true, v: (e) => (e.duration ? mins(e.duration / O.mps) : '-') },
     { h: 'Hiệu ứng / thưởng phạt', v: (e) => mods(e.effects) + (e.reward ? `<span class="tag">thưởng ${xu(e.reward.money)}, uy tín +${e.reward.rep}</span>` : '') + (e.penalty ? `<span class="tag">phạt ${xu(e.penalty.money)}${e.penalty.max ? ` × tối đa ${e.penalty.max}` : ''}, uy tín −${e.penalty.rep}</span>` : '') },
     { h: 'Lời báo', v: (e) => esc(e.start) },
   ])}`);
