@@ -11,7 +11,7 @@ import { DAYS_PER_SEASON } from '../src/data/calendar';
 import { FARM_DAY } from '../src/data/farm';
 import { autoServeCommands } from '../src/sim/systems/service';
 import { billDue, missingEnergy } from '../src/sim/systems/crew';
-import { maxHelpers } from '../src/sim/systems/helpers';
+import { maxHelpers, zoneTables } from '../src/sim/systems/helpers';
 import { fullKitPlan } from '../src/sim/systems/home';
 import { sellPrice } from '../src/sim/systems/contracts';
 import { buildingRect, nextWaypoint, slotCenter, slotScale, workSpot } from '../src/sim/systems/farmer';
@@ -723,7 +723,9 @@ describe('phong cách quán (Nhật / Hàn / Việt / Ốc)', () => {
     expect(game.dispatch({ type: 'menu/unlock', recipeId: 'ramen' }).ok).toBe(true);
     expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_encaustic' }).ok).toBe(false);
     expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_hinoki' }).ok).toBe(true);
-    expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_marble' }).ok).toBe(true); // đồ dùng chung
+    expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_tile' }).ok).toBe(true); // đồ dùng chung (Nhật + Hàn)
+    expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_marble' }).ok).toBe(false); // đá cẩm thạch đã ngừng bán
+    expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_walnut' }).ok).toBe(false); // sàn gỗ óc chó: riêng quán Hàn
     expect(game.dispatch({ type: 'decor/buy', decorId: 'floor_ngocdo' }).ok).toBe(false); // chỉ quán Việt + quán ốc
   });
 
@@ -1222,6 +1224,38 @@ describe('ca làm, khay bưng nhiều món, dọn dẹp (đợt 14)', () => {
 });
 
 describe('nhân viên phục vụ thuê thêm', () => {
+  it('khu phục vụ: chỉ lo bàn trong vòng 2 m; khu quá 6 bàn thì không nhận', () => {
+    const game = quietGame();
+    Object.assign(game.state, { money: 1e6, level: 20 });
+    game.state.restaurant.lots = { cleared: 4 };
+    game.dispatch({ type: 'restaurant/upgrade' });
+    game.dispatch({ type: 'helper/hire' });
+    const h = game.state.restaurant.helpers[0];
+    const tables = activeTables(game.ctx);
+    const pair = tables.find((t) => t.id === 'pair')!;
+    const at = tablePos(game.ctx, pair);
+    expect(game.dispatch({ type: 'helper/setZone', helperId: h.id, at }).ok).toBe(true);
+    const inZone = new Set(zoneTables(game.ctx, at));
+    expect(inZone.has('pair')).toBe(true);
+    const far = tables.find((t) => !inZone.has(t.id) && !t.shared)!;
+    const out = seatParty(game, far.id, 1, [0]);
+    game.tick(5);
+    expect(out.called).toBe(false); // bàn ngoài khu: không tới
+    const mine = seatParty(game, 'pair', 2);
+    for (let i = 0; i < 40 && mine.phase === 'seated'; i++) game.tick(0.5);
+    expect(mine.phase).toBe('browsing');
+    // Dồn 7 bàn quanh một chỗ: đặt khu ở đó bị từ chối, giữ khu cũ
+    for (let i = 0; i < 7; i++) {
+      game.state.restaurant.extraTables.push({ id: `z${i}`, kind: game.content.tableKinds.all()[0].id });
+      game.state.restaurant.layout[`z${i}`] = { x: 1000 + (i % 3) * 30, y: 1000 + Math.floor(i / 3) * 30 };
+    }
+    expect(game.dispatch({ type: 'helper/setZone', helperId: h.id, at: { x: 1030, y: 1030 } }).ok).toBe(false);
+    expect(h.zone).toEqual({ x: Math.round(at.x), y: Math.round(at.y) });
+    expect(game.dispatch({ type: 'helper/setZone', helperId: h.id, at: null }).ok).toBe(true);
+    expect(h.zone).toBeNull();
+  });
+
+
   it('chỉ thuê được khi lên hạng quán (mỗi bậc +1, tối đa 4)', () => {
     const game = quietGame();
     Object.assign(game.state, { money: 1e6, level: 20 });

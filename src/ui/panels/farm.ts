@@ -1,3 +1,4 @@
+import { itemIcon } from '../three/itemicons';
 import { fitsSlot, type MillType, type ProducerDef, type SlotTypeDef } from '../../data';
 import type { Game } from '../../sim/game';
 import type { FarmerTaskKind, FarmSlot } from '../../sim/state';
@@ -11,7 +12,7 @@ import type { Panel, UiState } from './types';
 
 function yieldsText(game: Game, slot: FarmSlot, def: ProducerDef): string {
   return yieldsOf(game.ctx, slot, def)
-    .map((y) => `${y.qty}${game.content.items.get(y.item).icon}`)
+    .map((y) => `${y.qty}${itemIcon(game.content.items.get(y.item))}`)
     .join(' ');
 }
 
@@ -104,14 +105,14 @@ function millSection(game: Game, type: MillType): string {
       const choices = def.products
         .map((p) => {
           const item = content.items.get(p);
-          return `<button class="mini${m.product === p ? ' on' : ''}"${cmd({ type: 'mill/setProduct', millId: m.id, item: p })}>${item.icon} ${esc(item.name)}</button>`;
+          return `<button class="mini${m.product === p ? ' on' : ''}"${cmd({ type: 'mill/setProduct', millId: m.id, item: p })}>${itemIcon(item)} ${esc(item.name)}</button>`;
         })
         .join('');
       const status = m.input
-        ? `còn ${m.input}${input.icon} chờ xay${bar(m.progress / def.time, 'green')}`
+        ? `còn ${m.input}${itemIcon(input)} chờ xay${bar(m.progress / def.time, 'green')}`
         : `<span class="muted">Đang chờ bác chở ${esc(input.name.toLowerCase())} tới</span>`;
       return `<div class="card" data-key="${m.id}"><div class="row"><span class="big">${def.icon}</span>
-        <div class="grow"><b>${esc(def.name)} ${list.length > 1 ? i + 1 : ''}</b><div class="muted">1${input.icon} → 1 thành phẩm · ${duration(def.time)} mỗi phần</div>${status}</div></div>
+        <div class="grow"><b>${esc(def.name)} ${list.length > 1 ? i + 1 : ''}</b><div class="muted">1${itemIcon(input)} → 1 thành phẩm · ${duration(def.time)} mỗi phần</div>${status}</div></div>
         <div class="btns wrap">${choices}</div></div>`;
     })
     .join('');

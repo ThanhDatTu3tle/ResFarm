@@ -1,3 +1,4 @@
+import { itemIcon } from '../three/itemicons';
 import type { Game } from '../../sim/game';
 import { stockOf } from '../../sim/helpers';
 import { openContracts, shipperBlocked } from '../../sim/systems/contracts';
@@ -97,7 +98,7 @@ export const contractsPanel: Panel = {
             const item = content.items.get(x.item);
             const have = stockOf(ctx, x.item);
             const key = `${c.id}:${x.item}`;
-            return `<button class="chip item-chip ${c.status !== 'open' || have >= x.qty ? '' : 'bad'}${ui.itemTip === key ? ' on' : ''}" title="Bấm để xem ${esc(item.name)} kiếm ở đâu"${uiAttr(`itemTip:${key}`)}>${item.icon} ${esc(item.name)} <b>${c.status === 'open' ? `${Math.min(have, x.qty)}/` : ''}${x.qty}</b></button>`;
+            return `<button class="chip item-chip ${c.status !== 'open' || have >= x.qty ? '' : 'bad'}${ui.itemTip === key ? ' on' : ''}" title="Bấm để xem ${esc(item.name)} kiếm ở đâu"${uiAttr(`itemTip:${key}`)}>${itemIcon(item)} ${esc(item.name)} <b>${c.status === 'open' ? `${Math.min(have, x.qty)}/` : ''}${x.qty}</b></button>`;
           })
           .join('');
         // Tooltip: nguyên liệu đang chọn kiếm ở đâu (chợ / trồng / nuôi / chế biến)

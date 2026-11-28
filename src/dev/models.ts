@@ -121,6 +121,8 @@ function thingSections(): Section[] {
     if (c === 'jp') for (const [k, label] of [['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
       tables.push({ name: `${cuName(c)} · bàn bệt · ${label}`, note: 'Nội thất bậc 2 · ngồi bệt', make: () => tableSet(c, k, 'zataku_jp') });
     if (c === 'jp') for (const [k, label] of [['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
+      tables.push({ name: `${cuName(c)} · bàn gỗ lim, ghế băng · ${label}`, note: 'Nội thất bậc 3', make: () => tableSet(c, k, 'lim_jp') });
+    if (c === 'jp') for (const [k, label] of [['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)
       tables.push({ name: `${cuName(c)} · bàn đá sang trọng · ${label}`, note: 'Bộ sang trọng', make: () => tableSet(c, k, 'stone_jp') });
     if (c === 'kr') for (const [st, nm, note] of [['drum_kr', 'bàn thùng phuy', 'Nội thất bậc 2'], ['crate_kr', 'bàn gỗ sáng, ghế két bia', 'Nội thất bậc 2'], ['stone_jp', 'bàn đá sang trọng', 'Bộ sang trọng (chung với quán Nhật)']] as const)
       for (const [k, label] of [['pair', 'bàn đôi'], ['four', 'bàn bốn'], ['six', 'bàn 6']] as const)

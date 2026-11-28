@@ -1,3 +1,4 @@
+import { itemIcon } from '../three/itemicons';
 import { canAfford, stockOf } from '../../sim/helpers';
 import { priceOf } from '../../sim/systems/market';
 import { cmd, esc, ui } from '../dom';
@@ -36,7 +37,7 @@ export const marketPanel: Panel = {
               (n) => `<button${cmd({ type: 'market/buy', stallId: stall.id, itemId: id, qty: n })}${canAfford(game.ctx, price * n) ? '' : ' disabled'}>+${n}</button>`,
             ).join('');
             return `<div class="row" data-key="${id}">
-              <span class="big">${item.icon}</span>
+              <span class="big">${itemIcon(item)}</span>
               <div class="grow"><b>${esc(item.name)}</b>
                 <div class="muted">${coins(price)} ${trend} · trong kho: ${stockOf(ctx, id)}</div></div>
               <div class="btns">${buttons}</div></div>`;

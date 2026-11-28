@@ -358,6 +358,8 @@ export interface HelperState extends WaiterState {
   focus?: { partyId: number; tableId: string } | null;
   /** Hôm nay bị bệnh, nghỉ làm (sự kiện mỗi sáng khi có từ 2 nhân viên). */
   sick?: boolean;
+  /** Khu phục vụ người chơi kéo thả: tâm vòng tròn bán kính ZONE_RADIUS; chỉ phục vụ các bàn có tâm nằm trong vòng. */
+  zone?: { x: number; y: number } | null;
 }
 
 export interface RestaurantState {

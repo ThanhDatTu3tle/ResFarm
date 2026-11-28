@@ -1,3 +1,4 @@
+import { itemIcon } from './three/itemicons';
 import { achievements } from '../data/achievements';
 import { farmTools } from '../data/farmhands';
 import type * as THREE from 'three';
@@ -685,6 +686,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
     morph($('meal'), mealHtml(game, ui));
     morph($('coach'), coachHtml(game, ui));
     morph($('buy'), ui.area === 'stall' ? buyHtml(game, ui) : '');
+    stall.selected = ui.area === 'stall' ? ui.buyItem : null;
     morph(
       $('modal'),
       state.clock.phase !== 'summary'
@@ -911,8 +913,16 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
 
   // Kéo bàn khi đang ở chế độ sắp xếp
   // Kéo bàn / đồ trang trí khi đang ở chế độ sắp xếp; thả ra thì chọn luôn món đó (hiện nút xoay / cất / bán)
-  stage.dragFilter = (pick) => ui.editLayout && ((pick.type === 'table' && !tableById(game.ctx, pick.id)?.fixed) || pick.type === 'prop');
+  stage.dragFilter = (pick) => (pick.type === 'helper' && !visit) || (ui.editLayout && ((pick.type === 'table' && !tableById(game.ctx, pick.id)?.fixed) || pick.type === 'prop'));
   stage.onDrag = (pick, x, z, end) => {
+    // Kéo nhân viên thuê: đặt khu phục vụ (vòng 2 m), thả ở khu quá 6 bàn thì báo lỗi, giữ khu cũ
+    if (pick.type === 'helper') {
+      if (!end) return restaurant.dragZone(pick.id, x, z);
+      const drop = restaurant.endZoneDrag();
+      if (drop && run({ type: 'helper/setZone', helperId: drop.id, at: { x: drop.x, y: drop.y } })) sound.play('pop');
+      renderDom();
+      return;
+    }
     if (!end) return restaurant.dragItem(pick.type === 'prop' ? 'prop' : 'table', pick.id, x, z);
     const drop = restaurant.endDrag();
     if (!drop) return;
@@ -931,7 +941,7 @@ export function startApp(root: HTMLElement, opts: { cuisine?: CuisineId; owner?:
       const r = cmdEl.getBoundingClientRect();
       // Mua ở chợ: hàng bay từ nút bấm về Kho
       if (run(command) && command.type === 'market/buy') {
-        const icon = content.items.get(command.itemId).icon;
+        const icon = itemIcon(content.items.get(command.itemId));
         sound.play('buy');
         for (let i = 0; i < Math.min(3, command.qty); i++)
           flyIcon(fx, icon, { x: r.left + r.width / 2, y: r.top + r.height / 2 }, storeEl(), {

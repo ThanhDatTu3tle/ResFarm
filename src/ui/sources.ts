@@ -1,3 +1,4 @@
+import { itemIcon } from './three/itemicons';
 import type { Content } from '../data';
 import type { Game } from '../sim/game';
 import { esc } from './dom';
@@ -6,7 +7,7 @@ import { esc } from './dom';
 export function itemTipHtml(game: Game, itemId: string): string {
   const item = game.content.items.get(itemId);
   const { lines, summary } = itemSources(game.content, itemId);
-  return `<div class="item-tip"><b>${item.icon} ${esc(item.name)}</b> - ${esc(summary)}${lines.length ? `<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}</div>`;
+  return `<div class="item-tip"><b>${itemIcon(item)} ${esc(item.name)}</b> - ${esc(summary)}${lines.length ? `<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}</div>`;
 }
 
 /**

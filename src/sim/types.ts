@@ -85,6 +85,8 @@ export type Command =
   | { type: 'helper/hire' }
   | { type: 'helper/fire'; helperId: string }
   | { type: 'helper/setJob'; helperId: string; job: HelperJob; on: boolean }
+  /** Đặt khu phục vụ (tâm vòng tròn, toạ độ quán) cho nhân viên; null = bỏ khu, làm khắp quán như cũ. */
+  | { type: 'helper/setZone'; helperId: string; at: { x: number; y: number } | null }
   | { type: 'gardener/hire' }
   | { type: 'gardener/fire'; gardenerId: string }
   | { type: 'gardener/setJob'; gardenerId: string; job: GardenerJob; on: boolean }

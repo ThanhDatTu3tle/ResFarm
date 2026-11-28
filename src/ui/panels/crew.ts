@@ -1,3 +1,4 @@
+import { ZONE_GOOD, ZONE_MAX } from '../../sim/systems/helpers';
 import { awayReason, crewMembers, maxEnergyOf, reviveCostOf, reviveEnergyOf, type CrewMember } from '../../sim/systems/crew';
 import { kitchenTierOf, nextChefDef, uncookedDishes } from '../../sim/systems/kitchen';
 import { maxHelpers } from '../../sim/systems/helpers';
@@ -101,8 +102,11 @@ function busy(game: Game, m: CrewMember): boolean {
 
 function helperControls(h: HelperState): string {
   const jobs = JOBS.map(([job, label]) => `<button class="mini${h.jobs[job] ? ' on' : ''}"${cmd({ type: 'helper/setJob', helperId: h.id, job, on: !h.jobs[job] })}>${label}</button>`).join('');
-  return `<div class="chips jobs">${jobs}</div>
-    <div class="row end"><button class="mini ghost"${cmd({ type: 'helper/fire', helperId: h.id })}>Cho nghỉ việc</button></div>`;
+  const zone = h.zone
+    ? `<div class="muted">📍 Đang phục vụ một khu riêng (vòng 2 m). Kéo nhân viên trong quán để đổi khu.</div>`
+    : `<div class="muted">🖐️ Kéo nhân viên trong quán tới chỗ muốn giao khu: vòng xanh tới ${ZONE_GOOD} bàn, vàng tới ${ZONE_MAX} bàn, đỏ là quá sức.</div>`;
+  return `<div class="chips jobs">${jobs}</div>${zone}
+    <div class="row end">${h.zone ? `<button class="mini ghost"${cmd({ type: 'helper/setZone', helperId: h.id, at: null })}>Bỏ khu</button>` : ''}<button class="mini ghost"${cmd({ type: 'helper/fire', helperId: h.id })}>Cho nghỉ việc</button></div>`;
 }
 
 /**

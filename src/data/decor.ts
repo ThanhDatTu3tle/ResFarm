@@ -18,10 +18,10 @@ export const decor: DecorDef[] = [
   // Quán Việt lát sẵn gạch bông vàng (id giữ 'floor_wood' cho save cũ)
   { id: 'floor_wood', name: 'Gạch bông vàng', icon: '🌼', slot: 'floor', cost: 0, level: 1, isDefault: true, cuisine: 'vn', pattern: 'encaustic', colors: { a: 0xd9a23b, b: 0x8e2f25 } },
   { id: 'floor_tatami', name: 'Chiếu tatami', icon: '🟩', slot: 'floor', cost: 0, level: 1, isDefault: true, cuisine: 'jp', colors: { a: 0xd9cf8f, b: 0xc7bd7a } },
-  { id: 'floor_concrete', name: 'Sàn xi măng mài', icon: '⬛', slot: 'floor', cost: 0, level: 1, isDefault: true, cuisine: 'kr', pattern: 'concrete', colors: { a: 0x7e8183, b: 0x7e8183 } },
+  { id: 'floor_concrete', name: 'Sàn xi măng mài', icon: '⬛', slot: 'floor', cost: 450, level: 3, cuisine: 'kr', modifiers: { patience: 1.05 }, pattern: 'concrete', colors: { a: 0x7e8183, b: 0x7e8183 } },
   { id: 'floor_hinoki', name: 'Sàn gỗ hinoki', icon: '🪵', slot: 'floor', cost: 450, level: 3, cuisine: 'jp', colors: { a: 0xe8cf9c, b: 0xdcc08a }, modifiers: { patience: 1.05 } },
   { id: 'floor_encaustic', name: 'Gạch bông xanh ngọc', icon: '🌸', slot: 'floor', cost: 450, level: 3, cuisines: ['vn', 'oc'], pattern: 'encaustic', colors: { a: 0x5f9a6a, b: 0x2a5a3c }, modifiers: { patience: 1.05 } },
-  { id: 'floor_checker', name: 'Gạch caro đen trắng', icon: '🏁', slot: 'floor', cost: 450, level: 3, cuisine: 'kr', pattern: 'checker', colors: { a: 0xf4f4f4, b: 0x2e2e33 }, modifiers: { patience: 1.05 } },
+  { id: 'floor_checker', name: 'Gạch caro đen trắng', icon: '🏁', slot: 'floor', cost: 0, level: 1, isDefault: true, cuisine: 'kr', pattern: 'checker', colors: { a: 0xf4f4f4, b: 0x2e2e33 } },
   // Quán Ốc ngoài trời: nền bê tông, nâng cấp là gạch hoa lề đường (ô vuông xen hai màu)
   { id: 'floor_street', name: 'Nền bê tông vỉa hè', icon: '⬛', slot: 'floor', cost: 0, level: 1, isDefault: true, cuisine: 'oc', colors: { a: 0xaeaca6, b: 0xa29f99 } },
   // Quán Ốc dùng chung nền gạch với quán Việt (giai đoạn 20): 2 nền lề đường riêng ngừng bán (save cũ được trả tiền)
@@ -31,8 +31,12 @@ export const decor: DecorDef[] = [
   // Quán Việt + quán ốc (đặc trưng Việt Nam): gạch men ngọc đỏ, gạch xưa đất nung
   { id: 'floor_ngocdo', name: 'Gạch men ngọc đỏ', icon: '🟥', slot: 'floor', cost: 450, level: 3, cuisines: ['vn', 'oc'], pattern: 'ngocdo', colors: { a: 0x8e3a30, b: 0x2f6b4f }, modifiers: { patience: 1.05 } },
   { id: 'floor_gachxua', name: 'Sàn gạch xưa', icon: '🧱', slot: 'floor', cost: 650, level: 4, cuisines: ['vn', 'oc'], pattern: 'terracotta', colors: { a: 0xc2643a, b: 0xa9502e }, modifiers: { patience: 1.07 } },
-  { id: 'floor_walnut', name: 'Sàn gỗ óc chó', icon: '🟫', slot: 'floor', cost: 500, level: 3, exclude: ['vn', 'oc'], pattern: 'planks', colors: { a: 0xb07a45, b: 0x7a4d2a } },
-  { id: 'floor_marble', name: 'Đá cẩm thạch', icon: '⬜', slot: 'floor', cost: 900, level: 4, exclude: ['vn', 'oc'], colors: { a: 0xe9eef2, b: 0xcfd8dc }, modifiers: { dishPrice: 1.05 } },
+  // Sàn tre (quán Nhật): nan tre mảnh xếp sát, vân đốt tre
+  { id: 'floor_bamboo_jp', name: 'Sàn tre', icon: '🎋', slot: 'floor', cost: 500, level: 3, cuisine: 'jp', pattern: 'bamboo', colors: { a: 0xd9b27a, b: 0xb8894f } },
+  // Sàn gỗ óc chó: riêng quán Hàn (quán Nhật đổi sang sàn tre; save cũ được trả tiền)
+  { id: 'floor_walnut', name: 'Sàn gỗ óc chó', icon: '🟫', slot: 'floor', cost: 500, level: 3, exclude: ['vn', 'oc', 'jp'], pattern: 'planks', colors: { a: 0xb07a45, b: 0x7a4d2a } },
+  // Ngừng bán ở mọi quán (save cũ được trả tiền)
+  { id: 'floor_marble', name: 'Đá cẩm thạch', icon: '⬜', slot: 'floor', cost: 900, level: 4, exclude: ['vn', 'oc', 'jp', 'kr'], colors: { a: 0xe9eef2, b: 0xcfd8dc }, modifiers: { dishPrice: 1.05 } },
 
   // Sơn tường
   // Quán Việt: tường vàng cam, chân tường gỗ (khung cửa sổ xanh lá vẽ riêng - id giữ 'wall_cream' cho save cũ)
@@ -47,6 +51,7 @@ export const decor: DecorDef[] = [
   // Quán Nhật: vách gỗ tuyết tùng → tường đất sét kiểu Kyoto → đỏ chu sa cổng torii (giai đoạn 20; màu sơn chung không bán cho Nhật / Hàn)
   { id: 'wall_sugi_jp', name: 'Vách gỗ tuyết tùng', icon: '🪵', slot: 'wall', cost: 200, level: 2, cuisine: 'jp', colors: { wall: 0xd6ad7c, trim: 0x4a3020 } },
   { id: 'wall_clay_jp', name: 'Tường đất sét Kyoto', icon: '🏯', slot: 'wall', cost: 350, level: 3, cuisine: 'jp', colors: { wall: 0xcaa476, trim: 0x3e3a36 } },
+  { id: 'wall_mural_jp', name: 'Tranh vẽ núi sơn thuỷ', icon: '🏔️', slot: 'wall', cost: 900, level: 4, cuisine: 'jp', pattern: 'mural', colors: { wall: 0xe8dcc4, trim: 0x6b4a32 }, modifiers: { tip: 1.1 } },
   { id: 'wall_shu_jp', name: 'Đỏ chu sa cổng torii', icon: '⛩️', slot: 'wall', cost: 600, level: 4, cuisine: 'jp', colors: { wall: 0xc9482f, trim: 0x2a2420 }, modifiers: { tip: 1.1 } },
   // Quán Hàn: giấy hanji (mặc định) → ốp gạch trắng (gạch vuông nhỏ, ron xám) → tường xi măng thô quán pocha
   { id: 'wall_hanji_kr', name: 'Giấy dán hanji', icon: '📜', slot: 'wall', cost: 0, level: 1, isDefault: true, cuisine: 'kr', colors: { wall: 0xf0e4c8, trim: 0x6b4a32 } },
@@ -72,6 +77,7 @@ export const decor: DecorDef[] = [
   // Quán Ốc (quán nhậu lề đường): bàn 4 / bàn 6 ghép từ bàn đôi. Bàn inox và bàn tre cùng bậc, cùng giá, cùng chỉ số
   // Quán Nhật: bàn bệt (zataku) ngồi đôn gỗ → bộ sang trọng bàn đá (quán Hàn dùng chung) (tấm gỗ cũ kê đá cuội + khối gỗ, đôn gỗ hộp)
   { id: 'furn_zataku_jp', name: 'Bàn bệt gỗ, đôn ngồi', icon: '🪑', slot: 'furniture', cost: 800, level: 3, cuisine: 'jp', style: 'zataku_jp', colors: { top: 0xd39a58, base: 0xc2884a, seat: 0xd39a58, back: 0xc2884a }, modifiers: { patience: 1.1 } },
+  { id: 'furn_lim_jp', name: 'Bàn gỗ lim, ghế băng', icon: '🪵', slot: 'furniture', cost: 1000, level: 4, cuisine: 'jp', style: 'lim_jp', colors: { top: 0x8a3a1e, base: 0x5e2412, seat: 0xa14a26 }, modifiers: { patience: 1.1, tip: 1.05 } },
   { id: 'furn_stone_jp', name: 'Bộ sang trọng (bàn đá)', icon: '👑', slot: 'furniture', cost: 1500, level: 5, cuisines: ['jp', 'kr'], style: 'stone_jp', colors: { top: 0x9a6a42, base: 0x7a5234, seat: 0x9a6a42, back: 0x7a5234 }, modifiers: { patience: 1.15, tip: 1.15 } },
   // Quán Hàn: bàn thùng phuy (pocha) hoặc bàn nướng gỗ sáng + ghế két bia (cùng bậc) → bộ sang trọng bàn đá (chung với quán Nhật)
   { id: 'furn_drum_kr', name: 'Bàn thùng phuy, đôn tròn', icon: '🛢️', slot: 'furniture', cost: 800, level: 3, cuisine: 'kr', style: 'drum_kr', colors: { top: 0x5f7f86, base: 0x4b666c, seat: 0xc8352e, back: 0xc8352e }, modifiers: { patience: 1.1 } },

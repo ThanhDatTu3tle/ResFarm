@@ -59,6 +59,34 @@ function chochin(parent: THREE.Object3D, x: number, y: number, z: number, s = 1,
   return g;
 }
 
+/**
+ * Đèn lồng cheongsachorong (quán Hàn): đèn lụa lục giác nửa trên xanh lam, nửa dưới đỏ, khung gỗ sẫm, chóp đồng,
+ * tua đỏ rủ bên dưới. Gốc ở điểm treo trên trần (đung đưa quanh đó); tối thì lụa sáng ấm lên.
+ */
+function cheongsaLantern(parent: THREE.Object3D, x: number, y: number, z: number): THREE.Group {
+  const g = group(parent, { p: [x, y, z] });
+  const cy = -0.85;
+  mesh(g, G.cyl(0.008, 0.008, -cy - 0.28, 4), 0x2a1f1a, { p: [0, (cy + 0.28) / 2, 0], cast: false }); // dây treo
+  const blue = glowMat(0x3f6fc8, 0.18);
+  const red = glowMat(0xd9433a, 0.18);
+  blue.userData.night = red.userData.night = true;
+  mesh(g, G.cyl(0.2, 0.22, 0.22, 6), blue, { p: [0, cy + 0.11, 0], cast: false });
+  mesh(g, G.cyl(0.22, 0.18, 0.26, 6), red, { p: [0, cy - 0.13, 0], cast: false });
+  // Khung gỗ: nắp trên, vành giữa, đáy; 6 nan dọc ở các góc
+  mesh(g, G.cyl(0.13, 0.23, 0.06, 6), 0x3a2418, { p: [0, cy + 0.25, 0] });
+  mesh(g, G.cyl(0.235, 0.235, 0.025, 6), 0x3a2418, { p: [0, cy, 0], cast: false });
+  mesh(g, G.cyl(0.19, 0.16, 0.04, 6), 0x3a2418, { p: [0, cy - 0.28, 0] });
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    mesh(g, G.box(0.018, 0.5, 0.018), 0x3a2418, { p: [Math.cos(a) * 0.215, cy - 0.01, Math.sin(a) * 0.215], cast: false });
+  }
+  mesh(g, G.cone(0.05, 0.08, 6), 0xc9a24a, { p: [0, cy + 0.31, 0], cast: false }); // chóp đồng
+  // Tua đỏ
+  mesh(g, G.sphere(0.03, 8, 6), 0xc9a24a, { p: [0, cy - 0.32, 0], cast: false });
+  mesh(g, G.cyl(0.012, 0.045, 0.24, 8), 0xc8352e, { p: [0, cy - 0.46, 0], cast: false });
+  return g;
+}
+
 /** Đèn lồng lụa Hội An: thân tròn màu, chóp và đáy vàng đồng, tua rua. */
 function hoiAnLantern(parent: THREE.Object3D, x: number, y: number, z: number, color: number, s = 1): THREE.Group {
   const g = group(parent, { p: [x, y, z], s });
@@ -251,8 +279,8 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
     for (let i = 0, n = Math.floor((longLen - 0.4) / 0.28); i < n; i++) plaque(L.x + 0.23, L.zBack + 0.3 + i * 0.28, Math.PI / 2, i);
     for (let i = 0, n = Math.floor((shortLen - 0.5) / 0.28); i < n; i++) plaque(L.xStart + 0.3 + i * 0.28, L.zCorner + 0.23, 0, i);
     // Dãy đèn lồng giấy trắng treo trên khung (như quầy izakaya), giữa có một chiếc đỏ
-    for (let i = 0, n = Math.max(3, Math.round(longLen / 1.05)); i < n; i++) swingers.push(chochin(r, L.x + 0.05, beamY + 0.75, L.zBack + 0.45 + (i * (longLen - 0.9)) / (n - 1), 0.85, i === Math.floor(n / 2) ? 0xd9433a : 0xf6f1e4));
-    for (let i = 0, n = Math.max(2, Math.round(shortLen / 1.05)); i < n; i++) swingers.push(chochin(r, L.xStart + 0.45 + (i * (shortLen - 1.2)) / Math.max(1, n - 1), beamY + 0.75, L.zCorner + 0.05, 0.85, 0xf6f1e4));
+    for (let i = 0, n = Math.max(3, Math.round(longLen / 1.05)); i < n; i++) swingers.push(chochin(r, L.x + 0.05, beamY + 0.75, L.zBack + 0.45 + (i * (longLen - 0.9)) / (n - 1), 0.85, i % 2 ? 0xf6f1e4 : 0xd9433a)); // xen kẽ đỏ - trắng
+    for (let i = 0, n = Math.max(2, Math.round(shortLen / 1.05)); i < n; i++) swingers.push(chochin(r, L.xStart + 0.45 + (i * (shortLen - 1.2)) / Math.max(1, n - 1), beamY + 0.75, L.zCorner + 0.05, 0.85, i % 2 ? 0xd9433a : 0xf6f1e4));
     // Rèm noren treo ở đầu trong của cạnh ngắn (lối đầu bếp ra vào), mèo thần tài trên góc quầy
     noren(r, L.xStart + 0.75, 2.45, L.zCorner - 0.5, 1.1, 2);
     wavers.push(manekiNeko(r, L.x, 1.18, L.zCorner, 1.3));
@@ -262,7 +290,7 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
   } else if (cuisine === 'jp') {
     // Rèm noren trước gian bếp, mèo thần tài, thẻ gỗ ghi món trên tường, bonsai ở góc (không treo đèn lồng đỏ giữa quán)
     noren(r, (d.kitchenX1 + d.halfW) / 2, 3.55, d.kitchenZ + 0.1, d.halfW - d.kitchenX1 - 0.3, 4);
-    for (const x of [-d.halfW + 0.6, d.halfW - 0.6]) swingers.push(chochin(r, x, 3.3, d.kitchenZ + 0.4, 0.9, 0xf3efe0));
+    for (const x of [-d.halfW + 0.6, d.halfW - 0.6]) swingers.push(chochin(r, x, 3.75, d.kitchenZ + 0.4, 0.9, x < 0 ? 0xd9433a : 0xf3efe0));
     wavers.push(manekiNeko(r, kc - 1.55, 1.02, d.backZ + 0.55, 1.3)); // đầu dãy bếp, cạnh chảo
     for (let i = 0; i < 7; i++) {
       const x = kc - 1.26 + i * 0.42;
@@ -273,6 +301,10 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
     // Bình phong tre mỏng hai bên tường
     for (const side of [-1, 1]) for (let i = 0; i < 9; i++) mesh(r, G.cyl(0.035, 0.035, 2.2, 6), 0x8fb35a, { p: [side * (d.halfW - 0.1), 1.1, d.frontZ - 3.4 + i * 0.09], cast: false });
   } else if (cuisine === 'kr') {
+    // Dãy đèn lồng cheongsachorong (xanh - đỏ) treo giữa khu bàn, số đèn theo bề ngang quán; tối hắt sáng ấm xuống sàn
+    const nKr = Math.max(3, Math.round((d.halfW * 2 - 1.8) / 2.2));
+    const zKr = (d.kitchenZ + d.frontZ) / 2 - 0.3;
+    for (let i = 0; i < nKr; i++) swingers.push(cheongsaLantern(r, -d.halfW + 1.4 + i * ((d.halfW * 2 - 2.8) / (nKr - 1)), 4.6, zKr));
     // Biển neon trên tường sau, ống hút khói (dựng theo bàn ở tableExtras), poster, thùng soju, đèn kim loại
     const neon = glowMat(0xff5fa2, 0.9);
     const frame = group(r, { p: [kc - 0.4, 3.05, back + 0.06] });
@@ -283,13 +315,6 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
     for (const sx of [-1, 1]) mesh(frame, G.box(0.06, 0.6, 0.04), neon, { p: [sx * 1.2, 0, 0.05], cast: false });
     mesh(frame, G.box(2.4, 0.05, 0.04), neon, { p: [0, -0.3, 0.05], cast: false });
     glows.push(neon);
-    for (const [x, c] of [[-d.halfW + 0.02, 0xffd23e], [d.halfW - 0.02, 0x5fb7e8]] as const) {
-      const p = group(r, { p: [x, 2.4, d.backZ + 2.2], r: [0, x < 0 ? Math.PI / 2 : -Math.PI / 2, 0] });
-      mesh(p, G.box(1.1, 1.4, 0.03), c, { cast: false });
-      const icon = emojiSprite(x < 0 ? '🍗' : '🍜', 0.7);
-      icon.position.set(0, 0.1, 0.05);
-      p.add(icon);
-    }
     // Két soju xanh ở góc
     for (const [x, z] of [[-d.halfW + 0.7, d.frontZ - 0.8], [d.halfW - 0.7, d.frontZ - 0.8]]) {
       const crate = group(r, { p: [x, 0, z] });
@@ -301,20 +326,28 @@ export function decorateInterior(cuisine: CuisineId, r: THREE.Object3D, d: Inter
     // Chỉ giữ dãy đèn trước gian bếp + 2 quạt trần (đã bỏ 3 đèn lồng to treo giữa quán)
     // Dãy đèn chụp nón vải treo trước gian bếp (thay đèn lồng Hội An), số đèn theo bề ngang quán
     const nLamps = Math.max(3, Math.round((d.halfW * 2 - 1.8) / 2));
-    for (let i = 0; i < nLamps; i++) swingers.push(coneLamp(r, -d.halfW + 1.3 + i * ((d.halfW * 2 - 2.6) / (nLamps - 1)), 4.15, d.kitchenZ + 0.3));
-    for (const x of [-d.halfW * 0.3, d.halfW * 0.3]) spinners.push(ceilingFan(r, x, 4.05, -0.4));
+    for (let i = 0; i < nLamps; i++) swingers.push(coneLamp(r, -d.halfW + 1.3 + i * ((d.halfW * 2 - 2.6) / (nLamps - 1)), 4.6, d.kitchenZ + 0.3));
+    for (const x of [-d.halfW * 0.3, d.halfW * 0.3]) spinners.push(ceilingFan(r, x, 4.5, -0.4));
     for (const [x, z] of [[d.halfW - 0.7, d.frontZ - 0.8]]) {
       mesh(r, G.cyl(0.35, 0.28, 0.5), 0xc8623e, { p: [x, 0.25, z] });
       makeBush(r, { p: [x, 0.45, z], s: 1.1 }, 0x4f9e4a);
     }
   }
 
+  // Tối: mỗi đèn treo hắt một luồng sáng ấm xuống sàn (chóp sáng mờ dần) + vũng sáng tròn dưới sàn
+  const beams = swingers.map((s) => lightBeam(r, s));
   // Đèn lồng / neon: sáng dần khi trời tối
   for (const g of swingers) g.traverse((o) => o instanceof THREE.Mesh && o.material instanceof THREE.MeshToonMaterial && o.material.userData.glowBase != null && glows.push(o.material));
   const phases = swingers.map((_, i) => i * 1.7);
   return (env, dt) => {
     for (const m of glows) m.emissiveIntensity = (m.userData.glowBase as number) + (m.userData.night ? Math.max(env.dim * 0.6, env.night * 3) : env.dim * 0.9);
     for (const l of nightLights) l.intensity = env.night * 8;
+    const beam = Math.max(0, env.night - 0.15) / 0.85;
+    for (const b of beams) {
+      b.cone.opacity = beam * 0.22;
+      b.pool.opacity = beam * 0.3;
+      b.cone.visible = b.pool.visible = beam > 0.01;
+    }
     for (const s of spinners) s.rotation.y += dt * 5;
     for (const w of wavers) w.rotation.z = -0.4 + Math.sin(env.t * 4) * 0.45;
     swingers.forEach((s, i) => (s.rotation.z = Math.sin(env.t * 1.3 + phases[i]) * 0.05));
@@ -551,3 +584,73 @@ export function makeShopfront(cuisine: CuisineId): { g: THREE.Group; glows: THRE
   }
   return { g, glows };
 }
+
+// ---------- Luồng sáng đèn treo (ban đêm) ----------
+
+let beamTex: THREE.Texture | null = null;
+let poolTex: THREE.Texture | null = null;
+
+/** Dải sáng dọc: sáng ở đỉnh (sát đèn), nhạt dần xuống sàn. */
+function beamTexture(): THREE.Texture {
+  if (beamTex) return beamTex;
+  const c = document.createElement('canvas');
+  c.width = 4;
+  c.height = 128;
+  const g = c.getContext('2d')!;
+  const gr = g.createLinearGradient(0, 0, 0, 128);
+  gr.addColorStop(0, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.35, 'rgba(255,255,255,0.45)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, 4, 128);
+  beamTex = new THREE.CanvasTexture(c);
+  return beamTex;
+}
+
+/** Vũng sáng tròn mờ viền dưới sàn. */
+function poolTexture(): THREE.Texture {
+  if (poolTex) return poolTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.5, 'rgba(255,255,255,0.45)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, 64, 64);
+  poolTex = new THREE.CanvasTexture(c);
+  return poolTex;
+}
+
+/**
+ * Luồng sáng của một đèn treo: chóp nón trong suốt cộng màu (AdditiveBlending) từ dưới đèn loe xuống sàn, sáng gần đèn
+ * mờ dần về sàn, kèm vũng sáng tròn trên sàn. Chóp gắn theo đèn (đung đưa cùng đèn), vũng sáng nằm yên trên sàn.
+ */
+function lightBeam(root: THREE.Object3D, lamp: THREE.Object3D): { cone: THREE.MeshBasicMaterial; pool: THREE.MeshBasicMaterial } {
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(lamp);
+  const size = box.getSize(new THREE.Vector3());
+  const bottom = new THREE.Vector3((box.min.x + box.max.x) / 2, box.min.y + Math.min(0.25, size.y * 0.3), (box.min.z + box.max.z) / 2);
+  const rTop = Math.max(0.15, Math.min(size.x, size.z) * 0.42);
+  const h = Math.max(0.5, bottom.y - 0.02);
+  const rBottom = rTop + h * 0.32;
+  const warm = 0xffc070;
+  const cone = new THREE.MeshBasicMaterial({ color: warm, map: beamTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  const local = lamp.worldToLocal(bottom.clone());
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBottom, h, 24, 1, true), cone);
+  m.position.set(local.x, local.y - h / 2, local.z);
+  m.renderOrder = 5;
+  m.userData.keep = true;
+  lamp.add(m);
+  const pool = new THREE.MeshBasicMaterial({ color: warm, map: poolTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(rBottom * 2.6, rBottom * 2.6), pool);
+  const floor = root.worldToLocal(new THREE.Vector3(bottom.x, 0.03, bottom.z));
+  p.position.copy(floor);
+  p.rotation.x = -Math.PI / 2;
+  p.renderOrder = 4;
+  p.userData.keep = true;
+  root.add(p);
+  return { cone, pool };
+}
+

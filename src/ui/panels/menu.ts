@@ -1,3 +1,4 @@
+import { itemIcon } from '../three/itemicons';
 import { recipesFor, type RecipeDef } from '../../data';
 import type { Game } from '../../sim/game';
 import { craftableCount, stockOf } from '../../sim/helpers';
@@ -16,7 +17,7 @@ function ingredients(game: Game, recipe: RecipeDef, ui: UiState): string {
       const have = stockOf(game.ctx, ing.item);
       const label = item.infinite ? '' : ` ${have}/${ing.qty}`;
       const key = prefix + ing.item;
-      return `<button class="chip item-chip ${have >= ing.qty ? '' : 'bad'}${ui.itemTip === key ? ' on' : ''}" title="Bấm để xem ${esc(item.name)} kiếm ở đâu"${uiAttr(`itemTip:${key}`)}>${item.icon}${label}</button>`;
+      return `<button class="chip item-chip ${have >= ing.qty ? '' : 'bad'}${ui.itemTip === key ? ' on' : ''}" title="Bấm để xem ${esc(item.name)} kiếm ở đâu"${uiAttr(`itemTip:${key}`)}>${itemIcon(item)}${label}</button>`;
     })
     .join('');
   const tipItem = ui.itemTip?.startsWith(prefix) ? ui.itemTip.slice(prefix.length) : null;
@@ -91,5 +92,5 @@ function missingText(game: Game, r: RecipeDef): string {
   const miss = r.ingredients
     .map((ing) => ({ item: game.content.items.get(ing.item), need: ing.qty * want - stockOf(game.ctx, ing.item) }))
     .filter((m) => !m.item.infinite && m.need > 0);
-  return miss.map((m) => `${m.item.icon} ${esc(m.item.name)} ×${m.need}`).join(', ') || 'đủ';
+  return miss.map((m) => `${itemIcon(m.item)} ${esc(m.item.name)} ×${m.need}`).join(', ') || 'đủ';
 }

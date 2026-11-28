@@ -1,3 +1,4 @@
+import { itemIcon } from './three/itemicons';
 import { seasons, weekdays } from '../data/calendar';
 import { partyColor, TAKEOUT_COLOR } from './colors';
 import { defOf } from '../sim/systems/events';
@@ -512,7 +513,7 @@ export function buyHtml(game: Game, ui: UiState): string {
   ].filter(Boolean).join(' · ');
   const btns = [1, 5, 10].map((n) => `<button${cmd({ type: 'market/buy', stallId, itemId: item.id, qty: n })}${canAfford(game.ctx, price * n) ? '' : ' disabled'}>Mua ${n} · ${coins(price * n)}</button>`).join('');
   return `<div class="service-card buy-card" data-key="buy-${item.id}">
-    <div class="service-head"><b><span class="dish-icon">${item.icon}</span> ${esc(item.name)}</b><button class="x-close"${uiAttr('buy:close')} aria-label="Đóng">✕</button></div>
+    <div class="service-head"><b><span class="dish-icon">${itemIcon(item)}</span> ${esc(item.name)}</b><button class="x-close"${uiAttr('buy:close')} aria-label="Đóng">✕</button></div>
     <div class="muted">${coins(price)} / 1 ${trend} · trong kho: ${stockOf(ctx, item.id)}</div>
     <div class="btns">${btns}</div>
   </div>`;

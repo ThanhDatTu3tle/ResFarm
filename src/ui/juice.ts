@@ -44,7 +44,8 @@ export function flyIcon(layer: HTMLElement, icon: string, from: Point, to: Eleme
   }
   const el = document.createElement('span');
   el.className = opts.cls ? `fly ${opts.cls}` : 'fly';
-  el.textContent = icon;
+  if (icon.startsWith('<')) el.innerHTML = icon;
+  else el.textContent = icon;
   el.style.fontSize = `${opts.size ?? 26}px`;
   layer.appendChild(el);
 

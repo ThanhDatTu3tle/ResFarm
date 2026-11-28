@@ -108,3 +108,36 @@ export function buildBoxStool(chair: THREE.Object3D, m: WoodMats, seed = 1): voi
   mesh(c, G.box(S + 0.03, 0.05, S + 0.03), m.planks[seed % 3], { p: [0, H - 0.025, 0] });
   for (let i = 1; i < 3; i++) mesh(c, G.box(S + 0.006, 0.01, S + 0.006), m.frame, { p: [0, ((H - 0.05) / 3) * i, 0], cast: false });
 }
+
+// ---------- Bàn gỗ lim + ghế băng (quán Nhật) ----------
+
+const LIM = { top: 0x8a3a1e, dark: 0x5e2412, edge: 0xa14a26 };
+
+/** Bàn gỗ lim kiểu quán gỗ mộc: mặt ván dày đỏ nâu bóng, hai bộ chân chữ A vuông vức hai đầu, xà ngang nối giữa. */
+export function buildLimTable(g: THREE.Object3D, w: number, d: number, top: number, seed = 1): void {
+  const rnd = seeded(seed * 13 + 5);
+  const L = Math.max(w, d);
+  const D = Math.min(w, d);
+  const t = group(g, { r: [0, d > w ? Math.PI / 2 : 0, 0] });
+  const th = 0.08;
+  // Mặt bàn ghép 3 tấm ván, mỗi tấm một tông gỗ
+  for (let i = 0; i < 3; i++) mesh(t, G.box(L, th, D / 3 - 0.008), [LIM.top, LIM.edge, 0x7d3419][Math.floor(rnd() * 3)], { p: [0, top - th / 2, -D / 3 + (i * D) / 3] });
+  mesh(t, G.box(L - 0.1, 0.04, D - 0.12), LIM.dark, { p: [0, top - th - 0.02, 0] });
+  // Chân chữ A ở hai đầu: 2 chân vuông hơi choãi + thanh ngang dưới
+  const ex = L / 2 - 0.22;
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) mesh(t, G.box(0.09, top - th, 0.09), LIM.dark, { p: [sx * ex, (top - th) / 2, sz * (D / 2 - 0.2)], r: [sz * 0.08, 0, 0] });
+    mesh(t, G.box(0.08, 0.08, D - 0.3), LIM.dark, { p: [sx * ex, 0.18, 0] });
+  }
+  mesh(t, G.box(L - 0.5, 0.08, 0.08), LIM.dark, { p: [0, 0.3, 0] }); // xà ngang
+}
+
+/** Một khúc ghế băng gỗ lim (mỗi chỗ ngồi một khúc, xếp cạnh nhau thành băng dài): mặt ván dày, hai chân vuông. */
+export function buildLimBench(chair: THREE.Object3D, seed = 1): void {
+  const rnd = seeded(seed * 7 + 3);
+  const H = 0.46;
+  const W = 0.62;
+  mesh(chair, G.box(W, 0.06, 0.32), rnd() < 0.5 ? LIM.top : LIM.edge, { p: [0, H - 0.03, 0] });
+  for (const sx of [-1, 1]) mesh(chair, G.box(0.07, H - 0.06, 0.24), LIM.dark, { p: [sx * (W / 2 - 0.07), (H - 0.06) / 2, 0] });
+  mesh(chair, G.box(W - 0.14, 0.05, 0.05), LIM.dark, { p: [0, 0.14, 0] });
+}

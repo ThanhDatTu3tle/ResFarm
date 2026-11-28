@@ -1,3 +1,4 @@
+import { itemIcon } from '../three/itemicons';
 import { categoryNames } from '../../data/items';
 import type { ItemCategory } from '../../data';
 import { stockOf } from '../../sim/helpers';
@@ -40,7 +41,7 @@ export const inventoryPanel: Panel = {
             const have = stockOf(ctx, i.id);
             const price = sellPrice(ctx, i.id);
             const sell = (n: number, label: string) => `<button class="mini"${cmd({ type: 'market/sell', itemId: i.id, qty: n })}>${label}</button>`;
-            return `<div class="row stock-row" data-key="${i.id}"><span class="big">${i.icon}</span>
+            return `<div class="row stock-row" data-key="${i.id}"><span class="big">${itemIcon(i)}</span>
               <div class="grow"><b>${esc(i.name)}</b> <span class="pill">${qty(have)}</span><div class="muted">Bán lại ${coins(price)} / 1</div></div>
               <div class="btns">${sell(1, 'Bán 1')}${have > 5 ? sell(5, 'Bán 5') : ''}${sell(have, `Bán hết · ${coins(price * have)}`)}</div></div>`;
           })
@@ -49,7 +50,7 @@ export const inventoryPanel: Panel = {
           .filter((i) => i.infinite || stockOf(ctx, i.id) <= 0)
           .map((i) => {
             const have = stockOf(ctx, i.id);
-            return `<div class="chip stock ${have ? '' : 'bad'}"><span class="big">${i.icon}</span>${esc(i.name)} <b>${qty(have)}</b></div>`;
+            return `<div class="chip stock ${have ? '' : 'bad'}"><span class="big">${itemIcon(i)}</span>${esc(i.name)} <b>${qty(have)}</b></div>`;
           })
           .join('');
         return `<h3>${categoryNames[category]}</h3>${rows}${chips ? `<div class="chips">${chips}</div>` : ''}`;

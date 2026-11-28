@@ -32,7 +32,9 @@ export type Pick =
   /** Khay hàng trong quầy chợ (id = id nguyên liệu): mở bảng mua. */
   | { type: 'goods'; id: string }
   /** Bảng menu trong Tiệm 25caaaaa (id = id sạp): mở bảng gọi món cho cả đội. */
-  | { type: 'menuboard'; id: string };
+  | { type: 'menuboard'; id: string }
+  /** Nhân viên phục vụ thuê (id = HelperState.id): kéo thả để đặt khu phục vụ. */
+  | { type: 'helper'; id: string };
 
 /** Môi trường chung cho mọi khu, tính lại mỗi khung hình từ state (giờ + thời tiết). Mọi giá trị 0..1 trừ `t`. */
 export interface Env {

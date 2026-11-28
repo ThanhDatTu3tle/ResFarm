@@ -1,6 +1,6 @@
 import { rand, randInt } from '../../core/rng';
 import { spend } from '../helpers';
-import { roomOf } from '../layout';
+import { activeTables, roomOf, tablePos } from '../layout';
 import { kitchenTierOf } from './kitchen';
 import type { HelperJob, HelperState } from '../state';
 import { fail, ok, type SimContext, type System } from '../types';
@@ -23,7 +23,11 @@ export const helperSystem: System = {
     for (const h of r.helpers) if (h.focus && (h.fainted || h.sick || ctx.state.crew.restaurantAway)) h.focus = null;
     if (ctx.state.crew.restaurantAway) return;
     const focused = teamMode(ctx);
-    for (const h of r.helpers) if (!h.fainted && !h.sick && !h.tasks.length) (focused ? pickFocused : pickTask)(ctx, h);
+    for (const h of r.helpers) {
+      if (h.fainted || h.sick || h.tasks.length) continue;
+      if (h.zone) pickZoned(ctx, h);
+      else (focused ? pickFocused : pickTask)(ctx, h);
+    }
   },
   onDayStart(ctx) {
     const { state, content } = ctx;
@@ -59,6 +63,14 @@ export const helperSystem: System = {
       ctx.state.restaurant.helpers = ctx.state.restaurant.helpers.filter((x) => x !== h);
       return ok();
     },
+    'helper/setZone'(ctx, cmd) {
+      const h = find(ctx, cmd.helperId);
+      if (!h) return fail('Không có nhân viên này.');
+      if (cmd.at && zoneTables(ctx, cmd.at).length > ZONE_MAX) return fail(`Khu này có quá ${ZONE_MAX} bàn, một người phục vụ không xuể.`);
+      h.zone = cmd.at ? { x: Math.round(cmd.at.x), y: Math.round(cmd.at.y) } : null;
+      h.focus = null;
+      return ok();
+    },
     'helper/setJob'(ctx, cmd) {
       const h = find(ctx, cmd.helperId);
       if (!h) return fail('Không có nhân viên này.');
@@ -67,6 +79,72 @@ export const helperSystem: System = {
     },
   },
 };
+
+/** Bán kính khu phục vụ (đơn vị toạ độ quán, 55 = 1 m): 2 m. */
+export const ZONE_RADIUS = 110;
+/** Số bàn trong khu: tới ZONE_GOOD là vừa sức (xanh), tới ZONE_MAX là căng (vàng), hơn nữa thì không cho đặt (đỏ). */
+export const ZONE_GOOD = 4;
+export const ZONE_MAX = 6;
+
+/** Id các bàn có tâm nằm trong vòng khu phục vụ đặt tại `at`. */
+export function zoneTables(ctx: SimContext, at: { x: number; y: number }): string[] {
+  return activeTables(ctx)
+    .filter((t) => {
+      const p = tablePos(ctx, t);
+      return Math.hypot(p.x - at.x, p.y - at.y) <= ZONE_RADIUS;
+    })
+    .map((t) => t.id);
+}
+
+/** Bàn này nằm trong khu của một nhân viên khác đang đi làm (người không có khu thì nhường bàn đó). */
+function zonedByOther(ctx: SimContext, h: HelperState, tableId: string | null | undefined, cache: Map<string, string[]>): boolean {
+  if (!tableId) return false;
+  return ctx.state.restaurant.helpers.some((x) => {
+    if (x === h || !x.zone || x.sick || x.fainted) return false;
+    const key = x.id;
+    if (!cache.has(key)) cache.set(key, zoneTables(ctx, x.zone));
+    return cache.get(key)!.includes(tableId);
+  });
+}
+
+/**
+ * Nhân viên có khu: lo trọn mọi bàn trong vòng của mình (menu, ghi món, bưng, dọn), không giữ riêng bàn nào;
+ * ngoài khu chỉ còn lau sàn và mang đơn giao tận nơi ra quầy. Hết việc thì đứng chờ trong khu.
+ */
+function pickZoned(ctx: SimContext, h: HelperState): void {
+  const r = ctx.state.restaurant;
+  const can = (job: HelperJob) => h.jobs[job];
+  const mine = new Set(zoneTables(ctx, h.zone!));
+  if (can('serve')) {
+    const ready = readyOrders(ctx).filter((o) => o.takeoutId == null && mine.has(r.parties.find((p) => p.id === o.partyId)?.tableId ?? ''));
+    if (ready.length) {
+      const partyId = ready[0].partyId;
+      h.tasks.push({ kind: 'deliver', orderIds: ready.filter((o) => o.partyId === partyId).map((o) => o.id), partyId });
+      return;
+    }
+  }
+  if (can('menu')) {
+    const party = r.parties.find((p) => p.tableId && mine.has(p.tableId) && needOf(p));
+    if (party) {
+      const kind = needOf(party) === 'menu' ? 'menu' : 'takeOrder';
+      party.called = true;
+      h.tasks.push({ kind, partyId: party.id });
+      return;
+    }
+  }
+  if (can('clean')) {
+    const id = Object.keys(r.dirty).find((t) => mine.has(t) && r.dirty[t]?.length && !taskTaken(ctx, (x) => x.kind === 'clean' && x.tableId === t));
+    if (id) {
+      h.tasks.push({ kind: 'clean', tableId: id });
+      return;
+    }
+  }
+  if (can('serve') && takeHandoff(ctx, h)) return;
+  if (can('mop')) {
+    const stain = r.stains.find((s) => !taskTaken(ctx, (x) => x.kind === 'mop' && x.stainId === s.id));
+    if (stain) h.tasks.push({ kind: 'mop', stainId: stain.id });
+  }
+}
 
 /** Từ 2 nhân viên trở lên: mỗi người giữ một bàn, người đầu tiên làm quản lý. */
 export function teamMode(ctx: SimContext): boolean {
@@ -89,6 +167,7 @@ function heldByOther(ctx: SimContext, h: HelperState, partyId: number): boolean 
  */
 function pickFocused(ctx: SimContext, h: HelperState): void {
   const r = ctx.state.restaurant;
+  const zc = new Map<string, string[]>();
   const can = (job: HelperJob) => h.jobs[job];
   if (h.focus) {
     const party = r.parties.find((p) => p.id === h.focus!.partyId);
@@ -115,7 +194,7 @@ function pickFocused(ctx: SimContext, h: HelperState): void {
     }
   }
   if (can('menu')) {
-    const party = r.parties.find((p) => p.tableId && needOf(p) && !heldByOther(ctx, h, p.id));
+    const party = r.parties.find((p) => p.tableId && needOf(p) && !heldByOther(ctx, h, p.id) && !zonedByOther(ctx, h, p.tableId, zc));
     if (party) {
       const kind = needOf(party) === 'menu' ? 'menu' : 'takeOrder';
       party.called = true;
@@ -127,7 +206,7 @@ function pickFocused(ctx: SimContext, h: HelperState): void {
   if (can('serve') && takeHandoff(ctx, h)) return;
   if (can('serve')) {
     // Món của bàn không ai giữ (người chơi tự phục vụ bàn đó) vẫn bưng giúp
-    const ready = readyOrders(ctx).filter((o) => o.takeoutId == null && !heldByOther(ctx, h, o.partyId));
+    const ready = readyOrders(ctx).filter((o) => o.takeoutId == null && !heldByOther(ctx, h, o.partyId) && !zonedByOther(ctx, h, tableOf(ctx, o.partyId), zc));
     if (ready.length) {
       const partyId = ready[0].partyId;
       h.tasks.push({ kind: 'deliver', orderIds: ready.filter((o) => o.partyId === partyId).map((o) => o.id), partyId });
@@ -136,7 +215,7 @@ function pickFocused(ctx: SimContext, h: HelperState): void {
   }
   if (can('clean')) {
     const held = new Set(r.helpers.filter((x) => x !== h && x.focus).map((x) => x.focus!.tableId));
-    const id = Object.keys(r.dirty).find((t) => r.dirty[t]?.length && !held.has(t) && !taskTaken(ctx, (x) => x.kind === 'clean' && x.tableId === t));
+    const id = Object.keys(r.dirty).find((t) => r.dirty[t]?.length && !held.has(t) && !zonedByOther(ctx, h, t, zc) && !taskTaken(ctx, (x) => x.kind === 'clean' && x.tableId === t));
     if (id) {
       h.tasks.push({ kind: 'clean', tableId: id });
       return;
@@ -185,11 +264,12 @@ function find(ctx: SimContext, id: string): HelperState | undefined {
 /** Nhân viên rảnh tự nhận một việc đang chờ theo thứ tự: bưng món → menu / ghi món → dọn bàn → lau sàn. */
 function pickTask(ctx: SimContext, h: HelperState): void {
   const r = ctx.state.restaurant;
+  const zc = new Map<string, string[]>();
   const can = (job: HelperJob) => h.jobs[job];
   if (can('serve') && takeHandoff(ctx, h)) return;
   if (can('serve')) {
     // Bưng hết món đã ra quầy của một bàn trong một lượt
-    const ready = readyOrders(ctx).filter((o) => o.takeoutId == null);
+    const ready = readyOrders(ctx).filter((o) => o.takeoutId == null && !zonedByOther(ctx, h, tableOf(ctx, o.partyId), zc));
     if (ready.length) {
       const partyId = ready[0].partyId;
       h.tasks.push({ kind: 'deliver', orderIds: ready.filter((o) => o.partyId === partyId).map((o) => o.id), partyId });
@@ -197,7 +277,7 @@ function pickTask(ctx: SimContext, h: HelperState): void {
     }
   }
   if (can('menu')) {
-    const party = r.parties.find((p) => needOf(p));
+    const party = r.parties.find((p) => needOf(p) && !zonedByOther(ctx, h, p.tableId, zc));
     if (party) {
       const kind = needOf(party) === 'menu' ? 'menu' : 'takeOrder';
       party.called = true;
@@ -206,7 +286,7 @@ function pickTask(ctx: SimContext, h: HelperState): void {
     }
   }
   if (can('clean')) {
-    const id = Object.keys(r.dirty).find((t) => r.dirty[t]?.length && !taskTaken(ctx, (x) => x.kind === 'clean' && x.tableId === t));
+    const id = Object.keys(r.dirty).find((t) => r.dirty[t]?.length && !zonedByOther(ctx, h, t, zc) && !taskTaken(ctx, (x) => x.kind === 'clean' && x.tableId === t));
     if (id) {
       h.tasks.push({ kind: 'clean', tableId: id });
       return;
@@ -216,4 +296,8 @@ function pickTask(ctx: SimContext, h: HelperState): void {
     const stain = r.stains.find((s) => !taskTaken(ctx, (x) => x.kind === 'mop' && x.stainId === s.id));
     if (stain) h.tasks.push({ kind: 'mop', stainId: stain.id });
   }
+}
+
+function tableOf(ctx: SimContext, partyId: number): string | null {
+  return ctx.state.restaurant.parties.find((p) => p.id === partyId)?.tableId ?? null;
 }

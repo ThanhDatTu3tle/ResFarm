@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { createContent, defaultDecor, type Content, type CuisineId, type DecorDef } from '../../data';
-import { FLOOR_TILE, floorTexture, WALL_TILE, wallTileTexture } from './floortex';
-import { buildBoxStool, buildFloorSeat, buildStoneTable, buildZataku, ZATAKU_TOP } from './furniturejp';
+import { FLOOR_TILE, floorTexture, MURAL_H, MURAL_W, muralTexture, WALL_TILE, wallTileTexture } from './floortex';
+import { buildBoxStool, buildFloorSeat, buildLimBench, buildLimTable, buildStoneTable, buildZataku, ZATAKU_TOP } from './furniturejp';
 import { buildCrateSeat, buildDrumStool, buildDrumTable, buildWalnutGrill } from './furniturekr';
 import { joinedTables, buildBambooStool, buildBambooTable, buildInoxTable, buildSlatChair, SLAT_CHAIR_COLOR } from './furnitureoc';
 import { buildRattanArmchair, buildSpindleChair, buildTurnedTable } from './furniturevn';
@@ -24,7 +24,7 @@ function furnitureMats(c: CuisineId) {
 
 /** Bộ bàn + ghế như trong quán (bàn 2 / 4 người hoặc quầy ghế đơn), theo nội thất mặc định của quán. */
 /** `style`: bộ bàn ghế cao cấp riêng quán Việt (DecorDef.style) - dùng màu của đúng món nội thất đó. */
-export function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'six' | 'counter', style?: 'oak_vn' | 'luxury_vn' | 'zataku_jp' | 'stone_jp' | 'drum_kr' | 'crate_kr' | 'walnut_kr'): THREE.Group {
+export function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'six' | 'counter', style?: 'oak_vn' | 'luxury_vn' | 'zataku_jp' | 'lim_jp' | 'stone_jp' | 'drum_kr' | 'crate_kr' | 'walnut_kr'): THREE.Group {
   const g = group(null);
   const mats = furnitureMats(c);
   if (kind === 'counter') {
@@ -54,6 +54,7 @@ export function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'six' | 'counter'
   const wood = c === 'vn' || c === 'jp' || c === 'kr' ? woodMats(furn.colors as { top: number; base: number; seat: number }) : null;
   if (wood && c === 'kr' && (!style || style === 'crate_kr')) buildGrillTable(g, w, d, top, wood, style ? toon((furn.colors as { base: number }).base) : mats.base, kind === 'pair' ? 3 : 5);
   else if (wood && style === 'zataku_jp') buildZataku(g, w, d, top, wood, nSeed);
+  else if (style === 'lim_jp') buildLimTable(g, w, d, top, nSeed);
   else if (wood && style === 'stone_jp') {
     buildStoneTable(g, w, d, top, wood, nSeed);
     if (c === 'kr') buildGrillInset(g, top);
@@ -79,6 +80,7 @@ export function tableSet(c: CuisineId, kind: 'pair' | 'four' | 'six' | 'counter'
     else if (c === 'kr' && style === 'stone_jp') buildBoxStool(chair, wood!, i + 1);
     else if (c === 'kr' && style !== 'drum_kr') buildLeatherChair(chair, style ? toon((furn.colors as { seat: number }).seat) : mats.seat, i + 1);
     else if (wood && style === 'zataku_jp') buildFloorSeat(chair, wood, i + 1);
+    else if (style === 'lim_jp') buildLimBench(chair, i + 1);
     else if (wood && style === 'stone_jp') buildBoxStool(chair, wood, i + 1);
     else if (style === 'drum_kr') buildDrumStool(chair, i + 1);
     else if (wood && c === 'jp') buildOakChair(chair, wood, mats.seat, i + 1);
@@ -153,7 +155,7 @@ function floorSample(d: DecorDef): THREE.Group {
   const S = 2.6;
   const c = d.colors as { a: number; b: number };
   mesh(g, G.box(S + 0.1, 0.1, S + 0.1), 0x6b5a48, { p: [0, -0.05, 0] });
-  if (d.pattern && d.pattern !== 'walltile') {
+  if (d.pattern && d.pattern !== 'walltile' && d.pattern !== 'mural') {
     const geo = new THREE.PlaneGeometry(S, S);
     const uv = geo.attributes.uv as THREE.BufferAttribute;
     for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * S) / FLOOR_TILE, (uv.getY(i) * S) / FLOOR_TILE);
@@ -172,12 +174,19 @@ function wallSample(d: DecorDef): THREE.Group {
   const [W, H] = [2.4, 2.2];
   mesh(g, G.box(W + 0.3, 0.06, W + 0.3), 0xc9b89c, { p: [0, -0.03, 0] });
   const tile = d.pattern === 'walltile';
+  const mural = d.pattern === 'mural';
   for (const side of [0, 1]) {
     const seg = group(g, side ? { p: [-W / 2, 0, 0], r: [0, Math.PI / 2, 0] } : { p: [0, 0, -W / 2] });
     mesh(seg, G.box(W, H, 0.16), c.wall, { p: [0, H / 2, -0.08] });
     mesh(seg, G.box(W, 0.16, 0.04), c.trim, { p: [0, 0.08, 0.02] });
     mesh(seg, G.box(W, 0.06, 0.05), c.trim, { p: [0, H - 0.03, 0.02] });
-    if (tile) {
+    if (mural) {
+      const tex = muralTexture(c.wall, c.trim).clone();
+      tex.repeat.set(W / MURAL_W, (H - 0.22) / MURAL_H);
+      tex.offset.set(side * 0.3, 0.05);
+      tex.needsUpdate = true;
+      mesh(seg, new THREE.PlaneGeometry(W, H - 0.22), toon(0xffffff, { map: tex }), { p: [0, 0.16 + (H - 0.22) / 2, 0.005], cast: false });
+    } else if (tile) {
       const tex = wallTileTexture(c.wall, c.trim).clone();
       tex.repeat.set(W / WALL_TILE, (H - 0.22) / WALL_TILE);
       tex.needsUpdate = true;

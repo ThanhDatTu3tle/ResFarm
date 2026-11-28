@@ -20,6 +20,10 @@ export interface WastelandDims {
   frontZ: number;
   /** Mép Đông / mép sau của quán ở từng hạng (phần tử i = hạng i + 1), toạ độ khu quán hiện tại. */
   tiers: { eastX: number; backZ: number }[];
+  /** Hạng quán hiện tại (rào bao phần đất chưa thuộc quán). */
+  tier: number;
+  /** Kiểu rào theo quán. */
+  cuisine: 'vn' | 'oc' | 'jp' | 'kr';
 }
 
 export interface LotStatus {
@@ -65,6 +69,23 @@ export function buildWasteland(parent: THREE.Group, d: WastelandDims): Wasteland
     if (b.eastX - a.eastX < 0.05) continue;
     const rects: Rect[] = [[a.eastX, b.eastX, backZ, d.frontZ]];
     lots.push(buildLot(parent, k, rects, b.eastX, d.frontZ));
+  }
+  // Rào chắn cao 1,8 m bao quanh phần đất hoang còn lại (che bớt cảnh bừa bộn), kiểu rào theo quán
+  const cur = d.tiers[Math.min(d.tier, d.tiers.length) - 1];
+  const fin = d.tiers[d.tiers.length - 1];
+  if (fin.eastX - cur.eastX > 0.3) {
+    const f = group(parent);
+    f.userData.pick = { type: 'lot', id: String(d.tier) };
+    const x1 = cur.eastX + 0.05;
+    const x2 = fin.eastX + 0.15;
+    const zF = d.frontZ - 0.05;
+    const zB = fin.backZ - 0.15;
+    // Mặt trước (phía đường): cột rào đúng ranh giới từng lô - mỗi ô rào một lô, biển treo giữa ô
+    const cuts = d.tiers.slice(d.tier, -1).map((t) => t.eastX - x1);
+    fenceRun(f, d.cuisine, [x1, zF], [x2, zF], [0, ...cuts, x2 - x1]);
+    fenceRun(f, d.cuisine, [x2, zF], [x2, zB]); // mặt Đông
+    fenceRun(f, d.cuisine, [x2, zB], [x1, zB]); // mặt sau
+    if (cur.backZ - zB > 0.3) fenceRun(f, d.cuisine, [x1, zB], [x1, cur.backZ]); // đoạn sau lưng quán (phần quán sẽ sâu thêm)
   }
   const keys = new Map<number, string>();
   let flash: { lot: number; until: number } | null = null;
@@ -139,7 +160,7 @@ function buildLot(parent: THREE.Group, id: number, rects: Rect[], eastX: number,
     const n = Math.max(4, Math.round((x2 - x1) * (z2 - z1) * 1.4));
     for (let i = 0; i < n; i++) {
       const x = x1 + Math.min(0.3, (x2 - x1) / 2) + rnd() * Math.max(0.01, x2 - x1 - 0.6);
-      const z = z1 + 0.2 + rnd() * Math.max(0.01, z2 - z1 - 0.4);
+      const z = z1 + 0.5 + rnd() * Math.max(0.01, z2 - z1 - 1.1); // chừa mép trong hàng rào: rác không lòi ra chân rào
       junk.push(debris(g, x, z, rnd));
     }
   }
@@ -150,11 +171,11 @@ function buildLot(parent: THREE.Group, id: number, rects: Rect[], eastX: number,
   }
   // Biển gỗ cắm ở góc trước của dải phía Đông
   const bw = rects[0][1] - rects[0][0];
-  const sw = Math.max(0.8, Math.min(1.6, bw * 0.9));
-  const sign = group(g, { p: [eastX - bw / 2, 0, frontZ - 0.35], s: [sw / 1.6, 1, 1] });
-  // Hai cọc đứng SAU tấm bảng (không che chữ)
-  for (const sx of [-0.6, 0.6]) mesh(sign, G.box(0.07, 1.25, 0.07), 0x6b4a2e, { p: [sx, 0.625, -0.06] });
+  const sw = Math.min(1.6, bw - 0.3); // mọi lô cùng cỡ biển (chỉ thu nhỏ khi ô rào quá hẹp)
+  // Biển gỗ treo ở mặt ngoài hàng rào (phía đường), giữa dải lô
+  const sign = group(g, { p: [eastX - bw / 2, 0, frontZ + 0.07], s: [sw / 1.6, 1, 1] });
   mesh(sign, G.box(1.6, 0.42, 0.04), 0xe9dcc0, { p: [0, 1.05, 0] });
+  for (const sx of [-0.7, 0.7]) mesh(sign, G.cyl(0.025, 0.025, 0.03, 8), 0x6b6f75, { p: [sx, 1.18, 0.03], r: [Math.PI / 2, 0, 0], cast: false }); // đinh vít
   // Đội thợ (ẩn tới khi thuê dọn)
   const workers: THREE.Group[] = [];
   const [x1, x2, z1, z2] = rects[0];
@@ -214,4 +235,106 @@ function debris(g: THREE.Group, x: number, z: number, rnd: () => number): THREE.
     for (let i = 0; i < 5; i++) mesh(o, G.cone(0.06, 0.35 + rnd() * 0.25, 5), [0x6f8f3a, 0x8aa04a, 0x5f7f32][i % 3], { p: [(rnd() - 0.5) * 0.35, 0.17, (rnd() - 0.5) * 0.35], r: [(rnd() - 0.5) * 0.5, 0, (rnd() - 0.5) * 0.5], cast: false });
   }
   return o;
+}
+
+// ---------- Hàng rào theo quán ----------
+
+const FENCE_H = 1.8;
+const fenceTex = new Map<string, THREE.Texture>();
+
+/** Vân tấm rào (lặp theo chiều dài): tôn sóng, tre, tấm công trình. */
+function fenceTexture(kind: 'vn' | 'oc' | 'kr'): THREE.Texture {
+  let t = fenceTex.get(kind);
+  if (t) return t;
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 128;
+  const g = c.getContext('2d')!;
+  if (kind === 'vn') {
+    // Tôn sóng xanh dương, viền trắng trên
+    g.fillStyle = '#2f6fbf';
+    g.fillRect(0, 0, 128, 128);
+    for (let x = 0; x < 128; x += 16) {
+      g.fillStyle = 'rgba(255,255,255,0.18)';
+      g.fillRect(x, 0, 5, 128);
+      g.fillStyle = 'rgba(0,0,0,0.14)';
+      g.fillRect(x + 9, 0, 4, 128);
+    }
+    g.fillStyle = '#f4f1ea';
+    g.fillRect(0, 0, 128, 12);
+  } else if (kind === 'oc') {
+    // Tôn cũ: mảng rỉ cam nâu xen tôn xám, sóng dọc
+    g.fillStyle = '#8f9499';
+    g.fillRect(0, 0, 128, 128);
+    g.fillStyle = '#a35a32';
+    g.fillRect(0, 70, 128, 58);
+    g.fillStyle = 'rgba(163,90,50,0.7)';
+    for (let i = 0; i < 9; i++) g.fillRect((i * 37) % 128, 40 + (i * 13) % 30, 10 + (i % 3) * 8, 40);
+    for (let x = 0; x < 128; x += 12) {
+      g.fillStyle = 'rgba(255,255,255,0.14)';
+      g.fillRect(x, 0, 4, 128);
+      g.fillStyle = 'rgba(0,0,0,0.18)';
+      g.fillRect(x + 7, 0, 3, 128);
+    }
+  } else {
+    // Tấm công trình trắng, dải xanh lá ở chân + vạch xanh mảnh ở mép trên, khe nối tấm
+    g.fillStyle = '#f2f2ee';
+    g.fillRect(0, 0, 128, 128);
+    g.fillStyle = '#2f9b6f';
+    g.fillRect(0, 100, 128, 28);
+    g.fillRect(0, 8, 128, 6);
+    g.fillStyle = 'rgba(0,0,0,0.12)';
+    g.fillRect(126, 0, 2, 128);
+  }
+  t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  fenceTex.set(kind, t);
+  return t;
+}
+
+/** Một đoạn rào thẳng từ a tới b (toạ độ x, z), cao FENCE_H, có cột mỗi ~2 m. */
+function fenceRun(parent: THREE.Object3D, cuisine: 'vn' | 'oc' | 'jp' | 'kr', a: [number, number], b: [number, number], at?: number[]): void {
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  if (len < 0.1) return;
+  const seg = group(parent, { p: [(a[0] + b[0]) / 2, 0, (a[1] + b[1]) / 2], r: [0, -Math.atan2(b[1] - a[1], b[0] - a[0]), 0] });
+  // Vị trí cột (tính từ đầu đoạn): cho sẵn (ranh giới lô) hoặc chia đều ~2 m
+  const n = Math.max(1, Math.round(len / 2));
+  const postX = (at ?? Array.from({ length: n + 1 }, (_, i) => (i * len) / n)).map((d) => d - len / 2);
+  const H = FENCE_H;
+  if (cuisine === 'jp') {
+    // Rào tre takegaki: tre dựng sát nhau, 3 nẹp tre ngang, dây đen buộc, cột tre to
+    const nb = Math.round(len / 0.09);
+    for (let i = 0; i < nb; i++) {
+      const x = -len / 2 + (i + 0.5) * (len / nb);
+      const h = H - 0.04 + (i % 3) * 0.03;
+      mesh(seg, G.cyl(0.04, 0.04, h, 6), i % 4 === 0 ? 0xa9a15a : 0xc2b672, { p: [x, h / 2, 0], cast: false });
+    }
+    for (const y of [0.35, 0.95, 1.55]) {
+      mesh(seg, G.box(len, 0.07, 0.07), 0x8f8a4a, { p: [0, y, 0.07] });
+      for (const x of postX) mesh(seg, G.box(0.1, 0.1, 0.1), 0x1f1a16, { p: [x, y, 0.08], cast: false });
+    }
+    for (const x of postX) mesh(seg, G.cyl(0.07, 0.07, H + 0.12, 8), 0x7d7642, { p: [x, (H + 0.12) / 2, 0.02] });
+    return;
+  }
+  // Tấm rào: hộp mỏng phủ texture lặp theo chiều dài (2 mặt)
+  const kind = cuisine === 'oc' ? 'oc' : cuisine === 'kr' ? 'kr' : 'vn';
+  const tex = fenceTexture(kind).clone();
+  tex.repeat.set(len / (kind === 'kr' ? 2 : 1.6), 1);
+  tex.needsUpdate = true;
+  const mat = new THREE.MeshToonMaterial({ map: tex });
+  mesh(seg, G.box(len, H, 0.05), mat, { p: [0, H / 2, 0] });
+  const postColor = cuisine === 'oc' ? 0x6b4a2e : cuisine === 'kr' ? 0x9aa0a6 : 0x7d8691;
+  for (const x of postX) {
+    if (cuisine === 'oc') mesh(seg, G.box(0.1, H + 0.15, 0.1), postColor, { p: [x, (H + 0.15) / 2, 0.06] });
+    else mesh(seg, G.box(0.08, H + 0.05, 0.08), postColor, { p: [x, (H + 0.05) / 2, 0.05] });
+  }
+  if (cuisine === 'vn') mesh(seg, G.box(len, 0.06, 0.1), 0xf4f1ea, { p: [0, H + 0.02, 0] }); // nẹp trắng mép trên
+  if (cuisine === 'oc') {
+    // Vài mảng bạt xanh chắp vá
+    for (let i = 0; i < Math.max(1, Math.floor(len / 4)); i++) {
+      const x = -len / 2 + ((i + 0.6) * len) / Math.max(1, Math.floor(len / 4)) - 0.8;
+      mesh(seg, G.box(1.1, 0.9, 0.02), 0x2f7fc8, { p: [x, 0.95, 0.04], r: [0, 0, (i % 2 ? 1 : -1) * 0.06], cast: false });
+    }
+  }
 }

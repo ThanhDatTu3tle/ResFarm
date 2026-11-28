@@ -1,3 +1,4 @@
+import { itemIcon } from './three/itemicons';
 import type { Game } from '../sim/game';
 import { needOf, readyOrders } from '../sim/systems/service';
 import { farmChecklist, tutorialFrozen, tutorialNeed } from '../sim/systems/tutorial';
@@ -78,12 +79,12 @@ export function coachHtml(game: Game, ui: UiState): string {
       const stall = need.stallId ? content.stalls.get(need.stallId) : null;
       const inStall = ui.area === 'stall' && ui.stallView === need.stallId;
       const step = inStall
-        ? `Bấm vào khay <b>${item.icon} ${esc(item.name)}</b> rồi mua <b>ít nhất ${need.qty}</b> (mua 5 cho dư dùng).`
+        ? `Bấm vào khay <b>${itemIcon(item)} ${esc(item.name)}</b> rồi mua <b>ít nhất ${need.qty}</b> (mua 5 cho dư dùng).`
         : ui.area === 'market' || ui.area === 'stall'
           ? `Bấm vào sạp <b>${stall ? `${stall.icon} ${esc(stall.name)}` : 'bán nguyên liệu này'}</b> để vào bên trong.`
           : 'Sang khu <b>Chợ</b> (nút chuyển khu dưới màn hình, hoặc bấm nút bên dưới).';
       const btn = inStall ? '' : ui.area === 'market' || ui.area === 'stall' ? (stall ? `<button class="mini primary"${uiAttr(`coach:stall:${stall.id}`)}>${stall.icon} Vào sạp</button>` : '') : goBtn('market', '🧺 Sang Chợ');
-      return card(game, ui, '🧺 Ra chợ mua nguyên liệu', `Khách gọi <b>${recipe.icon} ${esc(recipe.name)}</b> nhưng quán hết <b>${item.icon} ${esc(item.name)}</b>. ${step}`, btn);
+      return card(game, ui, '🧺 Ra chợ mua nguyên liệu', `Khách gọi <b>${recipe.icon} ${esc(recipe.name)}</b> nhưng quán hết <b>${itemIcon(item)} ${esc(item.name)}</b>. ${step}`, btn);
     }
     case 'cook': {
       const away = ui.area !== 'restaurant' ? goBtn('restaurant', '🍜 Về Quán') : '';

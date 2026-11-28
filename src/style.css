@@ -3986,3 +3986,45 @@ button.quest-claim {
   opacity: 1;
   transition: opacity 0.42s ease-in;
 }
+
+/* Icon nguyên liệu chụp từ model 3D: cao bằng chữ như emoji */
+img.item-ico {
+  width: 1.25em;
+  height: 1.25em;
+  vertical-align: -0.28em;
+  object-fit: contain;
+}
+
+/* Bảng mua ở chợ: icon to trong ô nền để nhìn rõ món sắp mua */
+.service-head .dish-icon:has(img.item-ico) {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-right: 6px;
+  border-radius: 14px;
+  background: #f1dcb8;
+  border: 2px solid #c9a06a;
+  vertical-align: middle;
+}
+.service-head .dish-icon img.item-ico {
+  width: 44px;
+  height: 44px;
+  vertical-align: 0;
+}
+.row > .big:has(> img.item-ico),
+.chip.stock .big:has(> img.item-ico) {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #f1dcb8;
+}
+
+/* Màu ô nền theo nhóm hàng: liếc là biết rau / thịt / hải sản... */
+:is(.service-head .dish-icon, .row > .big, .chip.stock .big):has(> img.item-ico[data-cat='vegetable']) { background: #d5ecc2; border-color: #7fb35f; }
+:is(.service-head .dish-icon, .row > .big, .chip.stock .big):has(> img.item-ico[data-cat='fruit']) { background: #fde0b8; border-color: #e39a45; }
+:is(.service-head .dish-icon, .row > .big, .chip.stock .big):has(> img.item-ico[data-cat='meat']) { background: #f6cfc8; border-color: #d0665a; }
+:is(.service-head .dish-icon, .row > .big, .chip.stock .big):has(> img.item-ico[data-cat='seafood']) { background: #cfe5f3; border-color: #5b9bc8; }
+:is(.service-head .dish-icon, .row > .big, .chip.stock .big):has(> img.item-ico[data-cat='dairy']) { background: #dfe3f6; border-color: #7f8bc8; }
+:is(.service-head .dish-icon, .row > .big, .chip.stock .big):has(> img.item-ico[data-cat='staple']) { background: #efdcb6; border-color: #b08850; }
+:is(.service-head .dish-icon, .row > .big, .chip.stock .big):has(> img.item-ico[data-cat='dry']) { background: #e6d5c8; border-color: #9a7560; }

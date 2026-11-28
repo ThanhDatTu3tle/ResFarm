@@ -420,7 +420,8 @@ function checkerTexture(a: number, b: number): THREE.Texture {
 }
 
 /** Texture sàn theo kiểu hoa văn của món nội thất (`a` / `b` = màu nền / hoa văn cho gạch bông, màu hai ô caro). */
-export function floorTexture(pattern: 'encaustic' | 'ngocdo' | 'terracotta' | 'checker' | 'concrete' | 'planks', a: number, b: number): THREE.Texture {
+export function floorTexture(pattern: 'encaustic' | 'ngocdo' | 'terracotta' | 'checker' | 'concrete' | 'planks' | 'bamboo', a: number, b: number): THREE.Texture {
+  if (pattern === 'bamboo') return bambooTexture(a, b);
   if (pattern === 'concrete') return concreteTexture();
   if (pattern === 'planks') return plankTexture(a, b);
   if (pattern === 'checker') return checkerTexture(a, b);
@@ -614,5 +615,129 @@ export function plankTexture(a: number, b: number): THREE.Texture {
     }
   });
   plankCache.set(key, tex);
+  return tex;
+}
+
+const bambooCache = new Map<string, THREE.Texture>();
+
+/** Sàn tre: nan tre mảnh (~4 cm) xếp sát chạy ngang, mỗi nan một tông giữa `a` / `b`, vạch đốt tre so le, khe sẫm mảnh. */
+export function bambooTexture(a: number, b: number): THREE.Texture {
+  const key = `${a}-${b}`;
+  let tex = bambooCache.get(key);
+  if (tex) return tex;
+  const S = 512;
+  const rows = 32;
+  const rh = S / rows;
+  const ch = (n: number, s: number) => (n >> s) & 255;
+  const mix = (t: number) => `rgb(${[16, 8, 0].map((s) => Math.round(ch(a, s) + (ch(b, s) - ch(a, s)) * t)).join(',')})`;
+  tex = crayonCanvas(S, FLOOR_TILE * 1.3, 321, (c, rnd) => {
+    for (let r = 0; r < rows; r++) {
+      const y = r * rh;
+      c.fillStyle = mix(rnd() * 0.8);
+      c.fillRect(0, y, S, rh);
+      // Bóng sáng giữa nan + khe sẫm
+      c.fillStyle = 'rgba(255,240,210,0.18)';
+      c.fillRect(0, y + rh * 0.3, S, rh * 0.2);
+      c.fillStyle = 'rgba(70,40,15,0.45)';
+      c.fillRect(0, y + rh - 1.2, S, 1.2);
+      // Đốt tre: vạch ngang ngắn sẫm, so le giữa các nan (lặp liền mép)
+      for (let x = (r % 3) * 60 + rnd() * 30; x < S; x += 150 + rnd() * 40) {
+        c.fillStyle = 'rgba(90,55,20,0.5)';
+        c.fillRect(x, y + 1, 3, rh - 2);
+        c.fillStyle = 'rgba(255,235,200,0.25)';
+        c.fillRect(x + 3, y + 1, 2, rh - 2);
+      }
+    }
+  });
+  bambooCache.set(key, tex);
+  return tex;
+}
+
+/** Kích thước một ô tranh tường (m): lặp ngang mỗi MURAL_W, cao bằng cả bức tường. */
+export const MURAL_W = 8;
+export const MURAL_H = 4.2;
+const muralCache = new Map<string, THREE.CanvasTexture>();
+
+/**
+ * Tranh vẽ núi sơn thuỷ (tường quán Nhật): nền giấy màu `bg`, ba lớp núi mực nâu nhạt dần về xa, dải sương trắng,
+ * vài cây thông, mặt trời tròn nhạt. Núi tính bằng tổng sóng sin tần số nguyên nên lặp ngang liền mép.
+ */
+export function muralTexture(bg: number, ink: number): THREE.CanvasTexture {
+  const key = `${bg}-${ink}`;
+  let tex = muralCache.get(key);
+  if (tex) return tex;
+  const W = 1024;
+  const H = 540;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d')!;
+  const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
+  const rgba = (n: number, a: number) => `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  g.fillStyle = hex(bg);
+  g.fillRect(0, 0, W, H);
+  const rnd = seeded(77);
+  // Mặt trời nhạt
+  g.fillStyle = rgba(0xd98a5a, 0.35);
+  g.beginPath();
+  g.arc(W * 0.72, H * 0.24, 34, 0, Math.PI * 2);
+  g.fill();
+  const ridge = (base: number, amp: number, seed: number) => (x: number) => {
+    const t = (x / W) * Math.PI * 2;
+    return base - amp * (0.55 * Math.abs(Math.sin(t * 2 + seed)) + 0.3 * Math.abs(Math.sin(t * 5 + seed * 2)) + 0.15 * Math.sin(t * 11 + seed * 3));
+  };
+  // Ba lớp núi: xa nhạt, gần đậm; mỗi lớp có dải sương ở chân
+  const layers: [number, number, number, number][] = [
+    [H * 0.62, H * 0.42, 1.1, 0.22],
+    [H * 0.74, H * 0.36, 2.3, 0.38],
+    [H * 0.88, H * 0.3, 3.7, 0.55],
+  ];
+  for (const [base, amp, seed, a] of layers) {
+    const f = ridge(base, amp, seed);
+    g.fillStyle = rgba(ink, a);
+    g.beginPath();
+    g.moveTo(0, H);
+    for (let x = 0; x <= W; x += 4) g.lineTo(x, f(x));
+    g.lineTo(W, H);
+    g.closePath();
+    g.fill();
+    // Nét vân núi (sườn) đậm hơn
+    g.strokeStyle = rgba(ink, Math.min(1, a + 0.2));
+    g.lineWidth = 1.5;
+    for (let i = 0; i < 14; i++) {
+      const x0 = rnd() * W;
+      g.beginPath();
+      g.moveTo(x0, f(x0) + 4);
+      g.lineTo(x0 + (rnd() - 0.5) * 30, f(x0) + 30 + rnd() * 40);
+      g.stroke();
+    }
+    // Sương
+    const mist = g.createLinearGradient(0, base - 10, 0, base + 30);
+    mist.addColorStop(0, rgba(0xffffff, 0));
+    mist.addColorStop(0.5, rgba(0xfaf5ea, 0.6));
+    mist.addColorStop(1, rgba(0xffffff, 0));
+    g.fillStyle = mist;
+    g.fillRect(0, base - 10, W, 40);
+  }
+  // Vài cây thông nhỏ trên lớp núi gần
+  const near = ridge(H * 0.88, H * 0.3, 3.7);
+  for (let i = 0; i < 9; i++) {
+    const x = ((i + 0.5) / 9) * W + (rnd() - 0.5) * 40;
+    const y = near(x) + 6;
+    g.fillStyle = rgba(ink, 0.8);
+    g.fillRect(x - 1, y - 18, 2, 18);
+    for (let k = 0; k < 3; k++) {
+      g.beginPath();
+      g.moveTo(x - 12 + k * 2, y - 8 - k * 7);
+      g.lineTo(x + 12 - k * 2, y - 8 - k * 7);
+      g.lineTo(x, y - 18 - k * 7);
+      g.fill();
+    }
+  }
+  tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  muralCache.set(key, tex);
   return tex;
 }
